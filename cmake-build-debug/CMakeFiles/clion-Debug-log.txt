@@ -1,0 +1,8 @@
+C:\Users\me\AppData\Local\Programs\CLion\bin\cmake\win\x64\bin\cmake.exe -DCMAKE_BUILD_TYPE=Debug -DCMAKE_MAKE_PROGRAM=C:/Users/me/AppData/Local/Programs/CLion/bin/ninja/win/x64/ninja.exe -G Ninja -S C:\Repos\StrideEngine -B C:\Repos\StrideEngine\cmake-build-debug
+-- Fetching submodules...
+-- Including Win32 support
+-- Could NOT find Doxygen (missing: DOXYGEN_EXECUTABLE) 
+-- Documentation generation requires Doxygen 1.9.8 or later
+-- Configuring done (0.9s)
+-- Generating done (0.1s)
+-- Build files have been written to: C:/Repos/StrideEngine/cmake-build-debug
