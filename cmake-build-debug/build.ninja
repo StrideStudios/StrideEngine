@@ -724,9 +724,23 @@ build cmake_object_order_depends_target_game: phony || cmake_object_order_depend
 build src/CMakeFiles/game.dir/main.cpp.obj: CXX_COMPILER__game_unscanned_Debug C$:/Repos/StrideEngine/src/main.cpp || cmake_object_order_depends_target_game
   DEP_FILE = src\CMakeFiles\game.dir\main.cpp.obj.d
   FLAGS = -g -std=gnu++23 -fdiagnostics-color=always
-  INCLUDES = -IC:/Repos/StrideEngine/third_party/glfw/include -IC:/Repos/StrideEngine/third_party/vk-bootstrap/src -isystem C:/VulkanSDK/1.4.321.1/Include
+  INCLUDES = -IC:/Repos/StrideEngine/src/core/include -IC:/Repos/StrideEngine/src/vulkan/include -IC:/Repos/StrideEngine/third_party/glfw/include -IC:/Repos/StrideEngine/third_party/vk-bootstrap/src -isystem C:/VulkanSDK/1.4.321.1/Include
   OBJECT_DIR = src\CMakeFiles\game.dir
   OBJECT_FILE_DIR = src\CMakeFiles\game.dir
+
+build src/CMakeFiles/game.dir/vulkan/VulkanDevice.cpp.obj: CXX_COMPILER__game_unscanned_Debug C$:/Repos/StrideEngine/src/vulkan/VulkanDevice.cpp || cmake_object_order_depends_target_game
+  DEP_FILE = src\CMakeFiles\game.dir\vulkan\VulkanDevice.cpp.obj.d
+  FLAGS = -g -std=gnu++23 -fdiagnostics-color=always
+  INCLUDES = -IC:/Repos/StrideEngine/src/core/include -IC:/Repos/StrideEngine/src/vulkan/include -IC:/Repos/StrideEngine/third_party/glfw/include -IC:/Repos/StrideEngine/third_party/vk-bootstrap/src -isystem C:/VulkanSDK/1.4.321.1/Include
+  OBJECT_DIR = src\CMakeFiles\game.dir
+  OBJECT_FILE_DIR = src\CMakeFiles\game.dir\vulkan
+
+build src/CMakeFiles/game.dir/vulkan/VulkanRenderer.cpp.obj: CXX_COMPILER__game_unscanned_Debug C$:/Repos/StrideEngine/src/vulkan/VulkanRenderer.cpp || cmake_object_order_depends_target_game
+  DEP_FILE = src\CMakeFiles\game.dir\vulkan\VulkanRenderer.cpp.obj.d
+  FLAGS = -g -std=gnu++23 -fdiagnostics-color=always
+  INCLUDES = -IC:/Repos/StrideEngine/src/core/include -IC:/Repos/StrideEngine/src/vulkan/include -IC:/Repos/StrideEngine/third_party/glfw/include -IC:/Repos/StrideEngine/third_party/vk-bootstrap/src -isystem C:/VulkanSDK/1.4.321.1/Include
+  OBJECT_DIR = src\CMakeFiles\game.dir
+  OBJECT_FILE_DIR = src\CMakeFiles\game.dir\vulkan
 
 
 # =============================================================================
@@ -736,9 +750,9 @@ build src/CMakeFiles/game.dir/main.cpp.obj: CXX_COMPILER__game_unscanned_Debug C
 #############################################
 # Link the executable src\game.exe
 
-build src/game.exe: CXX_EXECUTABLE_LINKER__game_Debug src/CMakeFiles/game.dir/main.cpp.obj | third_party/glfw/src/libglfw3.a C$:/VulkanSDK/1.4.321.1/Lib/vulkan-1.lib third_party/vk-bootstrap/libvk-bootstrap.a || third_party/glfw/src/libglfw3.a third_party/vk-bootstrap/libvk-bootstrap.a
+build src/game.exe: CXX_EXECUTABLE_LINKER__game_Debug src/CMakeFiles/game.dir/main.cpp.obj src/CMakeFiles/game.dir/vulkan/VulkanDevice.cpp.obj src/CMakeFiles/game.dir/vulkan/VulkanRenderer.cpp.obj | third_party/glfw/src/libglfw3.a C$:/VulkanSDK/1.4.321.1/Lib/vulkan-1.lib third_party/vk-bootstrap/libvk-bootstrap.a || third_party/glfw/src/libglfw3.a third_party/vk-bootstrap/libvk-bootstrap.a
   FLAGS = -g
-  LINK_LIBRARIES = third_party/glfw/src/libglfw3.a  C:/VulkanSDK/1.4.321.1/Lib/vulkan-1.lib  third_party/vk-bootstrap/libvk-bootstrap.a  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
+  LINK_LIBRARIES = third_party/glfw/src/libglfw3.a  C:/VulkanSDK/1.4.321.1/Lib/vulkan-1.lib  third_party/vk-bootstrap/libvk-bootstrap.a  -lvma:vma  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
   OBJECT_DIR = src\CMakeFiles\game.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
