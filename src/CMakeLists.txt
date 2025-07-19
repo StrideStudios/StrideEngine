@@ -15,9 +15,9 @@ add_executable(game
 )
 
 find_package(Vulkan REQUIRED)
-target_link_libraries(game PRIVATE
+target_link_libraries(game PUBLIC
         glfw::glfw
         Vulkan::Vulkan
         vk-bootstrap::vk-bootstrap
-        vma:vma
+        GPUOpen::VulkanMemoryAllocator
 )

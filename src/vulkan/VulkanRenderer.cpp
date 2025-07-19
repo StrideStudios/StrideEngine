@@ -128,7 +128,7 @@ CVulkanRenderer::CVulkanRenderer(const CVulkanDevice& inVulkanDevice): m_VulkanD
 		VK_CHECK(vkCreateImageView(m_VulkanDevice.getDevice(), &rview_info, nullptr, &m_DrawImage.mImageView));
 
 		//add to deletion queues
-		m_DeletionQueue.push([=] {
+		m_DeletionQueue.push([this] {
 			vkDestroyImageView(m_VulkanDevice.getDevice(), m_DrawImage.mImageView, nullptr);
 			vmaDestroyImage(m_Allocator, m_DrawImage.mImage, m_DrawImage.mAllocation);
 		});
