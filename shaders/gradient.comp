@@ -1,4 +1,3 @@
-﻿//GLSL version
 #version 460
 
 //size of a workgroup for compute

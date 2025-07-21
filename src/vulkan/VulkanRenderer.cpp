@@ -34,53 +34,30 @@ CVulkanRenderer::CVulkanRenderer() {
 		}
 	}
 
-	// initialize the memory allocator
-	{
-		VmaAllocatorCreateInfo allocatorInfo = {};
-		allocatorInfo.physicalDevice = CEngine::get().getDevice().getPhysicalDevice();
-		allocatorInfo.device = CEngine::get().getDevice().getDevice();
-		allocatorInfo.instance = CEngine::get().getDevice().getInstance();
-		allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
-		vmaCreateAllocator(&allocatorInfo, &m_Allocator);
+	m_EngineTextures = std::make_unique<CEngineTextures>();
 
-		m_DeletionQueue.push([&] {
-			vmaDestroyAllocator(m_Allocator);
-		});
+	//create a descriptor pool that will hold 10 sets with 1 image each
+	std::vector<SDescriptorAllocator::PoolSizeRatio> sizes =
+	{
+		{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1 }
+	};
+
+	m_GlobalDescriptorAllocator.init(CEngine::get().getDevice().getDevice(), 10, sizes);
+
+	//make the descriptor set layout for our compute draw
+	{
+		SDescriptorLayoutBuilder builder;
+		builder.addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+		m_DrawImageDescriptorLayout = builder.build(CEngine::get().getDevice().getDevice(), VK_SHADER_STAGE_COMPUTE_BIT);
 	}
 
-	{
-		//hardcoding the draw format to 32 bit float
-		m_DrawImage.mImageFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
+	m_DeletionQueue.push([&] {
+		m_GlobalDescriptorAllocator.destroy(CEngine::get().getDevice().getDevice());
+	});
 
-		VkImageUsageFlags drawImageUsages{};
-		drawImageUsages |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-		drawImageUsages |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-		drawImageUsages |= VK_IMAGE_USAGE_STORAGE_BIT;
-		drawImageUsages |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+	initDescriptors();
 
-		VkImageCreateInfo imageInfo = CVulkanInfo::CreateImageInfo(m_DrawImage.mImageFormat, drawImageUsages, VkExtent3D(CEngine::get().getWindow().mExtent.x, CEngine::get().getWindow().mExtent.y, 1));
-
-		//for the draw image, we want to allocate it from gpu local memory
-		VmaAllocationCreateInfo imageAllocationInfo = {};
-		imageAllocationInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-		imageAllocationInfo.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-		//allocate and create the image
-		vmaCreateImage(m_Allocator, &imageInfo, &imageAllocationInfo, &m_DrawImage.mImage, &m_DrawImage.mAllocation, nullptr);
-
-		//build a image-view for the draw image to use for rendering
-		VkImageViewCreateInfo imageViewInfo = CVulkanInfo::CreateImageViewInfo(m_DrawImage.mImageFormat, m_DrawImage.mImage, VK_IMAGE_ASPECT_COLOR_BIT);
-
-		VK_CHECK(vkCreateImageView(CEngine::get().getDevice().getDevice(), &imageViewInfo, nullptr, &m_DrawImage.mImageView));
-
-		//add to deletion queues
-		m_ImageDeletionQueue.push([this] {
-			vkDestroyImageView(CEngine::get().getDevice().getDevice(), m_DrawImage.mImageView, nullptr);
-			vmaDestroyImage(m_Allocator, m_DrawImage.mImage, m_DrawImage.mAllocation);
-		});
-	}
-
-	m_Swapchain = std::make_unique<CSwapchain>();
+	initPipelines();
 }
 
 void CVulkanRenderer::destroy() {
@@ -89,23 +66,26 @@ void CVulkanRenderer::destroy() {
 		mFrame.mDeletionQueue.flush();
 	}
 
-	m_ImageDeletionQueue.flush();
 	m_DeletionQueue.flush();
 
-	m_Swapchain->cleanup();
+	m_DescriptorDeletionQueue.flush();
+
+	m_EngineTextures->destroy();
 }
 
 void CVulkanRenderer::render() {
 	// Make sure that the swapchain is not dirty before recreating it
-	while (m_Swapchain->isDirty()) {
+	while (m_EngineTextures->getSwapchain().isDirty()) {
 		// Wait for gpu before recreating swapchain
 		waitForGpu();
 
-		m_Swapchain->recreate();
+		m_EngineTextures->reallocate();
+
+		updateDescriptors();
 	}
 
 	// Wait for the previous render to stop
-	m_Swapchain->wait(getFrameIndex());
+	m_EngineTextures->getSwapchain().wait(getFrameIndex());
 
 	// Get command buffer from current frame
 	VkCommandBuffer cmd = getCurrentFrame().mMainCommandBuffer;
@@ -116,25 +96,26 @@ void CVulkanRenderer::render() {
 	VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
 
 	// Get the current swapchain image
-	const auto [swapchainImage, swapchainImageIndex] = m_Swapchain->getSwapchainImage(getFrameIndex());
+	const auto [swapchainImage, swapchainImageIndex] = m_EngineTextures->getSwapchain().getSwapchainImage(getFrameIndex());
 
 	// Reset the current fences, done here so the swapchain acquire doesn't stall the engine
-	m_Swapchain->reset(getFrameIndex());
+	m_EngineTextures->getSwapchain().reset(getFrameIndex());
 
 	// Flush temporary frame data
 	m_Frames[getFrameIndex()].mDeletionQueue.flush();
 
 	// Make the swapchain image into writeable mode before rendering
-	CVulkanUtils::TransitionImage(cmd, m_DrawImage.mImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+	CVulkanUtils::TransitionImage(cmd, m_EngineTextures->mDrawImage.mImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
 
 	drawBackground(cmd);
 
 	// Make the swapchain image into presentable mode
-	CVulkanUtils::TransitionImage(cmd, m_DrawImage.mImage,VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+	CVulkanUtils::TransitionImage(cmd, m_EngineTextures->mDrawImage.mImage,VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 	CVulkanUtils::TransitionImage(cmd, swapchainImage,VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
 	// Execute a copy from the draw image into the swapchain
-	CVulkanUtils::CopyImageToImage(cmd, m_DrawImage.mImage, swapchainImage, VkExtent2D(CEngine::get().getWindow().mExtent.x, CEngine::get().getWindow().mExtent.y), m_Swapchain->mSwapchain.extent);
+	auto [width, height, depth] = m_EngineTextures->mDrawImage.mImageExtent;
+	CVulkanUtils::CopyImageToImage(cmd, m_EngineTextures->mDrawImage.mImage, swapchainImage, {width, height}, m_EngineTextures->getSwapchain().mSwapchain.extent);
 
 	// Set swapchain image layout to Present so we can show it on the screen
 	CVulkanUtils::TransitionImage(cmd, swapchainImage,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
@@ -142,27 +123,104 @@ void CVulkanRenderer::render() {
 	//finalize the command buffer (we can no longer add commands, but it can now be executed)
 	VK_CHECK(vkEndCommandBuffer(cmd));
 
-	m_Swapchain->submit(cmd, m_GraphicsQueue, getFrameIndex(), swapchainImageIndex);
+	m_EngineTextures->getSwapchain().submit(cmd, m_GraphicsQueue, getFrameIndex(), swapchainImageIndex);
 
 	//increase the number of frames drawn
 	m_FrameNumber++;
 }
 
 void CVulkanRenderer::drawBackground(VkCommandBuffer cmd) const {
-	//make a clear-color from game time.
-	VkClearColorValue clearValue;
-	float flash = std::abs(std::sin(CEngine::get().getTime()));
-	clearValue = { { 0.0f, 0.0f, flash, 1.0f } };
+	// bind the gradient drawing compute pipeline
+	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_GradientPipeline);
 
-	VkImageSubresourceRange clearRange = CVulkanUtils::ImageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT);
+	// bind the descriptor set containing the draw image for the compute pipeline
+	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_GradientPipelineLayout, 0, 1, &m_DrawImageDescriptors, 0, nullptr);
 
-	//clear image
-	vkCmdClearColorImage(cmd, m_DrawImage.mImage, VK_IMAGE_LAYOUT_GENERAL, &clearValue, 1, &clearRange);
+	// execute the compute pipeline dispatch. We are using 16x16 workgroup size so we need to divide by it
+	auto [x, y, z] = m_EngineTextures->mDrawImage.mImageExtent;
+	vkCmdDispatch(cmd, std::ceil(x / 16.0), std::ceil(y / 16.0), 1);
 }
 
 void CVulkanRenderer::waitForGpu() {
 	// Make sure the gpu is not working
 	vkDeviceWaitIdle(CEngine::get().getDevice().getDevice());
 
-	m_Swapchain->wait(getFrameIndex());
+	m_EngineTextures->getSwapchain().wait(getFrameIndex());
+}
+
+void CVulkanRenderer::initDescriptors() {
+
+	// Ensure previous descriptors are destroyed
+	m_DescriptorDeletionQueue.flush();
+
+	//allocate a descriptor set for our draw image
+	m_DrawImageDescriptors = m_GlobalDescriptorAllocator.allocate(CEngine::get().getDevice().getDevice(),m_DrawImageDescriptorLayout);
+
+	updateDescriptors();
+
+	//cleanup previous descriptor set layouts
+	m_DescriptorDeletionQueue.push([&] {
+		vkDestroyDescriptorSetLayout(CEngine::get().getDevice().getDevice(), m_DrawImageDescriptorLayout, nullptr);
+	});
+}
+
+void CVulkanRenderer::updateDescriptors() {
+	VkDescriptorImageInfo imgInfo{};
+	imgInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+	imgInfo.imageView = m_EngineTextures->mDrawImage.mImageView;
+
+	VkWriteDescriptorSet drawImageWrite = {};
+	drawImageWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	drawImageWrite.pNext = nullptr;
+
+	drawImageWrite.dstBinding = 0;
+	drawImageWrite.dstSet = m_DrawImageDescriptors;
+	drawImageWrite.descriptorCount = 1;
+	drawImageWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+	drawImageWrite.pImageInfo = &imgInfo;
+
+	vkUpdateDescriptorSets(CEngine::get().getDevice().getDevice(), 1, &drawImageWrite, 0, nullptr);
+}
+
+void CVulkanRenderer::initPipelines() {
+	initBackgroundPipelines();
+}
+
+void CVulkanRenderer::initBackgroundPipelines() {
+	VkPipelineLayoutCreateInfo computeLayout{};
+	computeLayout.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	computeLayout.pNext = nullptr;
+	computeLayout.pSetLayouts = &m_DrawImageDescriptorLayout;
+	computeLayout.setLayoutCount = 1;
+
+	VK_CHECK(vkCreatePipelineLayout(CEngine::get().getDevice().getDevice(), &computeLayout, nullptr, &m_GradientPipelineLayout));
+
+	VkShaderModule computeDrawShader;
+	// TODO: global path
+	if (!CVulkanUtils::loadShader("../../shaders/build/gradient.comp.spv", CEngine::get().getDevice().getDevice(), &computeDrawShader))
+	{
+		fmt::print("Error when building the compute shader \n");
+	}
+
+	VkPipelineShaderStageCreateInfo stageinfo{};
+	stageinfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	stageinfo.pNext = nullptr;
+	stageinfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+	stageinfo.module = computeDrawShader;
+	stageinfo.pName = "main";
+
+	VkComputePipelineCreateInfo computePipelineCreateInfo{};
+	computePipelineCreateInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+	computePipelineCreateInfo.pNext = nullptr;
+	computePipelineCreateInfo.layout = m_GradientPipelineLayout;
+	computePipelineCreateInfo.stage = stageinfo;
+
+	VK_CHECK(vkCreateComputePipelines(CEngine::get().getDevice().getDevice(),VK_NULL_HANDLE,1,&computePipelineCreateInfo, nullptr, &m_GradientPipeline));
+
+	vkDestroyShaderModule(CEngine::get().getDevice().getDevice(), computeDrawShader, nullptr);
+
+	m_DeletionQueue.push([&] {
+		vkDestroyPipelineLayout(CEngine::get().getDevice().getDevice(), m_GradientPipelineLayout, nullptr);
+		vkDestroyPipeline(CEngine::get().getDevice().getDevice(), m_GradientPipeline, nullptr);
+	});
 }

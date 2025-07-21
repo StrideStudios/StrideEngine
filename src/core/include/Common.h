@@ -58,3 +58,11 @@
 	{ static bool beenHere##name = false; \
 	if (beenHere##name) { err("Code block {} called more than once.", #name); } \
 	beenHere##name = true; }
+
+//
+// Text formatting
+//
+
+#define fmt(x, ...) fmt::format(x, __VA_ARGS__)
+#define msg(x, ...) std::cout << fmt(x, __VA_ARGS__) << std::endl
+#define err(x, ...) throw std::runtime_error(fmt(x, __VA_ARGS__))

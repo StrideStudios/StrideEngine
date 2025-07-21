@@ -43,10 +43,3 @@ typedef TType3<double> Vector3d;
 
 #define text(x) L##x
 typedef const wchar_t* SChar;
-
-//
-// Text formatting
-//
-
-#define fmt(x, ...) fmt::format(x, __VA_ARGS__)
-#define err(x, ...) throw std::runtime_error(fmt(x, __VA_ARGS__))

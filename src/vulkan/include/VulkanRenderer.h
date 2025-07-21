@@ -6,8 +6,9 @@
 #include "Common.h"
 #include "DeletionQueue.h"
 #include "VulkanUtils.h"
-#include "Swapchain.h"
+#include "EngineTextures.h"
 
+class CEngineTextures;
 class CVulkanDevice;
 
 class CVulkanRenderer {
@@ -31,7 +32,7 @@ public:
 
 	force_inline const SFrameData& getCurrentFrame() const { return m_Frames[getFrameIndex()]; }
 
-	no_discard const CSwapchain& getSwapchain() const { return *m_Swapchain; }
+	no_discard const CEngineTextures& getEngineTextures() const { return *m_EngineTextures; }
 
 	// Render to the screen
 	void render();
@@ -42,19 +43,21 @@ public:
 
 private:
 
+	void initDescriptors();
+
+	void updateDescriptors();
+
+	void initPipelines();
+
+	void initBackgroundPipelines();
+
 	//
 	// Private non-const getters
 	//
 
 	force_inline SFrameData& getCurrentFrame() { return m_Frames[getFrameIndex()]; }
 
-	no_discard CSwapchain& getSwapchain() { return *m_Swapchain; }
-
-	//
-	// VMA
-	//
-
-	VmaAllocator m_Allocator;
+	no_discard CEngineTextures& getEngineTextures() { return *m_EngineTextures; }
 
 	//
 	// Rendering Utils
@@ -66,18 +69,28 @@ private:
 
 	SDeletionQueue m_DeletionQueue;
 
-	SDeletionQueue m_ImageDeletionQueue;
-
 	VkQueue m_GraphicsQueue;
 	uint32 m_GraphicsQueueFamily;
 
 	// The swapchain used to present to the screen
-	std::unique_ptr<CSwapchain> m_Swapchain = nullptr;
+	std::unique_ptr<CEngineTextures> m_EngineTextures = nullptr;
 
 	//
-	// Draw resources
+	// Descriptor Resources
 	//
 
-	SAllocatedImage m_DrawImage;
+	SDeletionQueue m_DescriptorDeletionQueue;
+
+	SDescriptorAllocator m_GlobalDescriptorAllocator;
+
+	VkDescriptorSet m_DrawImageDescriptors;
+	VkDescriptorSetLayout m_DrawImageDescriptorLayout;
+
+	//
+	// Pipelines
+	//
+
+	VkPipeline m_GradientPipeline;
+	VkPipelineLayout m_GradientPipelineLayout;
 
 };

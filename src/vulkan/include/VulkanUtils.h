@@ -1,8 +1,11 @@
 ﻿#pragma once
 
+#include <fstream>
+
 #include "Common.h"
 #include <vulkan/vulkan_core.h>
 #include <vma/vk_mem_alloc.h>
+#include <vulkan/vk_enum_string_helper.h>
 
 #define VK_CHECK(call) \
     if (auto vkResult = call; vkResult != VK_SUCCESS) { \
@@ -10,14 +13,6 @@
     }
 
 constexpr static uint8 gFrameOverlap = 2;
-
-struct SAllocatedImage {
-	VkImage mImage;
-	VkImageView mImageView;
-	VmaAllocation mAllocation;
-	//VkExtent3D mImageExtent;
-	VkFormat mImageFormat;
-};
 
 namespace CVulkanUtils {
 
@@ -91,6 +86,50 @@ namespace CVulkanUtils {
 		depInfo.pImageMemoryBarriers = &imageBarrier;
 
 		vkCmdPipelineBarrier2(inCmd, &depInfo);
+	}
+
+	static bool loadShader(const char* inFilePath, VkDevice inDevice, VkShaderModule* outShaderModule) {
+		// open the file. With cursor at the end
+		std::ifstream file(inFilePath, std::ios::ate | std::ios::binary);
+
+		if (!file.is_open()) {
+			return false;
+		}
+
+		// find what the size of the file is by looking up the location of the cursor
+		// because the cursor is at the end, it gives the size directly in bytes
+		size_t fileSize = (size_t)file.tellg();
+
+		// spirv expects the buffer to be on uint32, so make sure to reserve a int
+		// vector big enough for the entire file
+		std::vector<uint32_t> buffer(fileSize / sizeof(uint32_t));
+
+		// put file cursor at beginning
+		file.seekg(0);
+
+		// load the entire file into the buffer
+		file.read((char*)buffer.data(), fileSize);
+
+		// now that the file is loaded into the buffer, we can close it
+		file.close();
+
+		// create a new shader module, using the buffer we loaded
+		VkShaderModuleCreateInfo createInfo = {};
+		createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+		createInfo.pNext = nullptr;
+
+		// codeSize has to be in bytes, so multply the ints in the buffer by size of
+		// int to know the real size of the buffer
+		createInfo.codeSize = buffer.size() * sizeof(uint32_t);
+		createInfo.pCode = buffer.data();
+
+		// check that the creation goes well.
+		VkShaderModule shaderModule;
+		if (vkCreateShaderModule(inDevice, &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
+			return false;
+		}
+		*outShaderModule = shaderModule;
+		return true;
 	}
 }
 
@@ -225,6 +264,89 @@ namespace CVulkanInfo {
 
 		return info;
 	}
-
-
 }
+
+struct SDescriptorLayoutBuilder {
+
+	std::vector<VkDescriptorSetLayoutBinding> bindings;
+
+	void addBinding(uint32 inBinding, VkDescriptorType inDescriptorType) {
+		VkDescriptorSetLayoutBinding newbind {};
+		newbind.binding = inBinding;
+		newbind.descriptorCount = 1;
+		newbind.descriptorType = inDescriptorType;
+
+		bindings.push_back(newbind);
+	}
+
+	void clear() {
+		bindings.clear();
+	}
+
+	VkDescriptorSetLayout build(VkDevice inDevice, VkShaderStageFlags inShaderStages, void* pNext = nullptr, VkDescriptorSetLayoutCreateFlags inFlags = 0) {
+		for (auto& b : bindings) {
+			b.stageFlags |= inShaderStages;
+		}
+
+		VkDescriptorSetLayoutCreateInfo info = {.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
+		info.pNext = pNext;
+
+		info.pBindings = bindings.data();
+		info.bindingCount = (uint32_t)bindings.size();
+		info.flags = inFlags;
+
+		VkDescriptorSetLayout set;
+		VK_CHECK(vkCreateDescriptorSetLayout(inDevice, &info, nullptr, &set));
+
+		return set;
+	}
+};
+
+struct SDescriptorAllocator {
+
+	struct PoolSizeRatio{
+		VkDescriptorType type;
+		float ratio;
+	};
+
+	VkDescriptorPool pool;
+
+	void init(VkDevice inDevice, uint32_t inMaxSets, std::span<PoolSizeRatio> inPoolRatios) {
+		std::vector<VkDescriptorPoolSize> poolSizes;
+		for (PoolSizeRatio ratio : inPoolRatios) {
+			poolSizes.push_back(VkDescriptorPoolSize{
+				.type = ratio.type,
+				.descriptorCount = uint32_t(ratio.ratio * inMaxSets)
+			});
+		}
+
+		VkDescriptorPoolCreateInfo pool_info = {.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
+		pool_info.flags = 0;
+		pool_info.maxSets = inMaxSets;
+		pool_info.poolSizeCount = (uint32_t)poolSizes.size();
+		pool_info.pPoolSizes = poolSizes.data();
+
+		vkCreateDescriptorPool(inDevice, &pool_info, nullptr, &pool);
+	}
+
+	void clear(VkDevice inDevice) {
+		vkResetDescriptorPool(inDevice, pool, 0);
+	}
+
+	void destroy(VkDevice inDevice) {
+		vkDestroyDescriptorPool(inDevice,pool,nullptr);
+	}
+
+	VkDescriptorSet allocate(VkDevice inDevice, VkDescriptorSetLayout inLayout) {
+		VkDescriptorSetAllocateInfo allocInfo = {.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
+		allocInfo.pNext = nullptr;
+		allocInfo.descriptorPool = pool;
+		allocInfo.descriptorSetCount = 1;
+		allocInfo.pSetLayouts = &inLayout;
+
+		VkDescriptorSet ds;
+		VK_CHECK(vkAllocateDescriptorSets(inDevice, &allocInfo, &ds));
+
+		return ds;
+	}
+};

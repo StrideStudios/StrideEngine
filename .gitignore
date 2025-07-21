@@ -1,2 +1,8 @@
-﻿.idea/
+﻿# CLion files
+.idea/
+
+# Build files
 cmake-build-debug/
+
+# No built shaders
+shaders/build
