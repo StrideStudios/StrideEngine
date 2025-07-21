@@ -53,6 +53,11 @@ target_link_libraries(StrideEngine PUBLIC
         vk-bootstrap::vk-bootstrap
         GPUOpen::VulkanMemoryAllocator
 )
+# Tell cmake to copy dlls to the target directory
+add_custom_command(TARGET StrideEngine POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:StrideEngine> $<TARGET_FILE_DIR:StrideEngine>
+        COMMAND_EXPAND_LISTS
+)
 
 # Compile Shaders
 include(CompileShaders)

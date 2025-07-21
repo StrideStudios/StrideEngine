@@ -1,9 +1,4 @@
-﻿#include <iostream>
-#include "Engine.h"
-
-// These includes prevent CEngine from throwing errors
-#include "VulkanDevice.h"
-#include "VulkanRenderer.h"
+﻿#include "Engine.h"
 
 int main() {
     CEngine::get().run();

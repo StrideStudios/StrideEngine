@@ -11,7 +11,7 @@ find_program(GLSLVALIDATOR glslangValidator
 function (compile_shaders target)
     set(SHADER_FILES ${ARGN}) #Other arguments are the shader files
     set(SHADERS_DIR "${PROJECT_SOURCE_DIR}/shaders")
-    set(SHADERS_TARGET_DIR "${PROJECT_SOURCE_DIR}/shaders/build")
+    set(SHADERS_TARGET_DIR "${PROJECT_BINARY_DIR}/shaders")
     file(MAKE_DIRECTORY "${SHADERS_DIR}")
     foreach (SHADER_FILENAME IN LISTS SHADER_FILES)
         set(SHADER_PATH "${SHADERS_DIR}/${SHADER_FILENAME}")

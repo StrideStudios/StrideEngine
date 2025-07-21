@@ -3,6 +3,8 @@
 #include <memory>
 
 #include "Common.h"
+#include "VulkanDevice.h"
+#include "VulkanRenderer.h"
 
 class CVulkanDevice;
 class CVulkanRenderer;
@@ -53,6 +55,9 @@ public:
 	no_discard CVulkanRenderer& getRenderer() { return *m_Renderer; }
 
 	no_discard const CVulkanRenderer& getRenderer() const { return *m_Renderer; }
+
+	std::string mSourcePath;
+	std::string mShaderPath;
 
 private:
 

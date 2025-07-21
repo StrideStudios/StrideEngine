@@ -14,11 +14,6 @@ project(
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
-if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/third_party/SDL/CMakeLists.txt")
-    include(FetchSubmodules)
-    fetch_submodules()
-endif()
-
 # Code
 
 add_subdirectory(third_party)

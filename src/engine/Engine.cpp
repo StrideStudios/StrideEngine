@@ -1,5 +1,6 @@
 ﻿#include "include/Engine.h"
 
+#include <filesystem>
 #include <iostream>
 #include <thread>
 
@@ -23,6 +24,13 @@ CEngine& CEngine::get() {
 void CEngine::init() {
 
 	assertOnce(CEngine);
+
+	std::filesystem::path cwd = std::filesystem::current_path();
+	mSourcePath = cwd.string().append("/");
+	mShaderPath = mSourcePath.append("../shaders/");
+
+	std::cout << mSourcePath << std::endl;
+	std::cout << mShaderPath << std::endl;
 
 	// Initialize SDL3
 	SDL_Init(SDL_INIT_VIDEO);

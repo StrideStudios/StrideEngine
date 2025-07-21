@@ -216,7 +216,7 @@ void CVulkanRenderer::initBackgroundPipelines() {
 
 	VkShaderModule computeDrawShader;
 	// TODO: global path
-	if (!CVulkanUtils::loadShader("../../shaders/build/gradient.comp.spv", CEngine::get().getDevice().getDevice(), &computeDrawShader))
+	if (!CVulkanUtils::loadShader(CEngine::get().mShaderPath.append("gradient.comp.spv").c_str(), CEngine::get().getDevice().getDevice(), &computeDrawShader))
 	{
 		fmt::print("Error when building the compute shader \n");
 	}
