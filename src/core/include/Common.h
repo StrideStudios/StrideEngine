@@ -1,6 +1,8 @@
 ﻿#pragma once
 
 #include <cassert>
+#include "fmt/format.h"
+#include "BasicTypes.h"
 
 /*
  * To keep it simple yet readable these are some naming conventions:
@@ -10,6 +12,8 @@
  * Enums (Should always be enum classes): EEnumName
  * Enums should also always try to use the lowest integer type it can
  * Enum flags should use the 1 << 0 and 1 << 1 format for readability
+ *
+ * Templated classes and structs: TName
  *
  * Member variable: mVariable (Private: m_Variable)
  * Static variable: sVariable (Private: s_Variable)
@@ -45,14 +49,12 @@
 #define no_discard [[nodiscard]]
 #define force_inline __forceinline
 
-typedef unsigned char uint8;
-typedef signed char int8;
-typedef unsigned short uint16;
-typedef signed short int16;
-typedef unsigned int uint32;
-typedef signed int int32;
-typedef unsigned long long uint64;
-typedef signed long long int64;
+//
+// Assertion macros
+//
 
-typedef float float32;
-typedef double double32;
+// Use this to ensure that an area of code is only called once
+#define assertOnce(name) \
+	{ static bool beenHere##name = false; \
+	if (beenHere##name) { err("Code block {} called more than once.", #name); } \
+	beenHere##name = true; }

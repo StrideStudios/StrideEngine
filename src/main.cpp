@@ -1,17 +1,11 @@
-﻿#include "VulkanRenderer.h"
-#include "vulkan/include/VulkanDevice.h"
+﻿#include <iostream>
+#include "Engine.h"
+
+// These includes prevent CEngine from throwing errors
+#include "VulkanDevice.h"
+#include "VulkanRenderer.h"
 
 int main() {
-    CVulkanDevice device = CVulkanDevice::get();
-
-    bool engineExit = false;
-    while (!engineExit) {
-        device.tick();
-        device.getRenderer()->draw();
-        if (device.windowClosed()) {
-            engineExit = true;
-        }
-    }
-
-    device.cleanup();
+    CEngine::get().run();
+    return 0;
 }

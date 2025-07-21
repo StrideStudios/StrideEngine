@@ -4,11 +4,18 @@
 #include <vulkan/vulkan_core.h>
 #include <vma/vk_mem_alloc.h>
 
+#define VK_CHECK(call) \
+    if (auto vkResult = call; vkResult != VK_SUCCESS) { \
+        err("{} Failed. Vulkan Error {}", #call, string_VkResult(vkResult)); \
+    }
+
+constexpr static uint8 gFrameOverlap = 2;
+
 struct SAllocatedImage {
 	VkImage mImage;
 	VkImageView mImageView;
 	VmaAllocation mAllocation;
-	VkExtent3D mImageExtent;
+	//VkExtent3D mImageExtent;
 	VkFormat mImageFormat;
 };
 
