@@ -3,6 +3,8 @@
 #include <iostream>
 #include <thread>
 
+#include "imgui_impl_sdl3.h"
+#include "imgui_impl_vulkan.h"
 #include "VulkanDevice.h"
 #include "VulkanRenderer.h"
 #include "SDL3/SDL_events.h"
@@ -115,10 +117,11 @@ void CEngine::run() {
 				case SDL_EVENT_WINDOW_RESIZED:
 				case SDL_EVENT_WINDOW_MAXIMIZED:
 					m_EngineWindow.mExtent = {(uint32)e.window.data1, (uint32)e.window.data2};
-					std::cout << "Window Resolution changed to: (" << m_EngineWindow.mExtent.x << ", " << m_EngineWindow.mExtent.y << ")" << std::endl;
-					break; //Scene textures lol
+					break;
 				default: break;
 			}
+			// Forward events to backend
+			ImGui_ImplSDL3_ProcessEvent(&e);
 		}
 
 		// do not draw if we are minimized
@@ -127,6 +130,15 @@ void CEngine::run() {
 			std::this_thread::sleep_for(std::chrono::milliseconds(100));
 			continue;
 		}
+
+		// Start the Dear ImGui frame
+		//ImGui_ImplVulkan_NewFrame();
+		ImGui_ImplSDL3_NewFrame();
+		ImGui::NewFrame();
+
+		ImGui::ShowDemoWindow();
+
+		ImGui::Render();
 
 		getRenderer().render();
 

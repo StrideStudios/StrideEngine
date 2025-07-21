@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "Swapchain.h"
+#include "vk_mem_alloc.h"
 
 struct SAllocatedImage {
 	VkImage mImage;
@@ -12,6 +13,8 @@ struct SAllocatedImage {
 
 // Class used to house textures for the engine, easily resizable when necessary
 class CEngineTextures {
+
+	friend class CVulkanRenderer;
 
 public:
 

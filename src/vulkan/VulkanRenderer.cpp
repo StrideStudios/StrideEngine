@@ -8,6 +8,10 @@
 #include "vulkan/vk_enum_string_helper.h"
 
 #define VMA_IMPLEMENTATION
+#include "Engine.h"
+#include "imgui.h"
+#include "imgui_impl_sdl3.h"
+#include "imgui_impl_vulkan.h"
 #include "vma/vk_mem_alloc.h"
 
 CVulkanRenderer::CVulkanRenderer() {
@@ -58,6 +62,8 @@ CVulkanRenderer::CVulkanRenderer() {
 	initDescriptors();
 
 	initPipelines();
+
+	initImGui();
 }
 
 void CVulkanRenderer::destroy() {
@@ -120,6 +126,8 @@ void CVulkanRenderer::render() {
 	// Set swapchain image layout to Present so we can show it on the screen
 	CVulkanUtils::TransitionImage(cmd, swapchainImage,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
+	renderImGui(cmd, m_EngineTextures->getSwapchain().mSwapchainImageViews[swapchainImageIndex]);
+
 	//finalize the command buffer (we can no longer add commands, but it can now be executed)
 	VK_CHECK(vkEndCommandBuffer(cmd));
 
@@ -127,6 +135,17 @@ void CVulkanRenderer::render() {
 
 	//increase the number of frames drawn
 	m_FrameNumber++;
+}
+
+void CVulkanRenderer::renderImGui(VkCommandBuffer cmd, VkImageView inTargetImageView) {
+	VkRenderingAttachmentInfo colorAttachment = CVulkanUtils::createAttachmentInfo(inTargetImageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	VkRenderingInfo renderInfo = CVulkanUtils::createRenderingInfo(m_EngineTextures->getSwapchain().mSwapchain.extent, &colorAttachment, nullptr);
+
+	vkCmdBeginRendering(cmd, &renderInfo);
+
+	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
+
+	vkCmdEndRendering(cmd);
 }
 
 void CVulkanRenderer::drawBackground(VkCommandBuffer cmd) const {
@@ -224,3 +243,63 @@ void CVulkanRenderer::initBackgroundPipelines() {
 		vkDestroyPipeline(CEngine::get().getDevice().getDevice(), m_GradientPipeline, nullptr);
 	});
 }
+
+void CVulkanRenderer::initImGui() {
+	// 1: create descriptor pool for IMGUI
+	//  the size of the pool is very oversize, but it's copied from imgui demo
+	//  itself.
+	VkDescriptorPoolSize pool_sizes[] = { { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
+		{ VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
+		{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 } };
+
+	VkDescriptorPoolCreateInfo pool_info = {};
+	pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+	pool_info.maxSets = 1000;
+	pool_info.poolSizeCount = (uint32_t)std::size(pool_sizes);
+	pool_info.pPoolSizes = pool_sizes;
+
+	VK_CHECK(vkCreateDescriptorPool(CEngine::get().getDevice().getDevice(), &pool_info, nullptr, &m_ImGuiDescriptorPool));
+
+	// Setup Dear ImGui context
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+
+	// this initializes imgui for Vulkan
+	ImGui_ImplVulkan_InitInfo init_info = {};
+	init_info.Instance = CEngine::get().getDevice().getInstance();
+	init_info.PhysicalDevice = CEngine::get().getDevice().getPhysicalDevice();
+	init_info.Device = CEngine::get().getDevice().getDevice();
+	init_info.Queue = m_GraphicsQueue;
+	init_info.DescriptorPool = m_ImGuiDescriptorPool;
+	init_info.MinImageCount = 3;
+	init_info.ImageCount = 3;
+	init_info.UseDynamicRendering = true;
+
+	//dynamic rendering parameters for imgui to use
+	init_info.PipelineRenderingCreateInfo = {.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};
+	init_info.PipelineRenderingCreateInfo.colorAttachmentCount = 1;
+	init_info.PipelineRenderingCreateInfo.pColorAttachmentFormats = &m_EngineTextures->getSwapchain().mFormat;
+
+	init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+
+	ImGui_ImplVulkan_Init(&init_info);
+	ImGui_ImplSDL3_InitForVulkan(CEngine::get().getWindow().mWindow);
+
+	// add the destroy the imgui created structures
+	m_DeletionQueue.push([&] {
+		ImGui_ImplVulkan_Shutdown();
+		ImGui_ImplSDL3_Shutdown();
+		vkDestroyDescriptorPool(CEngine::get().getDevice().getDevice(), m_ImGuiDescriptorPool, nullptr);
+		ImGui::DestroyContext();
+	});
+}
+

@@ -37,6 +37,8 @@ public:
 	// Render to the screen
 	void render();
 
+	void renderImGui(VkCommandBuffer cmd, VkImageView inTargetImageView);
+
 	void drawBackground(VkCommandBuffer cmd) const;
 
 	void waitForGpu();
@@ -50,6 +52,8 @@ private:
 	void initPipelines();
 
 	void initBackgroundPipelines();
+
+	void initImGui();
 
 	//
 	// Private non-const getters
@@ -85,6 +89,8 @@ private:
 
 	VkDescriptorSet m_DrawImageDescriptors;
 	VkDescriptorSetLayout m_DrawImageDescriptorLayout;
+
+	VkDescriptorPool m_ImGuiDescriptorPool;
 
 	//
 	// Pipelines

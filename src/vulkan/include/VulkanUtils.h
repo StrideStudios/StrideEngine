@@ -4,7 +4,6 @@
 
 #include "Common.h"
 #include <vulkan/vulkan_core.h>
-#include <vma/vk_mem_alloc.h>
 #include <vulkan/vk_enum_string_helper.h>
 
 #define VK_CHECK(call) \
@@ -27,8 +26,7 @@ namespace CVulkanUtils {
 		return subImage;
 	}
 
-	static void CopyImageToImage(VkCommandBuffer inCmd, VkImage inSource, VkImage inDestination, VkExtent2D inSrcSize, VkExtent2D inDstSize)
-	{
+	static void CopyImageToImage(VkCommandBuffer inCmd, VkImage inSource, VkImage inDestination, VkExtent2D inSrcSize, VkExtent2D inDstSize) {
 		VkImageBlit2 blitRegion{ .sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2, .pNext = nullptr };
 
 		blitRegion.srcOffsets[1].x = inSrcSize.width;
@@ -130,6 +128,37 @@ namespace CVulkanUtils {
 		}
 		*outShaderModule = shaderModule;
 		return true;
+	}
+
+	static VkRenderingAttachmentInfo createAttachmentInfo(VkImageView view, VkClearValue* clear ,VkImageLayout layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) {
+		VkRenderingAttachmentInfo colorAttachment {};
+		colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+		colorAttachment.pNext = nullptr;
+
+		colorAttachment.imageView = view;
+		colorAttachment.imageLayout = layout;
+		colorAttachment.loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
+		colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+		if (clear) {
+			colorAttachment.clearValue = *clear;
+		}
+
+		return colorAttachment;
+	}
+
+	static VkRenderingInfo createRenderingInfo(VkExtent2D inExtent, VkRenderingAttachmentInfo* inColorAttachement, VkRenderingAttachmentInfo* inDepthAttachement) {
+		VkRenderingInfo renderInfo {};
+		renderInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+		renderInfo.pNext = nullptr;
+
+		renderInfo.renderArea = VkRect2D { VkOffset2D { 0, 0 }, inExtent };
+		renderInfo.layerCount = 1;
+		renderInfo.colorAttachmentCount = 1;
+		renderInfo.pColorAttachments = inColorAttachement;
+		renderInfo.pDepthAttachment = inDepthAttachement;
+		renderInfo.pStencilAttachment = nullptr;
+
+		return renderInfo;
 	}
 }
 
