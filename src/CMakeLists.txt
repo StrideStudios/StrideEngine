@@ -42,6 +42,8 @@ add_executable(StrideEngine
         main.cpp
         renderer/include/ShaderCompiler.h
         renderer/ShaderCompiler.cpp
+        engine/include/EngineSettings.h
+        engine/EngineSettings.cpp
 
 )
 

@@ -1,11 +1,10 @@
 ﻿#include "Engine.h"
 
 #include <filesystem>
-#include <iostream>
 #include <thread>
 
+#include "EngineSettings.h"
 #include "imgui_impl_sdl3.h"
-#include "imgui_impl_vulkan.h"
 #include "VulkanDevice.h"
 #include "VulkanRenderer.h"
 #include "SDL3/SDL_events.h"
@@ -13,9 +12,12 @@
 #include "SDL3/SDL_timer.h"
 #include "SDL3/SDL_vulkan.h"
 
-static auto gEngine = CEngine();
+#define COMMAND_CATEGORY "Engine"
+ADD_COMMAND(UseVsync, true);
+ADD_COMMAND(UseFrameCap, 180, 0, 500);
+#undef COMMAND_CATEGORY
 
-constexpr static double TARGET_FRAMERATE = 180.0;
+static auto gEngine = CEngine();
 
 CEngine& CEngine::get() {
 	return gEngine;
@@ -34,8 +36,8 @@ void CEngine::init() {
 
 	m_EngineWindow.mWindow = SDL_CreateWindow(
 		"Stride Engine",
-		m_EngineWindow.mExtent.x,
-		m_EngineWindow.mExtent.y,
+		(int32)m_EngineWindow.mExtent.x,
+		(int32)m_EngineWindow.mExtent.y,
 		SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE
 	);
 	assert(m_EngineWindow.mWindow);
@@ -78,9 +80,6 @@ void CEngine::run() {
 	auto previousTime = std::chrono::high_resolution_clock::now();
 
 	bool bOldVsync = true;
-	bool bUseVsync = true;
-	bool bFrameCap = true;
-	int32 frameCap = 180;
 
 	while (bRunning) {
 
@@ -91,7 +90,7 @@ void CEngine::run() {
 
 			m_FrameRate = (int32) (1.0 / m_DeltaTime);
 
-			m_AverageFrameRate = (m_AverageFrameRate + m_FrameRate) / 2.0;
+			m_AverageFrameRate = (int32)((m_AverageFrameRate + m_FrameRate) / 2.0);
 
 			m_GameTime += m_DeltaTime;
 
@@ -151,7 +150,7 @@ void CEngine::run() {
 
 			ImGui::Text("Selected effect: ", selected.name);
 
-			ImGui::SliderInt("Effect Index", &m_Renderer->m_CurrentBackgroundEffect, 0, m_Renderer->m_BackgroundEffects.size() - 1);
+			ImGui::SliderInt("Effect Index", &m_Renderer->m_CurrentBackgroundEffect, 0, (int32)m_Renderer->m_BackgroundEffects.size() - 1);
 
 			ImGui::InputFloat4("data1",(float*)&selected.data.data1);
 			ImGui::InputFloat4("data2",(float*)&selected.data.data2);
@@ -160,28 +159,21 @@ void CEngine::run() {
 		}
 		ImGui::End();
 
-		if (bOldVsync != bUseVsync) {
-			bOldVsync = bUseVsync;
-			m_Renderer->m_EngineTextures->getSwapchain().recreate(bUseVsync);
+		if (bOldVsync != UseVsync.getBool()) {
+			bOldVsync = UseVsync.getBool();
+			std::cout << "Reallocating Swapchain to " << (UseVsync.getBool() ? "enable VSync." : "disable VSync.") << std::endl;
+			m_Renderer->m_EngineTextures->getSwapchain().recreate(UseVsync.getBool());
 		}
-
-		// Settings
-		if (ImGui::Begin("Settings")) {
-			ImGui::Checkbox("Use VSync", &bUseVsync);
-			ImGui::Checkbox("Use Frame Cap: ", &bFrameCap);
-			if (bFrameCap) {
-				ImGui::SliderInt("Frame Cap: ", &frameCap, 0, 500);
-			}
-		}
-		ImGui::End();
+		CEngineSettings::render();
 
 		ImGui::Render();
 
 		getRenderer().render();
 
 		// If we go over the target framerate, delay
-		if (bFrameCap) {
-			const double TargetDeltaTime = 1.0 / frameCap;
+		// Ensure no divide by 0
+		if (UseFrameCap.getInt() > 0) {
+			const double TargetDeltaTime = 1.0 / UseFrameCap.getInt();
 			if (const auto frameTime = std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - previousTime).count(); TargetDeltaTime > frameTime) {
 				SDL_Delay(static_cast<std::uint32_t>((TargetDeltaTime - frameTime) * 1000.0));
 			}
