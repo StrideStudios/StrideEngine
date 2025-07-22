@@ -1,4 +1,4 @@
-﻿#include "include/VulkanRenderer.h"
+﻿#include "VulkanRenderer.h"
 
 #include <cmath>
 #include <iostream>
@@ -7,11 +7,13 @@
 #include "VulkanUtils.h"
 #include "vulkan/vk_enum_string_helper.h"
 
-#define VMA_IMPLEMENTATION
 #include "Engine.h"
 #include "imgui.h"
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_vulkan.h"
+#include "ShaderCompiler.h"
+
+#define VMA_IMPLEMENTATION
 #include "vma/vk_mem_alloc.h"
 
 CVulkanRenderer::CVulkanRenderer() {
@@ -150,10 +152,13 @@ void CVulkanRenderer::renderImGui(VkCommandBuffer cmd, VkImageView inTargetImage
 
 void CVulkanRenderer::drawBackground(VkCommandBuffer cmd) const {
 	// bind the gradient drawing compute pipeline
-	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_GradientPipeline);
+	const SComputeEffect& effect = m_BackgroundEffects[m_CurrentBackgroundEffect];
+	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, effect.pipeline);
 
 	// bind the descriptor set containing the draw image for the compute pipeline
 	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_GradientPipelineLayout, 0, 1, &m_DrawImageDescriptors, 0, nullptr);
+
+	vkCmdPushConstants(cmd, m_GradientPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0 ,sizeof(SComputePushConstants), &effect.data);
 
 	// execute the compute pipeline dispatch. We are using 16x16 workgroup size so we need to divide by it
 	auto [x, y, z] = m_EngineTextures->mDrawImage.mImageExtent;
@@ -184,19 +189,21 @@ void CVulkanRenderer::initDescriptors() {
 }
 
 void CVulkanRenderer::updateDescriptors() {
-	VkDescriptorImageInfo imgInfo{};
-	imgInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-	imgInfo.imageView = m_EngineTextures->mDrawImage.mImageView;
+	VkDescriptorImageInfo imgInfo {
+		.imageView = m_EngineTextures->mDrawImage.mImageView,
+		.imageLayout = VK_IMAGE_LAYOUT_GENERAL,
+	};
 
-	VkWriteDescriptorSet drawImageWrite = {};
-	drawImageWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	drawImageWrite.pNext = nullptr;
+	VkWriteDescriptorSet drawImageWrite = {
+		.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+		.pNext = nullptr,
 
-	drawImageWrite.dstBinding = 0;
-	drawImageWrite.dstSet = m_DrawImageDescriptors;
-	drawImageWrite.descriptorCount = 1;
-	drawImageWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-	drawImageWrite.pImageInfo = &imgInfo;
+		.dstSet = m_DrawImageDescriptors,
+		.dstBinding = 0,
+		.descriptorCount = 1,
+		.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+		.pImageInfo = &imgInfo
+	};
 
 	vkUpdateDescriptorSets(CEngine::get().getDevice().getDevice(), 1, &drawImageWrite, 0, nullptr);
 }
@@ -206,41 +213,83 @@ void CVulkanRenderer::initPipelines() {
 }
 
 void CVulkanRenderer::initBackgroundPipelines() {
-	VkPipelineLayoutCreateInfo computeLayout{};
-	computeLayout.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	computeLayout.pNext = nullptr;
-	computeLayout.pSetLayouts = &m_DrawImageDescriptorLayout;
-	computeLayout.setLayoutCount = 1;
+	VkPipelineLayoutCreateInfo computeLayout {
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+		.pNext = nullptr,
+		.setLayoutCount = 1,
+		.pSetLayouts = &m_DrawImageDescriptorLayout
+	};
+
+	VkPushConstantRange pushConstant {
+		.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
+		.offset = 0,
+		.size = sizeof(SComputePushConstants)
+	};
+
+	computeLayout.pPushConstantRanges = &pushConstant;
+	computeLayout.pushConstantRangeCount = 1;
 
 	VK_CHECK(vkCreatePipelineLayout(CEngine::get().getDevice().getDevice(), &computeLayout, nullptr, &m_GradientPipelineLayout));
 
-	VkShaderModule computeDrawShader;
-	// TODO: global path
-	if (!CVulkanUtils::loadShader(CEngine::get().mShaderPath.append("gradient.comp.spv").c_str(), CEngine::get().getDevice().getDevice(), &computeDrawShader))
-	{
-		fmt::print("Error when building the compute shader \n");
-	}
 
-	VkPipelineShaderStageCreateInfo stageinfo{};
-	stageinfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	stageinfo.pNext = nullptr;
-	stageinfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-	stageinfo.module = computeDrawShader;
-	stageinfo.pName = "main";
+	SShader gradientShader {
+		.mStage = EShaderStage::COMPUTE
+	};
+	VK_CHECK(CShaderCompiler::compileShader(CEngine::get().getDevice().getDevice(), (CEngine::get().mShaderPath + "basic\\gradient.comp").c_str(), gradientShader));
 
-	VkComputePipelineCreateInfo computePipelineCreateInfo{};
-	computePipelineCreateInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
-	computePipelineCreateInfo.pNext = nullptr;
-	computePipelineCreateInfo.layout = m_GradientPipelineLayout;
-	computePipelineCreateInfo.stage = stageinfo;
+	SShader skyShader {
+		.mStage = EShaderStage::COMPUTE
+	};
+	VK_CHECK(CShaderCompiler::compileShader(CEngine::get().getDevice().getDevice(), (CEngine::get().mShaderPath + "basic\\sky.comp").c_str(), skyShader));
 
-	VK_CHECK(vkCreateComputePipelines(CEngine::get().getDevice().getDevice(),VK_NULL_HANDLE,1,&computePipelineCreateInfo, nullptr, &m_GradientPipeline));
+	VkPipelineShaderStageCreateInfo stageinfo {
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+		.pNext = nullptr,
+		.stage = VK_SHADER_STAGE_COMPUTE_BIT,
+		.module = gradientShader.mModule,
+		.pName = "main"
+	};
 
-	vkDestroyShaderModule(CEngine::get().getDevice().getDevice(), computeDrawShader, nullptr);
+	VkComputePipelineCreateInfo computePipelineCreateInfo {
+		.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
+		.pNext = nullptr,
+		.stage = stageinfo,
+		.layout = m_GradientPipelineLayout
+	};
+
+	SComputeEffect gradient;
+	gradient.layout = m_GradientPipelineLayout;
+	gradient.name = "gradient";
+	gradient.data = {};
+
+	// Default colors
+	gradient.data.data1 = {1, 0, 0, 1};
+	gradient.data.data2 = {0, 0, 1, 1};
+
+	VK_CHECK(vkCreateComputePipelines(CEngine::get().getDevice().getDevice(),VK_NULL_HANDLE,1,&computePipelineCreateInfo, nullptr, &gradient.pipeline));
+
+	// Change the shader module only to create the sky shader
+	computePipelineCreateInfo.stage.module = skyShader.mModule;
+
+	SComputeEffect sky;
+	sky.layout = m_GradientPipelineLayout;
+	sky.name = "sky";
+	sky.data = {};
+	// Default sky parameters
+	sky.data.data1 = {0.1, 0.2, 0.4, 0.97};
+
+	VK_CHECK(vkCreateComputePipelines(CEngine::get().getDevice().getDevice(),VK_NULL_HANDLE,1,&computePipelineCreateInfo, nullptr, &sky.pipeline));
+
+	m_BackgroundEffects.push_back(gradient);
+	m_BackgroundEffects.push_back(sky);
+
+	vkDestroyShaderModule(CEngine::get().getDevice().getDevice(), gradientShader.mModule, nullptr);
+	vkDestroyShaderModule(CEngine::get().getDevice().getDevice(), skyShader.mModule, nullptr);
 
 	m_DeletionQueue.push([&] {
 		vkDestroyPipelineLayout(CEngine::get().getDevice().getDevice(), m_GradientPipelineLayout, nullptr);
-		vkDestroyPipeline(CEngine::get().getDevice().getDevice(), m_GradientPipeline, nullptr);
+		vkDestroyPipeline(CEngine::get().getDevice().getDevice(), sky.pipeline, nullptr);
+		vkDestroyPipeline(CEngine::get().getDevice().getDevice(), gradient.pipeline, nullptr);
 	});
 }
 
@@ -260,12 +309,13 @@ void CVulkanRenderer::initImGui() {
 		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
 		{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 } };
 
-	VkDescriptorPoolCreateInfo pool_info = {};
-	pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-	pool_info.maxSets = 1000;
-	pool_info.poolSizeCount = (uint32_t)std::size(pool_sizes);
-	pool_info.pPoolSizes = pool_sizes;
+	VkDescriptorPoolCreateInfo pool_info {
+		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+		.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
+		.maxSets = 1000,
+		.poolSizeCount = (uint32_t)std::size(pool_sizes),
+		.pPoolSizes = pool_sizes
+	};
 
 	VK_CHECK(vkCreateDescriptorPool(CEngine::get().getDevice().getDevice(), &pool_info, nullptr, &m_ImGuiDescriptorPool));
 
@@ -274,15 +324,16 @@ void CVulkanRenderer::initImGui() {
 	ImGui::CreateContext();
 
 	// this initializes imgui for Vulkan
-	ImGui_ImplVulkan_InitInfo init_info = {};
-	init_info.Instance = CEngine::get().getDevice().getInstance();
-	init_info.PhysicalDevice = CEngine::get().getDevice().getPhysicalDevice();
-	init_info.Device = CEngine::get().getDevice().getDevice();
-	init_info.Queue = m_GraphicsQueue;
-	init_info.DescriptorPool = m_ImGuiDescriptorPool;
-	init_info.MinImageCount = 3;
-	init_info.ImageCount = 3;
-	init_info.UseDynamicRendering = true;
+	ImGui_ImplVulkan_InitInfo init_info {
+		.Instance = CEngine::get().getDevice().getInstance(),
+		.PhysicalDevice = CEngine::get().getDevice().getPhysicalDevice(),
+		.Device = CEngine::get().getDevice().getDevice(),
+		.Queue = m_GraphicsQueue,
+		.DescriptorPool = m_ImGuiDescriptorPool,
+		.MinImageCount = 3,
+		.ImageCount = 3,
+		.UseDynamicRendering = true
+	};
 
 	//dynamic rendering parameters for imgui to use
 	init_info.PipelineRenderingCreateInfo = {.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};

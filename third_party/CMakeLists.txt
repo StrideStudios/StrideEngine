@@ -2,3 +2,4 @@
 add_subdirectory(sdl)
 add_subdirectory(vk-bootstrap)
 add_subdirectory(vma)
+add_subdirectory(glslang)

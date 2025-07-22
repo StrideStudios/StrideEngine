@@ -1,4 +1,4 @@
-﻿#include "include/Engine.h"
+﻿#include "Engine.h"
 
 #include <filesystem>
 #include <iostream>
@@ -26,11 +26,8 @@ void CEngine::init() {
 	assertOnce(CEngine);
 
 	std::filesystem::path cwd = std::filesystem::current_path();
-	mSourcePath = cwd.string().append("/");
-	mShaderPath = mSourcePath.append("../shaders/");
-
-	std::cout << mSourcePath << std::endl;
-	std::cout << mShaderPath << std::endl;
+	mSourcePath = cwd.string().append("\\");
+	mShaderPath = mSourcePath.append("..\\shaders\\");
 
 	// Initialize SDL3
 	SDL_Init(SDL_INIT_VIDEO);
@@ -79,6 +76,11 @@ void CEngine::run() {
 
 	bool bRunning = true;
 	auto previousTime = std::chrono::high_resolution_clock::now();
+
+	bool bOldVsync = true;
+	bool bUseVsync = true;
+	bool bFrameCap = true;
+	int32 frameCap = 180;
 
 	while (bRunning) {
 
@@ -144,16 +146,45 @@ void CEngine::run() {
 		ImGui_ImplSDL3_NewFrame();
 		ImGui::NewFrame();
 
-		ImGui::ShowDemoWindow();
+		if (ImGui::Begin("background")) {
+			SComputeEffect& selected = m_Renderer->m_BackgroundEffects[m_Renderer->m_CurrentBackgroundEffect];
+
+			ImGui::Text("Selected effect: ", selected.name);
+
+			ImGui::SliderInt("Effect Index", &m_Renderer->m_CurrentBackgroundEffect, 0, m_Renderer->m_BackgroundEffects.size() - 1);
+
+			ImGui::InputFloat4("data1",(float*)&selected.data.data1);
+			ImGui::InputFloat4("data2",(float*)&selected.data.data2);
+			ImGui::InputFloat4("data3",(float*)&selected.data.data3);
+			ImGui::InputFloat4("data4",(float*)&selected.data.data4);
+		}
+		ImGui::End();
+
+		if (bOldVsync != bUseVsync) {
+			bOldVsync = bUseVsync;
+			m_Renderer->m_EngineTextures->getSwapchain().recreate(bUseVsync);
+		}
+
+		// Settings
+		if (ImGui::Begin("Settings")) {
+			ImGui::Checkbox("Use VSync", &bUseVsync);
+			ImGui::Checkbox("Use Frame Cap: ", &bFrameCap);
+			if (bFrameCap) {
+				ImGui::SliderInt("Frame Cap: ", &frameCap, 0, 500);
+			}
+		}
+		ImGui::End();
 
 		ImGui::Render();
 
 		getRenderer().render();
 
 		// If we go over the target framerate, delay
-		constexpr double TargetDeltaTime = 1.0 / TARGET_FRAMERATE;
-		if (const auto frameTime = std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - previousTime).count(); TargetDeltaTime > frameTime) {
-			SDL_Delay(static_cast<std::uint32_t>((TargetDeltaTime - frameTime) * 1000.0));
+		if (bFrameCap) {
+			const double TargetDeltaTime = 1.0 / frameCap;
+			if (const auto frameTime = std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - previousTime).count(); TargetDeltaTime > frameTime) {
+				SDL_Delay(static_cast<std::uint32_t>((TargetDeltaTime - frameTime) * 1000.0));
+			}
 		}
 	}
 

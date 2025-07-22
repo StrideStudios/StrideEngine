@@ -2,7 +2,10 @@
 cmake_minimum_required(VERSION 3.31)
 
 set(CMAKE_CXX_STANDARD 23)
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static-libstdc++ -static-libgcc --static")
+# Temporary solution until i get a dll copying thing for some of the stinkier dlls
+# set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static-libstdc++ -static-libgcc --static")
+
+set(BUILD_DIR PROJECT_BINARY_DIR)
 
 # Project Definition
 

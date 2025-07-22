@@ -24,6 +24,12 @@ struct TType3 {
 	Type x, y, z;
 };
 
+template <typename TType>
+struct TType4 {
+	using Type = TType;
+	Type x, y, z, w;
+};
+
 // Extent should always be used with integer types
 
 typedef TType2<int32> Extent32;
@@ -37,6 +43,8 @@ typedef TType2<float> Vector2f;
 typedef TType2<double> Vector2d;
 typedef TType3<float> Vector3f;
 typedef TType3<double> Vector3d;
+typedef TType4<float> Vector4f;
+typedef TType4<double> Vector4d;
 
 // Not all platforms have wide characters as a defined length
 // To keep it consistent, these macros will change depending on the platform

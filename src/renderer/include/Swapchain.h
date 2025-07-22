@@ -7,7 +7,7 @@
 #include "Common.h"
 #include "VkBootstrap.h"
 #include "DeletionQueue.h"
-#include "../../vulkan/include/VulkanUtils.h"
+#include "VulkanUtils.h"
 
 struct SFrameData;
 class CVulkanDevice;
@@ -46,7 +46,7 @@ public:
 		return mSwapchain;
 	}
 
-	void recreate();
+	void recreate(bool inUseVSync = true);
 
 	void cleanup();
 

@@ -1,8 +1,7 @@
-﻿#include "include/Swapchain.h"
+﻿#include "Swapchain.h"
 
 #include "Engine.h"
 #include "VulkanDevice.h"
-#include "VulkanRenderer.h"
 #include "VulkanUtils.h"
 
 #include "vulkan/vk_enum_string_helper.h"
@@ -54,7 +53,7 @@ CSwapchain::CSwapchain() {
 	}
 }
 
-void CSwapchain::recreate() {
+void CSwapchain::recreate(bool inUseVSync) {
 
 	mFormat = VK_FORMAT_B8G8R8A8_UNORM;
 
@@ -63,7 +62,7 @@ void CSwapchain::recreate() {
 		.set_old_swapchain(mSwapchain)
 		.set_desired_format(VkSurfaceFormatKHR{ .format = mFormat, .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR })
 		//use vsync present mode
-		.set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR) //VK_PRESENT_MODE_FIFO_KHR
+		.set_desired_present_mode(inUseVSync ? VK_PRESENT_MODE_FIFO_KHR : VK_PRESENT_MODE_IMMEDIATE_KHR)
 		.set_desired_extent(CEngine::get().getWindow().mExtent.x, CEngine::get().getWindow().mExtent.y)
 		.add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT)
 		.build();
@@ -142,12 +141,13 @@ void CSwapchain::submit(const VkCommandBuffer inCmd, const VkQueue inGraphicsQue
 
 	// Present
 	{
-		VkSwapchainPresentFenceInfoEXT presentFenceInfo = {};
-		presentFenceInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_PRESENT_FENCE_INFO_EXT;
-		presentFenceInfo.pFences = &frame.mPresentFence;
-		presentFenceInfo.swapchainCount = 1;
+		VkSwapchainPresentFenceInfoEXT presentFenceInfo {
+			.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_PRESENT_FENCE_INFO_EXT,
+			.swapchainCount = 1,
+			.pFences = &frame.mPresentFence
+		};
 
-		const auto presentInfo = VkPresentInfoKHR{
+		const auto presentInfo = VkPresentInfoKHR {
 			.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
 			.pNext = &presentFenceInfo,
 			.waitSemaphoreCount = 1,

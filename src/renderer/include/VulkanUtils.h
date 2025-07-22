@@ -16,18 +16,17 @@ constexpr static uint8 gFrameOverlap = 2;
 namespace CVulkanUtils {
 
 	static VkImageSubresourceRange ImageSubresourceRange(VkImageAspectFlags inAspectMask) {
-		VkImageSubresourceRange subImage {};
-		subImage.aspectMask = inAspectMask;
-		subImage.baseMipLevel = 0;
-		subImage.levelCount = VK_REMAINING_MIP_LEVELS;
-		subImage.baseArrayLayer = 0;
-		subImage.layerCount = VK_REMAINING_ARRAY_LAYERS;
-
-		return subImage;
+		return {
+			.aspectMask = inAspectMask,
+			.baseMipLevel = 0,
+			.levelCount = VK_REMAINING_MIP_LEVELS,
+			.baseArrayLayer = 0,
+			.layerCount = VK_REMAINING_ARRAY_LAYERS
+		};
 	}
 
 	static void CopyImageToImage(VkCommandBuffer inCmd, VkImage inSource, VkImage inDestination, VkExtent2D inSrcSize, VkExtent2D inDstSize) {
-		VkImageBlit2 blitRegion{ .sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2, .pNext = nullptr };
+		VkImageBlit2 blitRegion { .sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2, .pNext = nullptr };
 
 		blitRegion.srcOffsets[1].x = inSrcSize.width;
 		blitRegion.srcOffsets[1].y = inSrcSize.height;
@@ -47,7 +46,7 @@ namespace CVulkanUtils {
 		blitRegion.dstSubresource.layerCount = 1;
 		blitRegion.dstSubresource.mipLevel = 0;
 
-		VkBlitImageInfo2 blitInfo{ .sType = VK_STRUCTURE_TYPE_BLIT_IMAGE_INFO_2, .pNext = nullptr };
+		VkBlitImageInfo2 blitInfo { .sType = VK_STRUCTURE_TYPE_BLIT_IMAGE_INFO_2, .pNext = nullptr };
 		blitInfo.dstImage = inDestination;
 		blitInfo.dstImageLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 		blitInfo.srcImage = inSource;
@@ -76,52 +75,51 @@ namespace CVulkanUtils {
 		imageBarrier.subresourceRange = ImageSubresourceRange(aspectMask);
 		imageBarrier.image = inImage;
 
-		VkDependencyInfo depInfo {};
-		depInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
-		depInfo.pNext = nullptr;
-
-		depInfo.imageMemoryBarrierCount = 1;
-		depInfo.pImageMemoryBarriers = &imageBarrier;
+		VkDependencyInfo depInfo {
+			.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+			.pNext = nullptr,
+			.imageMemoryBarrierCount = 1,
+			.pImageMemoryBarriers = &imageBarrier
+		};
 
 		vkCmdPipelineBarrier2(inCmd, &depInfo);
 	}
 
 	static bool loadShader(const char* inFilePath, VkDevice inDevice, VkShaderModule* outShaderModule) {
-		// open the file. With cursor at the end
+		// Open the file. With cursor at the end
 		std::ifstream file(inFilePath, std::ios::ate | std::ios::binary);
 
 		if (!file.is_open()) {
 			return false;
 		}
 
-		// find what the size of the file is by looking up the location of the cursor
-		// because the cursor is at the end, it gives the size directly in bytes
+		// Find what the size of the file is by looking up the location of the cursor
+		// Because the cursor is at the end, it gives the size directly in bytes
 		size_t fileSize = (size_t)file.tellg();
 
-		// spirv expects the buffer to be on uint32, so make sure to reserve a int
-		// vector big enough for the entire file
+		// SPIRV expects the buffer to be on uint32, so make sure to reserve a int
+		// Vector big enough for the entire file
 		std::vector<uint32_t> buffer(fileSize / sizeof(uint32_t));
 
-		// put file cursor at beginning
+		// Put file cursor at beginning
 		file.seekg(0);
 
-		// load the entire file into the buffer
+		// Load the entire file into the buffer
 		file.read((char*)buffer.data(), fileSize);
 
-		// now that the file is loaded into the buffer, we can close it
+		// Now that the file is loaded into the buffer, we can close it
 		file.close();
 
-		// create a new shader module, using the buffer we loaded
-		VkShaderModuleCreateInfo createInfo = {};
-		createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-		createInfo.pNext = nullptr;
+		// Create a new shader module, using the buffer we loaded
+		VkShaderModuleCreateInfo createInfo {
+			.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+			.pNext = nullptr,
+			// CodeSize has to be in bytes, so multply the ints in the buffer by size of
+			.codeSize = buffer.size() * sizeof(uint32_t),
+			.pCode = buffer.data()
+		};
 
-		// codeSize has to be in bytes, so multply the ints in the buffer by size of
-		// int to know the real size of the buffer
-		createInfo.codeSize = buffer.size() * sizeof(uint32_t);
-		createInfo.pCode = buffer.data();
-
-		// check that the creation goes well.
+		// Check that the creation goes well.
 		VkShaderModule shaderModule;
 		if (vkCreateShaderModule(inDevice, &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
 			return false;
@@ -131,167 +129,154 @@ namespace CVulkanUtils {
 	}
 
 	static VkRenderingAttachmentInfo createAttachmentInfo(VkImageView view, VkClearValue* clear ,VkImageLayout layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) {
-		VkRenderingAttachmentInfo colorAttachment {};
-		colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-		colorAttachment.pNext = nullptr;
-
-		colorAttachment.imageView = view;
-		colorAttachment.imageLayout = layout;
-		colorAttachment.loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
-		colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-		if (clear) {
-			colorAttachment.clearValue = *clear;
-		}
-
-		return colorAttachment;
+		return {
+			.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+			.pNext = nullptr,
+			.imageView = view,
+			.imageLayout = layout,
+			.loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD,
+			.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+			.clearValue = clear ? *clear : VkClearValue()
+		};
 	}
 
 	static VkRenderingInfo createRenderingInfo(VkExtent2D inExtent, VkRenderingAttachmentInfo* inColorAttachement, VkRenderingAttachmentInfo* inDepthAttachement) {
-		VkRenderingInfo renderInfo {};
-		renderInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
-		renderInfo.pNext = nullptr;
-
-		renderInfo.renderArea = VkRect2D { VkOffset2D { 0, 0 }, inExtent };
-		renderInfo.layerCount = 1;
-		renderInfo.colorAttachmentCount = 1;
-		renderInfo.pColorAttachments = inColorAttachement;
-		renderInfo.pDepthAttachment = inDepthAttachement;
-		renderInfo.pStencilAttachment = nullptr;
-
-		return renderInfo;
+		return {
+			.sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+			.pNext = nullptr,
+			.renderArea = VkRect2D { VkOffset2D { 0, 0 }, inExtent },
+			.layerCount = 1,
+			.colorAttachmentCount = 1,
+			.pColorAttachments = inColorAttachement,
+			.pDepthAttachment = inDepthAttachement,
+			.pStencilAttachment = nullptr
+		};
 	}
 }
 
 namespace CVulkanInfo {
 
 	static VkCommandPoolCreateInfo CreateCommandPoolInfo(uint32 inQueueFamilyIndex, VkCommandPoolCreateFlags inFlags = 0) {
-		VkCommandPoolCreateInfo info = {};
-		info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-		info.pNext = nullptr;
-		info.queueFamilyIndex = inQueueFamilyIndex;
-		info.flags = inFlags;
-		return info;
+		return {
+			.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+			.pNext = nullptr,
+			.flags = inFlags,
+			.queueFamilyIndex = inQueueFamilyIndex
+		};
 	}
 
 	static VkCommandBufferAllocateInfo CreateCommandAllocateInfo(VkCommandPool inPool, uint32 inCount = 1) {
-		VkCommandBufferAllocateInfo info = {};
-		info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-		info.pNext = nullptr;
-
-		info.commandPool = inPool;
-		info.commandBufferCount = inCount;
-		info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-		return info;
+		return {
+			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+			.pNext = nullptr,
+			.commandPool = inPool,
+			.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+			.commandBufferCount = inCount
+		};
 	}
 
 	static VkFenceCreateInfo CreateFenceInfo(VkFenceCreateFlags inFlags = 0) {
-		VkFenceCreateInfo info = {};
-		info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-		info.pNext = nullptr;
-
-		info.flags = inFlags;
-
-		return info;
+		return {
+			.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+			.pNext = nullptr,
+			.flags = inFlags
+		};
 	}
 
 	static VkSemaphoreCreateInfo CreateSemaphoreInfo(VkSemaphoreCreateFlags inFlags = 0) {
-		VkSemaphoreCreateInfo info = {};
-		info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-		info.pNext = nullptr;
-		info.flags = inFlags;
-		return info;
+		return {
+			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+			.pNext = nullptr,
+			.flags = inFlags
+		};
 	}
 
 	static VkCommandBufferBeginInfo CreateCommandBufferBeginInfo(VkCommandBufferUsageFlags inFlags = 0) {
-		VkCommandBufferBeginInfo info = {};
-		info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-		info.pNext = nullptr;
-
-		info.pInheritanceInfo = nullptr;
-		info.flags = inFlags;
-		return info;
+		return {
+			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+			.pNext = nullptr,
+			.flags = inFlags,
+			.pInheritanceInfo = nullptr
+		};
 	}
 
 	static VkSemaphoreSubmitInfo SubmitSemaphoreInfo(VkPipelineStageFlags2 inStageMask, VkSemaphore inSemaphore) {
-		VkSemaphoreSubmitInfo submitInfo{};
-		submitInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
-		submitInfo.pNext = nullptr;
-		submitInfo.semaphore = inSemaphore;
-		submitInfo.stageMask = inStageMask;
-		submitInfo.deviceIndex = 0;
-		submitInfo.value = 1;
-
-		return submitInfo;
+		return {
+			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+			.pNext = nullptr,
+			.semaphore = inSemaphore,
+			.value = 1,
+			.stageMask = inStageMask,
+			.deviceIndex = 0
+		};
 	}
 
 	static VkCommandBufferSubmitInfo SubmitCommandBufferInfo(VkCommandBuffer inCmd) {
-		VkCommandBufferSubmitInfo info{};
-		info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
-		info.pNext = nullptr;
-		info.commandBuffer = inCmd;
-		info.deviceMask = 0;
-
-		return info;
+		return {
+			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
+			.pNext = nullptr,
+			.commandBuffer = inCmd,
+			.deviceMask = 0
+		};
 	}
 
 	static VkSubmitInfo2 SubmitInfo(const VkCommandBufferSubmitInfo* inCmd, const VkSemaphoreSubmitInfo* inSignalSemaphoreInfo, const VkSemaphoreSubmitInfo* inWaitSemaphoreInfo) {
-		VkSubmitInfo2 info = {};
-		info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2;
-		info.pNext = nullptr;
+		return {
+			.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
+			.pNext = nullptr,
 
-		info.waitSemaphoreInfoCount = inWaitSemaphoreInfo == nullptr ? 0 : 1;
-		info.pWaitSemaphoreInfos = inWaitSemaphoreInfo;
+			.waitSemaphoreInfoCount = (uint32)(inWaitSemaphoreInfo == nullptr ? 0 : 1),
+			.pWaitSemaphoreInfos = inWaitSemaphoreInfo,
 
-		info.signalSemaphoreInfoCount = inSignalSemaphoreInfo == nullptr ? 0 : 1;
-		info.pSignalSemaphoreInfos = inSignalSemaphoreInfo;
+			.commandBufferInfoCount = 1,
+			.pCommandBufferInfos = inCmd,
 
-		info.commandBufferInfoCount = 1;
-		info.pCommandBufferInfos = inCmd;
-
-		return info;
+			.signalSemaphoreInfoCount = (uint32)(inSignalSemaphoreInfo == nullptr ? 0 : 1),
+			.pSignalSemaphoreInfos = inSignalSemaphoreInfo
+		};
 	}
 
 	static VkImageCreateInfo CreateImageInfo(VkFormat inFormat, VkImageUsageFlags inUsageFlags, VkExtent3D inExtent)
 	{
-		VkImageCreateInfo info = {};
-		info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-		info.pNext = nullptr;
+		return {
+			.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+			.pNext = nullptr,
 
-		info.imageType = VK_IMAGE_TYPE_2D;
+			.imageType = VK_IMAGE_TYPE_2D,
 
-		info.format = inFormat;
-		info.extent = inExtent;
+			.format = inFormat,
+			.extent = inExtent,
 
-		info.mipLevels = 1;
-		info.arrayLayers = 1;
+			.mipLevels = 1,
+			.arrayLayers = 1,
 
-		//for MSAA. we will not be using it by default, so default it to 1 sample per pixel.
-		info.samples = VK_SAMPLE_COUNT_1_BIT;
+			//for MSAA. we will not be using it by default, so default it to 1 sample per pixel.
+			.samples = VK_SAMPLE_COUNT_1_BIT,
 
-		//optimal tiling, which means the image is stored on the best gpu format
-		info.tiling = VK_IMAGE_TILING_OPTIMAL;
-		info.usage = inUsageFlags;
-
-		return info;
+			//optimal tiling, which means the image is stored on the best gpu format
+			.tiling = VK_IMAGE_TILING_OPTIMAL,
+			.usage = inUsageFlags
+		};
 	}
 
 	static VkImageViewCreateInfo CreateImageViewInfo(VkFormat inFormat, VkImage inImage, VkImageAspectFlags inAspectFlags)
 	{
 		// build a image-view for the depth image to use for rendering
-		VkImageViewCreateInfo info = {};
-		info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-		info.pNext = nullptr;
+		return {
+			.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+			.pNext = nullptr,
 
-		info.viewType = VK_IMAGE_VIEW_TYPE_2D;
-		info.image = inImage;
-		info.format = inFormat;
-		info.subresourceRange.baseMipLevel = 0;
-		info.subresourceRange.levelCount = 1;
-		info.subresourceRange.baseArrayLayer = 0;
-		info.subresourceRange.layerCount = 1;
-		info.subresourceRange.aspectMask = inAspectFlags;
-
-		return info;
+			.image = inImage,
+			.viewType = VK_IMAGE_VIEW_TYPE_2D,
+			.format = inFormat,
+			.subresourceRange = {
+				.aspectMask = inAspectFlags,
+				.baseMipLevel = 0,
+				.levelCount = 1,
+				.baseArrayLayer = 0,
+				.layerCount = 1
+			}
+		};
 	}
 }
 
@@ -300,12 +285,11 @@ struct SDescriptorLayoutBuilder {
 	std::vector<VkDescriptorSetLayoutBinding> bindings;
 
 	void addBinding(uint32 inBinding, VkDescriptorType inDescriptorType) {
-		VkDescriptorSetLayoutBinding newbind {};
-		newbind.binding = inBinding;
-		newbind.descriptorCount = 1;
-		newbind.descriptorType = inDescriptorType;
-
-		bindings.push_back(newbind);
+		bindings.push_back({
+			.binding = inBinding,
+			.descriptorType = inDescriptorType,
+			.descriptorCount = 1
+		});
 	}
 
 	void clear() {
@@ -317,12 +301,13 @@ struct SDescriptorLayoutBuilder {
 			b.stageFlags |= inShaderStages;
 		}
 
-		VkDescriptorSetLayoutCreateInfo info = {.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
-		info.pNext = pNext;
-
-		info.pBindings = bindings.data();
-		info.bindingCount = (uint32_t)bindings.size();
-		info.flags = inFlags;
+		VkDescriptorSetLayoutCreateInfo info {
+			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+			.pNext = pNext,
+			.flags = inFlags,
+			.bindingCount = (uint32_t)bindings.size(),
+			.pBindings = bindings.data()
+		};
 
 		VkDescriptorSetLayout set;
 		VK_CHECK(vkCreateDescriptorSetLayout(inDevice, &info, nullptr, &set));
@@ -349,11 +334,14 @@ struct SDescriptorAllocator {
 			});
 		}
 
-		VkDescriptorPoolCreateInfo pool_info = {.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
-		pool_info.flags = 0;
-		pool_info.maxSets = inMaxSets;
-		pool_info.poolSizeCount = (uint32_t)poolSizes.size();
-		pool_info.pPoolSizes = poolSizes.data();
+		VkDescriptorPoolCreateInfo pool_info {
+			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+			.pNext = nullptr,
+			.flags = 0,
+			.maxSets = inMaxSets,
+			.poolSizeCount = (uint32_t)poolSizes.size(),
+			.pPoolSizes = poolSizes.data()
+		};
 
 		vkCreateDescriptorPool(inDevice, &pool_info, nullptr, &pool);
 	}
@@ -367,11 +355,13 @@ struct SDescriptorAllocator {
 	}
 
 	VkDescriptorSet allocate(VkDevice inDevice, VkDescriptorSetLayout inLayout) {
-		VkDescriptorSetAllocateInfo allocInfo = {.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
-		allocInfo.pNext = nullptr;
-		allocInfo.descriptorPool = pool;
-		allocInfo.descriptorSetCount = 1;
-		allocInfo.pSetLayouts = &inLayout;
+		VkDescriptorSetAllocateInfo allocInfo {
+			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+			.pNext = nullptr,
+			.descriptorPool = pool,
+			.descriptorSetCount = 1,
+			.pSetLayouts = &inLayout
+		};
 
 		VkDescriptorSet ds;
 		VK_CHECK(vkAllocateDescriptorSets(inDevice, &allocInfo, &ds));

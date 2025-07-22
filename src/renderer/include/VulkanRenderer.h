@@ -11,6 +11,22 @@
 class CEngineTextures;
 class CVulkanDevice;
 
+struct SComputePushConstants {
+	Vector4f data1;
+	Vector4f data2;
+	Vector4f data3;
+	Vector4f data4;
+};
+
+struct SComputeEffect {
+	const char* name;
+
+	VkPipeline pipeline;
+	VkPipelineLayout layout;
+
+	SComputePushConstants data;
+};
+
 class CVulkanRenderer {
 
 public:
@@ -96,7 +112,16 @@ private:
 	// Pipelines
 	//
 
-	VkPipeline m_GradientPipeline;
 	VkPipelineLayout m_GradientPipelineLayout;
+
+	//
+	// Temp shader stuff
+	//
+
+	friend class CEngine;//lazy remove
+
+	std::vector<SComputeEffect> m_BackgroundEffects;
+	int m_CurrentBackgroundEffect{0};
+
 
 };

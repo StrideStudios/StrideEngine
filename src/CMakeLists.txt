@@ -3,7 +3,6 @@
 include_directories("core/include")
 include_directories("renderer/include")
 include_directories("engine/include")
-include_directories("vulkan/include")
 include_directories("imgui/include")
 
 add_executable(StrideEngine
@@ -16,14 +15,13 @@ add_executable(StrideEngine
 
         renderer/include/Swapchain.h
         renderer/include/EngineTextures.h
+        renderer/include/VulkanDevice.h
+        renderer/include/VulkanRenderer.h
+        renderer/include/VulkanUtils.h
         renderer/Swapchain.cpp
         renderer/EngineTextures.cpp
-
-        vulkan/include/VulkanDevice.h
-        vulkan/include/VulkanRenderer.h
-        vulkan/include/VulkanUtils.h
-        vulkan/VulkanDevice.cpp
-        vulkan/VulkanRenderer.cpp
+        renderer/VulkanDevice.cpp
+        renderer/VulkanRenderer.cpp
 
         imgui/include/imconfig.h
         imgui/include/imgui.h
@@ -42,6 +40,8 @@ add_executable(StrideEngine
         imgui/imgui_impl_sdl3.cpp
 
         main.cpp
+        renderer/include/ShaderCompiler.h
+        renderer/ShaderCompiler.cpp
 
 )
 
@@ -52,6 +52,8 @@ target_link_libraries(StrideEngine PUBLIC
         Vulkan::Vulkan
         vk-bootstrap::vk-bootstrap
         GPUOpen::VulkanMemoryAllocator
+        glslang::glslang-default-resource-limits
+        glslang::glslang
 )
 # Tell cmake to copy dlls to the target directory
 add_custom_command(TARGET StrideEngine POST_BUILD
@@ -59,8 +61,10 @@ add_custom_command(TARGET StrideEngine POST_BUILD
         COMMAND_EXPAND_LISTS
 )
 
+file(COPY "${PROJECT_SOURCE_DIR}/shaders/" DESTINATION "${PROJECT_BINARY_DIR}/shaders")
+
 # Compile Shaders
-include(CompileShaders)
-compile_shaders(StrideEngine
-        gradient.comp
-)
+#include(CompileShaders)
+#compile_shaders(StrideEngine
+#        basic/gradient.comp
+#)

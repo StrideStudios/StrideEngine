@@ -1,8 +1,5 @@
 ﻿#include "VulkanDevice.h"
 
-#include <cassert>
-#include <iostream>
-
 #include <thread>
 
 #include "Engine.h"
@@ -11,7 +8,7 @@ CVulkanDevice::CVulkanDevice() {
     vkb::InstanceBuilder builder;
 
     auto instance = builder.set_app_name("Stride Engine")
-            .request_validation_layers(true)
+            .request_validation_layers(false)
             .use_default_debug_messenger()
             .require_api_version(1, 3, 0)
             .build();

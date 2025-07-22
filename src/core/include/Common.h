@@ -9,7 +9,7 @@
  *
  * Classes (Should not be data only): CClassName
  * Structs (Should be data only with only basic functions): SStructName
- * Enums (Should always be enum classes): EEnumName
+ * Enums (Should always be enum classes): EEnumName enumerators should always be ALL_CAPS
  * Enums should also always try to use the lowest integer type it can
  * Enum flags should use the 1 << 0 and 1 << 1 format for readability
  *
