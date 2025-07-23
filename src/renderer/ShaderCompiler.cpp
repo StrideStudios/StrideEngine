@@ -165,6 +165,7 @@ bool loadShader(VkDevice inDevice, const char* inFileName, uint32 Hash, SShader&
 	file.close();
 
 	// The first uint32 value is the hash, if it does not equal the hash for the shader code, it means the shader has changed
+	msg("Hash from from file {}", buffer[0]);
 	if (buffer[0] != Hash) {
 		msg("Shader file {} has changed, recompiling.", inFileName);
 		return false;
@@ -192,7 +193,7 @@ bool loadShader(VkDevice inDevice, const char* inFileName, uint32 Hash, SShader&
 }
 
 bool saveShader(const char* inFileName, uint32 Hash, const SShader& inShader) {
-	std::ofstream file(inFileName, std::ios::binary);
+	std::ofstream file(inFileName, std::ios::binary | std::ios::trunc);
 
 	// Make sure the file is open
 	if (!file.is_open()) {
@@ -210,6 +211,8 @@ bool saveShader(const char* inFileName, uint32 Hash, const SShader& inShader) {
 	// Close the file
 	file.close();
 
+	msg("Compiled Shader {}.", inFileName);
+
 	return true;
 }
 
@@ -219,7 +222,8 @@ VkResult CShaderCompiler::getShader(VkDevice inDevice, const char* inFileName, S
 	const std::string SPIRVpath = path + ".spv";
 
 	// Get the hash of the original source file so we know if it changed
-	uint32 Hash = CMD5Hashing::getFileHash(path);
+	uint32 Hash = CHashing::getFileHash(path);
+	msg("Given Hash {} from {}.", Hash, path);
 	if (Hash == 0) {
 		err("Hash from file {} is not valid.", inFileName);
 	}

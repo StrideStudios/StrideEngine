@@ -275,20 +275,22 @@ void CVulkanRenderer::initBackgroundPipelines() {
 		.layout = m_GradientPipelineLayout
 	};
 
-	SComputeEffect gradient;
-	gradient.layout = m_GradientPipelineLayout;
-	gradient.name = "gradient";
-	gradient.data = {};
+	SComputeEffect gradient {
+		.name = "gradient",
+		.layout = m_GradientPipelineLayout,
+		.data = {}
+	};
 
 	VK_CHECK(vkCreateComputePipelines(CEngine::get().getDevice().getDevice(),VK_NULL_HANDLE,1,&computePipelineCreateInfo, nullptr, &gradient.pipeline));
 
 	// Change the shader module only to create the sky shader
 	computePipelineCreateInfo.stage.module = skyShader.mModule;
 
-	SComputeEffect sky;
-	sky.layout = m_GradientPipelineLayout;
-	sky.name = "sky";
-	sky.data = {};
+	SComputeEffect sky {
+		.name = "sky",
+		.layout = m_GradientPipelineLayout,
+		.data = {}
+	};
 
 	VK_CHECK(vkCreateComputePipelines(CEngine::get().getDevice().getDevice(),VK_NULL_HANDLE,1,&computePipelineCreateInfo, nullptr, &sky.pipeline));
 
