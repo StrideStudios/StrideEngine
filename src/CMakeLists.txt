@@ -70,11 +70,3 @@ add_custom_command(TARGET StrideEngine POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:StrideEngine> $<TARGET_FILE_DIR:StrideEngine>
         COMMAND_EXPAND_LISTS
 )
-
-file(COPY "${PROJECT_SOURCE_DIR}/shaders/" DESTINATION "${PROJECT_BINARY_DIR}/shaders")
-
-# Compile Shaders
-#include(CompileShaders)
-#compile_shaders(StrideEngine
-#        basic/gradient.comp
-#)

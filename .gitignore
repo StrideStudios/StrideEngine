@@ -1,4 +1,31 @@
-﻿# CLion files
+﻿# Ignore files, but look through all directories
+*
+!*/
+
+# Src Files
+!*.cpp
+!*.h
+!*.ini
+!*.exe
+!*.dll
+!*.lib
+
+# Shader Files
+!*.vert
+!*.frag
+!*.comp
+
+# Cmake files
+!CMakeLists.txt
+!*.cmake
+
+# Git
+!.git*
+
+# Third party
+!third_party/
+
+# CLion files
 .idea/
 
 # Build files
