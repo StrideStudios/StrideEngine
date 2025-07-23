@@ -41,7 +41,7 @@ private:
 	// Add command to the settings
 	constexpr static void addCommand(const char* inCommand, CCommand* inCommandType) {
 		//ast(!get().m_Commands.contains(inCommand), "Command {} already defined.", inCommand);
-		get().m_Commands.push_back({inCommand, inCommandType});
+		get().m_Commands.emplace_back(inCommand, inCommandType);
 	}
 
 	std::vector<std::pair<std::string, CCommand*>> m_Commands;
@@ -68,7 +68,7 @@ public:
 	m_Command(inCommand),
 	m_Type(Type::BOOL) {
 		m_Value.bValue = inDefaultValue;
-		CEngineSettings::get().addCommand(inCommand, this);
+		CEngineSettings::addCommand(inCommand, this);
 		insertToMap();
 	}
 
@@ -81,7 +81,7 @@ public:
 			.min = inMinValue,
 			.max = inMaxValue
 		};
-		CEngineSettings::get().addCommand(inCommand, this);
+		CEngineSettings::addCommand(inCommand, this);
 		insertToMap();
 	}
 
@@ -94,7 +94,7 @@ public:
 			.min = inMinValue,
 			.max = inMaxValue
 		};
-		CEngineSettings::get().addCommand(inCommand, this);
+		CEngineSettings::addCommand(inCommand, this);
 		insertToMap();
 	}
 
@@ -103,7 +103,7 @@ public:
 	m_Command(inCommand),
 	m_Type(Type::EXTENT) {
 		m_Value.extent = inDefaultValue;
-		CEngineSettings::get().addCommand(inCommand, this);
+		CEngineSettings::addCommand(inCommand, this);
 		insertToMap();
 	}
 
@@ -112,7 +112,7 @@ public:
 	m_Command(inCommand),
 	m_Type(Type::VECTOR2) {
 		m_Value.vector2 = inDefaultValue;
-		CEngineSettings::get().addCommand(inCommand, this);
+		CEngineSettings::addCommand(inCommand, this);
 		insertToMap();
 	}
 
@@ -121,7 +121,7 @@ public:
 	m_Command(inCommand),
 	m_Type(Type::VECTOR3) {
 		m_Value.vector3 = inDefaultValue;
-		CEngineSettings::get().addCommand(inCommand, this);
+		CEngineSettings::addCommand(inCommand, this);
 		insertToMap();
 	}
 
@@ -130,15 +130,15 @@ public:
 	m_Command(inCommand),
 	m_Type(Type::VECTOR4) {
 		m_Value.vector4 = inDefaultValue;
-		CEngineSettings::get().addCommand(inCommand, this);
+		CEngineSettings::addCommand(inCommand, this);
 		insertToMap();
 	}
 
-	std::string getCategory() const {
+	no_discard std::string getCategory() const {
 		return m_Category;
 	}
 
-	std::string getCommand() const {
+	no_discard std::string getCommand() const {
 		return m_Command;
 	}
 
@@ -209,7 +209,7 @@ public:
 	: CCommand(inCategory, inCommand, inDefaultValue, inMinValue, inMaxValue) {
 	}
 
-	Type get() {
+	no_discard Type get() {
 		if constexpr(std::is_same_v<Type, bool>) {
 			return m_Value.bValue;
 		} else if constexpr(std::is_same_v<Type, int32>) {
@@ -228,7 +228,7 @@ public:
 		err("Command {} has invalid type.", m_Category);
 	}
 
-	Type getMin() {
+	no_discard Type getMin() {
 		if constexpr(std::is_same_v<Type, int32>) {
 			return m_Value.iValue.min;
 		} else if constexpr(std::is_same_v<Type, float>) {
@@ -237,7 +237,7 @@ public:
 		err("Attempted to access min of Command {} that has no min.", m_Category);
 	}
 
-	Type getMax() {
+	no_discard Type getMax() {
 		if constexpr(std::is_same_v<Type, int32>) {
 			return m_Value.iValue.max;
 		} else if constexpr(std::is_same_v<Type, float>) {
