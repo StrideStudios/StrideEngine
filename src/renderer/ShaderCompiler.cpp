@@ -1,9 +1,12 @@
 ﻿#include "ShaderCompiler.h"
 
+#include <filesystem>
 #include <fstream>
 
 #include "BasicTypes.h"
 #include "Common.h"
+#include "Engine.h"
+#include "Hashing.h"
 #include "glslang/Include/glslang_c_interface.h"
 #include "glslang/Public/resource_limits_c.h"
 #include "glslang/Public/ShaderLang.h"
@@ -82,7 +85,8 @@ static uint32 compile(SShader& inoutShader) {
 }
 
 std::string readShaderFile(const char* inFileName) {
-	FILE* file = fopen(inFileName, "r");
+	FILE* file;
+	fopen_s(&file, inFileName, "r");
 
 	if (!file)
 	{
@@ -130,30 +134,14 @@ std::string readShaderFile(const char* inFileName) {
 	return code;
 }
 
-VkResult CShaderCompiler::compileShader(VkDevice inDevice, const char* inFileName, SShader& inoutShader) {
-	uint32 result = 0;
-	if (const auto shaderSource = readShaderFile(inFileName); !shaderSource.empty()) {
-		inoutShader.mShaderCode = shaderSource;
-		result = compile(inoutShader);
+bool loadShader(VkDevice inDevice, const char* inFileName, uint32 Hash, SShader& inoutShader) {
+	// Make sure the file exists before attempting to open
+	if (!std::filesystem::exists(inFileName)) {
+		return false;
 	}
 
-	// If we get to this point without throwing some kind of other error, it means the shader file could not be found
-	if (!result) {
-		err("Shader file {} not found!", inFileName);
-	}
-
-	const VkShaderModuleCreateInfo createInfo = {
-		.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-		.codeSize = inoutShader.mCompiledShader.size() * sizeof(inoutShader.mCompiledShader[0]),
-		.pCode = inoutShader.mCompiledShader.data()
-	};
-
-	return vkCreateShaderModule(inDevice, &createInfo, nullptr, &inoutShader.mModule);
-}
-
-bool CShaderCompiler::loadShader(const char *inFilePath, VkDevice inDevice, VkShaderModule *outShaderModule) {
 	// Open the file. With cursor at the end
-	std::ifstream file(inFilePath, std::ios::ate | std::ios::binary);
+	std::ifstream file(inFileName, std::ios::ate | std::ios::binary);
 
 	if (!file.is_open()) {
 		return false;
@@ -165,7 +153,7 @@ bool CShaderCompiler::loadShader(const char *inFilePath, VkDevice inDevice, VkSh
 
 	// SPIRV expects the buffer to be on uint32, so make sure to reserve a int
 	// Vector big enough for the entire file
-	std::vector<uint32_t> buffer(fileSize / sizeof(uint32_t));
+	std::vector<uint32> buffer(fileSize / sizeof(uint32));
 
 	// Put file cursor at beginning
 	file.seekg(0);
@@ -175,6 +163,15 @@ bool CShaderCompiler::loadShader(const char *inFilePath, VkDevice inDevice, VkSh
 
 	// Now that the file is loaded into the buffer, we can close it
 	file.close();
+
+	// The first uint32 value is the hash, if it does not equal the hash for the shader code, it means the shader has changed
+	if (buffer[0] != Hash) {
+		msg("Shader file {} has changed, recompiling.", inFileName);
+		return false;
+	}
+
+	// Remove the hash so it doesnt mess up the SPIRV shader
+	buffer.erase(buffer.begin());
 
 	// Create a new shader module, using the buffer we loaded
 	VkShaderModuleCreateInfo createInfo {
@@ -190,6 +187,67 @@ bool CShaderCompiler::loadShader(const char *inFilePath, VkDevice inDevice, VkSh
 	if (vkCreateShaderModule(inDevice, &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
 		return false;
 	}
-	*outShaderModule = shaderModule;
+	inoutShader.mModule = shaderModule;
 	return true;
+}
+
+bool saveShader(const char* inFileName, uint32 Hash, const SShader& inShader) {
+	std::ofstream file(inFileName, std::ios::binary);
+
+	// Make sure the file is open
+	if (!file.is_open()) {
+		return false;
+	}
+
+	std::vector<uint32> data = inShader.mCompiledShader;
+
+	// Add the hash to the first part of the shader
+	data.insert(data.begin(), Hash);
+
+	// write the data to the file
+	file.write((char*)data.data(), data.size()*sizeof(uint32));
+
+	// Close the file
+	file.close();
+
+	return true;
+}
+
+VkResult CShaderCompiler::getShader(VkDevice inDevice, const char* inFileName, SShader& inoutShader) {
+
+	const std::string path = CEngine::get().mShaderPath + inFileName;
+	const std::string SPIRVpath = path + ".spv";
+
+	// Get the hash of the original source file so we know if it changed
+	uint32 Hash = CMD5Hashing::getFileHash(path);
+	if (Hash == 0) {
+		err("Hash from file {} is not valid.", inFileName);
+	}
+
+	// Check for written SPIRV files
+	if (loadShader(inDevice, SPIRVpath.c_str(), Hash, inoutShader)) {
+		return VK_SUCCESS;
+	}
+
+	uint32 result = 0;
+	if (const auto shaderSource = readShaderFile(path.c_str()); !shaderSource.empty()) {
+		inoutShader.mShaderCode = shaderSource;
+		result = compile(inoutShader);
+		// Save compiled shader
+		if (!saveShader(SPIRVpath.c_str(), Hash, inoutShader)) {
+			err("Shader file {} failed to save to {}!", inFileName, SPIRVpath.c_str());
+		}
+	}
+
+	// If we get to this point without throwing some kind of other error, it means the shader file could not be found
+	if (!result) {
+		err("Shader file {} not found!", inFileName);
+	}
+
+	if (loadShader(inDevice, SPIRVpath.c_str(), Hash, inoutShader)) {
+		return VK_SUCCESS;
+	}
+
+	// Not sure what error to use, just use this error
+	return VK_ERROR_INVALID_SHADER_NV;
 }

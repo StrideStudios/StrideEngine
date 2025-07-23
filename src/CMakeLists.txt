@@ -9,7 +9,7 @@ add_executable(StrideEngine
 
         # Core
 
-        core/include/DeletionQueue.h
+        core/include/Hashing.h
         core/include/BasicTypes.h
         core/include/Common.h
 

@@ -253,12 +253,12 @@ void CVulkanRenderer::initBackgroundPipelines() {
 	SShader gradientShader {
 		.mStage = EShaderStage::COMPUTE
 	};
-	VK_CHECK(CShaderCompiler::compileShader(CEngine::get().getDevice().getDevice(), (CEngine::get().mShaderPath + "basic\\gradient.comp").c_str(), gradientShader));
+	VK_CHECK(CShaderCompiler::getShader(CEngine::get().getDevice().getDevice(), "basic\\gradient.comp", gradientShader));
 
 	SShader skyShader {
 		.mStage = EShaderStage::COMPUTE
 	};
-	VK_CHECK(CShaderCompiler::compileShader(CEngine::get().getDevice().getDevice(), (CEngine::get().mShaderPath + "basic\\sky.comp").c_str(), skyShader));
+	VK_CHECK(CShaderCompiler::getShader(CEngine::get().getDevice().getDevice(), "basic\\sky.comp", skyShader));
 
 	VkPipelineShaderStageCreateInfo stageinfo {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
