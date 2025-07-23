@@ -12,13 +12,21 @@
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_vulkan.h"
 #include "ShaderCompiler.h"
+#include "EngineSettings.h"
 
 #define VMA_IMPLEMENTATION
 #include "vma/vk_mem_alloc.h"
 
+#define COMMAND_CATEGORY "Visuals"
+ADD_COMMAND(UseSky, 0, 0, 1);
+ADD_COMMAND(GradientColor0, {1, 0, 0, 1});
+ADD_COMMAND(GradientColor1, {0, 0, 1, 1});
+ADD_COMMAND(SkyParameters, {0.1, 0.2, 0.4, 0.97});
+#undef COMMAND_CATEGORY
+
 CVulkanRenderer::CVulkanRenderer() {
 	// Ensure the renderer is only created once
-	assertOnce(CVulkanRenderer);
+	astOnce(CVulkanRenderer);
 
 	// Use vkb to get a Graphics queue
 	m_GraphicsQueue = CEngine::get().getDevice().getDevice().get_queue(vkb::QueueType::graphics).value();
@@ -32,6 +40,8 @@ CVulkanRenderer::CVulkanRenderer() {
 
 		for (auto &frame: m_Frames) {
 			VK_CHECK(vkCreateCommandPool(CEngine::get().getDevice().getDevice(), &commandPoolInfo, nullptr, &frame.mCommandPool));
+
+			m_ResourceDeallocator.push(&frame.mCommandPool);
 
 			// Allocate the default command buffer that we will use for rendering
 			VkCommandBufferAllocateInfo cmdAllocInfo = CVulkanInfo::CreateCommandAllocateInfo(frame.mCommandPool, 1);
@@ -57,9 +67,7 @@ CVulkanRenderer::CVulkanRenderer() {
 		m_DrawImageDescriptorLayout = builder.build(CEngine::get().getDevice().getDevice(), VK_SHADER_STAGE_COMPUTE_BIT);
 	}
 
-	m_DeletionQueue.push([&] {
-		m_GlobalDescriptorAllocator.destroy(CEngine::get().getDevice().getDevice());
-	});
+	m_ResourceDeallocator.push(&m_GlobalDescriptorAllocator.mPool);
 
 	initDescriptors();
 
@@ -69,14 +77,18 @@ CVulkanRenderer::CVulkanRenderer() {
 }
 
 void CVulkanRenderer::destroy() {
+
+	m_ResourceDeallocator.flush();
+
 	for (auto & mFrame : m_Frames) {
-		vkDestroyCommandPool(CEngine::get().getDevice().getDevice(), mFrame.mCommandPool, nullptr);
-		mFrame.mDeletionQueue.flush();
+		mFrame.mResourceDeallocator.flush();
 	}
 
-	m_DeletionQueue.flush();
+	ImGui_ImplVulkan_Shutdown();
+	ImGui_ImplSDL3_Shutdown();
+	ImGui::DestroyContext();
 
-	m_DescriptorDeletionQueue.flush();
+	m_DescriptorResourceDeallocator.flush();
 
 	m_EngineTextures->destroy();
 }
@@ -109,8 +121,8 @@ void CVulkanRenderer::render() {
 	// Reset the current fences, done here so the swapchain acquire doesn't stall the engine
 	m_EngineTextures->getSwapchain().reset(getFrameIndex());
 
-	// Flush temporary frame data
-	m_Frames[getFrameIndex()].mDeletionQueue.flush();
+	// Flush temporary frame data TODO: not sure when this should be used
+	m_Frames[getFrameIndex()].mResourceDeallocator.flush();
 
 	// Make the swapchain image into writeable mode before rendering
 	CVulkanUtils::TransitionImage(cmd, m_EngineTextures->mDrawImage.mImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
@@ -150,13 +162,20 @@ void CVulkanRenderer::renderImGui(VkCommandBuffer cmd, VkImageView inTargetImage
 	vkCmdEndRendering(cmd);
 }
 
-void CVulkanRenderer::drawBackground(VkCommandBuffer cmd) const {
+void CVulkanRenderer::drawBackground(VkCommandBuffer cmd) {
 	// bind the gradient drawing compute pipeline
-	const SComputeEffect& effect = m_BackgroundEffects[m_CurrentBackgroundEffect];
+	SComputeEffect& effect = m_BackgroundEffects[UseSky.getInt()];
 	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, effect.pipeline);
 
 	// bind the descriptor set containing the draw image for the compute pipeline
 	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_GradientPipelineLayout, 0, 1, &m_DrawImageDescriptors, 0, nullptr);
+
+	if (UseSky.getInt() > 0) {
+		effect.data.data1 = SkyParameters.getVector4f();
+	} else {
+		effect.data.data1 = GradientColor0.getVector4f();
+		effect.data.data2 = GradientColor1.getVector4f();
+	}
 
 	vkCmdPushConstants(cmd, m_GradientPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0 ,sizeof(SComputePushConstants), &effect.data);
 
@@ -175,7 +194,7 @@ void CVulkanRenderer::waitForGpu() {
 void CVulkanRenderer::initDescriptors() {
 
 	// Ensure previous descriptors are destroyed
-	m_DescriptorDeletionQueue.flush();
+	m_DescriptorResourceDeallocator.flush();
 
 	//allocate a descriptor set for our draw image
 	m_DrawImageDescriptors = m_GlobalDescriptorAllocator.allocate(CEngine::get().getDevice().getDevice(),m_DrawImageDescriptorLayout);
@@ -183,9 +202,7 @@ void CVulkanRenderer::initDescriptors() {
 	updateDescriptors();
 
 	//cleanup previous descriptor set layouts
-	m_DescriptorDeletionQueue.push([&] {
-		vkDestroyDescriptorSetLayout(CEngine::get().getDevice().getDevice(), m_DrawImageDescriptorLayout, nullptr);
-	});
+	m_DescriptorResourceDeallocator.push(&m_DrawImageDescriptorLayout);
 }
 
 void CVulkanRenderer::updateDescriptors() {
@@ -262,10 +279,6 @@ void CVulkanRenderer::initBackgroundPipelines() {
 	gradient.name = "gradient";
 	gradient.data = {};
 
-	// Default colors
-	gradient.data.data1 = {1, 0, 0, 1};
-	gradient.data.data2 = {0, 0, 1, 1};
-
 	VK_CHECK(vkCreateComputePipelines(CEngine::get().getDevice().getDevice(),VK_NULL_HANDLE,1,&computePipelineCreateInfo, nullptr, &gradient.pipeline));
 
 	// Change the shader module only to create the sky shader
@@ -275,8 +288,6 @@ void CVulkanRenderer::initBackgroundPipelines() {
 	sky.layout = m_GradientPipelineLayout;
 	sky.name = "sky";
 	sky.data = {};
-	// Default sky parameters
-	sky.data.data1 = {0.1, 0.2, 0.4, 0.97};
 
 	VK_CHECK(vkCreateComputePipelines(CEngine::get().getDevice().getDevice(),VK_NULL_HANDLE,1,&computePipelineCreateInfo, nullptr, &sky.pipeline));
 
@@ -286,10 +297,10 @@ void CVulkanRenderer::initBackgroundPipelines() {
 	vkDestroyShaderModule(CEngine::get().getDevice().getDevice(), gradientShader.mModule, nullptr);
 	vkDestroyShaderModule(CEngine::get().getDevice().getDevice(), skyShader.mModule, nullptr);
 
-	m_DeletionQueue.push([&] {
-		vkDestroyPipelineLayout(CEngine::get().getDevice().getDevice(), m_GradientPipelineLayout, nullptr);
-		vkDestroyPipeline(CEngine::get().getDevice().getDevice(), sky.pipeline, nullptr);
-		vkDestroyPipeline(CEngine::get().getDevice().getDevice(), gradient.pipeline, nullptr);
+	m_ResourceDeallocator.append({
+		&sky.pipeline,
+		&gradient.pipeline,
+		&m_GradientPipelineLayout
 	});
 }
 
@@ -345,12 +356,6 @@ void CVulkanRenderer::initImGui() {
 	ImGui_ImplVulkan_Init(&init_info);
 	ImGui_ImplSDL3_InitForVulkan(CEngine::get().getWindow().mWindow);
 
-	// add the destroy the imgui created structures
-	m_DeletionQueue.push([&] {
-		ImGui_ImplVulkan_Shutdown();
-		ImGui_ImplSDL3_Shutdown();
-		vkDestroyDescriptorPool(CEngine::get().getDevice().getDevice(), m_ImGuiDescriptorPool, nullptr);
-		ImGui::DestroyContext();
-	});
+	m_ResourceDeallocator.push(&m_ImGuiDescriptorPool);
 }
 

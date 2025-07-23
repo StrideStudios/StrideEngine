@@ -22,6 +22,7 @@ add_executable(StrideEngine
 
         # Renderer
 
+        renderer/include/ResourceDeallocator.h
         renderer/include/ShaderCompiler.h
         renderer/ShaderCompiler.cpp
         renderer/include/Swapchain.h
@@ -51,6 +52,7 @@ add_executable(StrideEngine
         imgui/imgui_widgets.cpp
         imgui/imgui_impl_vulkan.cpp
         imgui/imgui_impl_sdl3.cpp
+        renderer/ResourceDeallocator.cpp
 )
 
 find_package(Vulkan REQUIRED)

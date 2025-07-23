@@ -2,7 +2,7 @@
 
 #include "imgui.h"
 
-CCommand::CCommand(const char* inCategory, const char* inCommand, bool inDefaultValue)
+CCommand::CCommand(const char* inCategory, const char* inCommand, const bool inDefaultValue)
 : m_Category(inCategory),
 m_Command(inCommand),
 m_Type(Type::BOOL) {
@@ -11,7 +11,7 @@ m_Type(Type::BOOL) {
 	insertToMap();
 }
 
-CCommand::CCommand(const char* inCategory, const char* inCommand, int32 inDefaultValue, int32 inMinValue, int32 inMaxValue)
+CCommand::CCommand(const char* inCategory, const char* inCommand, const int32 inDefaultValue, int32 inMinValue, int32 inMaxValue)
 : m_Category(inCategory),
 m_Command(inCommand),
 m_Type(Type::INT) {
@@ -24,7 +24,7 @@ m_Type(Type::INT) {
 	insertToMap();
 }
 
-CCommand::CCommand(const char* inCategory, const char* inCommand, float inDefaultValue, float inMinValue, float inMaxValue)
+CCommand::CCommand(const char* inCategory, const char* inCommand, const float inDefaultValue, float inMinValue, float inMaxValue)
 : m_Category(inCategory),
 m_Command(inCommand),
 m_Type(Type::FLOAT) {
@@ -33,6 +33,42 @@ m_Type(Type::FLOAT) {
 		.min = inMinValue,
 		.max = inMaxValue
 	};
+	CEngineSettings::get().addCommand(inCommand, this);
+	insertToMap();
+}
+
+CCommand::CCommand(const char* inCategory, const char* inCommand, const Extent32 inDefaultValue)
+: m_Category(inCategory),
+m_Command(inCommand),
+m_Type(Type::EXTENT) {
+	m_Value.extent = inDefaultValue;
+	CEngineSettings::get().addCommand(inCommand, this);
+	insertToMap();
+}
+
+CCommand::CCommand(const char* inCategory, const char* inCommand, const Vector2f inDefaultValue)
+: m_Category(inCategory),
+m_Command(inCommand),
+m_Type(Type::VECTOR2) {
+	m_Value.vector2 = inDefaultValue;
+	CEngineSettings::get().addCommand(inCommand, this);
+	insertToMap();
+}
+
+CCommand::CCommand(const char* inCategory, const char* inCommand, const Vector3f inDefaultValue)
+: m_Category(inCategory),
+m_Command(inCommand),
+m_Type(Type::VECTOR3) {
+	m_Value.vector3 = inDefaultValue;
+	CEngineSettings::get().addCommand(inCommand, this);
+	insertToMap();
+}
+
+CCommand::CCommand(const char* inCategory, const char* inCommand, const Vector4f inDefaultValue)
+: m_Category(inCategory),
+m_Command(inCommand),
+m_Type(Type::VECTOR4) {
+	m_Value.vector4 = inDefaultValue;
 	CEngineSettings::get().addCommand(inCommand, this);
 	insertToMap();
 }
@@ -52,6 +88,18 @@ void CEngineSettings::render() {
 								break;
 							case CCommand::Type::FLOAT:
 								ImGui::SliderFloat(command->m_Command, &command->m_Value.fValue.val, command->m_Value.fValue.min, command->m_Value.fValue.max);
+								break;
+							case CCommand::Type::EXTENT:
+								ImGui::InputInt2(command->m_Command, (int32*)&command->m_Value.extent);
+								break;
+							case CCommand::Type::VECTOR2:
+								ImGui::InputFloat2(command->m_Command, (float*)&command->m_Value.vector2);
+								break;
+							case CCommand::Type::VECTOR3:
+								ImGui::InputFloat3(command->m_Command, (float*)&command->m_Value.vector3);
+								break;
+							case CCommand::Type::VECTOR4:
+								ImGui::InputFloat4(command->m_Command, (float*)&command->m_Value.vector4);
 								break;
 						}
 					}

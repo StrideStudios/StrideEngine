@@ -4,7 +4,6 @@
 #include <memory>
 
 #include "Common.h"
-#include "DeletionQueue.h"
 #include "VkBootstrap.h"
 #include "VulkanRenderer.h"
 

@@ -23,7 +23,7 @@ CEngineTextures::CEngineTextures() {
 void CEngineTextures::initializeTextures() {
 
 	// Ensure previous textures have been destroyed
-	m_DeletionQueue.flush();
+	m_ResourceDeallocator.flush();
 
 	//hardcoding the draw format to 32 bit float
 	mDrawImage.mImageFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
@@ -53,13 +53,12 @@ void CEngineTextures::initializeTextures() {
 
 	VK_CHECK(vkCreateImageView(CEngine::get().getDevice().getDevice(), &imageViewInfo, nullptr, &mDrawImage.mImageView));
 
-	//add to deletion queues
-	m_DeletionQueue.push([this] {
-		vkDestroyImageView(CEngine::get().getDevice().getDevice(), mDrawImage.mImageView, nullptr);
-		vmaDestroyImage(m_Allocator, mDrawImage.mImage, mDrawImage.mAllocation);
+	//add to resource deallocator
+	m_ResourceDeallocator.append({
+		&mDrawImage.mImageView,
+		{m_Allocator, &mDrawImage.mImage, mDrawImage.mAllocation}
 	});
 }
-
 
 void CEngineTextures::reallocate() {
 
@@ -73,7 +72,7 @@ void CEngineTextures::reallocate() {
 
 void CEngineTextures::destroy() {
 
-	m_DeletionQueue.flush();
+	m_ResourceDeallocator.flush();
 
 	vmaDestroyAllocator(m_Allocator);
 

@@ -23,4 +23,5 @@ public:
 
 	static VkResult compileShader(VkDevice inDevice, const char* inFileName, SShader& inoutShader);
 
+	static bool loadShader(const char* inFilePath, VkDevice inDevice, VkShaderModule* outShaderModule);
 };

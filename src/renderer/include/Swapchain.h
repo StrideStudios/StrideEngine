@@ -6,7 +6,6 @@
 
 #include "Common.h"
 #include "VkBootstrap.h"
-#include "DeletionQueue.h"
 #include "VulkanUtils.h"
 
 struct SFrameData;

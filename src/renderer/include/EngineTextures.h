@@ -1,5 +1,6 @@
 ﻿#pragma once
 
+#include "ResourceDeallocator.h"
 #include "Swapchain.h"
 #include "vk_mem_alloc.h"
 
@@ -36,7 +37,7 @@ public:
 
 private:
 
-	SDeletionQueue m_DeletionQueue;
+	CResourceDeallocator m_ResourceDeallocator;
 
 	//
 	// Allocator

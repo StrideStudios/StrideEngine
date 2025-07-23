@@ -4,9 +4,9 @@
 #include <vulkan/vulkan_core.h>
 
 #include "Common.h"
-#include "DeletionQueue.h"
 #include "VulkanUtils.h"
 #include "EngineTextures.h"
+#include "ResourceDeallocator.h"
 
 class CEngineTextures;
 class CVulkanDevice;
@@ -35,7 +35,7 @@ public:
 		VkCommandPool mCommandPool = nullptr;
 		VkCommandBuffer mMainCommandBuffer = nullptr;
 
-		SDeletionQueue mDeletionQueue;
+		CResourceDeallocator mResourceDeallocator;
 	};
 
 	CVulkanRenderer();
@@ -55,7 +55,7 @@ public:
 
 	void renderImGui(VkCommandBuffer cmd, VkImageView inTargetImageView);
 
-	void drawBackground(VkCommandBuffer cmd) const;
+	void drawBackground(VkCommandBuffer cmd);
 
 	void waitForGpu();
 
@@ -87,8 +87,6 @@ private:
 
 	SFrameData m_Frames[gFrameOverlap];
 
-	SDeletionQueue m_DeletionQueue;
-
 	VkQueue m_GraphicsQueue;
 	uint32 m_GraphicsQueueFamily;
 
@@ -99,7 +97,9 @@ private:
 	// Descriptor Resources
 	//
 
-	SDeletionQueue m_DescriptorDeletionQueue;
+	CResourceDeallocator m_ResourceDeallocator;
+
+	CResourceDeallocator m_DescriptorResourceDeallocator;
 
 	SDescriptorAllocator m_GlobalDescriptorAllocator;
 
@@ -121,7 +121,6 @@ private:
 	friend class CEngine;//lazy remove
 
 	std::vector<SComputeEffect> m_BackgroundEffects;
-	int m_CurrentBackgroundEffect{0};
 
 
 };

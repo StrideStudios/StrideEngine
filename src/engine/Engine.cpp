@@ -5,6 +5,7 @@
 
 #include "EngineSettings.h"
 #include "imgui_impl_sdl3.h"
+#include "imgui_impl_vulkan.h"
 #include "VulkanDevice.h"
 #include "VulkanRenderer.h"
 #include "SDL3/SDL_events.h"
@@ -28,7 +29,7 @@ int main() {
 
 void CEngine::init() {
 
-	assertOnce(CEngine);
+	astOnce(CEngine);
 
 	std::filesystem::path cwd = std::filesystem::current_path();
 	mSourcePath = cwd.string().append("\\");
@@ -43,7 +44,7 @@ void CEngine::init() {
 		static_cast<int32>(m_EngineWindow.mExtent.y),
 		SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE
 	);
-	assert(m_EngineWindow.mWindow);
+	ast(m_EngineWindow.mWindow, "No window found.");
 
 	SDL_SetWindowResizable(m_EngineWindow.mWindow, true);
 
@@ -52,7 +53,7 @@ void CEngine::init() {
 
 	// Create a surface for Device to reference
 	SDL_Vulkan_CreateSurface(m_EngineWindow.mWindow, getDevice().getInstance(), nullptr, &m_EngineWindow.mVkSurface);
-	assert(m_EngineWindow.mVkSurface);
+	ast(m_EngineWindow.mVkSurface, "No surface found.");
 
 	// Initialize the device and physical device
 	m_Device->initDevice();
@@ -143,23 +144,9 @@ void CEngine::run() {
 		}
 
 		// Start the Dear ImGui frame
-		//ImGui_ImplVulkan_NewFrame();
+		ImGui_ImplVulkan_NewFrame();
 		ImGui_ImplSDL3_NewFrame();
 		ImGui::NewFrame();
-
-		if (ImGui::Begin("background")) {
-			SComputeEffect& selected = m_Renderer->m_BackgroundEffects[m_Renderer->m_CurrentBackgroundEffect];
-
-			ImGui::Text("Selected effect: ", selected.name);
-
-			ImGui::SliderInt("Effect Index", &m_Renderer->m_CurrentBackgroundEffect, 0, static_cast<int32>(m_Renderer->m_BackgroundEffects.size()) - 1);
-
-			ImGui::InputFloat4("data1",reinterpret_cast<float*>(&selected.data.data1));
-			ImGui::InputFloat4("data2",reinterpret_cast<float*>(&selected.data.data2));
-			ImGui::InputFloat4("data3",reinterpret_cast<float*>(&selected.data.data3));
-			ImGui::InputFloat4("data4",reinterpret_cast<float*>(&selected.data.data4));
-		}
-		ImGui::End();
 
 		if (bOldVsync != UseVsync.getBool()) {
 			bOldVsync = UseVsync.getBool();

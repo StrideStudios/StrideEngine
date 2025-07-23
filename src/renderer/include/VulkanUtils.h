@@ -1,6 +1,7 @@
 ﻿#pragma once
 
-#include <fstream>
+#include <vector>
+#include <span>
 
 #include "Common.h"
 #include <vulkan/vulkan_core.h>
@@ -83,49 +84,6 @@ namespace CVulkanUtils {
 		};
 
 		vkCmdPipelineBarrier2(inCmd, &depInfo);
-	}
-
-	static bool loadShader(const char* inFilePath, VkDevice inDevice, VkShaderModule* outShaderModule) {
-		// Open the file. With cursor at the end
-		std::ifstream file(inFilePath, std::ios::ate | std::ios::binary);
-
-		if (!file.is_open()) {
-			return false;
-		}
-
-		// Find what the size of the file is by looking up the location of the cursor
-		// Because the cursor is at the end, it gives the size directly in bytes
-		size_t fileSize = (size_t)file.tellg();
-
-		// SPIRV expects the buffer to be on uint32, so make sure to reserve a int
-		// Vector big enough for the entire file
-		std::vector<uint32_t> buffer(fileSize / sizeof(uint32_t));
-
-		// Put file cursor at beginning
-		file.seekg(0);
-
-		// Load the entire file into the buffer
-		file.read((char*)buffer.data(), fileSize);
-
-		// Now that the file is loaded into the buffer, we can close it
-		file.close();
-
-		// Create a new shader module, using the buffer we loaded
-		VkShaderModuleCreateInfo createInfo {
-			.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-			.pNext = nullptr,
-			// CodeSize has to be in bytes, so multply the ints in the buffer by size of
-			.codeSize = buffer.size() * sizeof(uint32_t),
-			.pCode = buffer.data()
-		};
-
-		// Check that the creation goes well.
-		VkShaderModule shaderModule;
-		if (vkCreateShaderModule(inDevice, &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
-			return false;
-		}
-		*outShaderModule = shaderModule;
-		return true;
 	}
 
 	static VkRenderingAttachmentInfo createAttachmentInfo(VkImageView view, VkClearValue* clear ,VkImageLayout layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) {
@@ -319,18 +277,18 @@ struct SDescriptorLayoutBuilder {
 struct SDescriptorAllocator {
 
 	struct PoolSizeRatio{
-		VkDescriptorType type;
-		float ratio;
+		VkDescriptorType mType;
+		float mRatio;
 	};
 
-	VkDescriptorPool pool;
+	VkDescriptorPool mPool;
 
 	void init(VkDevice inDevice, uint32_t inMaxSets, std::span<PoolSizeRatio> inPoolRatios) {
 		std::vector<VkDescriptorPoolSize> poolSizes;
 		for (PoolSizeRatio ratio : inPoolRatios) {
 			poolSizes.push_back(VkDescriptorPoolSize{
-				.type = ratio.type,
-				.descriptorCount = uint32_t(ratio.ratio * inMaxSets)
+				.type = ratio.mType,
+				.descriptorCount = uint32_t(ratio.mRatio * inMaxSets)
 			});
 		}
 
@@ -343,22 +301,22 @@ struct SDescriptorAllocator {
 			.pPoolSizes = poolSizes.data()
 		};
 
-		vkCreateDescriptorPool(inDevice, &pool_info, nullptr, &pool);
+		vkCreateDescriptorPool(inDevice, &pool_info, nullptr, &mPool);
 	}
 
 	void clear(VkDevice inDevice) {
-		vkResetDescriptorPool(inDevice, pool, 0);
+		vkResetDescriptorPool(inDevice, mPool, 0);
 	}
 
 	void destroy(VkDevice inDevice) {
-		vkDestroyDescriptorPool(inDevice,pool,nullptr);
+		vkDestroyDescriptorPool(inDevice,mPool,nullptr);
 	}
 
 	VkDescriptorSet allocate(VkDevice inDevice, VkDescriptorSetLayout inLayout) {
 		VkDescriptorSetAllocateInfo allocInfo {
 			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
 			.pNext = nullptr,
-			.descriptorPool = pool,
+			.descriptorPool = mPool,
 			.descriptorSetCount = 1,
 			.pSetLayouts = &inLayout
 		};

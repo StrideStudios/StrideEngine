@@ -10,9 +10,6 @@ class CVulkanDevice;
 class CVulkanRenderer;
 struct SDL_Window;
 
-// Typedef from SDL3 vulkan to prevent include
-typedef struct VkSurfaceKHR_T* VkSurfaceKHR;
-
 constexpr static SChar gEngineName = text("Stride Engine");
 
 struct SEngineWindow {
