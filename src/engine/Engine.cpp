@@ -17,18 +17,12 @@ ADD_COMMAND(UseVsync, true);
 ADD_COMMAND(UseFrameCap, 180, 0, 500);
 #undef COMMAND_CATEGORY
 
-static auto gEngine = CEngine();
-
-CEngine& CEngine::get() {
-	return gEngine;
-}
-
 int main() {
-	gEngine.init();
+	CEngine::get().init();
 
-	gEngine.run();
+	CEngine::get().run();
 
-	gEngine.end();
+	CEngine::get().end();
 	return 0;
 }
 

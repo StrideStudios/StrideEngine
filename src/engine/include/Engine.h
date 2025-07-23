@@ -32,7 +32,10 @@ public:
 
 	CEngine() = default;
 
-	static CEngine& get();
+	static CEngine& get() {
+		static CEngine engine;
+		return engine;
+	}
 
 	void init();
 
