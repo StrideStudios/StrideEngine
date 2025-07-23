@@ -5,10 +5,6 @@
 # Src Files
 !*.cpp
 !*.h
-!*.ini
-!*.exe
-!*.dll
-!*.lib
 
 # Shader Files
 !*.vert
@@ -30,3 +26,4 @@
 
 # Build files
 cmake-build-debug/
+bin/
