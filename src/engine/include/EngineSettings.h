@@ -6,8 +6,6 @@
 
 #include "BasicTypes.h"
 #include "Common.h"
-#include "imgui.h"
-#include "imgui_internal.h"
 
 class CCommand {
 
@@ -17,21 +15,6 @@ class CCommand {
 		FLOAT
 	};
 
-	// Each category holds the creation for its individual objects
-	// Will probably be slow, however
-	static std::map<std::string, std::vector<std::function<void()>>>& getCategoryMap() {
-		static std::map<std::string, std::vector<std::function<void()>>> map;
-		return map;
-	}
-
-	void insertToMap(std::function<void()> func) {
-		if (getCategoryMap().contains(m_Category)) {
-			getCategoryMap()[m_Category].push_back(func);
-		} else {
-			getCategoryMap().insert({m_Category, {func}});
-		}
-	}
-
 public:
 
 	CCommand(const char* inCategory, const char* inCommand, bool inDefaultValue);
@@ -39,17 +22,6 @@ public:
 	CCommand(const char* inCategory, const char* inCommand, int32 inDefaultValue, int32 inMinValue, int32 inMaxValue);
 
 	CCommand(const char* inCategory, const char* inCommand, float inDefaultValue, float inMinValue, float inMaxValue);
-
-	static void render() {
-		for (auto&[category, commands] : getCategoryMap()) {
-			if (ImGui::BeginTabItem(category.c_str())) {
-				for (const auto& command : commands) {
-					command();
-				}
-				ImGui::EndTabItem();
-			}
-		}
-	}
 
 	std::string getCategory() const {
 		return m_Category;
@@ -85,7 +57,25 @@ public:
 		m_Value.fValue.val = inValue;
 	}
 
-public:
+private:
+
+	// Only Engine settings needs to access the category map
+	friend class CEngineSettings;
+
+	// Each category holds the creation for its individual objects
+	// Although it very likely is slow, it only is done on initialization
+	static std::map<std::string, std::vector<CCommand*>>& getCategoryMap() {
+		static std::map<std::string, std::vector<CCommand*>> map;
+		return map;
+	}
+
+	void insertToMap() {
+		if (getCategoryMap().contains(m_Category)) {
+			getCategoryMap()[m_Category].push_back(this);
+		} else {
+			getCategoryMap().insert({m_Category, {this}});
+		}
+	}
 
 	const char* m_Category;
 
@@ -122,7 +112,7 @@ public:
 		return sEngineSettings;
 	}
 
-	// Get a certain commands value
+	// Get a certain command
 	static CCommand* getCommand(const char* inCommand) {
 		if (!get().m_Commands.contains(inCommand)) {
 			msg("Attempted to access command {} that did not exist!", inCommand);
@@ -131,29 +121,19 @@ public:
 		return get().m_Commands.at(inCommand);
 	}
 
-	// Set a certain commands value
-	static void setCommand(const char* inCommand, float inValue) {
-		//get().m_Commands[inCommand].set(inValue);
-	}
-
 	// Render the commands on ImGui
-	static void render() {
-		if (ImGui::Begin("Engine Settings")) {
-			if (ImGui::BeginTabBar("Settings")) {
-				CCommand::render();
-			}
-			ImGui::EndTabBar();
-		}
-		ImGui::End();
-	}
+	static void render();
+
+private:
+
+	// Commands need to add themselves
+	friend class CCommand;
 
 	// Add command to the settings
 	static void addCommand(const char* inCommand, CCommand* inCommandType) {
 		assert(!get().m_Commands.contains(inCommand));
 		get().m_Commands.insert({inCommand, inCommandType});
 	}
-
-private:
 
 	std::map<std::string, CCommand*> m_Commands;
 

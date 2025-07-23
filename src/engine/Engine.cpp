@@ -76,12 +76,13 @@ void CEngine::end() {
 void CEngine::run() {
 
 	SDL_Event e;
+	bool pauseRendering = false;
 
-	bool bRunning = true;
 	auto previousTime = std::chrono::high_resolution_clock::now();
 
 	bool bOldVsync = true;
 
+	bool bRunning = true;
 	while (bRunning) {
 
 		// Time utils
@@ -119,10 +120,10 @@ void CEngine::run() {
 					bRunning = false;
 					break;
 				case SDL_EVENT_WINDOW_MINIMIZED:
-					m_PauseRendering = true;
+					pauseRendering = true;
 					break;
 				case SDL_EVENT_WINDOW_RESTORED:
-					m_PauseRendering = false;
+					pauseRendering = false;
 					break;
 				case SDL_EVENT_WINDOW_RESIZED:
 				case SDL_EVENT_WINDOW_MAXIMIZED:
@@ -135,7 +136,7 @@ void CEngine::run() {
 		}
 
 		// do not draw if we are minimized
-		if (m_PauseRendering) {
+		if (pauseRendering) {
 			// throttle the speed to avoid the endless spinning
 			std::this_thread::sleep_for(std::chrono::milliseconds(100));
 			continue;

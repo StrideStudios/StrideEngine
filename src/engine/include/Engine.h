@@ -37,12 +37,6 @@ public:
 		return engine;
 	}
 
-	void init();
-
-	void end();
-
-	void run();
-
 	no_discard int32 getFrameRate() const { return m_FrameRate; }
 
 	no_discard double getDeltaTime() const { return m_DeltaTime; }
@@ -64,6 +58,15 @@ public:
 
 private:
 
+	// Make sure only main can access initialization and run functions
+	friend int main();
+
+	void init();
+
+	void end();
+
+	void run();
+
 	//
 	// Frame Time
 	//
@@ -76,13 +79,8 @@ private:
 
 	double m_GameTime = 0.0;
 
-	//
-	// SDL
-	//
-
+	// SDL Window
 	SEngineWindow m_EngineWindow;
-
-	bool m_PauseRendering = false;
 
 	//
 	// Vulkan
