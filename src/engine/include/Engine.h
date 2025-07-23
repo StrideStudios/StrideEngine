@@ -3,7 +3,7 @@
 #include <memory>
 
 #include "Common.h"
-#include "VulkanDevice.h"
+#include "../../renderer/vulkan/include/VulkanDevice.h"
 #include "VulkanRenderer.h"
 
 class CVulkanDevice;

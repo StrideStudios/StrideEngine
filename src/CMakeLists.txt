@@ -2,6 +2,7 @@
 # Make sure files can pull from include paths
 include_directories("core/include")
 include_directories("renderer/include")
+include_directories("renderer/vulkan/include")
 include_directories("engine/include")
 include_directories("imgui/include")
 
@@ -22,18 +23,21 @@ add_executable(StrideEngine
 
         # Renderer
 
-        renderer/include/ResourceDeallocator.h
-        renderer/include/ShaderCompiler.h
-        renderer/ShaderCompiler.cpp
-        renderer/include/Swapchain.h
+        renderer/vulkan/include/VulkanUtils.h
+        renderer/vulkan/include/ResourceDeallocator.h
+        renderer/vulkan/ResourceDeallocator.cpp
+        renderer/vulkan/include/Swapchain.h
+        renderer/vulkan/Swapchain.cpp
+        renderer/vulkan/include/VulkanDevice.h
+        renderer/vulkan/VulkanDevice.cpp
+        renderer/vulkan/include/ShaderCompiler.h
+        renderer/vulkan/ShaderCompiler.cpp
+        renderer/vulkan/include/VulkanRenderer.h
+        renderer/vulkan/VulkanRenderer.cpp
         renderer/include/EngineTextures.h
-        renderer/include/VulkanDevice.h
-        renderer/include/VulkanRenderer.h
-        renderer/include/VulkanUtils.h
-        renderer/Swapchain.cpp
         renderer/EngineTextures.cpp
-        renderer/VulkanDevice.cpp
-        renderer/VulkanRenderer.cpp
+        renderer/include/BaseRenderer.h
+        renderer/BaseRenderer.cpp
 
         # Dear ImGui
 
@@ -52,7 +56,6 @@ add_executable(StrideEngine
         imgui/imgui_widgets.cpp
         imgui/imgui_impl_vulkan.cpp
         imgui/imgui_impl_sdl3.cpp
-        renderer/ResourceDeallocator.cpp
 )
 
 find_package(Vulkan REQUIRED)

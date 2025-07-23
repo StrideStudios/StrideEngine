@@ -5,7 +5,6 @@
 
 #include "Common.h"
 #include "VkBootstrap.h"
-#include "VulkanRenderer.h"
 
 class CVulkanDevice {
 

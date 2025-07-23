@@ -40,6 +40,8 @@ public:
 
 	CVulkanRenderer();
 
+	virtual ~CVulkanRenderer() = default;
+
 	void destroy();
 
 	force_inline uint32 getFrameNumber() const { return m_FrameNumber; }
@@ -50,24 +52,21 @@ public:
 
 	no_discard const CEngineTextures& getEngineTextures() const { return *m_EngineTextures; }
 
-	// Render to the screen
-	void render();
+	// Draw to the screen
+	void draw();
+
+	// Tell children to render
+	virtual void render(VkCommandBuffer cmd) = 0;
 
 	void renderImGui(VkCommandBuffer cmd, VkImageView inTargetImageView);
 
-	void drawBackground(VkCommandBuffer cmd);
-
 	void waitForGpu() const;
 
-private:
+protected:
 
 	void initDescriptors();
 
 	void updateDescriptors();
-
-	void initPipelines();
-
-	void initBackgroundPipelines();
 
 	void initImGui();
 
@@ -109,18 +108,9 @@ private:
 	VkDescriptorPool m_ImGuiDescriptorPool;
 
 	//
-	// Pipelines
-	//
-
-	VkPipelineLayout m_GradientPipelineLayout;
-
-	//
 	// Temp shader stuff
 	//
 
 	friend class CEngine;//lazy remove
-
-	std::vector<SComputeEffect> m_BackgroundEffects;
-
 
 };

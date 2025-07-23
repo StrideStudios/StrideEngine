@@ -3,10 +3,11 @@
 #include <filesystem>
 #include <thread>
 
+#include "BaseRenderer.h"
 #include "EngineSettings.h"
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_vulkan.h"
-#include "VulkanDevice.h"
+#include "../renderer/vulkan/include/VulkanDevice.h"
 #include "VulkanRenderer.h"
 #include "SDL3/SDL_events.h"
 #include "SDL3/SDL_init.h"
@@ -59,7 +60,7 @@ void CEngine::init() {
 	m_Device->initDevice();
 
 	// Initialize the renderer
-	m_Renderer = std::make_unique<CVulkanRenderer>();
+	m_Renderer = std::make_unique<CBaseRenderer>();
 }
 
 void CEngine::end() {
@@ -157,7 +158,7 @@ void CEngine::run() {
 
 		ImGui::Render();
 
-		getRenderer().render();
+		getRenderer().draw();
 
 		// If we go over the target framerate, delay
 		// Ensure no divide by 0
