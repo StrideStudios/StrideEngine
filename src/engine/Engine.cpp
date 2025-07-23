@@ -23,6 +23,15 @@ CEngine& CEngine::get() {
 	return gEngine;
 }
 
+int main() {
+	gEngine.init();
+
+	gEngine.run();
+
+	gEngine.end();
+	return 0;
+}
+
 void CEngine::init() {
 
 	assertOnce(CEngine);
@@ -36,8 +45,8 @@ void CEngine::init() {
 
 	m_EngineWindow.mWindow = SDL_CreateWindow(
 		"Stride Engine",
-		(int32)m_EngineWindow.mExtent.x,
-		(int32)m_EngineWindow.mExtent.y,
+		static_cast<int32>(m_EngineWindow.mExtent.x),
+		static_cast<int32>(m_EngineWindow.mExtent.y),
 		SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE
 	);
 	assert(m_EngineWindow.mWindow);
@@ -72,8 +81,6 @@ void CEngine::end() {
 
 void CEngine::run() {
 
-	init();
-
 	SDL_Event e;
 
 	bool bRunning = true;
@@ -88,9 +95,9 @@ void CEngine::run() {
 			auto currentTime = std::chrono::high_resolution_clock::now();
 			m_DeltaTime = std::chrono::duration<double>(currentTime - previousTime).count();
 
-			m_FrameRate = (int32) (1.0 / m_DeltaTime);
+			m_FrameRate = static_cast<int32>(1.0 / m_DeltaTime);
 
-			m_AverageFrameRate = (int32)((m_AverageFrameRate + m_FrameRate) / 2.0);
+			m_AverageFrameRate = static_cast<int32>((m_AverageFrameRate + m_FrameRate) / 2.0);
 
 			m_GameTime += m_DeltaTime;
 
@@ -98,7 +105,7 @@ void CEngine::run() {
 		}
 
 		// Easy way to visualize FPS before text is implemented
-		// Its hard to read at 180 hz, so update every tenth frame (or 18 hz)
+		// It's hard to read at 180 hz, so update every tenth frame (or 18 hz)
 		if (m_Renderer->getFrameNumber() % 10 == 0) {
 			std::string title = "Stride Engine Rate: ";
 			title.append(std::to_string(m_AverageFrameRate));
@@ -125,7 +132,7 @@ void CEngine::run() {
 					break;
 				case SDL_EVENT_WINDOW_RESIZED:
 				case SDL_EVENT_WINDOW_MAXIMIZED:
-					m_EngineWindow.mExtent = {(uint32)e.window.data1, (uint32)e.window.data2};
+					m_EngineWindow.mExtent = {static_cast<uint32>(e.window.data1), static_cast<uint32>(e.window.data2)};
 					break;
 				default: break;
 			}
@@ -150,12 +157,12 @@ void CEngine::run() {
 
 			ImGui::Text("Selected effect: ", selected.name);
 
-			ImGui::SliderInt("Effect Index", &m_Renderer->m_CurrentBackgroundEffect, 0, (int32)m_Renderer->m_BackgroundEffects.size() - 1);
+			ImGui::SliderInt("Effect Index", &m_Renderer->m_CurrentBackgroundEffect, 0, static_cast<int32>(m_Renderer->m_BackgroundEffects.size()) - 1);
 
-			ImGui::InputFloat4("data1",(float*)&selected.data.data1);
-			ImGui::InputFloat4("data2",(float*)&selected.data.data2);
-			ImGui::InputFloat4("data3",(float*)&selected.data.data3);
-			ImGui::InputFloat4("data4",(float*)&selected.data.data4);
+			ImGui::InputFloat4("data1",reinterpret_cast<float*>(&selected.data.data1));
+			ImGui::InputFloat4("data2",reinterpret_cast<float*>(&selected.data.data2));
+			ImGui::InputFloat4("data3",reinterpret_cast<float*>(&selected.data.data3));
+			ImGui::InputFloat4("data4",reinterpret_cast<float*>(&selected.data.data4));
 		}
 		ImGui::End();
 
@@ -179,6 +186,4 @@ void CEngine::run() {
 			}
 		}
 	}
-
-	end();
 }

@@ -6,13 +6,24 @@ include_directories("engine/include")
 include_directories("imgui/include")
 
 add_executable(StrideEngine
+
+        # Core
+
         core/include/DeletionQueue.h
         core/include/BasicTypes.h
         core/include/Common.h
 
+        # Engine
+
+        engine/include/EngineSettings.h
+        engine/EngineSettings.cpp
         engine/include/Engine.h
         engine/Engine.cpp
 
+        # Renderer
+
+        renderer/include/ShaderCompiler.h
+        renderer/ShaderCompiler.cpp
         renderer/include/Swapchain.h
         renderer/include/EngineTextures.h
         renderer/include/VulkanDevice.h
@@ -22,6 +33,8 @@ add_executable(StrideEngine
         renderer/EngineTextures.cpp
         renderer/VulkanDevice.cpp
         renderer/VulkanRenderer.cpp
+
+        # Dear ImGui
 
         imgui/include/imconfig.h
         imgui/include/imgui.h
@@ -38,13 +51,6 @@ add_executable(StrideEngine
         imgui/imgui_widgets.cpp
         imgui/imgui_impl_vulkan.cpp
         imgui/imgui_impl_sdl3.cpp
-
-        main.cpp
-        renderer/include/ShaderCompiler.h
-        renderer/ShaderCompiler.cpp
-        engine/include/EngineSettings.h
-        engine/EngineSettings.cpp
-
 )
 
 find_package(Vulkan REQUIRED)
