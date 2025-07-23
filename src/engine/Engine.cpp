@@ -14,8 +14,8 @@
 #include "SDL3/SDL_vulkan.h"
 
 #define COMMAND_CATEGORY "Engine"
-ADD_COMMAND(UseVsync, true);
-ADD_COMMAND(UseFrameCap, 180, 0, 500);
+ADD_COMMAND(bool, UseVsync, true);
+ADD_COMMAND(int32, UseFrameCap, 180, 0, 500);
 #undef COMMAND_CATEGORY
 
 int main() {
@@ -148,10 +148,10 @@ void CEngine::run() {
 		ImGui_ImplSDL3_NewFrame();
 		ImGui::NewFrame();
 
-		if (bOldVsync != UseVsync.getBool()) {
-			bOldVsync = UseVsync.getBool();
-			std::cout << "Reallocating Swapchain to " << (UseVsync.getBool() ? "enable VSync." : "disable VSync.") << std::endl;
-			m_Renderer->m_EngineTextures->getSwapchain().recreate(UseVsync.getBool());
+		if (bOldVsync != UseVsync.get()) {
+			bOldVsync = UseVsync.get();
+			std::cout << "Reallocating Swapchain to " << (UseVsync.get() ? "enable VSync." : "disable VSync.") << std::endl;
+			m_Renderer->m_EngineTextures->getSwapchain().recreate(UseVsync.get());
 		}
 		CEngineSettings::render();
 
@@ -161,8 +161,8 @@ void CEngine::run() {
 
 		// If we go over the target framerate, delay
 		// Ensure no divide by 0
-		if (UseFrameCap.getInt() > 0) {
-			const double TargetDeltaTime = 1.0 / UseFrameCap.getInt();
+		if (UseFrameCap.get() > 0) {
+			const double TargetDeltaTime = 1.0 / UseFrameCap.get();
 			if (const auto frameTime = std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - previousTime).count(); TargetDeltaTime > frameTime) {
 				SDL_Delay(static_cast<std::uint32_t>((TargetDeltaTime - frameTime) * 1000.0));
 			}

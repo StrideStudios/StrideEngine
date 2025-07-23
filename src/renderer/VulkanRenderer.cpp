@@ -18,10 +18,10 @@
 #include "vma/vk_mem_alloc.h"
 
 #define COMMAND_CATEGORY "Visuals"
-ADD_COMMAND(UseSky, 0, 0, 1);
-ADD_COMMAND(GradientColor0, {1, 0, 0, 1});
-ADD_COMMAND(GradientColor1, {0, 0, 1, 1});
-ADD_COMMAND(SkyParameters, {0.1, 0.2, 0.4, 0.97});
+ADD_COMMAND(int32, UseSky, 0, 0, 1);
+ADD_COMMAND(Vector4f, GradientColor0, {1, 0, 0, 1});
+ADD_COMMAND(Vector4f, GradientColor1, {0, 0, 1, 1});
+ADD_COMMAND(Vector4f, SkyParameters, {0.1, 0.2, 0.4, 0.97});
 #undef COMMAND_CATEGORY
 
 CVulkanRenderer::CVulkanRenderer() {
@@ -140,6 +140,7 @@ void CVulkanRenderer::render() {
 	// Set swapchain image layout to Present so we can show it on the screen
 	CVulkanUtils::TransitionImage(cmd, swapchainImage,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
+	// ImGui draws over the swapchain, so it needs to be after the copy
 	renderImGui(cmd, m_EngineTextures->getSwapchain().mSwapchainImageViews[swapchainImageIndex]);
 
 	//finalize the command buffer (we can no longer add commands, but it can now be executed)
@@ -164,17 +165,17 @@ void CVulkanRenderer::renderImGui(VkCommandBuffer cmd, VkImageView inTargetImage
 
 void CVulkanRenderer::drawBackground(VkCommandBuffer cmd) {
 	// bind the gradient drawing compute pipeline
-	SComputeEffect& effect = m_BackgroundEffects[UseSky.getInt()];
+	SComputeEffect& effect = m_BackgroundEffects[UseSky.get()];
 	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, effect.pipeline);
 
 	// bind the descriptor set containing the draw image for the compute pipeline
 	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_GradientPipelineLayout, 0, 1, &m_DrawImageDescriptors, 0, nullptr);
 
-	if (UseSky.getInt() > 0) {
-		effect.data.data1 = SkyParameters.getVector4f();
+	if (UseSky.get() > 0) {
+		effect.data.data1 = SkyParameters.get();
 	} else {
-		effect.data.data1 = GradientColor0.getVector4f();
-		effect.data.data2 = GradientColor1.getVector4f();
+		effect.data.data1 = GradientColor0.get();
+		effect.data.data2 = GradientColor1.get();
 	}
 
 	vkCmdPushConstants(cmd, m_GradientPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0 ,sizeof(SComputePushConstants), &effect.data);
@@ -184,7 +185,7 @@ void CVulkanRenderer::drawBackground(VkCommandBuffer cmd) {
 	vkCmdDispatch(cmd, std::ceil(x / 16.0), std::ceil(y / 16.0), 1);
 }
 
-void CVulkanRenderer::waitForGpu() {
+void CVulkanRenderer::waitForGpu() const {
 	// Make sure the gpu is not working
 	vkDeviceWaitIdle(CEngine::get().getDevice().getDevice());
 

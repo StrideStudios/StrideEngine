@@ -57,7 +57,7 @@ public:
 
 	void drawBackground(VkCommandBuffer cmd);
 
-	void waitForGpu();
+	void waitForGpu() const;
 
 private:
 

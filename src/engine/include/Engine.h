@@ -29,7 +29,7 @@ public:
 
 	CEngine() = default;
 
-	static CEngine& get() {
+	constexpr static CEngine& get() {
 		static CEngine engine;
 		return engine;
 	}
