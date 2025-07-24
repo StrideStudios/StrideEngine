@@ -8,6 +8,7 @@
 #include "GraphicsRenderer.h"
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_vulkan.h"
+#include "ResourceAllocator.h"
 #include "../renderer/vulkan/include/VulkanDevice.h"
 #include "VulkanRenderer.h"
 #include "SDL3/SDL_events.h"
@@ -54,11 +55,14 @@ void CEngine::init() {
 	m_Device = std::make_unique<CVulkanDevice>();
 
 	// Create a surface for Device to reference
-	SDL_Vulkan_CreateSurface(m_EngineWindow.mWindow, getDevice().getInstance(), nullptr, &m_EngineWindow.mVkSurface);
+	SDL_Vulkan_CreateSurface(m_EngineWindow.mWindow, instance(), nullptr, &m_EngineWindow.mVkSurface);
 	ast(m_EngineWindow.mVkSurface, "No surface found.");
 
 	// Initialize the device and physical device
 	m_Device->initDevice();
+
+	// Initialize the allocator
+	CResourceAllocator::init();
 
 	// Initialize the renderer
 	m_Renderer = std::make_unique<CGraphicsRenderer>();
@@ -70,7 +74,9 @@ void CEngine::end() {
 
 	m_Renderer->destroy();
 
-	vkb::destroy_surface(getDevice().getInstance(), m_EngineWindow.mVkSurface);
+	CResourceAllocator::destroy();
+
+	vkb::destroy_surface(instance(), m_EngineWindow.mVkSurface);
 	m_Device->destroy();
 
 	SDL_DestroyWindow(m_EngineWindow.mWindow);
@@ -152,14 +158,14 @@ void CEngine::run() {
 
 		if (bOldVsync != UseVsync.get()) {
 			bOldVsync = UseVsync.get();
-			std::cout << "Reallocating Swapchain to " << (UseVsync.get() ? "enable VSync." : "disable VSync.") << std::endl;
+			msg("Reallocating Swapchain to {}", UseVsync.get() ? "enable VSync." : "disable VSync.");
 			m_Renderer->m_EngineTextures->getSwapchain().recreate(UseVsync.get());
 		}
 		CEngineSettings::render();
 
 		ImGui::Render();
 
-		getRenderer().draw();
+		renderer().draw();
 
 		// If we go over the target framerate, delay
 		// Ensure no divide by 0

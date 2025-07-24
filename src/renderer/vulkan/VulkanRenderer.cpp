@@ -13,14 +13,15 @@
 #include "imgui_impl_vulkan.h"
 #include "ShaderCompiler.h"
 #include "EngineSettings.h"
+#include "ResourceAllocator.h"
 
 CVulkanRenderer::CVulkanRenderer() {
 	// Ensure the renderer is only created once
 	astOnce(CVulkanRenderer);
 
 	// Use vkb to get a Graphics queue
-	m_GraphicsQueue = CEngine::get().getDevice().getDevice().get_queue(vkb::QueueType::graphics).value();
-	m_GraphicsQueueFamily = CEngine::get().getDevice().getDevice().get_queue_index(vkb::QueueType::graphics).value();
+	m_GraphicsQueue = CEngine::device().get_queue(vkb::QueueType::graphics).value();
+	m_GraphicsQueueFamily = CEngine::device().get_queue_index(vkb::QueueType::graphics).value();
 
 	{
 		// Create a command pool for commands submitted to the graphics queue.
@@ -29,18 +30,20 @@ CVulkanRenderer::CVulkanRenderer() {
 			m_GraphicsQueueFamily, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
 		for (auto &frame: m_Frames) {
-			VK_CHECK(vkCreateCommandPool(CEngine::get().getDevice().getDevice(), &commandPoolInfo, nullptr, &frame.mCommandPool));
+			VK_CHECK(vkCreateCommandPool(CEngine::device(), &commandPoolInfo, nullptr, &frame.mCommandPool));
 
-			m_ResourceDeallocator.push(&frame.mCommandPool);
+			m_ResourceDeallocator.push(frame.mCommandPool);
 
 			// Allocate the default command buffer that we will use for rendering
 			VkCommandBufferAllocateInfo cmdAllocInfo = CVulkanInfo::createCommandAllocateInfo(frame.mCommandPool, 1);
 
-			VK_CHECK(vkAllocateCommandBuffers(CEngine::get().getDevice().getDevice(), &cmdAllocInfo, &frame.mMainCommandBuffer));
+			VK_CHECK(vkAllocateCommandBuffers(CEngine::device(), &cmdAllocInfo, &frame.mMainCommandBuffer));
 		}
 	}
 
-	m_EngineTextures = std::make_unique<CEngineTextures>(this);
+	m_EngineTextures = std::make_unique<CEngineTextures>();
+
+	m_EngineBuffers = std::make_unique<CEngineBuffers>(this);
 
 	//create a descriptor pool that will hold 10 sets with 1 image each
 	std::vector<SDescriptorAllocator::PoolSizeRatio> sizes =
@@ -48,16 +51,16 @@ CVulkanRenderer::CVulkanRenderer() {
 		{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1 }
 	};
 
-	m_GlobalDescriptorAllocator.init(CEngine::get().getDevice().getDevice(), 10, sizes);
+	m_GlobalDescriptorAllocator.init(CEngine::device(), 10, sizes);
 
 	//make the descriptor set layout for our compute draw
 	{
 		SDescriptorLayoutBuilder builder;
 		builder.addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
-		m_DrawImageDescriptorLayout = builder.build(CEngine::get().getDevice().getDevice(), VK_SHADER_STAGE_COMPUTE_BIT);
+		m_DrawImageDescriptorLayout = builder.build(CEngine::device(), VK_SHADER_STAGE_COMPUTE_BIT);
 	}
 
-	m_ResourceDeallocator.push(&m_GlobalDescriptorAllocator.mPool);
+	m_ResourceDeallocator.push(m_GlobalDescriptorAllocator.mPool);
 
 	initDescriptors();
 
@@ -66,19 +69,21 @@ CVulkanRenderer::CVulkanRenderer() {
 
 void CVulkanRenderer::destroy() {
 
+	ImGui_ImplVulkan_Shutdown();
+	ImGui_ImplSDL3_Shutdown();
+	ImGui::DestroyContext();
+
 	m_ResourceDeallocator.flush();
 
 	for (auto & mFrame : m_Frames) {
 		mFrame.mResourceDeallocator.flush();
 	}
 
-	ImGui_ImplVulkan_Shutdown();
-	ImGui_ImplSDL3_Shutdown();
-	ImGui::DestroyContext();
-
 	m_DescriptorResourceDeallocator.flush();
 
 	m_EngineTextures->destroy();
+
+	m_EngineBuffers->destroy();
 }
 
 void CVulkanRenderer::draw() {
@@ -113,22 +118,25 @@ void CVulkanRenderer::draw() {
 	m_Frames[getFrameIndex()].mResourceDeallocator.flush();
 
 	// Make the swapchain image into writeable mode before rendering
-	CVulkanUtils::TransitionImage(cmd, m_EngineTextures->mDrawImage.mImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+	CVulkanUtils::transitionImage(cmd, m_EngineTextures->mDrawImage->mImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
 
 	render(cmd);
 
 	// Make the swapchain image into presentable mode
-	CVulkanUtils::TransitionImage(cmd, swapchainImage,VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+	CVulkanUtils::transitionImage(cmd, swapchainImage,VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
 	// Execute a copy from the draw image into the swapchain
-	auto [width, height, depth] = m_EngineTextures->mDrawImage.mImageExtent;
-	CVulkanUtils::CopyImageToImage(cmd, m_EngineTextures->mDrawImage.mImage, swapchainImage, {width, height}, m_EngineTextures->getSwapchain().mSwapchain.extent);
+	auto [width, height, depth] = m_EngineTextures->mDrawImage->mImageExtent;
+	CVulkanUtils::copyImageToImage(cmd, m_EngineTextures->mDrawImage->mImage, swapchainImage, {width, height}, m_EngineTextures->getSwapchain().mSwapchain.extent);
 
-	// Set swapchain image layout to Present so we can show it on the screen
-	CVulkanUtils::TransitionImage(cmd, swapchainImage,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+	// Set swapchain layout so it can be used by ImGui
+	CVulkanUtils::transitionImage(cmd, swapchainImage,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
 	// ImGui draws over the swapchain, so it needs to be after the copy
 	renderImGui(cmd, m_EngineTextures->getSwapchain().mSwapchainImageViews[swapchainImageIndex]);
+
+	// Set swapchain image layout to Present so we can show it on the screen
+	CVulkanUtils::transitionImage(cmd, swapchainImage,VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
 	//finalize the command buffer (we can no longer add commands, but it can now be executed)
 	VK_CHECK(vkEndCommandBuffer(cmd));
@@ -152,7 +160,7 @@ void CVulkanRenderer::renderImGui(VkCommandBuffer cmd, VkImageView inTargetImage
 
 void CVulkanRenderer::waitForGpu() const {
 	// Make sure the gpu is not working
-	vkDeviceWaitIdle(CEngine::get().getDevice().getDevice());
+	vkDeviceWaitIdle(CEngine::device());
 
 	m_EngineTextures->getSwapchain().wait(getFrameIndex());
 }
@@ -163,17 +171,17 @@ void CVulkanRenderer::initDescriptors() {
 	m_DescriptorResourceDeallocator.flush();
 
 	//allocate a descriptor set for our draw image
-	m_DrawImageDescriptors = m_GlobalDescriptorAllocator.allocate(CEngine::get().getDevice().getDevice(),m_DrawImageDescriptorLayout);
+	m_DrawImageDescriptors = m_GlobalDescriptorAllocator.allocate(CEngine::device(),m_DrawImageDescriptorLayout);
 
 	updateDescriptors();
 
 	//cleanup previous descriptor set layouts
-	m_DescriptorResourceDeallocator.push(&m_DrawImageDescriptorLayout);
+	m_DescriptorResourceDeallocator.push(m_DrawImageDescriptorLayout);
 }
 
 void CVulkanRenderer::updateDescriptors() {
 	VkDescriptorImageInfo imgInfo {
-		.imageView = m_EngineTextures->mDrawImage.mImageView,
+		.imageView = m_EngineTextures->mDrawImage->mImageView,
 		.imageLayout = VK_IMAGE_LAYOUT_GENERAL,
 	};
 
@@ -188,7 +196,7 @@ void CVulkanRenderer::updateDescriptors() {
 		.pImageInfo = &imgInfo
 	};
 
-	vkUpdateDescriptorSets(CEngine::get().getDevice().getDevice(), 1, &drawImageWrite, 0, nullptr);
+	vkUpdateDescriptorSets(CEngine::device(), 1, &drawImageWrite, 0, nullptr);
 }
 
 void CVulkanRenderer::initImGui() {
@@ -215,7 +223,7 @@ void CVulkanRenderer::initImGui() {
 		.pPoolSizes = pool_sizes
 	};
 
-	VK_CHECK(vkCreateDescriptorPool(CEngine::get().getDevice().getDevice(), &pool_info, nullptr, &m_ImGuiDescriptorPool));
+	VK_CHECK(vkCreateDescriptorPool(CEngine::device(), &pool_info, nullptr, &m_ImGuiDescriptorPool));
 
 	// Setup Dear ImGui context
 	IMGUI_CHECKVERSION();
@@ -223,9 +231,9 @@ void CVulkanRenderer::initImGui() {
 
 	// this initializes imgui for Vulkan
 	ImGui_ImplVulkan_InitInfo init_info {
-		.Instance = CEngine::get().getDevice().getInstance(),
-		.PhysicalDevice = CEngine::get().getDevice().getPhysicalDevice(),
-		.Device = CEngine::get().getDevice().getDevice(),
+		.Instance = CEngine::instance(),
+		.PhysicalDevice = CEngine::physicalDevice(),
+		.Device = CEngine::device(),
 		.Queue = m_GraphicsQueue,
 		.DescriptorPool = m_ImGuiDescriptorPool,
 		.MinImageCount = 3,
@@ -243,6 +251,9 @@ void CVulkanRenderer::initImGui() {
 	ImGui_ImplVulkan_Init(&init_info);
 	ImGui_ImplSDL3_InitForVulkan(CEngine::get().getWindow().mWindow);
 
-	m_ResourceDeallocator.push(&m_ImGuiDescriptorPool);
+	m_ResourceDeallocator.push(m_ImGuiDescriptorPool);
 }
 
+void CNullRenderer::render(VkCommandBuffer cmd) {
+	CVulkanUtils::transitionImage(cmd, m_EngineTextures->mDrawImage->mImage,VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+}

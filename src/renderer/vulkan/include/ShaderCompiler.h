@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include <vector>
+#include <string>
 #include <vulkan/vulkan_core.h>
 #include "BasicTypes.h"
 

@@ -1,12 +1,7 @@
 ﻿#pragma once
 
-#include <iostream>
-#include <vector>
-#include <vulkan/vulkan_core.h>
-
 #include "Common.h"
 #include "VkBootstrap.h"
-#include "VulkanUtils.h"
 
 struct SFrameData;
 class CVulkanDevice;
@@ -18,6 +13,8 @@ class CVulkanDevice;
         } \
     failedCall; \
     }
+
+constexpr static uint8 gFrameOverlap = 2;
 
 class CSwapchain {
 

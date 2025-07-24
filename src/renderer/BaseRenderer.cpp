@@ -3,6 +3,7 @@
 #include "Engine.h"
 #include "EngineSettings.h"
 #include "ShaderCompiler.h"
+#include "ResourceAllocator.h"
 
 #define COMMAND_CATEGORY "Visuals"
 ADD_COMMAND(int32, UseSky, 0, 0, 1);
@@ -28,18 +29,18 @@ CBaseRenderer::CBaseRenderer() {
 	computeLayout.pPushConstantRanges = &pushConstant;
 	computeLayout.pushConstantRangeCount = 1;
 
-	VK_CHECK(vkCreatePipelineLayout(CEngine::get().getDevice().getDevice(), &computeLayout, nullptr, &m_GradientPipelineLayout));
+	VK_CHECK(vkCreatePipelineLayout(CEngine::device(), &computeLayout, nullptr, &m_GradientPipelineLayout));
 
 
 	SShader gradientShader {
 		.mStage = EShaderStage::COMPUTE
 	};
-	VK_CHECK(CShaderCompiler::getShader(CEngine::get().getDevice().getDevice(), "basic\\gradient.comp", gradientShader));
+	VK_CHECK(CShaderCompiler::getShader(CEngine::device(), "basic\\gradient.comp", gradientShader));
 
 	SShader skyShader {
 		.mStage = EShaderStage::COMPUTE
 	};
-	VK_CHECK(CShaderCompiler::getShader(CEngine::get().getDevice().getDevice(), "basic\\sky.comp", skyShader));
+	VK_CHECK(CShaderCompiler::getShader(CEngine::device(), "basic\\sky.comp", skyShader));
 
 	VkPipelineShaderStageCreateInfo stageinfo {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
@@ -62,7 +63,7 @@ CBaseRenderer::CBaseRenderer() {
 		.data = {}
 	};
 
-	VK_CHECK(vkCreateComputePipelines(CEngine::get().getDevice().getDevice(),VK_NULL_HANDLE,1,&computePipelineCreateInfo, nullptr, &gradient.pipeline));
+	VK_CHECK(vkCreateComputePipelines(CEngine::device(),VK_NULL_HANDLE,1,&computePipelineCreateInfo, nullptr, &gradient.pipeline));
 
 	// Change the shader module only to create the sky shader
 	computePipelineCreateInfo.stage.module = skyShader.mModule;
@@ -73,18 +74,18 @@ CBaseRenderer::CBaseRenderer() {
 		.data = {}
 	};
 
-	VK_CHECK(vkCreateComputePipelines(CEngine::get().getDevice().getDevice(),VK_NULL_HANDLE,1,&computePipelineCreateInfo, nullptr, &sky.pipeline));
+	VK_CHECK(vkCreateComputePipelines(CEngine::device(),VK_NULL_HANDLE,1,&computePipelineCreateInfo, nullptr, &sky.pipeline));
 
 	m_BackgroundEffects.push_back(gradient);
 	m_BackgroundEffects.push_back(sky);
 
-	vkDestroyShaderModule(CEngine::get().getDevice().getDevice(), gradientShader.mModule, nullptr);
-	vkDestroyShaderModule(CEngine::get().getDevice().getDevice(), skyShader.mModule, nullptr);
+	vkDestroyShaderModule(CEngine::device(), gradientShader.mModule, nullptr);
+	vkDestroyShaderModule(CEngine::device(), skyShader.mModule, nullptr);
 
 	m_ResourceDeallocator.append({
-		&sky.pipeline,
-		&gradient.pipeline,
-		&m_GradientPipelineLayout
+		sky.pipeline,
+		gradient.pipeline,
+		m_GradientPipelineLayout
 	});
 }
 
@@ -106,7 +107,10 @@ void CBaseRenderer::render(VkCommandBuffer cmd) {
 	vkCmdPushConstants(cmd, m_GradientPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0 ,sizeof(SComputePushConstants), &effect.data);
 
 	// execute the compute pipeline dispatch. We are using 16x16 workgroup size so we need to divide by it
-	auto [x, y, z] = m_EngineTextures->mDrawImage.mImageExtent;
+	auto [x, y, z] = m_EngineTextures->mDrawImage->mImageExtent;
 	vkCmdDispatch(cmd, std::ceil(x / 16.0), std::ceil(y / 16.0), 1);
+
+	//CVulkanUtils::transitionImage(cmd, m_EngineTextures->mDrawImage->mImage,VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+
 }
 

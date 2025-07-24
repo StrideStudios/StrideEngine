@@ -3,7 +3,7 @@
 #include <memory>
 
 #include "Common.h"
-#include "../../renderer/vulkan/include/VulkanDevice.h"
+#include "VulkanDevice.h"
 #include "VulkanRenderer.h"
 
 class CVulkanDevice;
@@ -34,6 +34,22 @@ public:
 		return engine;
 	}
 
+	constexpr static const vkb::Instance& instance() {
+		return get().m_Device->getInstance();
+	}
+
+	constexpr static const vkb::Device& device() {
+		return get().m_Device->getDevice();
+	}
+
+	constexpr static const vkb::PhysicalDevice& physicalDevice() {
+		return get().m_Device->getPhysicalDevice();
+	}
+
+	constexpr static CVulkanRenderer& renderer() {
+		return *get().m_Renderer;
+	}
+
 	no_discard int32 getFrameRate() const { return m_FrameRate; }
 
 	no_discard double getDeltaTime() const { return m_DeltaTime; }
@@ -41,14 +57,6 @@ public:
 	no_discard double getTime() const { return m_GameTime; }
 
 	no_discard const SEngineWindow& getWindow() const { return m_EngineWindow; }
-
-	no_discard CVulkanDevice& getDevice() { return *m_Device; }
-
-	no_discard const CVulkanDevice& getDevice() const { return *m_Device; }
-
-	no_discard CVulkanRenderer& getRenderer() { return *m_Renderer; }
-
-	no_discard const CVulkanRenderer& getRenderer() const { return *m_Renderer; }
 
 	std::string mSourcePath;
 	std::string mShaderPath;

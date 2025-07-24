@@ -24,6 +24,7 @@ add_executable(StrideEngine
         # Renderer
 
         renderer/vulkan/include/VulkanUtils.h
+        renderer/vulkan/VulkanUtils.cpp
         renderer/vulkan/include/ResourceDeallocator.h
         renderer/vulkan/ResourceDeallocator.cpp
         renderer/vulkan/include/Swapchain.h
@@ -34,12 +35,16 @@ add_executable(StrideEngine
         renderer/vulkan/ShaderCompiler.cpp
         renderer/vulkan/include/VulkanRenderer.h
         renderer/vulkan/VulkanRenderer.cpp
+        renderer/include/ResourceAllocator.h
+        renderer/ResourceAllocator.cpp
         renderer/include/EngineTextures.h
         renderer/EngineTextures.cpp
         renderer/include/BaseRenderer.h
         renderer/BaseRenderer.cpp
         renderer/include/GraphicsRenderer.h
         renderer/GraphicsRenderer.cpp
+        renderer/include/EngineBuffers.h
+        renderer/EngineBuffers.cpp
 
         # Dear ImGui
 

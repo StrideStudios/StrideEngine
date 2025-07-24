@@ -1,12 +1,14 @@
 ﻿#pragma once
 
 #include <functional>
+#include <memory>
 #include <vector>
 #include "BasicTypes.h"
 #include <vulkan/vulkan_core.h>
 
-#include "vk_mem_alloc.h"
-
+typedef std::unique_ptr<struct SImage_T> SImage;
+typedef std::unique_ptr<struct SBuffer_T> SBuffer;
+typedef std::unique_ptr<struct SMeshBuffers_T> SMeshBuffers;
 
 // A class used to deallocate any resource that vulkan needs
 // Meant to replace deletion queues that store full functions
@@ -15,6 +17,7 @@ class CResourceDeallocator {
 
 	enum class Type : uint8 {
 		BUFFER,
+		MESHBUFFER,
 		COMMANDPOOL,
 		DESCRIPTORPOOL,
 		DESCRIPTORSETLAYOUT,
@@ -33,24 +36,23 @@ class CResourceDeallocator {
 
 	// Easily create new objects that can be deallocated
 #define FOR_EACH_TYPE(func) \
-	func(Buffer, BUFFER) \
-	func(CommandPool, COMMANDPOOL) \
-	func(DescriptorPool, DESCRIPTORPOOL) \
-	func(DescriptorSetLayout, DESCRIPTORSETLAYOUT) \
-	func(Fence, FENCE) \
-	func(ImageView, IMAGEVIEW) \
-	func(Pipeline, PIPELINE) \
-	func(PipelineLayout, PIPELINELAYOUT) \
-	func(RenderPass, RENDERPASS) \
-	func(Sampler, SAMPLER) \
-	func(Semaphore, SEMAPHORE) \
-	func(ShaderModule, SHADERMODULE) \
-	func(SwapchainKHR, SWAPCHAINKHR)
+	func(VkCommandPool, CommandPool, COMMANDPOOL) \
+	func(VkDescriptorPool, DescriptorPool, DESCRIPTORPOOL) \
+	func(VkDescriptorSetLayout, DescriptorSetLayout, DESCRIPTORSETLAYOUT) \
+	func(VkFence, Fence, FENCE) \
+	func(VkImageView, ImageView, IMAGEVIEW) \
+	func(VkPipeline, Pipeline, PIPELINE) \
+	func(VkPipelineLayout, PipelineLayout, PIPELINELAYOUT) \
+	func(VkRenderPass, RenderPass, RENDERPASS) \
+	func(VkSampler, Sampler, SAMPLER) \
+	func(VkSemaphore, Semaphore, SEMAPHORE) \
+	func(VkShaderModule, ShaderModule, SHADERMODULE) \
+	func(VkSwapchainKHR, SwapchainKHR, SWAPCHAINKHR)
 
 	struct Resource {
 
-#define CREATE_CONSTRUCTORS(inName, inEnum) \
-	Resource(Vk##inName* inName) \
+#define CREATE_CONSTRUCTORS(inType, inName, inEnum) \
+	Resource(inType inName) \
 	: mType(Type::inEnum) { \
 		mResource.inName = inName; \
 	}
@@ -59,27 +61,37 @@ class CResourceDeallocator {
 
 #undef CREATE_CONSTRUCTORS
 
+	// Buffers are allocated via VMA, and thus must be deallocated with it
+	Resource(const SBuffer& buffer)
+	: mType(Type::BUFFER) {
+		mResource.buffer = buffer.get();
+	}
+
+	// Mesh Buffers are allocated via VMA, and thus must be deallocated with it
+	Resource(const SMeshBuffers& meshBuffers)
+	: mType(Type::MESHBUFFER) {
+		mResource.meshBuffers = meshBuffers.get();
+	}
+
 	// Images are allocated via VMA, and thus must be deallocated with it
-	Resource(VmaAllocator allocator, VkImage* image, VmaAllocation allocation)
+	Resource(const SImage& image)
 	: mType(Type::IMAGE) {
-		mResource.image = {allocator, image, allocation};
+		mResource.image = image.get();
 	}
 
 	void destroy() const;
 
-		Type mType;
+	Type mType;
 
-#define CREATE_UNION(inName, inEnum) \
-		Vk##inName* inName;
+#define CREATE_UNION(inType, inName, inEnum) \
+		inType inName;
 
-		union {
-			FOR_EACH_TYPE(CREATE_UNION)
-			struct {
-				VmaAllocator allocator;
-				VkImage* image;
-				VmaAllocation allocation;
-			} image;
-		} mResource;
+	union {
+		FOR_EACH_TYPE(CREATE_UNION)
+		SBuffer_T* buffer;
+		SMeshBuffers_T* meshBuffers;
+		SImage_T* image;
+	} mResource;
 
 #undef CREATE_UNION
 
@@ -93,7 +105,7 @@ public:
 		m_Resources.push_back(inResource);
 	}
 
-	void push(std::function<void()> func) {
+	void push(const std::function<void()>& func) {
 		m_Functions.push_back(func);
 	}
 

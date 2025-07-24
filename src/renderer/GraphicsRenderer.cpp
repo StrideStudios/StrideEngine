@@ -4,6 +4,9 @@
 #include "ShaderCompiler.h"
 #include <array>
 
+#include "EngineBuffers.h"
+#include "ResourceAllocator.h"
+
 VkPipeline CPipelineBuilder::buildPipeline(VkDevice inDevice) {
 	// Make viewport state from our stored viewport and scissor.
 	// At the moment we won't support multiple viewports or scissors
@@ -119,7 +122,7 @@ CGraphicsRenderer::CGraphicsRenderer() {
 }
 
 void CGraphicsRenderer::initTrianglePipeline() {
-	VkDevice device = CEngine::get().getDevice().getDevice();
+	VkDevice device = CEngine::device();
 
 	SShader frag {
 		.mStage = EShaderStage::PIXEL
@@ -162,7 +165,7 @@ void CGraphicsRenderer::initTrianglePipeline() {
 	pipelineBuilder.disableDepthTest();
 
 	//connect the image format we will draw into, from draw image
-	pipelineBuilder.setColorAttachementFormat(m_EngineTextures->mDrawImage.mImageFormat);
+	pipelineBuilder.setColorAttachementFormat(m_EngineTextures->mDrawImage->mImageFormat);
 	pipelineBuilder.setDepthFormat(VK_FORMAT_UNDEFINED);
 
 	//finally build the pipeline
@@ -173,13 +176,13 @@ void CGraphicsRenderer::initTrianglePipeline() {
 	vkDestroyShaderModule(device, vert.mModule, nullptr);
 
 	m_ResourceDeallocator.append({
-		&m_TrianglePipelineLayout,
-		&m_TrianglePipeline
+		m_TrianglePipelineLayout,
+		m_TrianglePipeline
 	});
 }
 
 void CGraphicsRenderer::initMeshPipeline() {
-	VkDevice device = CEngine::get().getDevice().getDevice();
+	VkDevice device = CEngine::device();
 
 	SShader frag {
 		.mStage = EShaderStage::PIXEL
@@ -230,7 +233,7 @@ void CGraphicsRenderer::initMeshPipeline() {
 	pipelineBuilder.disableDepthTest();
 
 	//connect the image format we will draw into, from draw image
-	pipelineBuilder.setColorAttachementFormat(m_EngineTextures->mDrawImage.mImageFormat);
+	pipelineBuilder.setColorAttachementFormat(m_EngineTextures->mDrawImage->mImageFormat);
 	pipelineBuilder.setDepthFormat(VK_FORMAT_UNDEFINED);
 
 	//finally build the pipeline
@@ -241,8 +244,8 @@ void CGraphicsRenderer::initMeshPipeline() {
 	vkDestroyShaderModule(device, vert.mModule, nullptr);
 
 	m_ResourceDeallocator.append({
-		&m_MeshPipelineLayout,
-		&m_MeshPipeline
+		m_MeshPipelineLayout,
+		m_MeshPipeline
 	});
 }
 
@@ -251,14 +254,14 @@ void CGraphicsRenderer::render(VkCommandBuffer cmd) {
 	// Render the background
 	CBaseRenderer::render(cmd);
 
-	CVulkanUtils::TransitionImage(cmd, m_EngineTextures->mDrawImage.mImage, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	CVulkanUtils::transitionImage(cmd, m_EngineTextures->mDrawImage->mImage, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
 	//begin a render pass  connected to our draw image
-	VkRenderingAttachmentInfo colorAttachment = CVulkanUtils::createAttachmentInfo(m_EngineTextures->mDrawImage.mImageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	VkRenderingAttachmentInfo colorAttachment = CVulkanUtils::createAttachmentInfo(m_EngineTextures->mDrawImage->mImageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
 	VkExtent2D extent {
-		m_EngineTextures->mDrawImage.mImageExtent.width,
-		m_EngineTextures->mDrawImage.mImageExtent.height
+		m_EngineTextures->mDrawImage->mImageExtent.width,
+		m_EngineTextures->mDrawImage->mImageExtent.height
 	};
 
 	VkRenderingInfo renderInfo = CVulkanUtils::createRenderingInfo(extent, &colorAttachment, nullptr);
@@ -289,7 +292,7 @@ void CGraphicsRenderer::render(VkCommandBuffer cmd) {
 
 	vkCmdEndRendering(cmd);
 
-	CVulkanUtils::TransitionImage(cmd, m_EngineTextures->mDrawImage.mImage,VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+	CVulkanUtils::transitionImage(cmd, m_EngineTextures->mDrawImage->mImage,VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 
 }
 
@@ -307,10 +310,10 @@ void CGraphicsRenderer::renderMeshPass(VkCommandBuffer cmd) {
 	//TODO: make better initialization functions for types
 	// (identity matrix)
 	push_constants.worldMatrix = Matrix4f::Identity();
-	push_constants.vertexBuffer = m_EngineTextures->mRectangle.vertexBufferAddress;
+	push_constants.vertexBuffer = m_EngineBuffers->mRectangle->vertexBufferAddress;
 
 	vkCmdPushConstants(cmd, m_MeshPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(SGPUDrawPushConstants), &push_constants);
-	vkCmdBindIndexBuffer(cmd, m_EngineTextures->mRectangle.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+	vkCmdBindIndexBuffer(cmd, m_EngineBuffers->mRectangle->indexBuffer->buffer, 0, VK_INDEX_TYPE_UINT32);
 
 	vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
 }

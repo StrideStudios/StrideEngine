@@ -16,11 +16,11 @@ public:
 
     void destroy() const;
 
-    no_discard const vkb::Instance& getInstance() const { return *m_Instance; }
+    no_discard constexpr const vkb::Instance& getInstance() const { return *m_Instance; }
 
-    no_discard const vkb::PhysicalDevice& getPhysicalDevice() const { return *m_PhysicalDevice; }
+    no_discard constexpr const vkb::PhysicalDevice& getPhysicalDevice() const { return *m_PhysicalDevice; }
 
-    no_discard const vkb::Device& getDevice() const { return *m_Device; }
+    no_discard constexpr const vkb::Device& getDevice() const { return *m_Device; }
 
 private:
 

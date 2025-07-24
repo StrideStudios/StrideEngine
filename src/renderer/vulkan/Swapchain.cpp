@@ -8,9 +8,9 @@
 
 CSwapchain::CSwapchain() {
 
-	vkb::SwapchainBuilder swapchainBuilder{ CEngine::get().getDevice().getPhysicalDevice(),CEngine::get().getDevice().getDevice(),CEngine::get().getWindow().mVkSurface };
+	vkb::SwapchainBuilder swapchainBuilder{ CEngine::physicalDevice(),CEngine::device(),CEngine::get().getWindow().mVkSurface };
 
-	mFormat = VK_FORMAT_B8G8R8A8_UNORM;
+	mFormat = VK_FORMAT_R8G8B8A8_UNORM;
 
 	const auto& vkbSwapchain = swapchainBuilder
 		//.use_default_format_selection()
@@ -44,20 +44,20 @@ CSwapchain::CSwapchain() {
 		VkSemaphoreCreateInfo semaphoreCreateInfo = CVulkanInfo::createSemaphoreInfo();
 
 		for (auto &mFrame: m_Frames) {
-			VK_CHECK(vkCreateFence(CEngine::get().getDevice().getDevice(), &fenceCreateInfo, nullptr, &mFrame.mRenderFence));
-			VK_CHECK(vkCreateFence(CEngine::get().getDevice().getDevice(), &fenceCreateInfo, nullptr, &mFrame.mPresentFence));
+			VK_CHECK(vkCreateFence(CEngine::device(), &fenceCreateInfo, nullptr, &mFrame.mRenderFence));
+			VK_CHECK(vkCreateFence(CEngine::device(), &fenceCreateInfo, nullptr, &mFrame.mPresentFence));
 
-			VK_CHECK(vkCreateSemaphore(CEngine::get().getDevice().getDevice(), &semaphoreCreateInfo, nullptr, &mFrame.mSwapchainSemaphore));
-			VK_CHECK(vkCreateSemaphore(CEngine::get().getDevice().getDevice(), &semaphoreCreateInfo, nullptr, &mFrame.mRenderSemaphore));
+			VK_CHECK(vkCreateSemaphore(CEngine::device(), &semaphoreCreateInfo, nullptr, &mFrame.mSwapchainSemaphore));
+			VK_CHECK(vkCreateSemaphore(CEngine::device(), &semaphoreCreateInfo, nullptr, &mFrame.mRenderSemaphore));
 		}
 	}
 }
 
 void CSwapchain::recreate(bool inUseVSync) {
 
-	mFormat = VK_FORMAT_B8G8R8A8_UNORM;
+	mFormat = VK_FORMAT_R8G8B8A8_UNORM;
 
-	const auto& vkbSwapchain = vkb::SwapchainBuilder{CEngine::get().getDevice().getDevice()}
+	const auto& vkbSwapchain = vkb::SwapchainBuilder{CEngine::device()}
 		//.use_default_format_selection()
 		.set_old_swapchain(mSwapchain)
 		.set_desired_format(VkSurfaceFormatKHR{ .format = mFormat, .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR })
@@ -73,7 +73,7 @@ void CSwapchain::recreate(bool inUseVSync) {
 	// destroy swapchain resources and optional render semaphores
 	for (int32 i = 0; i < mSwapchainImageViews.size(); ++i) {
 		//vkDestroySemaphore(vulkanDevice.getDevice(), m_RenderSemaphores[i], nullptr);
-		vkDestroyImageView(CEngine::get().getDevice().getDevice(), mSwapchainImageViews[i], nullptr);
+		vkDestroyImageView(CEngine::device(), mSwapchainImageViews[i], nullptr);
 	}
 
 	vkb::destroy_swapchain(mSwapchain);
@@ -91,16 +91,16 @@ void CSwapchain::cleanup() {
 	// destroy swapchain resources and optional render semaphores
 	for (int32 i = 0; i < mSwapchainImageViews.size(); ++i) {
 		//vkDestroySemaphore(vulkanDevice.getDevice(), m_RenderSemaphores[i], nullptr);
-		vkDestroyImageView(CEngine::get().getDevice().getDevice(), mSwapchainImageViews[i], nullptr);
+		vkDestroyImageView(CEngine::device(), mSwapchainImageViews[i], nullptr);
 	}
 
 	for (auto & mFrame : m_Frames) {
 
 		//destroy sync objects
-		vkDestroyFence(CEngine::get().getDevice().getDevice(), mFrame.mRenderFence, nullptr);
-		vkDestroyFence(CEngine::get().getDevice().getDevice(), mFrame.mPresentFence, nullptr);
-		vkDestroySemaphore(CEngine::get().getDevice().getDevice() ,mFrame.mSwapchainSemaphore, nullptr);
-		vkDestroySemaphore(CEngine::get().getDevice().getDevice() ,mFrame.mRenderSemaphore, nullptr);
+		vkDestroyFence(CEngine::device(), mFrame.mRenderFence, nullptr);
+		vkDestroyFence(CEngine::device(), mFrame.mPresentFence, nullptr);
+		vkDestroySemaphore(CEngine::device() ,mFrame.mSwapchainSemaphore, nullptr);
+		vkDestroySemaphore(CEngine::device() ,mFrame.mRenderSemaphore, nullptr);
 	}
 
 	vkb::destroy_swapchain(mSwapchain);
@@ -108,21 +108,21 @@ void CSwapchain::cleanup() {
 
 std::pair<VkImage, uint32> CSwapchain::getSwapchainImage(const uint32 inCurrentFrameIndex) {
 	uint32 swapchainImageIndex = 0;
-	SWAPCHAIN_CHECK(vkAcquireNextImageKHR(CEngine::get().getDevice().getDevice(), mSwapchain, 1000000000, m_Frames[inCurrentFrameIndex].mSwapchainSemaphore, nullptr, &swapchainImageIndex), setDirty());
+	SWAPCHAIN_CHECK(vkAcquireNextImageKHR(CEngine::device(), mSwapchain, 1000000000, m_Frames[inCurrentFrameIndex].mSwapchainSemaphore, nullptr, &swapchainImageIndex), setDirty());
 
 	return {mSwapchainImages[swapchainImageIndex], swapchainImageIndex};
 }
 
 void CSwapchain::wait(const uint32 inCurrentFrameIndex) const {
 	auto& frame = m_Frames[inCurrentFrameIndex];
-	VK_CHECK(vkWaitForFences(CEngine::get().getDevice().getDevice(), 1, &frame.mRenderFence, true, 1000000000));
-	VK_CHECK(vkWaitForFences(CEngine::get().getDevice().getDevice(), 1, &frame.mPresentFence, true, 1000000000));
+	VK_CHECK(vkWaitForFences(CEngine::device(), 1, &frame.mRenderFence, true, 1000000000));
+	VK_CHECK(vkWaitForFences(CEngine::device(), 1, &frame.mPresentFence, true, 1000000000));
 }
 
 void CSwapchain::reset(const uint32 inCurrentFrameIndex) const {
 	auto& frame = m_Frames[inCurrentFrameIndex];
-	VK_CHECK(vkResetFences(CEngine::get().getDevice().getDevice(), 1, &frame.mRenderFence));
-	VK_CHECK(vkResetFences(CEngine::get().getDevice().getDevice(), 1, &frame.mPresentFence));
+	VK_CHECK(vkResetFences(CEngine::device(), 1, &frame.mRenderFence));
+	VK_CHECK(vkResetFences(CEngine::device(), 1, &frame.mPresentFence));
 }
 
 void CSwapchain::submit(const VkCommandBuffer inCmd, const VkQueue inGraphicsQueue, uint32 inCurrentFrameIndex, const uint32 inSwapchainImageIndex) {

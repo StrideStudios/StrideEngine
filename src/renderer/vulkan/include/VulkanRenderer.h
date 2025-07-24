@@ -1,12 +1,10 @@
 ﻿#pragma once
-#include <iostream>
-#include <memory>
-#include <vulkan/vulkan_core.h>
 
-#include "Common.h"
-#include "VulkanUtils.h"
+#include <memory>
+
 #include "EngineTextures.h"
-#include "ResourceDeallocator.h"
+#include "EngineBuffers.h"
+#include "VulkanUtils.h"
 
 class CEngineTextures;
 class CVulkanDevice;
@@ -30,6 +28,8 @@ struct SComputeEffect {
 class CVulkanRenderer {
 
 	friend class CEngineTextures;
+
+	friend class CEngineBuffers;
 
 public:
 
@@ -91,8 +91,9 @@ protected:
 	VkQueue m_GraphicsQueue;
 	uint32 m_GraphicsQueueFamily;
 
-	// The swapchain used to present to the screen
 	std::unique_ptr<CEngineTextures> m_EngineTextures = nullptr;
+
+	std::unique_ptr<CEngineBuffers> m_EngineBuffers = nullptr;
 
 	//
 	// Descriptor Resources
@@ -115,4 +116,11 @@ protected:
 
 	friend class CEngine;//lazy remove
 
+};
+
+class CNullRenderer final : public CVulkanRenderer {
+
+public:
+
+	void render(VkCommandBuffer cmd) override;
 };

@@ -1,8 +1,5 @@
 ﻿#pragma once
 
-#include "fmt/format.h"
-#include <iostream>
-
 typedef unsigned char uint8;
 typedef signed char int8;
 typedef unsigned short uint16;
