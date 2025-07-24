@@ -49,13 +49,13 @@ static uint32 compile(SShader& inoutShader) {
 	glslang_shader_t* shader = glslang_shader_create(&input);
 
 	if (!glslang_shader_preprocess(shader, &input)) {
-		err("Error Processing Shader. Log: {}. Debug Log: {}.",
+		errs("Error Processing Shader. Log: {}. Debug Log: {}.",
 			glslang_shader_get_info_log(shader),
 			glslang_shader_get_info_debug_log(shader));
 	}
 
 	if (!glslang_shader_parse(shader, &input)) {
-		err("Error Parsing Shader. Log: {}. Debug Log: {}.",
+		errs("Error Parsing Shader. Log: {}. Debug Log: {}.",
 			glslang_shader_get_info_log(shader),
 			glslang_shader_get_info_debug_log(shader));
 	}
@@ -64,7 +64,7 @@ static uint32 compile(SShader& inoutShader) {
 	glslang_program_add_shader(program, shader);
 
 	if (!glslang_program_link(program, GLSLANG_MSG_SPV_RULES_BIT | GLSLANG_MSG_VULKAN_RULES_BIT)) {
-		err("Error Linking Shader. Log: {}. Debug Log: {}.",
+		errs("Error Linking Shader. Log: {}. Debug Log: {}.",
 			glslang_shader_get_info_log(shader),
 			glslang_shader_get_info_debug_log(shader));
 	}
@@ -75,7 +75,7 @@ static uint32 compile(SShader& inoutShader) {
 	glslang_program_SPIRV_get(program, inoutShader.mCompiledShader.data());
 
 	if (glslang_program_SPIRV_get_messages(program)) {
-		msg("{}", glslang_program_SPIRV_get_messages(program));
+		msgs("{}", glslang_program_SPIRV_get_messages(program));
 	}
 
 	glslang_program_delete(program);
@@ -166,7 +166,7 @@ bool loadShader(VkDevice inDevice, const char* inFileName, uint32 Hash, SShader&
 
 	// The first uint32 value is the hash, if it does not equal the hash for the shader code, it means the shader has changed
 	if (buffer[0] != Hash) {
-		msg("Shader file {} has changed, recompiling.", inFileName);
+		msgs("Shader file {} has changed, recompiling.", inFileName);
 		return false;
 	}
 
@@ -210,7 +210,7 @@ bool saveShader(const char* inFileName, uint32 Hash, const SShader& inShader) {
 	// Close the file
 	file.close();
 
-	msg("Compiled Shader {}.", inFileName);
+	msgs("Compiled Shader {}.", inFileName);
 
 	return true;
 }
@@ -223,7 +223,7 @@ VkResult CShaderCompiler::getShader(VkDevice inDevice, const char* inFileName, S
 	// Get the hash of the original source file so we know if it changed
 	uint32 Hash = CHashing::getFileHash(path);
 	if (Hash == 0) {
-		err("Hash from file {} is not valid.", inFileName);
+		errs("Hash from file {} is not valid.", inFileName);
 	}
 
 	// Check for written SPIRV files
@@ -237,13 +237,13 @@ VkResult CShaderCompiler::getShader(VkDevice inDevice, const char* inFileName, S
 		result = compile(inoutShader);
 		// Save compiled shader
 		if (!saveShader(SPIRVpath.c_str(), Hash, inoutShader)) {
-			err("Shader file {} failed to save to {}!", inFileName, SPIRVpath.c_str());
+			errs("Shader file {} failed to save to {}!", inFileName, SPIRVpath.c_str());
 		}
 	}
 
 	// If we get to this point without throwing some kind of other error, it means the shader file could not be found
 	if (!result) {
-		err("Shader file {} not found!", inFileName);
+		errs("Shader file {} not found!", inFileName);
 	}
 
 	if (loadShader(inDevice, SPIRVpath.c_str(), Hash, inoutShader)) {

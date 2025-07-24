@@ -6,6 +6,7 @@
 
 #include "EngineBuffers.h"
 #include "ResourceAllocator.h"
+#include "StaticMesh.h"
 
 VkPipeline CPipelineBuilder::buildPipeline(VkDevice inDevice) {
 	// Make viewport state from our stored viewport and scissor.
@@ -64,7 +65,7 @@ VkPipeline CPipelineBuilder::buildPipeline(VkDevice inDevice) {
 	// better than the common VK_CHECK case
 	VkPipeline newPipeline;
 	if (vkCreateGraphicsPipelines(inDevice, VK_NULL_HANDLE, 1, &pipelineInfo,nullptr, &newPipeline) != VK_SUCCESS) {
-		msg("Failed to create pipeline!");
+		msgs("Failed to create pipeline!");
 		return VK_NULL_HANDLE; // failed to create graphics pipeline
 	}
 	return newPipeline;
@@ -229,12 +230,12 @@ void CGraphicsRenderer::initMeshPipeline() {
 	pipelineBuilder.setNoMultisampling();
 	//no blending
 	pipelineBuilder.disableBlending();
-	//no depth testing
-	pipelineBuilder.disableDepthTest();
+	//depth testing
+	pipelineBuilder.enableDepthTest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
 
 	//connect the image format we will draw into, from draw image
 	pipelineBuilder.setColorAttachementFormat(m_EngineTextures->mDrawImage->mImageFormat);
-	pipelineBuilder.setDepthFormat(VK_FORMAT_UNDEFINED);
+	pipelineBuilder.setDepthFormat(m_EngineTextures->mDepthImage->mImageFormat);
 
 	//finally build the pipeline
 	m_MeshPipeline = pipelineBuilder.buildPipeline(device);
@@ -255,16 +256,18 @@ void CGraphicsRenderer::render(VkCommandBuffer cmd) {
 	CBaseRenderer::render(cmd);
 
 	CVulkanUtils::transitionImage(cmd, m_EngineTextures->mDrawImage->mImage, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	CVulkanUtils::transitionImage(cmd, m_EngineTextures->mDepthImage->mImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
 	//begin a render pass  connected to our draw image
 	VkRenderingAttachmentInfo colorAttachment = CVulkanUtils::createAttachmentInfo(m_EngineTextures->mDrawImage->mImageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	VkRenderingAttachmentInfo depthAttachment = CVulkanUtils::createDepthAttachmentInfo(m_EngineTextures->mDepthImage->mImageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
 	VkExtent2D extent {
 		m_EngineTextures->mDrawImage->mImageExtent.width,
 		m_EngineTextures->mDrawImage->mImageExtent.height
 	};
 
-	VkRenderingInfo renderInfo = CVulkanUtils::createRenderingInfo(extent, &colorAttachment, nullptr);
+	VkRenderingInfo renderInfo = CVulkanUtils::createRenderingInfo(extent, &colorAttachment, &depthAttachment);
 	vkCmdBeginRendering(cmd, &renderInfo);
 
 	//set dynamic viewport and scissor
@@ -309,12 +312,22 @@ void CGraphicsRenderer::renderMeshPass(VkCommandBuffer cmd) {
 	SGPUDrawPushConstants push_constants;
 	//TODO: make better initialization functions for types
 	// (identity matrix)
-	push_constants.worldMatrix = Matrix4f::Identity();
+	/*push_constants.worldMatrix = Matrix4f::Identity();
 	push_constants.vertexBuffer = m_EngineBuffers->mRectangle->vertexBufferAddress;
 
 	vkCmdPushConstants(cmd, m_MeshPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(SGPUDrawPushConstants), &push_constants);
 	vkCmdBindIndexBuffer(cmd, m_EngineBuffers->mRectangle->indexBuffer->buffer, 0, VK_INDEX_TYPE_UINT32);
 
-	vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
+	vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);*/
+
+	auto mesh = m_EngineBuffers->testMeshes[0];
+	push_constants.worldMatrix = Matrix4f::Identity();
+	push_constants.vertexBuffer = mesh->meshBuffers->vertexBufferAddress;
+
+	vkCmdPushConstants(cmd, m_MeshPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(SGPUDrawPushConstants), &push_constants);
+	vkCmdBindIndexBuffer(cmd, mesh->meshBuffers->indexBuffer->buffer, 0, VK_INDEX_TYPE_UINT32);
+
+	vkCmdDrawIndexed(cmd, mesh->surfaces[0].count, 1, mesh->surfaces[0].startIndex, 0, 0);
+
 }
 

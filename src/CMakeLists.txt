@@ -18,6 +18,9 @@ add_executable(StrideEngine
 
         engine/include/EngineSettings.h
         engine/EngineSettings.cpp
+        engine/include/StaticMesh.h
+        engine/include/MeshLoader.h
+        engine/MeshLoader.cpp
         engine/include/Engine.h
         engine/Engine.cpp
 
@@ -74,6 +77,7 @@ target_link_libraries(StrideEngine PUBLIC
         GPUOpen::VulkanMemoryAllocator
         glslang::glslang-default-resource-limits
         glslang::glslang
+        fastgltf::fastgltf
 )
 # Tell cmake to copy dlls to the target directory
 add_custom_command(TARGET StrideEngine POST_BUILD

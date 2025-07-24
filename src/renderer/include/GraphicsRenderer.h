@@ -88,6 +88,18 @@ public:
 		m_DepthStencil.maxDepthBounds = 1.f;
 	}
 
+	void enableDepthTest(bool depthWriteEnable, VkCompareOp op) {
+		m_DepthStencil.depthTestEnable = VK_TRUE;
+		m_DepthStencil.depthWriteEnable = depthWriteEnable;
+		m_DepthStencil.depthCompareOp = op;
+		m_DepthStencil.depthBoundsTestEnable = VK_FALSE;
+		m_DepthStencil.stencilTestEnable = VK_FALSE;
+		m_DepthStencil.front = {};
+		m_DepthStencil.back = {};
+		m_DepthStencil.minDepthBounds = 0.f;
+		m_DepthStencil.maxDepthBounds = 1.f;
+	}
+
 	void clear();
 
 };

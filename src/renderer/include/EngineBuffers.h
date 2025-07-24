@@ -6,6 +6,8 @@
 #include "Swapchain.h"
 #include "vk_mem_alloc.h"
 
+struct SStaticMesh;
+
 struct SUploadContext {
 	VkFence _uploadFence;
 	VkCommandPool _commandPool;
@@ -35,7 +37,7 @@ public:
 
 	void immediateSubmit(CVulkanRenderer* renderer, std::function<void(VkCommandBuffer cmd)>&& function);
 
-	void uploadMesh(CVulkanRenderer* renderer, std::span<uint32> indices, std::span<SVertex> vertices);
+	SMeshBuffers uploadMesh(CVulkanRenderer* renderer, std::span<uint32> indices, std::span<SVertex> vertices);
 
 	SUploadContext m_UploadContext;
 
@@ -44,5 +46,7 @@ public:
 	//
 
 	SMeshBuffers mRectangle; // For Graphics Renderer should do vector but for now this works
+
+	std::vector<std::shared_ptr<SStaticMesh>> testMeshes;
 
 };

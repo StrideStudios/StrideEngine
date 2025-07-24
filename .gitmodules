@@ -13,3 +13,6 @@
 [submodule "third_party/glslang"]
 	path = third_party/glslang
 	url = https://github.com/KhronosGroup/glslang
+[submodule "third_party/fastgltf"]
+	path = third_party/fastgltf
+	url = https://github.com/spnda/fastgltf

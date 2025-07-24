@@ -21,7 +21,7 @@ void CResourceDeallocator::Resource::destroy() const {
 			CResourceAllocator::deallocateImage(mResource.image);
 			break;
 		default:
-			astNoEntry();
+			astsNoEntry();
 	}
 }
 

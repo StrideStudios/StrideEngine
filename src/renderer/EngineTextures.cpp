@@ -26,13 +26,18 @@ void CEngineTextures::initializeTextures() {
 
 	mDrawImage = CResourceAllocator::allocateImage({width, height, 1}, VK_FORMAT_R16G16B16A16_SFLOAT, drawImageUsages, VK_IMAGE_ASPECT_COLOR_BIT, false);
 
-	m_ResourceDeallocator.push(mDrawImage);
+	mDepthImage = CResourceAllocator::allocateImage({width, height, 1}, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_ASPECT_DEPTH_BIT, false);
+
+	m_ResourceDeallocator.append({
+		mDrawImage,
+		mDepthImage
+	});
 }
 
 void CEngineTextures::reallocate() {
 
 	auto [x, y] = CEngine::get().getWindow().mExtent;
-	msg("Reallocating Engine Textures to ({}, {})", x, y);
+	msgs("Reallocating Engine Textures to ({}, {})", x, y);
 
 	m_Swapchain.recreate();
 

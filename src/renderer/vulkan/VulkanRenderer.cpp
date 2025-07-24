@@ -17,7 +17,7 @@
 
 CVulkanRenderer::CVulkanRenderer() {
 	// Ensure the renderer is only created once
-	astOnce(CVulkanRenderer);
+	astsOnce(CVulkanRenderer);
 
 	// Use vkb to get a Graphics queue
 	m_GraphicsQueue = CEngine::device().get_queue(vkb::QueueType::graphics).value();

@@ -32,11 +32,12 @@ int main() {
 
 void CEngine::init() {
 
-	astOnce(CEngine);
+	astsOnce(CEngine);
 
 	std::filesystem::path cwd = std::filesystem::current_path();
 	mSourcePath = cwd.string().append("\\");
 	mShaderPath = mSourcePath.append("..\\shaders\\");
+	mAssetPath = mSourcePath.append("..\\assets\\");
 
 	// Initialize SDL3
 	SDL_Init(SDL_INIT_VIDEO);
@@ -47,7 +48,7 @@ void CEngine::init() {
 		static_cast<int32>(m_EngineWindow.mExtent.y),
 		SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE
 	);
-	ast(m_EngineWindow.mWindow, "No window found.");
+	asts(m_EngineWindow.mWindow, "No window found.");
 
 	SDL_SetWindowResizable(m_EngineWindow.mWindow, true);
 
@@ -56,7 +57,7 @@ void CEngine::init() {
 
 	// Create a surface for Device to reference
 	SDL_Vulkan_CreateSurface(m_EngineWindow.mWindow, instance(), nullptr, &m_EngineWindow.mVkSurface);
-	ast(m_EngineWindow.mVkSurface, "No surface found.");
+	asts(m_EngineWindow.mVkSurface, "No surface found.");
 
 	// Initialize the device and physical device
 	m_Device->initDevice();
@@ -158,7 +159,7 @@ void CEngine::run() {
 
 		if (bOldVsync != UseVsync.get()) {
 			bOldVsync = UseVsync.get();
-			msg("Reallocating Swapchain to {}", UseVsync.get() ? "enable VSync." : "disable VSync.");
+			msgs("Reallocating Swapchain to {}", UseVsync.get() ? "enable VSync." : "disable VSync.");
 			m_Renderer->m_EngineTextures->getSwapchain().recreate(UseVsync.get());
 		}
 		CEngineSettings::render();

@@ -56,6 +56,10 @@ public:
 
 	no_discard const CEngineTextures& getEngineTextures() const { return *m_EngineTextures; }
 
+	no_discard CEngineBuffers& getEngineBuffers() { return *m_EngineBuffers; }
+
+	no_discard const CEngineBuffers& getEngineBuffers() const { return *m_EngineBuffers; }
+
 	// Draw to the screen
 	void draw();
 

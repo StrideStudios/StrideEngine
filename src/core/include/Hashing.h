@@ -23,7 +23,7 @@ namespace CHashing {
 		std::ifstream file(filePath, std::ios::ate | std::ios::binary);
 
 		if (!file.is_open()){
-			err("File Hashing could not find file {}", filePath.c_str());
+			errs("File Hashing could not find file {}", filePath.c_str());
 		}
 
 		// Get file size

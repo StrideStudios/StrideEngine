@@ -10,18 +10,53 @@ typedef unsigned long long uint64;
 typedef signed long long int64;
 
 template <typename TType>
+requires std::is_arithmetic_v<TType>
 struct TType2 {
 	using Type = TType;
 	Type x, y;
+
+	TType2 operator+(const TType2& otherType) {
+		return {x + otherType.x, y + otherType.y};
+	}
+
+	TType2 operator-(const TType2& otherType) {
+		return {x - otherType.x, y - otherType.y};
+	}
+
+	TType2 operator*(const TType2& otherType) {
+		return {x * otherType.x, y * otherType.y};
+	}
+
+	TType2 operator/(const TType2& otherType) {
+		return {x / otherType.x, y / otherType.y};
+	}
 };
 
 template <typename TType>
+requires std::is_arithmetic_v<TType>
 struct TType3 {
 	using Type = TType;
 	Type x, y, z;
+
+	TType3 operator+(const TType3& b) const {
+		return {x + b.x, y + b.y, z + b.z};
+	}
+
+	TType3 operator-(const TType3& b) const {
+		return {x - b.x, y - b.y, z - b.z};
+	}
+
+	TType3 operator*(const TType3& b) const {
+		return {x * b.x, y * b.y, z * b.z};
+	}
+
+	TType3 operator/(const TType3& b) const {
+		return {x / b.x, y / b.y, z / b.z};
+	}
 };
 
 template <typename TType>
+requires std::is_arithmetic_v<TType>
 struct TType4 {
 	using Type = TType;
 	Type x, y, z, w;
@@ -29,6 +64,7 @@ struct TType4 {
 
 
 template <typename TType>
+requires std::is_arithmetic_v<TType>
 struct TType4x4 {
 	using Type = TType;
 	TType4<Type> x, y, z, w;

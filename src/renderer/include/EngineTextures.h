@@ -25,6 +25,7 @@ public:
 	//
 
 	SImage mDrawImage;
+	SImage mDepthImage;
 
 private:
 

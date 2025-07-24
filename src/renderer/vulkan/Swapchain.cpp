@@ -21,7 +21,7 @@ CSwapchain::CSwapchain() {
 		.add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT)
 		.build();
 	if (!vkbSwapchain.has_value()) {
-		err("Swapchain failed to initialize. Vulkan Error: {}", string_VkResult(vkbSwapchain.full_error().vk_result));
+		errs("Swapchain failed to initialize. Vulkan Error: {}", string_VkResult(vkbSwapchain.full_error().vk_result));
 	}
 
 	//store swapchain and its related images
@@ -67,7 +67,7 @@ void CSwapchain::recreate(bool inUseVSync) {
 		.add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT)
 		.build();
 	if (!vkbSwapchain.has_value()) {
-		err("Swapchain failed to recreate after change. Vulkan Error: {}", string_VkResult(vkbSwapchain.full_error().vk_result));
+		errs("Swapchain failed to recreate after change. Vulkan Error: {}", string_VkResult(vkbSwapchain.full_error().vk_result));
 	}
 
 	// destroy swapchain resources and optional render semaphores

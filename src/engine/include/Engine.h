@@ -60,6 +60,7 @@ public:
 
 	std::string mSourcePath;
 	std::string mShaderPath;
+	std::string mAssetPath;
 
 private:
 

@@ -9,7 +9,7 @@ class CVulkanDevice;
 #define SWAPCHAIN_CHECK(call, failedCall) \
 	if (auto vkResult = call; vkResult != VK_SUCCESS) { \
         if (vkResult != VK_SUBOPTIMAL_KHR && vkResult != VK_ERROR_OUT_OF_DATE_KHR) { \
-			err("{} Failed. Vulkan Error {}", #call, string_VkResult(vkResult)); \
+			errs("{} Failed. Vulkan Error {}", #call, string_VkResult(vkResult)); \
         } \
     failedCall; \
     }

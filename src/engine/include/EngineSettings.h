@@ -225,7 +225,7 @@ public:
 		} else if constexpr(std::is_same_v<Type, Vector4f>) {
 			return m_Value.vector4;
 		}
-		err("Command {} has invalid type.", m_Category);
+		errs("Command {} has invalid type.", m_Category);
 	}
 
 	no_discard Type getMin() {
@@ -234,7 +234,7 @@ public:
 		} else if constexpr(std::is_same_v<Type, float>) {
 			return m_Value.fValue.min;
 		}
-		err("Attempted to access min of Command {} that has no min.", m_Category);
+		errs("Attempted to access min of Command {} that has no min.", m_Category);
 	}
 
 	no_discard Type getMax() {
@@ -243,7 +243,7 @@ public:
 		} else if constexpr(std::is_same_v<Type, float>) {
 			return m_Value.fValue.max;
 		}
-		err("Attempted to access max of Command {} that has no max.", m_Category);
+		errs("Attempted to access max of Command {} that has no max.", m_Category);
 	}
 
 	void set(Type inValue) {
@@ -269,7 +269,7 @@ public:
 			m_Value.vector4 = inValue;
 			return;
 		}
-		astNoEntry();
+		astsNoEntry();
 	}
 
 private:

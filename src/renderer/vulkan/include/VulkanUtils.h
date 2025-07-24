@@ -9,7 +9,7 @@
 
 #define VK_CHECK(call) \
     if (auto vkResult = call; vkResult != VK_SUCCESS) { \
-        err("{} Failed. Vulkan Error {}", #call, string_VkResult(vkResult)); \
+        errs("{} Failed. Vulkan Error {}", #call, string_VkResult(vkResult)); \
     }
 
 class CVulkanUtils {
@@ -18,6 +18,7 @@ public:
 	static void copyImageToImage(VkCommandBuffer inCmd, VkImage inSource, VkImage inDestination, VkExtent2D inSrcSize, VkExtent2D inDstSize);
 	static void transitionImage(VkCommandBuffer inCmd, VkImage inImage, VkImageLayout inCurrentLayout, VkImageLayout inNewLayout);
 	static VkRenderingAttachmentInfo createAttachmentInfo(VkImageView view, VkClearValue* clear ,VkImageLayout layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	static VkRenderingAttachmentInfo createDepthAttachmentInfo(VkImageView view, VkImageLayout layout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 	static VkRenderingInfo createRenderingInfo(VkExtent2D inExtent, VkRenderingAttachmentInfo* inColorAttachement, VkRenderingAttachmentInfo* inDepthAttachement);
 };
 

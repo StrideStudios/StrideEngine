@@ -4,6 +4,7 @@
 
 #include "Engine.h"
 #include "Common.h"
+#include "MeshLoader.h"
 #include "ResourceAllocator.h"
 
 CEngineBuffers::CEngineBuffers(CVulkanRenderer* renderer) {
@@ -50,7 +51,9 @@ void CEngineBuffers::initDefaultData(CVulkanRenderer* renderer) {
 	rect_indices[4] = 1;
 	rect_indices[5] = 3;
 
-	uploadMesh(renderer, rect_indices, rect_vertices);
+	mRectangle = uploadMesh(renderer, rect_indices, rect_vertices);
+
+	testMeshes = CMeshLoader::loadStaticMesh(renderer, this, "basicmesh.glb").value();
 }
 
 void CEngineBuffers::immediateSubmit(CVulkanRenderer* renderer, std::function<void(VkCommandBuffer cmd)>&& function) {
@@ -82,12 +85,12 @@ void CEngineBuffers::immediateSubmit(CVulkanRenderer* renderer, std::function<vo
 	vkResetCommandPool(device, m_UploadContext._commandPool, 0);
 }
 
-void CEngineBuffers::uploadMesh(CVulkanRenderer* renderer, std::span<uint32> indices, std::span<SVertex> vertices) {
+SMeshBuffers CEngineBuffers::uploadMesh(CVulkanRenderer* renderer, std::span<uint32> indices, std::span<SVertex> vertices) {
 	const size_t vertexBufferSize = vertices.size() * sizeof(SVertex);
 	const size_t indexBufferSize = indices.size() * sizeof(uint32);
 
 	// Create buffers
-	mRectangle = CResourceAllocator::allocateMeshBuffer(indexBufferSize, vertexBufferSize);
+	SMeshBuffers meshBuffers = CResourceAllocator::allocateMeshBuffer(indexBufferSize, vertexBufferSize);
 
 	const SBuffer staging = CResourceAllocator::allocateBuffer(vertexBufferSize + indexBufferSize, VMA_MEMORY_USAGE_CPU_ONLY, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, false);
 
@@ -106,15 +109,17 @@ void CEngineBuffers::uploadMesh(CVulkanRenderer* renderer, std::span<uint32> ind
 		vertexCopy.srcOffset = 0;
 		vertexCopy.size = vertexBufferSize;
 
-		vkCmdCopyBuffer(cmd, staging->buffer, mRectangle->vertexBuffer->buffer, 1, &vertexCopy);
+		vkCmdCopyBuffer(cmd, staging->buffer, meshBuffers->vertexBuffer->buffer, 1, &vertexCopy);
 
 		VkBufferCopy indexCopy{};
 		indexCopy.dstOffset = 0;
 		indexCopy.srcOffset = vertexBufferSize;
 		indexCopy.size = indexBufferSize;
 
-		vkCmdCopyBuffer(cmd, staging->buffer, mRectangle->indexBuffer->buffer, 1, &indexCopy);
+		vkCmdCopyBuffer(cmd, staging->buffer, meshBuffers->indexBuffer->buffer, 1, &indexCopy);
 	});
 
 	CResourceAllocator::deallocateBuffer(staging);
+
+	return meshBuffers;
 }

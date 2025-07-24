@@ -18,8 +18,11 @@
 # Git
 !.git*
 
+# Assets
+!assets/*
+
 # Third party
-!third_party/
+!third_party/*
 
 # CLion files
 .idea/

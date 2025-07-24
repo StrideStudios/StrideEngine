@@ -56,15 +56,15 @@
 // Text formatting/Assertion macros
 //
 
-#define fmt(x, ...) fmt::format(x, __VA_ARGS__)
-#define msg(x, ...) std::cout << fmt(x, __VA_ARGS__) << std::endl
-#define err(x, ...) throw std::runtime_error(fmt(x, __VA_ARGS__))
-#define ast(cond, x, ...) if (!(cond)) err(x, __VA_ARGS__)
+#define fmts(x, ...) fmt::format(x, __VA_ARGS__)
+#define msgs(x, ...) std::cout << fmts(x, __VA_ARGS__) << std::endl
+#define errs(x, ...) throw std::runtime_error(fmts(x, __VA_ARGS__))
+#define asts(cond, x, ...) if (!(cond)) errs(x, __VA_ARGS__)
 
-#define astNoEntry() err("Code block should not have been called!")
+#define astsNoEntry() errs("Code block should not have been called!")
 
 // Use this to ensure that an area of code is only called once
-#define astOnce(name) \
+#define astsOnce(name) \
 	{ static bool beenHere##name = false; \
-	ast(!beenHere##name, "Code block {} called more than once.", #name); \
+	asts(!beenHere##name, "Code block {} called more than once.", #name); \
 	beenHere##name = true; }

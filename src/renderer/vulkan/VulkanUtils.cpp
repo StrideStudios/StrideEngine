@@ -86,6 +86,22 @@ VkRenderingAttachmentInfo CVulkanUtils::createAttachmentInfo(VkImageView view, V
 	};
 }
 
+VkRenderingAttachmentInfo CVulkanUtils::createDepthAttachmentInfo(VkImageView view, VkImageLayout layout) {
+	return {
+		.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+		.pNext = nullptr,
+		.imageView = view,
+		.imageLayout = layout,
+		.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+		.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+		.clearValue = {
+			.depthStencil = {
+				.depth = 0.f
+			}
+		}
+	};
+}
+
 VkRenderingInfo CVulkanUtils::createRenderingInfo(VkExtent2D inExtent, VkRenderingAttachmentInfo* inColorAttachement, VkRenderingAttachmentInfo* inDepthAttachement) {
 	return {
 		.sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
