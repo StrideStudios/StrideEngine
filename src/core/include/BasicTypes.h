@@ -30,6 +30,23 @@ struct TType4 {
 	Type x, y, z, w;
 };
 
+
+template <typename TType>
+struct TType4x4 {
+	using Type = TType;
+	TType4<Type> x, y, z, w;
+
+	// The identity matrix
+	constexpr static TType4x4 Identity() {
+		return {
+			.x = {1, 0, 0, 0},
+			.y = {0, 1, 0, 0},
+			.z = {0, 0, 1, 0},
+			.w = {0, 0, 0, 1}
+		};
+	}
+};
+
 // Extent should always be used with integer types
 
 typedef TType2<int32> Extent32;
@@ -45,6 +62,10 @@ typedef TType3<float> Vector3f;
 typedef TType3<double> Vector3d;
 typedef TType4<float> Vector4f;
 typedef TType4<double> Vector4d;
+
+// Matrices are always floating point types
+
+typedef TType4x4<float> Matrix4f;
 
 // Not all platforms have wide characters as a defined length
 // To keep it consistent, these macros will change depending on the platform

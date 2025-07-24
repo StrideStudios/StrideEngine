@@ -1,5 +1,6 @@
 ﻿#pragma once
 
+#include <functional>
 #include <vector>
 #include "BasicTypes.h"
 #include <vulkan/vulkan_core.h>
@@ -92,6 +93,10 @@ public:
 		m_Resources.push_back(inResource);
 	}
 
+	void push(std::function<void()> func) {
+		m_Functions.push_back(func);
+	}
+
 	void append(std::vector<Resource> inResources) {
 		m_Resources.append_range(inResources);
 	}
@@ -101,10 +106,16 @@ public:
 			resource.destroy();
 		}
 		m_Resources.clear();
+		for (auto& function : m_Functions) {
+			function();
+		}
+		m_Functions.clear();
 	}
 
 private:
 
 	std::vector<Resource> m_Resources;
+
+	std::vector<std::function<void()>> m_Functions;
 
 };

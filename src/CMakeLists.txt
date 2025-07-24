@@ -38,6 +38,8 @@ add_executable(StrideEngine
         renderer/EngineTextures.cpp
         renderer/include/BaseRenderer.h
         renderer/BaseRenderer.cpp
+        renderer/include/GraphicsRenderer.h
+        renderer/GraphicsRenderer.cpp
 
         # Dear ImGui
 

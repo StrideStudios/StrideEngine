@@ -114,7 +114,7 @@ namespace CVulkanUtils {
 
 namespace CVulkanInfo {
 
-	static VkCommandPoolCreateInfo CreateCommandPoolInfo(uint32 inQueueFamilyIndex, VkCommandPoolCreateFlags inFlags = 0) {
+	static VkCommandPoolCreateInfo createCommandPoolInfo(uint32 inQueueFamilyIndex, VkCommandPoolCreateFlags inFlags = 0) {
 		return {
 			.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
 			.pNext = nullptr,
@@ -123,7 +123,7 @@ namespace CVulkanInfo {
 		};
 	}
 
-	static VkCommandBufferAllocateInfo CreateCommandAllocateInfo(VkCommandPool inPool, uint32 inCount = 1) {
+	static VkCommandBufferAllocateInfo createCommandAllocateInfo(VkCommandPool inPool, uint32 inCount = 1) {
 		return {
 			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
 			.pNext = nullptr,
@@ -133,7 +133,7 @@ namespace CVulkanInfo {
 		};
 	}
 
-	static VkFenceCreateInfo CreateFenceInfo(VkFenceCreateFlags inFlags = 0) {
+	static VkFenceCreateInfo createFenceInfo(VkFenceCreateFlags inFlags = 0) {
 		return {
 			.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
 			.pNext = nullptr,
@@ -141,7 +141,7 @@ namespace CVulkanInfo {
 		};
 	}
 
-	static VkSemaphoreCreateInfo CreateSemaphoreInfo(VkSemaphoreCreateFlags inFlags = 0) {
+	static VkSemaphoreCreateInfo createSemaphoreInfo(VkSemaphoreCreateFlags inFlags = 0) {
 		return {
 			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
 			.pNext = nullptr,
@@ -149,7 +149,7 @@ namespace CVulkanInfo {
 		};
 	}
 
-	static VkCommandBufferBeginInfo CreateCommandBufferBeginInfo(VkCommandBufferUsageFlags inFlags = 0) {
+	static VkCommandBufferBeginInfo createCommandBufferBeginInfo(VkCommandBufferUsageFlags inFlags = 0) {
 		return {
 			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
 			.pNext = nullptr,
@@ -158,7 +158,7 @@ namespace CVulkanInfo {
 		};
 	}
 
-	static VkSemaphoreSubmitInfo SubmitSemaphoreInfo(VkPipelineStageFlags2 inStageMask, VkSemaphore inSemaphore) {
+	static VkSemaphoreSubmitInfo submitSemaphoreInfo(VkPipelineStageFlags2 inStageMask, VkSemaphore inSemaphore) {
 		return {
 			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
 			.pNext = nullptr,
@@ -169,7 +169,7 @@ namespace CVulkanInfo {
 		};
 	}
 
-	static VkCommandBufferSubmitInfo SubmitCommandBufferInfo(VkCommandBuffer inCmd) {
+	static VkCommandBufferSubmitInfo submitCommandBufferInfo(VkCommandBuffer inCmd) {
 		return {
 			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
 			.pNext = nullptr,
@@ -178,7 +178,16 @@ namespace CVulkanInfo {
 		};
 	}
 
-	static VkSubmitInfo2 SubmitInfo(const VkCommandBufferSubmitInfo* inCmd, const VkSemaphoreSubmitInfo* inSignalSemaphoreInfo, const VkSemaphoreSubmitInfo* inWaitSemaphoreInfo) {
+	static VkSubmitInfo submitInfo(VkCommandBuffer* inCmd) {
+		return {
+			.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+			.pNext = nullptr,
+			.commandBufferCount = 1,
+			.pCommandBuffers = inCmd
+		};
+	}
+
+	static VkSubmitInfo2 submitInfo(const VkCommandBufferSubmitInfo* inCmd, const VkSemaphoreSubmitInfo* inSignalSemaphoreInfo, const VkSemaphoreSubmitInfo* inWaitSemaphoreInfo) {
 		return {
 			.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
 			.pNext = nullptr,
@@ -194,7 +203,7 @@ namespace CVulkanInfo {
 		};
 	}
 
-	static VkImageCreateInfo CreateImageInfo(VkFormat inFormat, VkImageUsageFlags inUsageFlags, VkExtent3D inExtent)
+	static VkImageCreateInfo createImageInfo(VkFormat inFormat, VkImageUsageFlags inUsageFlags, VkExtent3D inExtent)
 	{
 		return {
 			.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
@@ -217,7 +226,7 @@ namespace CVulkanInfo {
 		};
 	}
 
-	static VkImageViewCreateInfo CreateImageViewInfo(VkFormat inFormat, VkImage inImage, VkImageAspectFlags inAspectFlags)
+	static VkImageViewCreateInfo createImageViewInfo(VkFormat inFormat, VkImage inImage, VkImageAspectFlags inAspectFlags)
 	{
 		// build a image-view for the depth image to use for rendering
 		return {

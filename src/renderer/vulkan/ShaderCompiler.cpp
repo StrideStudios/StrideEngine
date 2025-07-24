@@ -165,7 +165,6 @@ bool loadShader(VkDevice inDevice, const char* inFileName, uint32 Hash, SShader&
 	file.close();
 
 	// The first uint32 value is the hash, if it does not equal the hash for the shader code, it means the shader has changed
-	msg("Hash from from file {}", buffer[0]);
 	if (buffer[0] != Hash) {
 		msg("Shader file {} has changed, recompiling.", inFileName);
 		return false;
@@ -223,7 +222,6 @@ VkResult CShaderCompiler::getShader(VkDevice inDevice, const char* inFileName, S
 
 	// Get the hash of the original source file so we know if it changed
 	uint32 Hash = CHashing::getFileHash(path);
-	msg("Given Hash {} from {}.", Hash, path);
 	if (Hash == 0) {
 		err("Hash from file {} is not valid.", inFileName);
 	}

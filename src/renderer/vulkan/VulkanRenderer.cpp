@@ -14,9 +14,6 @@
 #include "ShaderCompiler.h"
 #include "EngineSettings.h"
 
-#define VMA_IMPLEMENTATION
-#include "vma/vk_mem_alloc.h"
-
 CVulkanRenderer::CVulkanRenderer() {
 	// Ensure the renderer is only created once
 	astOnce(CVulkanRenderer);
@@ -28,7 +25,7 @@ CVulkanRenderer::CVulkanRenderer() {
 	{
 		// Create a command pool for commands submitted to the graphics queue.
 		// We also want the pool to allow for resetting of individual command buffers
-		const VkCommandPoolCreateInfo commandPoolInfo = CVulkanInfo::CreateCommandPoolInfo(
+		const VkCommandPoolCreateInfo commandPoolInfo = CVulkanInfo::createCommandPoolInfo(
 			m_GraphicsQueueFamily, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
 		for (auto &frame: m_Frames) {
@@ -37,13 +34,13 @@ CVulkanRenderer::CVulkanRenderer() {
 			m_ResourceDeallocator.push(&frame.mCommandPool);
 
 			// Allocate the default command buffer that we will use for rendering
-			VkCommandBufferAllocateInfo cmdAllocInfo = CVulkanInfo::CreateCommandAllocateInfo(frame.mCommandPool, 1);
+			VkCommandBufferAllocateInfo cmdAllocInfo = CVulkanInfo::createCommandAllocateInfo(frame.mCommandPool, 1);
 
 			VK_CHECK(vkAllocateCommandBuffers(CEngine::get().getDevice().getDevice(), &cmdAllocInfo, &frame.mMainCommandBuffer));
 		}
 	}
 
-	m_EngineTextures = std::make_unique<CEngineTextures>();
+	m_EngineTextures = std::make_unique<CEngineTextures>(this);
 
 	//create a descriptor pool that will hold 10 sets with 1 image each
 	std::vector<SDescriptorAllocator::PoolSizeRatio> sizes =
@@ -103,7 +100,7 @@ void CVulkanRenderer::draw() {
 	VK_CHECK(vkResetCommandBuffer(cmd, 0));
 
 	// Tell Vulkan the buffer will only be used once
-	VkCommandBufferBeginInfo cmdBeginInfo = CVulkanInfo::CreateCommandBufferBeginInfo(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+	VkCommandBufferBeginInfo cmdBeginInfo = CVulkanInfo::createCommandBufferBeginInfo(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 	VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
 
 	// Get the current swapchain image
@@ -121,7 +118,6 @@ void CVulkanRenderer::draw() {
 	render(cmd);
 
 	// Make the swapchain image into presentable mode
-	CVulkanUtils::TransitionImage(cmd, m_EngineTextures->mDrawImage.mImage,VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 	CVulkanUtils::TransitionImage(cmd, swapchainImage,VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
 	// Execute a copy from the draw image into the swapchain

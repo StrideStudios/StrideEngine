@@ -40,8 +40,8 @@ CSwapchain::CSwapchain() {
 		//one fence to control when the gpu has finished rendering the frame,
 		//and 2 semaphores to syncronize rendering with swapchain
 		//we want the fence to start signalled so we can wait on it on the first frame
-		VkFenceCreateInfo fenceCreateInfo = CVulkanInfo::CreateFenceInfo(VK_FENCE_CREATE_SIGNALED_BIT);
-		VkSemaphoreCreateInfo semaphoreCreateInfo = CVulkanInfo::CreateSemaphoreInfo();
+		VkFenceCreateInfo fenceCreateInfo = CVulkanInfo::createFenceInfo(VK_FENCE_CREATE_SIGNALED_BIT);
+		VkSemaphoreCreateInfo semaphoreCreateInfo = CVulkanInfo::createSemaphoreInfo();
 
 		for (auto &mFrame: m_Frames) {
 			VK_CHECK(vkCreateFence(CEngine::get().getDevice().getDevice(), &fenceCreateInfo, nullptr, &mFrame.mRenderFence));
@@ -130,12 +130,12 @@ void CSwapchain::submit(const VkCommandBuffer inCmd, const VkQueue inGraphicsQue
 
 	// Submit
 	{
-		VkCommandBufferSubmitInfo cmdInfo = CVulkanInfo::SubmitCommandBufferInfo(inCmd);
+		VkCommandBufferSubmitInfo cmdInfo = CVulkanInfo::submitCommandBufferInfo(inCmd);
 
-		VkSemaphoreSubmitInfo waitInfo = CVulkanInfo::SubmitSemaphoreInfo(VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR, frame.mSwapchainSemaphore);
-		VkSemaphoreSubmitInfo signalInfo = CVulkanInfo::SubmitSemaphoreInfo(VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, frame.mRenderSemaphore);
+		VkSemaphoreSubmitInfo waitInfo = CVulkanInfo::submitSemaphoreInfo(VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR, frame.mSwapchainSemaphore);
+		VkSemaphoreSubmitInfo signalInfo = CVulkanInfo::submitSemaphoreInfo(VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, frame.mRenderSemaphore);
 
-		VkSubmitInfo2 submit = CVulkanInfo::SubmitInfo(&cmdInfo,&signalInfo,&waitInfo);
+		VkSubmitInfo2 submit = CVulkanInfo::submitInfo(&cmdInfo,&signalInfo,&waitInfo);
 		VK_CHECK(vkQueueSubmit2(inGraphicsQueue, 1, &submit, frame.mRenderFence));
 	}
 

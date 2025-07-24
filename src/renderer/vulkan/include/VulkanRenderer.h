@@ -29,6 +29,8 @@ struct SComputeEffect {
 
 class CVulkanRenderer {
 
+	friend class CEngineTextures;
+
 public:
 
 	struct SFrameData {
@@ -49,6 +51,8 @@ public:
 	force_inline uint32 getFrameIndex() const { return m_FrameNumber % gFrameOverlap; }
 
 	force_inline const SFrameData& getCurrentFrame() const { return m_Frames[getFrameIndex()]; }
+
+	no_discard CEngineTextures& getEngineTextures() { return *m_EngineTextures; }
 
 	no_discard const CEngineTextures& getEngineTextures() const { return *m_EngineTextures; }
 
@@ -75,8 +79,6 @@ protected:
 	//
 
 	force_inline SFrameData& getCurrentFrame() { return m_Frames[getFrameIndex()]; }
-
-	no_discard CEngineTextures& getEngineTextures() { return *m_EngineTextures; }
 
 	//
 	// Rendering Utils

@@ -5,6 +5,7 @@
 
 #include "BaseRenderer.h"
 #include "EngineSettings.h"
+#include "GraphicsRenderer.h"
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_vulkan.h"
 #include "../renderer/vulkan/include/VulkanDevice.h"
@@ -60,7 +61,7 @@ void CEngine::init() {
 	m_Device->initDevice();
 
 	// Initialize the renderer
-	m_Renderer = std::make_unique<CBaseRenderer>();
+	m_Renderer = std::make_unique<CGraphicsRenderer>();
 }
 
 void CEngine::end() {
