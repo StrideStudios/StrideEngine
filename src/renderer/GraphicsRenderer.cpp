@@ -229,7 +229,8 @@ void CGraphicsRenderer::initMeshPipeline() {
 	//no multisampling
 	pipelineBuilder.setNoMultisampling();
 	//no blending
-	pipelineBuilder.disableBlending();
+	pipelineBuilder.enableBlendingAdditive();
+	//pipelineBuilder.disableBlending();
 	//depth testing
 	pipelineBuilder.enableDepthTest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
 
