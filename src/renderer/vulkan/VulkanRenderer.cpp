@@ -9,9 +9,6 @@
 #include "VkBootstrap.h"
 
 #include "Engine.h"
-#include "imgui.h"
-#include "imgui_impl_sdl3.h"
-#include "imgui_impl_vulkan.h"
 #include "ShaderCompiler.h"
 #include "EngineSettings.h"
 #include "EngineTextures.h"
@@ -133,17 +130,11 @@ void CVulkanRenderer::init() {
 
 void CVulkanRenderer::destroy() {
 
-	ImGui_ImplVulkan_Shutdown();
-	ImGui_ImplSDL3_Shutdown();
-	ImGui::DestroyContext();
+	CEngineSettings::destroy();
 
 	m_GlobalDescriptorAllocator.destroy();
 
 	mGlobalResourceManager.flush();
-
-	for (auto & mFrame : m_Frames) {
-		//mFrame.mFrameResourceAllocator.flush();
-	}
 
 	vkDestroyDescriptorSetLayout(CEngine::device(), m_GPUSceneDataDescriptorLayout, nullptr);
 
@@ -182,7 +173,7 @@ void CVulkanRenderer::draw() {
 	VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
 
 	// Get the current swapchain image
-	const auto [swapchainImage, swapchainImageIndex] = m_EngineTextures->getSwapchain().getSwapchainImage(getFrameIndex());
+	const auto [swapchainImage, swapchainImageView, swapchainImageIndex] = m_EngineTextures->getSwapchain().getSwapchainImage(getFrameIndex());
 
 	// Reset the current fences, done here so the swapchain acquire doesn't stall the engine
 	m_EngineTextures->getSwapchain().reset(getFrameIndex());
@@ -196,17 +187,17 @@ void CVulkanRenderer::draw() {
 	//allocate a new uniform buffer for the scene data
 
 	// GPU Scene is only needed in render TODO: (should put in frame)
-	m_GPUSceneDataBuffer = getCurrentFrame().mFrameResourceManager.allocateBuffer(sizeof(GPUSceneData), VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
+	m_GPUSceneDataBuffer = getCurrentFrame().mFrameResourceManager.allocateBuffer(sizeof(SGPUSceneData), VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
 
 	//write the buffer
-	auto* sceneUniformData = (GPUSceneData*)m_GPUSceneDataBuffer->GetMappedData();
+	auto* sceneUniformData = (SGPUSceneData*)m_GPUSceneDataBuffer->GetMappedData();
 	m_SceneData = *sceneUniformData;
 
 	//create a descriptor set that binds that buffer and update it
 	VkDescriptorSet globalDescriptor = getCurrentFrame().mDescriptorAllocator.allocate(m_GPUSceneDataDescriptorLayout);
 
 	SDescriptorWriter writer;
-	writer.writeBuffer(0, m_GPUSceneDataBuffer->buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+	writer.writeBuffer(0, m_GPUSceneDataBuffer->buffer, sizeof(SGPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 	writer.updateSet(globalDescriptor);
 
 	render(cmd);
@@ -224,8 +215,8 @@ void CVulkanRenderer::draw() {
 	// Set swapchain layout so it can be used by ImGui
 	CVulkanUtils::transitionImage(cmd, swapchainImage,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
-	// ImGui draws over the swapchain, so it needs to be after the copy
-	renderImGui(cmd, m_EngineTextures->getSwapchain().mSwapchainImageViews[swapchainImageIndex]);
+	// Render Engine settings
+	CEngineSettings::render(cmd, m_EngineTextures->getSwapchain().mSwapchain->extent, swapchainImageView);
 
 	// Set swapchain image layout to Present so we can show it on the screen
 	CVulkanUtils::transitionImage(cmd, swapchainImage,VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
@@ -237,17 +228,6 @@ void CVulkanRenderer::draw() {
 
 	//increase the number of frames drawn
 	m_FrameNumber++;
-}
-
-void CVulkanRenderer::renderImGui(VkCommandBuffer cmd, VkImageView inTargetImageView) {
-	VkRenderingAttachmentInfo colorAttachment = CVulkanUtils::createAttachmentInfo(inTargetImageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-	VkRenderingInfo renderInfo = CVulkanUtils::createRenderingInfo(m_EngineTextures->getSwapchain().mSwapchain->extent, &colorAttachment, nullptr);
-
-	vkCmdBeginRendering(cmd, &renderInfo);
-
-	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
-
-	vkCmdEndRendering(cmd);
 }
 
 void CVulkanRenderer::waitForGpu() const {
@@ -306,30 +286,7 @@ void CVulkanRenderer::initImGui() {
 	m_ImGuiDescriptorPool = mGlobalResourceManager.allocateDescriptorPool(poolCreateInfo);
 
 	// Setup Dear ImGui context
-	IMGUI_CHECKVERSION();
-	ImGui::CreateContext();
-
-	// this initializes imgui for Vulkan
-	ImGui_ImplVulkan_InitInfo initInfo {
-		.Instance = CEngine::instance(),
-		.PhysicalDevice = CEngine::physicalDevice(),
-		.Device = CEngine::device(),
-		.Queue = m_GraphicsQueue,
-		.DescriptorPool = m_ImGuiDescriptorPool,
-		.MinImageCount = 3,
-		.ImageCount = 3,
-		.UseDynamicRendering = true
-	};
-
-	//dynamic rendering parameters for imgui to use
-	initInfo.PipelineRenderingCreateInfo = {.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};
-	initInfo.PipelineRenderingCreateInfo.colorAttachmentCount = 1;
-	initInfo.PipelineRenderingCreateInfo.pColorAttachmentFormats = &m_EngineTextures->getSwapchain().mFormat;
-
-	initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
-
-	ImGui_ImplVulkan_Init(&initInfo);
-	ImGui_ImplSDL3_InitForVulkan(CEngine::get().getWindow().mWindow);
+	CEngineSettings::init(m_GraphicsQueue, m_ImGuiDescriptorPool, m_EngineTextures->getSwapchain().mFormat);
 }
 
 void CNullRenderer::render(VkCommandBuffer cmd) {

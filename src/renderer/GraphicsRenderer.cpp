@@ -148,8 +148,6 @@ void CGraphicsRenderer::init() {
 	}
 	m_ErrorCheckerboardImage = mGlobalResourceManager.allocateImage(pixels.data(), VkExtent3D{16, 16, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
 
-	VkDevice device = CEngine::device();
-
 	VkSamplerCreateInfo sampl = {
 		.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO
 	};
@@ -377,8 +375,6 @@ void CGraphicsRenderer::renderMeshPass(VkCommandBuffer cmd) {
 	projection[1][1] *= -1;
 	
 	SGPUDrawPushConstants push_constants;
-	//TODO: make better initialization functions for types
-	// (identity matrix)
 	/*push_constants.worldMatrix = Matrix4f::Identity();
 	push_constants.vertexBuffer = m_EngineBuffers->mRectangle->vertexBufferAddress;
 

@@ -2,6 +2,8 @@
 
 #include <vector>
 #include <map>
+#include <vulkan/vulkan_core.h>
+
 #include "Common.h"
 #include "imgui.h"
 
@@ -31,7 +33,11 @@ public:
 	}
 
 	// Render the commands on ImGui
-	static void render();
+	static void render(VkCommandBuffer cmd, VkExtent2D inExtent, VkImageView inTargetImageView);
+
+	static void init(VkQueue inQueue, VkDescriptorPool inPool, VkFormat format);
+
+	static void destroy();
 
 private:
 

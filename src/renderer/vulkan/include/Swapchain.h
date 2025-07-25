@@ -14,14 +14,6 @@ namespace vkb {
 struct SFrameData;
 class CVulkanDevice;
 
-#define SWAPCHAIN_CHECK(call, failedCall) \
-	if (auto vkResult = call; vkResult != VK_SUCCESS) { \
-        if (vkResult != VK_SUBOPTIMAL_KHR && vkResult != VK_ERROR_OUT_OF_DATE_KHR) { \
-			errs("{} Failed. Vulkan Error {}", #call, string_VkResult(vkResult)); \
-        } \
-    failedCall; \
-    }
-
 class CSwapchain {
 
 public:
@@ -54,7 +46,7 @@ public:
 
 	void cleanup();
 
-	std::pair<VkImage, uint32> getSwapchainImage(uint32 inCurrentFrameIndex);
+	std::tuple<VkImage, VkImageView, uint32> getSwapchainImage(uint32 inCurrentFrameIndex);
 
 	void wait(uint32 inCurrentFrameIndex) const;
 

@@ -49,7 +49,7 @@ public:
 		SDescriptorAllocator mDescriptorAllocator;
 	};
 
-	struct GPUSceneData {
+	struct SGPUSceneData {
 		Matrix4f view;
 		Matrix4f proj;
 		Matrix4f viewProj;
@@ -87,8 +87,6 @@ public:
 
 	// Tell children to render
 	virtual void render(VkCommandBuffer cmd) = 0;
-
-	void renderImGui(VkCommandBuffer cmd, VkImageView inTargetImageView);
 
 	void waitForGpu() const;
 
@@ -148,7 +146,7 @@ protected:
 	// Scene Data
 	//
 
-	GPUSceneData m_SceneData;
+	SGPUSceneData m_SceneData;
 
 	VkDescriptorSetLayout m_GPUSceneDataDescriptorLayout;
 

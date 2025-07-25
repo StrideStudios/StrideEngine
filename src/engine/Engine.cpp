@@ -163,8 +163,6 @@ void CEngine::run() {
 			continue;
 		}
 
-		CEngineSettings::render();
-
 		renderer().draw();
 
 		// If we go over the target framerate, delay

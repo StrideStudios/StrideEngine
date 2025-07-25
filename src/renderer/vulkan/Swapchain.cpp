@@ -6,6 +6,14 @@
 
 #include "vulkan/vk_enum_string_helper.h"
 
+#define SWAPCHAIN_CHECK(call, failedCall) \
+	if (auto vkResult = call; vkResult != VK_SUCCESS) { \
+        if (vkResult != VK_SUBOPTIMAL_KHR && vkResult != VK_ERROR_OUT_OF_DATE_KHR) { \
+			errs("{} Failed. Vulkan Error {}", #call, string_VkResult(vkResult)); \
+        } \
+    failedCall; \
+    }
+
 CSwapchain::CSwapchain() {
 
 	init(VK_NULL_HANDLE, true);
@@ -22,13 +30,13 @@ CSwapchain::CSwapchain() {
 		VkFenceCreateInfo fenceCreateInfo = CVulkanInfo::createFenceInfo(VK_FENCE_CREATE_SIGNALED_BIT);
 		VkSemaphoreCreateInfo semaphoreCreateInfo = CVulkanInfo::createSemaphoreInfo();
 
-		for (auto &mFrame: m_Frames) {
+		for (auto& [mSwapchainSemaphore, mRenderSemaphore, mRenderFence, mPresentFence] : m_Frames) {
 
-			mFrame.mRenderFence = m_ResourceManager.allocateFence(fenceCreateInfo);
-			mFrame.mPresentFence = m_ResourceManager.allocateFence(fenceCreateInfo);
+			mRenderFence = m_ResourceManager.allocateFence(fenceCreateInfo);
+			mPresentFence = m_ResourceManager.allocateFence(fenceCreateInfo);
 
-			mFrame.mSwapchainSemaphore = m_ResourceManager.allocateSemaphore(semaphoreCreateInfo);
-			mFrame.mRenderSemaphore = m_ResourceManager.allocateSemaphore(semaphoreCreateInfo);
+			mSwapchainSemaphore = m_ResourceManager.allocateSemaphore(semaphoreCreateInfo);
+			mRenderSemaphore = m_ResourceManager.allocateSemaphore(semaphoreCreateInfo);
 		}
 
 	}
@@ -44,10 +52,8 @@ void CSwapchain::init(const VkSwapchainKHR oldSwapchain, const bool inUseVSync) 
 	mFormat = VK_FORMAT_R8G8B8A8_UNORM;
 
 	const auto& vkbSwapchain = vkb::SwapchainBuilder{CEngine::device()}
-		//.use_default_format_selection()
 		.set_old_swapchain(oldSwapchain)
 		.set_desired_format(VkSurfaceFormatKHR{ .format = mFormat, .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR })
-		//use vsync present mode
 		.set_desired_present_mode(inUseVSync ? VK_PRESENT_MODE_FIFO_KHR : VK_PRESENT_MODE_IMMEDIATE_KHR)
 		.set_desired_extent(CEngine::get().getWindow().mExtent.x, CEngine::get().getWindow().mExtent.y)
 		.add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT)
@@ -94,11 +100,11 @@ void CSwapchain::cleanup() {
 	vkb::destroy_swapchain(*mSwapchain);
 }
 
-std::pair<VkImage, uint32> CSwapchain::getSwapchainImage(const uint32 inCurrentFrameIndex) {
+std::tuple<VkImage, VkImageView, uint32> CSwapchain::getSwapchainImage(const uint32 inCurrentFrameIndex) {
 	uint32 swapchainImageIndex = 0;
 	SWAPCHAIN_CHECK(vkAcquireNextImageKHR(CEngine::device(), *mSwapchain, 1000000000, m_Frames[inCurrentFrameIndex].mSwapchainSemaphore, nullptr, &swapchainImageIndex), setDirty());
 
-	return {mSwapchainImages[swapchainImageIndex], swapchainImageIndex};
+	return {mSwapchainImages[swapchainImageIndex], mSwapchainImageViews[swapchainImageIndex], swapchainImageIndex};
 }
 
 void CSwapchain::wait(const uint32 inCurrentFrameIndex) const {
