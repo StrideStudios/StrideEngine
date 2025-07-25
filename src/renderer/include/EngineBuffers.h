@@ -2,8 +2,7 @@
 
 #include <span>
 
-#include "ResourceAllocator.h"
-#include "ResourceDeallocator.h"
+#include "ResourceManager.h"
 #include "Swapchain.h"
 #include "vk_mem_alloc.h"
 
@@ -26,9 +25,11 @@ public:
 
 	CEngineBuffers(CVulkanRenderer* renderer);
 
+	~CEngineBuffers();
+
 	void initDefaultData(CVulkanRenderer* renderer);
 
-	SMeshBuffers uploadMesh(CResourceAllocator& inAllocator, std::span<uint32> indices, std::span<SVertex> vertices);
+	SMeshBuffers uploadMesh(CResourceManager& inManager, std::span<uint32> indices, std::span<SVertex> vertices);
 
 	//
 	// Buffers

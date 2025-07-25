@@ -3,13 +3,16 @@
 #include <array>
 
 #include "Engine.h"
+#include "VulkanRenderer.h"
 #include "Common.h"
 #include "MeshLoader.h"
-#include "ResourceAllocator.h"
+#include "ResourceManager.h"
 
 CEngineBuffers::CEngineBuffers(CVulkanRenderer* renderer) {
 	initDefaultData(renderer);
 }
+
+CEngineBuffers::~CEngineBuffers() = default;
 
 void CEngineBuffers::initDefaultData(CVulkanRenderer* renderer) {
 	std::array<SVertex,4> rect_vertices;
@@ -34,21 +37,21 @@ void CEngineBuffers::initDefaultData(CVulkanRenderer* renderer) {
 	rect_indices[4] = 1;
 	rect_indices[5] = 3;
 
-	mRectangle = uploadMesh(renderer->mGlobalResourceAllocator, rect_indices, rect_vertices);
+	mRectangle = uploadMesh(renderer->mGlobalResourceManager, rect_indices, rect_vertices);
 
 	testMeshes = CMeshLoader::loadStaticMesh(renderer, this, "basicmesh.glb").value();
 }
 
-SMeshBuffers CEngineBuffers::uploadMesh(CResourceAllocator& inAllocator, std::span<uint32> indices, std::span<SVertex> vertices) {
+SMeshBuffers CEngineBuffers::uploadMesh(CResourceManager& inManager, std::span<uint32> indices, std::span<SVertex> vertices) {
 	const size_t vertexBufferSize = vertices.size() * sizeof(SVertex);
 	const size_t indexBufferSize = indices.size() * sizeof(uint32);
 
 	// Create buffers
-	SMeshBuffers meshBuffers = inAllocator.allocateMeshBuffer(indexBufferSize, vertexBufferSize);
+	SMeshBuffers meshBuffers = inManager.allocateMeshBuffer(indexBufferSize, vertexBufferSize);
 
 	// Staging is not needed outside of this function
-	CResourceAllocator allocator;
-	const SBuffer staging = allocator.allocateBuffer(vertexBufferSize + indexBufferSize, VMA_MEMORY_USAGE_CPU_ONLY, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+	CResourceManager manager;
+	const SBuffer staging = manager.allocateBuffer(vertexBufferSize + indexBufferSize, VMA_MEMORY_USAGE_CPU_ONLY, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
 
 	void* data = staging->GetMappedData();
 
@@ -75,7 +78,7 @@ SMeshBuffers CEngineBuffers::uploadMesh(CResourceAllocator& inAllocator, std::sp
 		vkCmdCopyBuffer(cmd, staging->buffer, meshBuffers->indexBuffer->buffer, 1, &indexCopy);
 	});
 
-	allocator.flush();
+	manager.flush();
 
 	return meshBuffers;
 }

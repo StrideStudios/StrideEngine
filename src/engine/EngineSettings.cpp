@@ -1,8 +1,15 @@
 ﻿#include "EngineSettings.h"
 
 #include "imgui.h"
+#include "imgui_impl_sdl3.h"
+#include "imgui_impl_vulkan.h"
 
 void CEngineSettings::render() {
+	// Start the Dear ImGui frame
+	ImGui_ImplVulkan_NewFrame();
+	ImGui_ImplSDL3_NewFrame();
+	ImGui::NewFrame();
+
 	if (ImGui::Begin("Engine Settings")) {
 		if (ImGui::BeginTabBar("Settings")) {
 			for (auto&[category, commands] : CCommand::getCategoryMap()) {
@@ -17,4 +24,6 @@ void CEngineSettings::render() {
 		ImGui::EndTabBar();
 	}
 	ImGui::End();
+
+	ImGui::Render();
 }

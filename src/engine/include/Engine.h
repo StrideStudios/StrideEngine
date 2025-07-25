@@ -1,16 +1,22 @@
 ﻿#pragma once
 
 #include <memory>
+#include <vulkan/vulkan_core.h>
 
 #include "Common.h"
-#include "VulkanDevice.h"
-#include "VulkanRenderer.h"
+
+// Forward declare vkb types
+namespace vkb {
+	struct Instance;
+	struct Device;
+	struct PhysicalDevice;
+}
 
 class CVulkanDevice;
 class CVulkanRenderer;
 struct SDL_Window;
 
-constexpr static SChar gEngineName = text("Stride Engine");
+constexpr static auto gEngineName = text("Stride Engine");
 
 struct SEngineWindow {
 	// The extent of the window
@@ -25,36 +31,35 @@ struct SEngineWindow {
 
 class CEngine {
 
+	struct Time {
+		int32 mAverageFrameRate = 0;
+		int32 mFrameRate = 0;
+		double mDeltaTime = 0.0;
+		double mGameTime = 0.0;
+	};
+
 public:
 
-	CEngine() = default;
+	CEngine();
+
+	~CEngine();
 
 	constexpr static CEngine& get() {
 		static CEngine engine;
 		return engine;
 	}
 
-	constexpr static const vkb::Instance& instance() {
-		return get().m_Device->getInstance();
-	}
+	static const vkb::Instance& instance();
 
-	constexpr static const vkb::Device& device() {
-		return get().m_Device->getDevice();
-	}
+	static const vkb::Device& device();
 
-	constexpr static const vkb::PhysicalDevice& physicalDevice() {
-		return get().m_Device->getPhysicalDevice();
-	}
+	static const vkb::PhysicalDevice& physicalDevice();
 
 	constexpr static CVulkanRenderer& renderer() {
 		return *get().m_Renderer;
 	}
 
-	no_discard int32 getFrameRate() const { return m_FrameRate; }
-
-	no_discard double getDeltaTime() const { return m_DeltaTime; }
-
-	no_discard double getTime() const { return m_GameTime; }
+	no_discard Time getTime() const { return m_Time; }
 
 	no_discard const SEngineWindow& getWindow() const { return m_EngineWindow; }
 
@@ -64,7 +69,7 @@ public:
 
 private:
 
-	// Make sure only main can access initialization and run functions
+	// Make sure only main can access init and run functions
 	friend int main();
 
 	void init();
@@ -77,13 +82,7 @@ private:
 	// Frame Time
 	//
 
-	int32 m_AverageFrameRate = 0;
-
-	int32 m_FrameRate = 0;
-
-	double m_DeltaTime = 0.0;
-
-	double m_GameTime = 0.0;
+	Time m_Time;
 
 	// SDL Window
 	SEngineWindow m_EngineWindow;

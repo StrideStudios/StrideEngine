@@ -1,13 +1,13 @@
 ﻿#pragma once
 
+#include <functional>
 #include <memory>
 
-#include "EngineTextures.h"
-#include "EngineBuffers.h"
-#include "ResourceAllocator.h"
+#include "ResourceManager.h"
 #include "VulkanUtils.h"
 
 class CEngineTextures;
+class CEngineBuffers;
 class CVulkanDevice;
 
 struct SComputePushConstants {
@@ -40,13 +40,11 @@ public:
 		VkCommandPool mCommandPool = nullptr;
 		VkCommandBuffer mMainCommandBuffer = nullptr;
 
-		CResourceDeallocator mResourceDeallocator;
-
 		/*
 		 * A resource allocator that is persistent for a single frame
 		 * Good for data that only needs to exist for a single frame
 		 */
-		CResourceAllocator mFrameResourceAllocator;
+		CResourceManager mFrameResourceManager;
 
 		SDescriptorAllocator mDescriptorAllocator;
 	};
@@ -60,9 +58,9 @@ public:
 		Vector4f sunlightColor;
 	};
 
-	CVulkanRenderer() = default;
+	CVulkanRenderer();
 
-	virtual ~CVulkanRenderer() = default;
+	virtual ~CVulkanRenderer();
 
 	static void immediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function);
 
@@ -98,7 +96,7 @@ public:
 	 * This resource allocator is flushed when the renderer is destroyed
 	 * This is useful for any objects that need a persistent lifetime
 	 */
-	CResourceAllocator mGlobalResourceAllocator;
+	CResourceManager mGlobalResourceManager;
 
 protected:
 
@@ -118,6 +116,8 @@ protected:
 	// Rendering Utils
 	//
 
+	bool m_VSync;
+
 	SBuffer m_GPUSceneDataBuffer;
 
 	uint64 m_FrameNumber = 0;
@@ -136,8 +136,6 @@ protected:
 	//
 	// Descriptor Resources
 	//
-
-	CResourceDeallocator m_ResourceDeallocator;
 
 	SDescriptorAllocator m_GlobalDescriptorAllocator;
 

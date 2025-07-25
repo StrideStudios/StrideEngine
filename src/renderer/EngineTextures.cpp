@@ -4,17 +4,19 @@
 
 #include "Engine.h"
 #include "VulkanDevice.h"
-#include "ResourceAllocator.h"
+#include "ResourceManager.h"
 
 CEngineTextures::CEngineTextures() {
 	initializeTextures();
 }
 
+CEngineTextures::~CEngineTextures() = default;
+
 void CEngineTextures::initializeTextures() {
 
 	// Ensure previous textures have been destroyed
 	// This is in the case of screen resizing
-	m_ResourceAllocator.flush();
+	m_ResourceManager.flush();
 
 	VkImageUsageFlags drawImageUsages = 0;
 	drawImageUsages |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
@@ -24,9 +26,9 @@ void CEngineTextures::initializeTextures() {
 
 	auto [width, height] = CEngine::get().getWindow().mExtent;
 
-	mDrawImage = m_ResourceAllocator.allocateImage({width, height, 1}, VK_FORMAT_R16G16B16A16_SFLOAT, drawImageUsages, VK_IMAGE_ASPECT_COLOR_BIT, false);
+	mDrawImage = m_ResourceManager.allocateImage({width, height, 1}, VK_FORMAT_R16G16B16A16_SFLOAT, drawImageUsages, VK_IMAGE_ASPECT_COLOR_BIT, false);
 
-	mDepthImage = m_ResourceAllocator.allocateImage({width, height, 1}, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_ASPECT_DEPTH_BIT, false);
+	mDepthImage = m_ResourceManager.allocateImage({width, height, 1}, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_ASPECT_DEPTH_BIT, false);
 }
 
 void CEngineTextures::reallocate() {
@@ -41,7 +43,7 @@ void CEngineTextures::reallocate() {
 
 void CEngineTextures::destroy() {
 
-	m_ResourceAllocator.flush();
+	m_ResourceManager.flush();
 
 	m_Swapchain.cleanup();
 }

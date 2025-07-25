@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "BasicTypes.h"
-#include "ResourceAllocator.h"
+#include "ResourceManager.h"
 
 struct SStaticMesh {
 

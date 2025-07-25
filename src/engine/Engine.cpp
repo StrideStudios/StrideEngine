@@ -3,21 +3,15 @@
 #include <filesystem>
 #include <thread>
 
-#include "BaseRenderer.h"
 #include "EngineSettings.h"
 #include "GraphicsRenderer.h"
 #include "imgui_impl_sdl3.h"
-#include "imgui_impl_vulkan.h"
-#include "ResourceAllocator.h"
-#include "../renderer/vulkan/include/VulkanDevice.h"
-#include "VulkanRenderer.h"
-#include "SDL3/SDL_events.h"
+#include "VulkanDevice.h"
 #include "SDL3/SDL_init.h"
 #include "SDL3/SDL_timer.h"
 #include "SDL3/SDL_vulkan.h"
 
 #define COMMAND_CATEGORY "Engine"
-ADD_COMMAND(bool, UseVsync, true);
 ADD_COMMAND(int32, UseFrameCap, 180, 0, 500);
 #undef COMMAND_CATEGORY
 
@@ -28,6 +22,22 @@ int main() {
 
 	CEngine::get().end();
 	return 0;
+}
+
+CEngine::CEngine() = default;
+
+CEngine::~CEngine() = default;
+
+const vkb::Instance& CEngine::instance() {
+	return get().m_Device->getInstance();
+}
+
+const vkb::Device& CEngine::device() {
+	return get().m_Device->getDevice();
+}
+
+const vkb::PhysicalDevice& CEngine::physicalDevice() {
+	return get().m_Device->getPhysicalDevice();
 }
 
 void CEngine::init() {
@@ -43,7 +53,7 @@ void CEngine::init() {
 	SDL_Init(SDL_INIT_VIDEO);
 
 	m_EngineWindow.mWindow = SDL_CreateWindow(
-		"Stride Engine",
+		gEngineName,
 		static_cast<int32>(m_EngineWindow.mExtent.x),
 		static_cast<int32>(m_EngineWindow.mExtent.y),
 		SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE
@@ -66,7 +76,7 @@ void CEngine::init() {
 	m_Renderer = std::make_unique<CGraphicsRenderer>();
 
 	// Initialize the allocator
-	CResourceAllocator::initAllocator();
+	CResourceManager::initAllocator();
 
 	// Initialize the renderer
 	m_Renderer->init();
@@ -78,7 +88,7 @@ void CEngine::end() {
 
 	m_Renderer->destroy();
 
-	CResourceAllocator::destroyAllocator();
+	CResourceManager::destroyAllocator();
 
 	vkb::destroy_surface(instance(), m_EngineWindow.mVkSurface);
 	m_Device->destroy();
@@ -93,21 +103,19 @@ void CEngine::run() {
 
 	auto previousTime = std::chrono::high_resolution_clock::now();
 
-	bool bOldVsync = true;
-
 	bool bRunning = true;
 	while (bRunning) {
 
 		// Time utils
 		{
 			auto currentTime = std::chrono::high_resolution_clock::now();
-			m_DeltaTime = std::chrono::duration<double>(currentTime - previousTime).count();
+			m_Time.mDeltaTime = std::chrono::duration<double>(currentTime - previousTime).count();
 
-			m_FrameRate = static_cast<int32>(1.0 / m_DeltaTime);
+			m_Time.mFrameRate = static_cast<int32>(1.0 / m_Time.mDeltaTime);
 
-			m_AverageFrameRate = static_cast<int32>((m_AverageFrameRate + m_FrameRate) / 2.0);
+			m_Time.mAverageFrameRate = static_cast<int32>((m_Time.mAverageFrameRate + m_Time.mFrameRate) / 2.0);
 
-			m_GameTime += m_DeltaTime;
+			m_Time.mGameTime += m_Time.mDeltaTime;
 
 			previousTime = currentTime;
 		}
@@ -115,14 +123,14 @@ void CEngine::run() {
 		// Easy way to visualize FPS before text is implemented
 		// It's hard to read at 180 hz, so update every tenth frame (or 18 hz)
 		if (m_Renderer->getFrameNumber() % 10 == 0) {
-			std::string title = "Stride Engine Rate: ";
-			title.append(std::to_string(m_AverageFrameRate));
+			std::string title = std::string(gEngineName) + " Rate: ";
+			title.append(std::to_string(m_Time.mAverageFrameRate));
 			title.append(", Dt: ");
-			title.append(std::to_string(m_DeltaTime));
+			title.append(std::to_string(m_Time.mDeltaTime));
 			title.append(", Num: ");
 			title.append(std::to_string(m_Renderer->getFrameNumber()));
 			title.append(", Time: ");
-			title.append(std::to_string(m_GameTime));
+			title.append(std::to_string(m_Time.mGameTime));
 			SDL_SetWindowTitle(getWindow().mWindow, title.c_str());
 		}
 
@@ -155,19 +163,7 @@ void CEngine::run() {
 			continue;
 		}
 
-		// Start the Dear ImGui frame
-		ImGui_ImplVulkan_NewFrame();
-		ImGui_ImplSDL3_NewFrame();
-		ImGui::NewFrame();
-
-		if (bOldVsync != UseVsync.get()) {
-			bOldVsync = UseVsync.get();
-			msgs("Reallocating Swapchain to {}", UseVsync.get() ? "enable VSync." : "disable VSync.");
-			m_Renderer->m_EngineTextures->getSwapchain().recreate(UseVsync.get());
-		}
 		CEngineSettings::render();
-
-		ImGui::Render();
 
 		renderer().draw();
 

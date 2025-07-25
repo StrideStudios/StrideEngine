@@ -149,7 +149,7 @@ bool loadShader(VkDevice inDevice, const char* inFileName, uint32 Hash, SShader&
 
 	// Find what the size of the file is by looking up the location of the cursor
 	// Because the cursor is at the end, it gives the size directly in bytes
-	size_t fileSize = (size_t)file.tellg();
+	size_t fileSize = file.tellg();
 
 	// SPIRV expects the buffer to be on uint32, so make sure to reserve a int
 	// Vector big enough for the entire file

@@ -9,9 +9,9 @@
 #include <vulkan/vk_enum_string_helper.h>
 
 #define VK_CHECK(call) \
-    if (auto vkResult = call; vkResult != VK_SUCCESS) { \
-        errs("{} Failed. Vulkan Error {}", #call, string_VkResult(vkResult)); \
-    }
+	if (auto vkResult = call; vkResult != VK_SUCCESS) { \
+		errs("{} Failed. Vulkan Error {}", #call, string_VkResult(vkResult)); \
+	}
 
 class CVulkanUtils {
 public:

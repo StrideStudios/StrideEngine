@@ -7,7 +7,7 @@
 CVulkanDevice::CVulkanDevice() {
     vkb::InstanceBuilder builder;
 
-    auto instance = builder.set_app_name("Stride Engine")
+    auto instance = builder.set_app_name(gEngineName)
             .request_validation_layers(true)
             .use_default_debug_messenger()
             .require_api_version(1, 3, 0)

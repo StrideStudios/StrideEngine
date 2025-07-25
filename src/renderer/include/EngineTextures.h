@@ -1,7 +1,6 @@
 ﻿#pragma once
 
-#include "ResourceAllocator.h"
-#include "ResourceDeallocator.h"
+#include "ResourceManager.h"
 #include "Swapchain.h"
 
 // Class used to house textures for the engine, easily resizable when necessary
@@ -12,6 +11,8 @@ class CEngineTextures {
 public:
 
 	CEngineTextures();
+
+	~CEngineTextures();
 
 	void initializeTextures();
 
@@ -30,7 +31,7 @@ public:
 
 private:
 
-	CResourceAllocator m_ResourceAllocator;
+	CResourceManager m_ResourceManager;
 
 	//
 	// SwapChain

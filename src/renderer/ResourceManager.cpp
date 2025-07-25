@@ -1,4 +1,4 @@
-﻿#include "ResourceAllocator.h"
+﻿#include "ResourceManager.h"
 
 #define VMA_IMPLEMENTATION
 #include <vma/vk_mem_alloc.h>
@@ -6,15 +6,42 @@
 #include <vulkan/vk_enum_string_helper.h>
 
 #include "Engine.h"
+#include "GraphicsRenderer.h"
+#include "VulkanDevice.h"
+#include "VulkanRenderer.h"
 #include "VulkanUtils.h"
 
 void* SBuffer_T::GetMappedData() const {
 	return allocation->GetMappedData();
 }
 
+#define CREATE_SWITCH(inType, inName, inEnum) \
+	case Type::inEnum: \
+		deallocate##inName(mResource.inName); \
+		break;
+
+void CResourceManager::Resource::destroy() const {
+	switch (mType) {
+		FOR_EACH_TYPE(CREATE_SWITCH)
+		case Type::BUFFER:
+			deallocateBuffer(mResource.Buffer);
+			break;
+		case Type::IMAGE:
+			deallocateImage(mResource.Image);
+			break;
+		case Type::PIPELINE:
+			deallocatePipeline(mResource.Pipeline);
+			break;
+		default:
+			astsNoEntry();
+	}
+}
+
+#undef CREATE_SWITCH
+
 // TODO: turn this into a local that can be used at any point, forcing its own deallocation
 
-void CResourceAllocator::initAllocator() {
+void CResourceManager::initAllocator() {
 	// initialize the memory allocator
 	VmaAllocatorCreateInfo allocatorInfo {
 		.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT,
@@ -26,11 +53,44 @@ void CResourceAllocator::initAllocator() {
 	VK_CHECK(vmaCreateAllocator(&allocatorInfo, &getAllocator()));
 }
 
-void CResourceAllocator::destroyAllocator() {
+void CResourceManager::destroyAllocator() {
 	vmaDestroyAllocator(getAllocator());
 }
 
-SImage CResourceAllocator::allocateImage(VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags, VkImageAspectFlags inViewFlags, bool inMipmapped) {
+#define DEFINE_ALLOCATER(inType, inName, inEnum) \
+	inType CResourceManager::allocate##inName(const inType##CreateInfo& pCreateInfo, const VkAllocationCallbacks* pAllocator) { \
+		inType inName; \
+		VK_CHECK(vkCreate##inName(CEngine::device(), &pCreateInfo, pAllocator, &inName)); \
+		push(inName); \
+		return inName; \
+	}
+#define DEFINE_DEALLOCATOR(inType, inName, inEnum) \
+	void CResourceManager::deallocate##inName(const inType& inName) { \
+		vkDestroy##inName(CEngine::device(), inName, nullptr); \
+	}
+
+	FOR_EACH_TYPE(DEFINE_ALLOCATER)
+	FOR_EACH_TYPE(DEFINE_DEALLOCATOR)
+
+	// Pipeline has a non-standard allocater
+	DEFINE_DEALLOCATOR(VkPipeline, Pipeline, PIPELINE);
+
+#undef DEFINE_FUNCTIONS
+#undef DEFINE_DEALLOCATOR
+
+VkCommandBuffer CResourceManager::allocateCommandBuffer(const VkCommandBufferAllocateInfo& pCreateInfo) {
+	VkCommandBuffer Buffer;
+	VK_CHECK(vkAllocateCommandBuffers(CEngine::device(), &pCreateInfo, &Buffer));
+	return Buffer;
+}
+
+VkPipeline CResourceManager::allocatePipeline(const CPipelineBuilder& inPipelineBuilder, const VkAllocationCallbacks* pAllocator) {
+	const VkPipeline Pipeline = inPipelineBuilder.buildPipeline(CEngine::device());
+	push(Pipeline);
+	return Pipeline;
+}
+
+SImage CResourceManager::allocateImage(VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags, VkImageAspectFlags inViewFlags, bool inMipmapped) {
 	auto image = std::make_unique<SImage_T>();
 
 	image->mImageExtent = inExtent;
@@ -55,18 +115,17 @@ SImage CResourceAllocator::allocateImage(VkExtent3D inExtent, VkFormat inFormat,
 
 	VK_CHECK(vkCreateImageView(CEngine::device(), &imageViewInfo, nullptr, &image->mImageView));
 
-	// Textures for the screen have their own deallocators
-	m_ResourceDeallocator.push(image);
+	push(image);
 
 	return image;
 }
 
-SImage CResourceAllocator::allocateImage(void* inData, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags, VkImageAspectFlags inViewFlags, bool inMipmapped) {
+SImage CResourceManager::allocateImage(void* inData, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags, VkImageAspectFlags inViewFlags, bool inMipmapped) {
 	size_t data_size = inExtent.depth * inExtent.width * inExtent.height * 4;
 
 	// Upload buffer is not needed outside of this function
-	CResourceAllocator allocator;
-	const SBuffer uploadBuffer = allocator.allocateBuffer(data_size, VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+	CResourceManager manager;
+	const SBuffer uploadBuffer = manager.allocateBuffer(data_size, VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
 
 	memcpy(uploadBuffer->info.pMappedData, inData, data_size);
 
@@ -94,17 +153,17 @@ SImage CResourceAllocator::allocateImage(void* inData, VkExtent3D inExtent, VkFo
 			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 		});
 
-	allocator.flush();
+	manager.flush();
 
 	return new_image;
 }
 
-void CResourceAllocator::deallocateImage(const SImage_T* inImage) {
+void CResourceManager::deallocateImage(const SImage_T* inImage) {
 	vmaDestroyImage(getAllocator(), inImage->mImage, inImage->mAllocation);
 	vkDestroyImageView(CEngine::device(), inImage->mImageView, nullptr);
 }
 
-SBuffer CResourceAllocator::allocateBuffer(size_t allocSize, VmaMemoryUsage memoryUsage, VkBufferUsageFlags usage) {
+SBuffer CResourceManager::allocateBuffer(size_t allocSize, VmaMemoryUsage memoryUsage, VkBufferUsageFlags usage) {
 	// allocate buffer
 	VkBufferCreateInfo bufferInfo = {
 		.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
@@ -118,24 +177,17 @@ SBuffer CResourceAllocator::allocateBuffer(size_t allocSize, VmaMemoryUsage memo
 		.usage = memoryUsage
 	};
 
-	// Although it would normally be bad practice to return a heap allocated pointer
-	// CAllocator (so long as inShouldDeallocate is true) will automatically destroy the pointer
-	// if not, then the user can call CAllocator::deallocate
 	auto buffer = std::make_unique<SBuffer_T>();
 
 	// allocate the buffer
 	VK_CHECK(vmaCreateBuffer(getAllocator(), &bufferInfo, &vmaallocInfo, &buffer->buffer, &buffer->allocation, &buffer->info));
 
-	m_ResourceDeallocator.push(buffer);
+	push(buffer);
 
 	return buffer;
 }
 
-void CResourceAllocator::deallocateBuffer(const SBuffer_T* inBuffer) {
-	vmaDestroyBuffer(getAllocator(), inBuffer->buffer, inBuffer->allocation);
-}
-
-SMeshBuffers CResourceAllocator::allocateMeshBuffer(size_t indicesSize, size_t verticesSize) {
+SMeshBuffers CResourceManager::allocateMeshBuffer(size_t indicesSize, size_t verticesSize) {
 	const VkDevice device = CEngine::device();
 
 	// Although it would normally be bad practice to return a heap allocated pointer
@@ -159,7 +211,6 @@ SMeshBuffers CResourceAllocator::allocateMeshBuffer(size_t indicesSize, size_t v
 	return meshBuffers;
 }
 
-void CResourceAllocator::flush() {
-	m_ResourceDeallocator.flush();
+void CResourceManager::deallocateBuffer(const SBuffer_T* inBuffer) {
+	vmaDestroyBuffer(getAllocator(), inBuffer->buffer, inBuffer->allocation);
 }
-

@@ -1,10 +1,11 @@
 ﻿#include "VulkanUtils.h"
 
-#include "Common.h"
 #include <vulkan/vulkan_core.h>
 #include <vulkan/vk_enum_string_helper.h>
 
+#include "Common.h"
 #include "Engine.h"
+#include "VulkanDevice.h"
 
 VkImageSubresourceRange CVulkanUtils::imageSubresourceRange(VkImageAspectFlags inAspectMask) {
 	return {

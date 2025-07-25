@@ -5,6 +5,7 @@
 
 #include "Common.h"
 #include "Engine.h"
+#include "VulkanRenderer.h"
 #include "EngineBuffers.h"
 #include "fastgltf/core.hpp"
 
@@ -105,7 +106,7 @@ std::optional<std::vector<std::shared_ptr<SStaticMesh>>> CMeshLoader::loadStatic
 				vertex.color = {vertex.normal.x, vertex.normal.y, vertex.normal.z, 1.f};
 			}
 		}
-		newMesh.meshBuffers = engineBuffers->uploadMesh(renderer->mGlobalResourceAllocator, indices, vertices);
+		newMesh.meshBuffers = engineBuffers->uploadMesh(renderer->mGlobalResourceManager, indices, vertices);
 
 		meshes.emplace_back(std::make_shared<SStaticMesh>(std::move(newMesh)));
 	}

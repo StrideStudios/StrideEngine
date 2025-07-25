@@ -1,22 +1,24 @@
 ﻿#include "GraphicsRenderer.h"
 
-#include "Engine.h"
-#include "ShaderCompiler.h"
 #include <array>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/packing.hpp>
 
+#include "Engine.h"
+#include "ShaderCompiler.h"
 #include "EngineBuffers.h"
 #include "EngineSettings.h"
-#include "ResourceAllocator.h"
+#include "EngineTextures.h"
+#include "ResourceManager.h"
 #include "StaticMesh.h"
+#include "VkBootstrap.h"
 
 #define COMMAND_CATEGORY "Camera"
 ADD_COMMAND(Vector3f, Translation, {0.f, -5.f, 0.f});
 ADD_COMMAND(Vector3f, Rotation, {0.f, 0.f, 0.f});
 #undef COMMAND_CATEGORY
 
-VkPipeline CPipelineBuilder::buildPipeline(VkDevice inDevice) {
+VkPipeline CPipelineBuilder::buildPipeline(VkDevice inDevice) const {
 	// Make viewport state from our stored viewport and scissor.
 	// At the moment we won't support multiple viewports or scissors
 	//TODO: multiple viewports, although supported on many GPUs, is not all of them, so it should have a alternative
@@ -128,13 +130,13 @@ void CGraphicsRenderer::init() {
 	CBaseRenderer::init();
 
 	uint32 white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
-	m_WhiteImage = mGlobalResourceAllocator.allocateImage(&white, {1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+	m_WhiteImage = mGlobalResourceManager.allocateImage(&white, {1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
 
 	uint32 grey = glm::packUnorm4x8(glm::vec4(0.66f, 0.66f, 0.66f, 1));
-	m_GreyImage = mGlobalResourceAllocator.allocateImage(&grey, {1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+	m_GreyImage = mGlobalResourceManager.allocateImage(&grey, {1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
 
 	uint32 black = glm::packUnorm4x8(glm::vec4(0, 0, 0, 0));
-	m_BlackImage = mGlobalResourceAllocator.allocateImage(&white, {1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+	m_BlackImage = mGlobalResourceManager.allocateImage(&white, {1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
 
 	//checkerboard image
 	uint32_t magenta = glm::packUnorm4x8(glm::vec4(1, 0, 1, 1));
@@ -144,7 +146,7 @@ void CGraphicsRenderer::init() {
 			pixels[y*16 + x] = ((x % 2) ^ (y % 2)) ? magenta : black;
 		}
 	}
-	m_ErrorCheckerboardImage = mGlobalResourceAllocator.allocateImage(pixels.data(), VkExtent3D{16, 16, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+	m_ErrorCheckerboardImage = mGlobalResourceManager.allocateImage(pixels.data(), VkExtent3D{16, 16, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
 
 	VkDevice device = CEngine::device();
 
@@ -155,17 +157,11 @@ void CGraphicsRenderer::init() {
 	sampl.magFilter = VK_FILTER_NEAREST;
 	sampl.minFilter = VK_FILTER_NEAREST;
 
-	vkCreateSampler(device, &sampl, nullptr, &m_DefaultSamplerNearest);
+	m_DefaultSamplerNearest = mGlobalResourceManager.allocateSampler(sampl);
 
 	sampl.magFilter = VK_FILTER_LINEAR;
 	sampl.minFilter = VK_FILTER_LINEAR;
-	vkCreateSampler(device, &sampl, nullptr, &m_DefaultSamplerLinear);
-
-	// Images should be deallocated by CResourceAllocator
-	m_ResourceDeallocator.append({
-		m_DefaultSamplerNearest,
-		m_DefaultSamplerLinear
-	});
+	m_DefaultSamplerLinear = mGlobalResourceManager.allocateSampler(sampl);
 
 	{
 		SDescriptorLayoutBuilder builder;
@@ -198,14 +194,14 @@ void CGraphicsRenderer::initTrianglePipeline() {
 
 	//build the pipeline layout that controls the inputs/outputs of the shader
 	//we are not using descriptor sets or other systems yet, so no need to use anything other than empty default
-	VkPipelineLayoutCreateInfo layout {
+	VkPipelineLayoutCreateInfo layoutCreateInfo {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
 		.pNext = nullptr,
 		.setLayoutCount = 1,
 		.pSetLayouts = &m_DrawImageDescriptorLayout
 	};
 
-	VK_CHECK(vkCreatePipelineLayout(device, &layout, nullptr, &m_TrianglePipelineLayout));
+	m_TrianglePipelineLayout = mGlobalResourceManager.allocatePipelineLayout(layoutCreateInfo);
 
 	CPipelineBuilder pipelineBuilder;
 
@@ -231,16 +227,11 @@ void CGraphicsRenderer::initTrianglePipeline() {
 	pipelineBuilder.setDepthFormat(VK_FORMAT_UNDEFINED);
 
 	//finally build the pipeline
-	m_TrianglePipeline = pipelineBuilder.buildPipeline(device);
+	m_TrianglePipeline = mGlobalResourceManager.allocatePipeline(pipelineBuilder);
 
 	//clean structures
 	vkDestroyShaderModule(device, frag.mModule, nullptr);
 	vkDestroyShaderModule(device, vert.mModule, nullptr);
-
-	m_ResourceDeallocator.append({
-		m_TrianglePipelineLayout,
-		m_TrianglePipeline
-	});
 }
 
 void CGraphicsRenderer::initMeshPipeline() {
@@ -264,7 +255,7 @@ void CGraphicsRenderer::initMeshPipeline() {
 
 	//build the pipeline layout that controls the inputs/outputs of the shader
 	//we are not using descriptor sets or other systems yet, so no need to use anything other than empty default
-	VkPipelineLayoutCreateInfo layout {
+	VkPipelineLayoutCreateInfo layoutCreateInfo {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
 		.pNext = nullptr,
 		.setLayoutCount = 1,
@@ -273,7 +264,7 @@ void CGraphicsRenderer::initMeshPipeline() {
 		.pPushConstantRanges = &bufferRange
 	};
 
-	VK_CHECK(vkCreatePipelineLayout(device, &layout, nullptr, &m_MeshPipelineLayout));
+	m_MeshPipelineLayout = mGlobalResourceManager.allocatePipelineLayout(layoutCreateInfo);
 
 	CPipelineBuilder pipelineBuilder;
 
@@ -299,16 +290,11 @@ void CGraphicsRenderer::initMeshPipeline() {
 	pipelineBuilder.setDepthFormat(m_EngineTextures->mDepthImage->mImageFormat);
 
 	//finally build the pipeline
-	m_MeshPipeline = pipelineBuilder.buildPipeline(device);
+	m_MeshPipeline = mGlobalResourceManager.allocatePipeline(pipelineBuilder);
 
 	//clean structures
 	vkDestroyShaderModule(device, frag.mModule, nullptr);
 	vkDestroyShaderModule(device, vert.mModule, nullptr);
-
-	m_ResourceDeallocator.append({
-		m_MeshPipelineLayout,
-		m_MeshPipeline
-	});
 }
 
 void CGraphicsRenderer::render(VkCommandBuffer cmd) {

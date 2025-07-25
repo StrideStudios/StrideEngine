@@ -1,7 +1,15 @@
 ﻿#pragma once
 
+#include <vector>
+#include <vulkan/vulkan_core.h>
+
 #include "Common.h"
-#include "VkBootstrap.h"
+#include "ResourceManager.h"
+
+// Forward declare vkb types
+namespace vkb {
+	struct Swapchain;
+}
 
 struct SFrameData;
 class CVulkanDevice;
@@ -13,8 +21,6 @@ class CVulkanDevice;
         } \
     failedCall; \
     }
-
-constexpr static uint8 gFrameOverlap = 2;
 
 class CSwapchain {
 
@@ -30,6 +36,8 @@ public:
 
 	CSwapchain();
 
+	~CSwapchain();
+
 	no_discard bool isDirty() const {
 		return m_Dirty;
 	}
@@ -38,9 +46,9 @@ public:
 		m_Dirty = true;
 	}
 
-	operator VkSwapchainKHR() const {
-		return mSwapchain;
-	}
+	operator VkSwapchainKHR() const;
+
+	void init(VkSwapchainKHR oldSwapchain = VK_NULL_HANDLE, bool inUseVSync = true);
 
 	void recreate(bool inUseVSync = true);
 
@@ -54,7 +62,7 @@ public:
 
 	void submit(VkCommandBuffer inCmd, VkQueue inGraphicsQueue, uint32 inCurrentFrameIndex, uint32 inSwapchainImageIndex);
 
-	vkb::Swapchain mSwapchain;
+	std::unique_ptr<vkb::Swapchain> mSwapchain;
 
 	std::vector<VkImage> mSwapchainImages;
 
@@ -67,6 +75,8 @@ public:
 	VkFormat mFormat;
 
 private:
+
+	CResourceManager m_ResourceManager;
 
 	SFrameData m_Frames[gFrameOverlap];
 

@@ -6,6 +6,7 @@
 #include "VulkanDevice.h"
 #include "VulkanUtils.h"
 #include "vulkan/vk_enum_string_helper.h"
+#include "VkBootstrap.h"
 
 #include "Engine.h"
 #include "imgui.h"
@@ -13,7 +14,17 @@
 #include "imgui_impl_vulkan.h"
 #include "ShaderCompiler.h"
 #include "EngineSettings.h"
-#include "ResourceAllocator.h"
+#include "EngineTextures.h"
+#include "EngineBuffers.h"
+#include "ResourceManager.h"
+
+#define COMMAND_CATEGORY "Engine"
+ADD_COMMAND(bool, UseVsync, true);
+#undef COMMAND_CATEGORY
+
+CVulkanRenderer::CVulkanRenderer(): m_VSync(UseVsync.get()) {}
+
+CVulkanRenderer::~CVulkanRenderer() = default;
 
 void CVulkanRenderer::immediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function) {
 	VkDevice device = CEngine::device();
@@ -56,14 +67,14 @@ void CVulkanRenderer::init() {
 
 	VkCommandPoolCreateInfo uploadCommandPoolInfo = CVulkanInfo::createCommandPoolInfo(CEngine::renderer().m_GraphicsQueueFamily);
 	//create pool for upload context
-	VK_CHECK(vkCreateCommandPool(CEngine::device(), &uploadCommandPoolInfo, nullptr, &m_UploadContext._commandPool));
+	m_UploadContext._commandPool = mGlobalResourceManager.allocateCommandPool(uploadCommandPoolInfo);
 
 	//allocate the default command buffer that we will use for the instant commands
 	VkCommandBufferAllocateInfo cmdAllocInfo = CVulkanInfo::createCommandAllocateInfo(m_UploadContext._commandPool, 1);
-	VK_CHECK(vkAllocateCommandBuffers(CEngine::device(), &cmdAllocInfo, &m_UploadContext._commandBuffer));
+	m_UploadContext._commandBuffer = CResourceManager::allocateCommandBuffer(cmdAllocInfo);
 
 	VkFenceCreateInfo fenceCreateInfo = CVulkanInfo::createFenceInfo(VK_FENCE_CREATE_SIGNALED_BIT);
-	VK_CHECK(vkCreateFence(CEngine::device(), &fenceCreateInfo, nullptr, &m_UploadContext._uploadFence));
+	m_UploadContext._uploadFence = mGlobalResourceManager.allocateFence(fenceCreateInfo);
 
 	{
 		// Create a command pool for commands submitted to the graphics queue.
@@ -72,14 +83,12 @@ void CVulkanRenderer::init() {
 			m_GraphicsQueueFamily, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
 		for (auto &frame: m_Frames) {
-			VK_CHECK(vkCreateCommandPool(CEngine::device(), &commandPoolInfo, nullptr, &frame.mCommandPool));
-
-			m_ResourceDeallocator.push(frame.mCommandPool);
+			frame.mCommandPool = mGlobalResourceManager.allocateCommandPool(commandPoolInfo);
 
 			// Allocate the default command buffer that we will use for rendering
 			VkCommandBufferAllocateInfo cmdAllocInfo = CVulkanInfo::createCommandAllocateInfo(frame.mCommandPool, 1);
 
-			VK_CHECK(vkAllocateCommandBuffers(CEngine::device(), &cmdAllocInfo, &frame.mMainCommandBuffer));
+			frame.mMainCommandBuffer = CResourceManager::allocateCommandBuffer(cmdAllocInfo);
 
 			std::vector<SDescriptorAllocator::PoolSizeRatio> frameSizes = {
 				{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 3 },
@@ -88,10 +97,11 @@ void CVulkanRenderer::init() {
 				{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4 },
 			};
 
+			// TODO: DescriptorAllocator as part of ResourceManager
 			frame.mDescriptorAllocator = SDescriptorAllocator();
 			frame.mDescriptorAllocator.init(1000, frameSizes);
 
-			m_ResourceDeallocator.push([&] {
+			mGlobalResourceManager.pushF([&] {
 				frame.mDescriptorAllocator.destroy();
 			});
 		}
@@ -129,25 +139,27 @@ void CVulkanRenderer::destroy() {
 
 	m_GlobalDescriptorAllocator.destroy();
 
-	mGlobalResourceAllocator.flush();
-
-	m_ResourceDeallocator.flush();
+	mGlobalResourceManager.flush();
 
 	for (auto & mFrame : m_Frames) {
-		//mFrame.mResourceDeallocator.flush();
+		//mFrame.mFrameResourceAllocator.flush();
 	}
 
 	vkDestroyDescriptorSetLayout(CEngine::device(), m_GPUSceneDataDescriptorLayout, nullptr);
 
 	vkDestroyDescriptorSetLayout(CEngine::device(), m_DrawImageDescriptorLayout, nullptr);
 
-	vkDestroyCommandPool(CEngine::device(), m_UploadContext._commandPool, nullptr);
-	vkDestroyFence(CEngine::device(), m_UploadContext._uploadFence, nullptr);
-
 	m_EngineTextures->destroy();
 }
 
 void CVulkanRenderer::draw() {
+
+	if (m_VSync != UseVsync.get()) {
+		m_VSync = UseVsync.get();
+		msgs("Reallocating Swapchain to {}", UseVsync.get() ? "enable VSync." : "disable VSync.");
+		m_EngineTextures->getSwapchain().recreate(UseVsync.get());
+	}
+
 	// Make sure that the swapchain is not dirty before recreating it
 	while (m_EngineTextures->getSwapchain().isDirty()) {
 		// Wait for gpu before recreating swapchain
@@ -178,16 +190,13 @@ void CVulkanRenderer::draw() {
 	// Make the swapchain image into writeable mode before rendering
 	CVulkanUtils::transitionImage(cmd, m_EngineTextures->mDrawImage->mImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
 
-	// Flush temporary frame data
-	getCurrentFrame().mResourceDeallocator.flush();
-
 	// Reset descriptor allocators
 	getCurrentFrame().mDescriptorAllocator.clear();
 
 	//allocate a new uniform buffer for the scene data
 
 	// GPU Scene is only needed in render TODO: (should put in frame)
-	m_GPUSceneDataBuffer = getCurrentFrame().mFrameResourceAllocator.allocateBuffer(sizeof(GPUSceneData), VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
+	m_GPUSceneDataBuffer = getCurrentFrame().mFrameResourceManager.allocateBuffer(sizeof(GPUSceneData), VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
 
 	//write the buffer
 	auto* sceneUniformData = (GPUSceneData*)m_GPUSceneDataBuffer->GetMappedData();
@@ -203,15 +212,14 @@ void CVulkanRenderer::draw() {
 	render(cmd);
 
 	// Flush temporary frame data after it is no longer needed
-	getCurrentFrame().mResourceDeallocator.flush();
-	getCurrentFrame().mFrameResourceAllocator.flush();
+	getCurrentFrame().mFrameResourceManager.flush();
 
 	// Make the swapchain image into presentable mode
 	CVulkanUtils::transitionImage(cmd, swapchainImage,VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
 	// Execute a copy from the draw image into the swapchain
 	auto [width, height, depth] = m_EngineTextures->mDrawImage->mImageExtent;
-	CVulkanUtils::copyImageToImage(cmd, m_EngineTextures->mDrawImage->mImage, swapchainImage, {width, height}, m_EngineTextures->getSwapchain().mSwapchain.extent);
+	CVulkanUtils::copyImageToImage(cmd, m_EngineTextures->mDrawImage->mImage, swapchainImage, {width, height}, m_EngineTextures->getSwapchain().mSwapchain->extent);
 
 	// Set swapchain layout so it can be used by ImGui
 	CVulkanUtils::transitionImage(cmd, swapchainImage,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
@@ -233,7 +241,7 @@ void CVulkanRenderer::draw() {
 
 void CVulkanRenderer::renderImGui(VkCommandBuffer cmd, VkImageView inTargetImageView) {
 	VkRenderingAttachmentInfo colorAttachment = CVulkanUtils::createAttachmentInfo(inTargetImageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-	VkRenderingInfo renderInfo = CVulkanUtils::createRenderingInfo(m_EngineTextures->getSwapchain().mSwapchain.extent, &colorAttachment, nullptr);
+	VkRenderingInfo renderInfo = CVulkanUtils::createRenderingInfo(m_EngineTextures->getSwapchain().mSwapchain->extent, &colorAttachment, nullptr);
 
 	vkCmdBeginRendering(cmd, &renderInfo);
 
@@ -275,7 +283,7 @@ void CVulkanRenderer::initImGui() {
 	// 1: create descriptor pool for IMGUI
 	//  the size of the pool is very oversize, but it's copied from imgui demo
 	//  itself.
-	VkDescriptorPoolSize pool_sizes[] = { { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
+	VkDescriptorPoolSize poolSizes[] = { { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
 		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
 		{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
 		{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
@@ -287,22 +295,22 @@ void CVulkanRenderer::initImGui() {
 		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
 		{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 } };
 
-	VkDescriptorPoolCreateInfo pool_info {
+	VkDescriptorPoolCreateInfo poolCreateInfo {
 		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
 		.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
 		.maxSets = 1000,
-		.poolSizeCount = (uint32_t)std::size(pool_sizes),
-		.pPoolSizes = pool_sizes
+		.poolSizeCount = (uint32_t)std::size(poolSizes),
+		.pPoolSizes = poolSizes
 	};
 
-	VK_CHECK(vkCreateDescriptorPool(CEngine::device(), &pool_info, nullptr, &m_ImGuiDescriptorPool));
+	m_ImGuiDescriptorPool = mGlobalResourceManager.allocateDescriptorPool(poolCreateInfo);
 
 	// Setup Dear ImGui context
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 
 	// this initializes imgui for Vulkan
-	ImGui_ImplVulkan_InitInfo init_info {
+	ImGui_ImplVulkan_InitInfo initInfo {
 		.Instance = CEngine::instance(),
 		.PhysicalDevice = CEngine::physicalDevice(),
 		.Device = CEngine::device(),
@@ -314,16 +322,14 @@ void CVulkanRenderer::initImGui() {
 	};
 
 	//dynamic rendering parameters for imgui to use
-	init_info.PipelineRenderingCreateInfo = {.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};
-	init_info.PipelineRenderingCreateInfo.colorAttachmentCount = 1;
-	init_info.PipelineRenderingCreateInfo.pColorAttachmentFormats = &m_EngineTextures->getSwapchain().mFormat;
+	initInfo.PipelineRenderingCreateInfo = {.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};
+	initInfo.PipelineRenderingCreateInfo.colorAttachmentCount = 1;
+	initInfo.PipelineRenderingCreateInfo.pColorAttachmentFormats = &m_EngineTextures->getSwapchain().mFormat;
 
-	init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+	initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 
-	ImGui_ImplVulkan_Init(&init_info);
+	ImGui_ImplVulkan_Init(&initInfo);
 	ImGui_ImplSDL3_InitForVulkan(CEngine::get().getWindow().mWindow);
-
-	m_ResourceDeallocator.push(m_ImGuiDescriptorPool);
 }
 
 void CNullRenderer::render(VkCommandBuffer cmd) {

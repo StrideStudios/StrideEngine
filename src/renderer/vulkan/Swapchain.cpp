@@ -8,26 +8,7 @@
 
 CSwapchain::CSwapchain() {
 
-	vkb::SwapchainBuilder swapchainBuilder{ CEngine::physicalDevice(),CEngine::device(),CEngine::get().getWindow().mVkSurface };
-
-	mFormat = VK_FORMAT_R8G8B8A8_UNORM;
-
-	const auto& vkbSwapchain = swapchainBuilder
-		//.use_default_format_selection()
-		.set_desired_format(VkSurfaceFormatKHR{ .format = mFormat, .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR })
-		//use vsync present mode
-		.set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR) //VK_PRESENT_MODE_FIFO_KHR
-		.set_desired_extent(CEngine::get().getWindow().mExtent.x, CEngine::get().getWindow().mExtent.y)
-		.add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT)
-		.build();
-	if (!vkbSwapchain.has_value()) {
-		errs("Swapchain failed to initialize. Vulkan Error: {}", string_VkResult(vkbSwapchain.full_error().vk_result));
-	}
-
-	//store swapchain and its related images
-	mSwapchain = vkbSwapchain.value();
-	mSwapchainImages = mSwapchain.get_images().value();
-	mSwapchainImageViews = mSwapchain.get_image_views().value();
+	init(VK_NULL_HANDLE, true);
 
 	// Allocate render semaphores
 	/*m_RenderSemaphores.resize(m_VkSwapchainImages.size());
@@ -36,79 +17,86 @@ CSwapchain::CSwapchain() {
 	}*/
 
 	{
-		//create syncronization structures
-		//one fence to control when the gpu has finished rendering the frame,
-		//and 2 semaphores to syncronize rendering with swapchain
-		//we want the fence to start signalled so we can wait on it on the first frame
+		// Create one fence to control when the gpu has finished rendering the frame,
+		// And 2 semaphores to synchronize rendering with swapchain
 		VkFenceCreateInfo fenceCreateInfo = CVulkanInfo::createFenceInfo(VK_FENCE_CREATE_SIGNALED_BIT);
 		VkSemaphoreCreateInfo semaphoreCreateInfo = CVulkanInfo::createSemaphoreInfo();
 
 		for (auto &mFrame: m_Frames) {
-			VK_CHECK(vkCreateFence(CEngine::device(), &fenceCreateInfo, nullptr, &mFrame.mRenderFence));
-			VK_CHECK(vkCreateFence(CEngine::device(), &fenceCreateInfo, nullptr, &mFrame.mPresentFence));
 
-			VK_CHECK(vkCreateSemaphore(CEngine::device(), &semaphoreCreateInfo, nullptr, &mFrame.mSwapchainSemaphore));
-			VK_CHECK(vkCreateSemaphore(CEngine::device(), &semaphoreCreateInfo, nullptr, &mFrame.mRenderSemaphore));
+			mFrame.mRenderFence = m_ResourceManager.allocateFence(fenceCreateInfo);
+			mFrame.mPresentFence = m_ResourceManager.allocateFence(fenceCreateInfo);
+
+			mFrame.mSwapchainSemaphore = m_ResourceManager.allocateSemaphore(semaphoreCreateInfo);
+			mFrame.mRenderSemaphore = m_ResourceManager.allocateSemaphore(semaphoreCreateInfo);
 		}
+
 	}
 }
 
-void CSwapchain::recreate(bool inUseVSync) {
+CSwapchain::~CSwapchain() = default;
 
+CSwapchain::operator VkSwapchainKHR() const  {
+	return *mSwapchain;
+}
+
+void CSwapchain::init(const VkSwapchainKHR oldSwapchain, const bool inUseVSync) {
 	mFormat = VK_FORMAT_R8G8B8A8_UNORM;
 
 	const auto& vkbSwapchain = vkb::SwapchainBuilder{CEngine::device()}
 		//.use_default_format_selection()
-		.set_old_swapchain(mSwapchain)
+		.set_old_swapchain(oldSwapchain)
 		.set_desired_format(VkSurfaceFormatKHR{ .format = mFormat, .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR })
 		//use vsync present mode
 		.set_desired_present_mode(inUseVSync ? VK_PRESENT_MODE_FIFO_KHR : VK_PRESENT_MODE_IMMEDIATE_KHR)
 		.set_desired_extent(CEngine::get().getWindow().mExtent.x, CEngine::get().getWindow().mExtent.y)
 		.add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT)
 		.build();
+
 	if (!vkbSwapchain.has_value()) {
 		errs("Swapchain failed to recreate after change. Vulkan Error: {}", string_VkResult(vkbSwapchain.full_error().vk_result));
 	}
 
-	// destroy swapchain resources and optional render semaphores
-	for (int32 i = 0; i < mSwapchainImageViews.size(); ++i) {
-		//vkDestroySemaphore(vulkanDevice.getDevice(), m_RenderSemaphores[i], nullptr);
-		vkDestroyImageView(CEngine::device(), mSwapchainImageViews[i], nullptr);
+	// If the swapchain is dirty we know these have been allocated
+	if (m_Dirty) {
+		// destroy swapchain resources and optional render semaphores
+		for (int32 i = 0; i < mSwapchainImageViews.size(); ++i) {
+			//vkDestroySemaphore(vulkanDevice.getDevice(), m_RenderSemaphores[i], nullptr);
+			vkDestroyImageView(CEngine::device(), mSwapchainImageViews[i], nullptr);
+		}
+
+		vkb::destroy_swapchain(*mSwapchain);
 	}
 
-	vkb::destroy_swapchain(mSwapchain);
-
 	//store swapchain and its related images
-	mSwapchain = vkbSwapchain.value();
-	mSwapchainImages = mSwapchain.get_images().value();
-	mSwapchainImageViews = mSwapchain.get_image_views().value();
+	mSwapchain = std::make_unique<vkb::Swapchain>(vkbSwapchain.value());
+	mSwapchainImages = mSwapchain->get_images().value();
+	mSwapchainImageViews = mSwapchain->get_image_views().value();
+}
+
+void CSwapchain::recreate(bool inUseVSync) {
+
+	init(*mSwapchain, inUseVSync);
 
 	m_Dirty = false;
 }
 
 void CSwapchain::cleanup() {
 
+	m_ResourceManager.flush();
+
 	// destroy swapchain resources and optional render semaphores
 	for (int32 i = 0; i < mSwapchainImageViews.size(); ++i) {
 		//vkDestroySemaphore(vulkanDevice.getDevice(), m_RenderSemaphores[i], nullptr);
 		vkDestroyImageView(CEngine::device(), mSwapchainImageViews[i], nullptr);
 	}
 
-	for (auto & mFrame : m_Frames) {
-
-		//destroy sync objects
-		vkDestroyFence(CEngine::device(), mFrame.mRenderFence, nullptr);
-		vkDestroyFence(CEngine::device(), mFrame.mPresentFence, nullptr);
-		vkDestroySemaphore(CEngine::device() ,mFrame.mSwapchainSemaphore, nullptr);
-		vkDestroySemaphore(CEngine::device() ,mFrame.mRenderSemaphore, nullptr);
-	}
-
-	vkb::destroy_swapchain(mSwapchain);
+	vkb::destroy_swapchain(*mSwapchain);
 }
 
 std::pair<VkImage, uint32> CSwapchain::getSwapchainImage(const uint32 inCurrentFrameIndex) {
 	uint32 swapchainImageIndex = 0;
-	SWAPCHAIN_CHECK(vkAcquireNextImageKHR(CEngine::device(), mSwapchain, 1000000000, m_Frames[inCurrentFrameIndex].mSwapchainSemaphore, nullptr, &swapchainImageIndex), setDirty());
+	SWAPCHAIN_CHECK(vkAcquireNextImageKHR(CEngine::device(), *mSwapchain, 1000000000, m_Frames[inCurrentFrameIndex].mSwapchainSemaphore, nullptr, &swapchainImageIndex), setDirty());
 
 	return {mSwapchainImages[swapchainImageIndex], swapchainImageIndex};
 }
@@ -153,7 +141,7 @@ void CSwapchain::submit(const VkCommandBuffer inCmd, const VkQueue inGraphicsQue
 			.waitSemaphoreCount = 1,
 			.pWaitSemaphores = &frame.mRenderSemaphore,
 			.swapchainCount = 1,
-			.pSwapchains = &mSwapchain.swapchain,
+			.pSwapchains = &mSwapchain->swapchain,
 			.pImageIndices = &inSwapchainImageIndex,
 		};
 

@@ -2,8 +2,10 @@
 
 #include "Engine.h"
 #include "EngineSettings.h"
+#include "EngineTextures.h"
 #include "ShaderCompiler.h"
-#include "ResourceAllocator.h"
+#include "ResourceManager.h"
+#include "VkBootstrap.h"
 
 #define COMMAND_CATEGORY "Visuals"
 ADD_COMMAND(int32, UseSky, 0, 0, 1);
@@ -31,8 +33,7 @@ void CBaseRenderer::init() {
 	computeLayout.pPushConstantRanges = &pushConstant;
 	computeLayout.pushConstantRangeCount = 1;
 
-	VK_CHECK(vkCreatePipelineLayout(CEngine::device(), &computeLayout, nullptr, &m_GradientPipelineLayout));
-
+	m_GradientPipelineLayout = mGlobalResourceManager.allocatePipelineLayout(computeLayout);
 
 	SShader gradientShader {
 		.mStage = EShaderStage::COMPUTE
@@ -65,6 +66,7 @@ void CBaseRenderer::init() {
 		.data = {}
 	};
 
+	// TODO: Since these are not using the pipeline builder, i will skip until moving the builder into ResourceManager
 	VK_CHECK(vkCreateComputePipelines(CEngine::device(),VK_NULL_HANDLE,1,&computePipelineCreateInfo, nullptr, &gradient.pipeline));
 
 	// Change the shader module only to create the sky shader
@@ -84,11 +86,10 @@ void CBaseRenderer::init() {
 	vkDestroyShaderModule(CEngine::device(), gradientShader.mModule, nullptr);
 	vkDestroyShaderModule(CEngine::device(), skyShader.mModule, nullptr);
 
-	m_ResourceDeallocator.append({
+	mGlobalResourceManager.push(
 		sky.pipeline,
-		gradient.pipeline,
-		m_GradientPipelineLayout
-	});
+		gradient.pipeline
+	);
 }
 
 void CBaseRenderer::render(VkCommandBuffer cmd) {

@@ -33,7 +33,7 @@
  * Functions are in camel case, ex: startMainFunction
  *
  * multi line variable initialization should have another tab indent:
- * auto vkbInstance = builder.set_app_name("Stride Engine")
+ * auto vkbInstance = builder.set_app_name(gEngineName)
  *     .build();
  *
  * Macros: MACRO_NAME (exceptions for replacing ugly c++ code like below)
@@ -44,6 +44,16 @@
  * Comments that are a single line can use //, other should use /*
  * Category Comments should have thee lines of // like below
  */
+
+constexpr static uint8 gFrameOverlap = 2;
+
+//
+// Common but hard to write forward includes
+//
+
+typedef std::unique_ptr<struct SImage_T> SImage;
+typedef std::unique_ptr<struct SBuffer_T> SBuffer;
+typedef std::unique_ptr<struct SMeshBuffers_T> SMeshBuffers;
 
 //
 // Ugly c++ replacement Macros

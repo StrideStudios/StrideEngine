@@ -23,7 +23,7 @@ public:
 
 	CPipelineBuilder(){ clear(); }
 
-	VkPipeline buildPipeline(VkDevice inDevice);
+	VkPipeline buildPipeline(VkDevice inDevice) const;
 
 	void setShaders(VkShaderModule inVertexShader, VkShaderModule inFragmentShader);
 

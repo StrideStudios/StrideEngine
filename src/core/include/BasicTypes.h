@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-#include <glm/gtc/matrix_transform.hpp>
+#include <glm/glm.hpp>
 
 typedef unsigned char uint8;
 typedef signed char int8;
@@ -195,5 +195,5 @@ typedef TType4x4<float> Matrix4f;
 // Not all platforms have wide characters as a defined length
 // To keep it consistent, these macros will change depending on the platform
 
-#define text(x) L##x
-typedef const wchar_t* SChar;
+#define text(x) x
+typedef const char* SChar;
