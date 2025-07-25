@@ -8,24 +8,7 @@
 #include "ResourceAllocator.h"
 
 CEngineBuffers::CEngineBuffers(CVulkanRenderer* renderer) {
-
-	VkCommandPoolCreateInfo uploadCommandPoolInfo = CVulkanInfo::createCommandPoolInfo(renderer->m_GraphicsQueueFamily);
-	//create pool for upload context
-	VK_CHECK(vkCreateCommandPool(CEngine::device(), &uploadCommandPoolInfo, nullptr, &m_UploadContext._commandPool));
-
-	//allocate the default command buffer that we will use for the instant commands
-	VkCommandBufferAllocateInfo cmdAllocInfo = CVulkanInfo::createCommandAllocateInfo(m_UploadContext._commandPool, 1);
-	VK_CHECK(vkAllocateCommandBuffers(CEngine::device(), &cmdAllocInfo, &m_UploadContext._commandBuffer));
-
-	VkFenceCreateInfo fenceCreateInfo = CVulkanInfo::createFenceInfo(VK_FENCE_CREATE_SIGNALED_BIT);
-	VK_CHECK(vkCreateFence(CEngine::device(), &fenceCreateInfo, nullptr, &m_UploadContext._uploadFence));
-
 	initDefaultData(renderer);
-}
-
-void CEngineBuffers::destroy() {
-	vkDestroyCommandPool(CEngine::device(), m_UploadContext._commandPool, nullptr);
-	vkDestroyFence(CEngine::device(), m_UploadContext._uploadFence, nullptr);
 }
 
 void CEngineBuffers::initDefaultData(CVulkanRenderer* renderer) {
@@ -51,48 +34,21 @@ void CEngineBuffers::initDefaultData(CVulkanRenderer* renderer) {
 	rect_indices[4] = 1;
 	rect_indices[5] = 3;
 
-	mRectangle = uploadMesh(renderer, rect_indices, rect_vertices);
+	mRectangle = uploadMesh(renderer->mGlobalResourceAllocator, rect_indices, rect_vertices);
 
 	testMeshes = CMeshLoader::loadStaticMesh(renderer, this, "basicmesh.glb").value();
 }
 
-void CEngineBuffers::immediateSubmit(CVulkanRenderer* renderer, std::function<void(VkCommandBuffer cmd)>&& function) {
-	VkDevice device = CEngine::device();
-
-	VkCommandBuffer cmd = m_UploadContext._commandBuffer;
-
-	//begin the command buffer recording. We will use this command buffer exactly once before resetting, so we tell vulkan that
-	VkCommandBufferBeginInfo cmdBeginInfo = CVulkanInfo::createCommandBufferBeginInfo(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
-
-	VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
-
-	//execute the function
-	function(cmd);
-
-	VK_CHECK(vkEndCommandBuffer(cmd));
-
-	VkSubmitInfo submit = CVulkanInfo::submitInfo(&cmd);
-
-	vkResetFences(device, 1, &m_UploadContext._uploadFence);
-
-	//submit command buffer to the queue and execute it.
-	// _uploadFence will now block until the graphic commands finish execution
-	VK_CHECK(vkQueueSubmit(renderer->m_GraphicsQueue, 1, &submit, m_UploadContext._uploadFence));
-
-	vkWaitForFences(device, 1, &m_UploadContext._uploadFence, true, 9999999999);
-
-	// reset the command buffers inside the command pool
-	vkResetCommandPool(device, m_UploadContext._commandPool, 0);
-}
-
-SMeshBuffers CEngineBuffers::uploadMesh(CVulkanRenderer* renderer, std::span<uint32> indices, std::span<SVertex> vertices) {
+SMeshBuffers CEngineBuffers::uploadMesh(CResourceAllocator& inAllocator, std::span<uint32> indices, std::span<SVertex> vertices) {
 	const size_t vertexBufferSize = vertices.size() * sizeof(SVertex);
 	const size_t indexBufferSize = indices.size() * sizeof(uint32);
 
 	// Create buffers
-	SMeshBuffers meshBuffers = CResourceAllocator::allocateMeshBuffer(indexBufferSize, vertexBufferSize);
+	SMeshBuffers meshBuffers = inAllocator.allocateMeshBuffer(indexBufferSize, vertexBufferSize);
 
-	const SBuffer staging = CResourceAllocator::allocateBuffer(vertexBufferSize + indexBufferSize, VMA_MEMORY_USAGE_CPU_ONLY, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, false);
+	// Staging is not needed outside of this function
+	CResourceAllocator allocator;
+	const SBuffer staging = allocator.allocateBuffer(vertexBufferSize + indexBufferSize, VMA_MEMORY_USAGE_CPU_ONLY, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
 
 	void* data = staging->GetMappedData();
 
@@ -103,7 +59,7 @@ SMeshBuffers CEngineBuffers::uploadMesh(CVulkanRenderer* renderer, std::span<uin
 
 	//TODO: slow, render thread?
 	// also from an older version of the tutorial, doesnt use sync2
-	immediateSubmit(renderer, [&](VkCommandBuffer cmd) {
+	CVulkanRenderer::immediateSubmit([&](VkCommandBuffer cmd) {
 		VkBufferCopy vertexCopy{};
 		vertexCopy.dstOffset = 0;
 		vertexCopy.srcOffset = 0;
@@ -119,7 +75,7 @@ SMeshBuffers CEngineBuffers::uploadMesh(CVulkanRenderer* renderer, std::span<uin
 		vkCmdCopyBuffer(cmd, staging->buffer, meshBuffers->indexBuffer->buffer, 1, &indexCopy);
 	});
 
-	CResourceAllocator::deallocateBuffer(staging);
+	allocator.flush();
 
 	return meshBuffers;
 }

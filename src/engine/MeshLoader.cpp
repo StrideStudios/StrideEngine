@@ -105,7 +105,7 @@ std::optional<std::vector<std::shared_ptr<SStaticMesh>>> CMeshLoader::loadStatic
 				vertex.color = {vertex.normal.x, vertex.normal.y, vertex.normal.z, 1.f};
 			}
 		}
-		newMesh.meshBuffers = engineBuffers->uploadMesh(renderer, indices, vertices);
+		newMesh.meshBuffers = engineBuffers->uploadMesh(renderer->mGlobalResourceAllocator, indices, vertices);
 
 		meshes.emplace_back(std::make_shared<SStaticMesh>(std::move(newMesh)));
 	}

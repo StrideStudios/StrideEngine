@@ -2,6 +2,8 @@
 
 #include <memory>
 #include <vma/vk_mem_alloc.h>
+
+#include "Common.h"
 #include "ResourceDeallocator.h"
 
 class CVulkanDevice;
@@ -20,7 +22,7 @@ struct SBuffer_T {
 	VmaAllocation allocation = nullptr;
 	VmaAllocationInfo info = {};
 
-	void* GetMappedData() const;
+	no_discard void* GetMappedData() const;
 };
 typedef std::unique_ptr<SBuffer_T> SBuffer;
 
@@ -34,20 +36,24 @@ typedef std::unique_ptr<SMeshBuffers_T> SMeshBuffers;
 
 class CResourceAllocator {
 
+	constexpr static VmaAllocator& getAllocator() {
+		static VmaAllocator allocator;
+		return allocator;
+	}
+
 public:
 
 	CResourceAllocator() = default;
 
-	constexpr static CResourceAllocator& get() {
-		static CResourceAllocator allocator;
-		return allocator;
-	}
+	static void initAllocator();
 
-	static void init();
+	static void destroyAllocator();
 
-	static void destroy();
+	void flush();
 
-	static SImage allocateImage(VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags = 0, VkImageAspectFlags inViewFlags = 0, bool inShouldDeallocate = true);
+	SImage allocateImage(VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags = 0, VkImageAspectFlags inViewFlags = 0, bool inMipmapped = false);
+
+	SImage allocateImage(void* inData, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags = 0, VkImageAspectFlags inViewFlags = 0, bool inMipmapped = false);
 
 	static void deallocateImage(const SImage_T* inImage);
 
@@ -55,25 +61,15 @@ public:
 
 	// VkBufferUsageFlags is VERY important (VMA_MEMORY_USAGE_GPU_ONLY, VMA_MEMORY_USAGE_CPU_ONLY, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_MEMORY_USAGE_GPU_TO_CPU)
 	// VMA_MEMORY_USAGE_CPU_TO_GPU can be used for the small fast-access buffer on GPU that CPU can still write to (something important)
-	static SBuffer allocateBuffer(size_t allocSize, VmaMemoryUsage memoryUsage, VkBufferUsageFlags usage = 0, bool inShouldDeallocate = true);
+	SBuffer allocateBuffer(size_t allocSize, VmaMemoryUsage memoryUsage, VkBufferUsageFlags usage = 0);
 
 	static void deallocateBuffer(const SBuffer_T* inBuffer);
 
 	static void deallocateBuffer(const SBuffer& inImage) { deallocateBuffer(inImage.get()); }
 
-	static SMeshBuffers allocateMeshBuffer(size_t indicesSize, size_t verticesSize, bool inShouldDeallocate = true);
+	SMeshBuffers allocateMeshBuffer(size_t indicesSize, size_t verticesSize);
 
-	static void deallocateMeshBuffer(const SMeshBuffers_T* inBuffer);
+private:
 
-	static void deallocateMeshBuffer(const SMeshBuffers& inImage) { deallocateMeshBuffer(inImage.get()); }
-
-public:
-
-	//
-	// Allocator
-	//
-
-	CResourceDeallocator m_ResourceDeallocator;
-
-	VmaAllocator m_Allocator;
+	CResourceDeallocator m_ResourceDeallocator{};
 };

@@ -3,10 +3,18 @@
 #include "Engine.h"
 #include "ShaderCompiler.h"
 #include <array>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/packing.hpp>
 
 #include "EngineBuffers.h"
+#include "EngineSettings.h"
 #include "ResourceAllocator.h"
 #include "StaticMesh.h"
+
+#define COMMAND_CATEGORY "Camera"
+ADD_COMMAND(Vector3f, Translation, {0.f, -5.f, 0.f});
+ADD_COMMAND(Vector3f, Rotation, {0.f, 0.f, 0.f});
+#undef COMMAND_CATEGORY
 
 VkPipeline CPipelineBuilder::buildPipeline(VkDevice inDevice) {
 	// Make viewport state from our stored viewport and scissor.
@@ -116,10 +124,63 @@ void CPipelineBuilder::clear() {
 	m_ShaderStages.clear();
 }
 
-CGraphicsRenderer::CGraphicsRenderer() {
+void CGraphicsRenderer::init() {
+	CBaseRenderer::init();
+
+	uint32 white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
+	m_WhiteImage = mGlobalResourceAllocator.allocateImage(&white, {1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+
+	uint32 grey = glm::packUnorm4x8(glm::vec4(0.66f, 0.66f, 0.66f, 1));
+	m_GreyImage = mGlobalResourceAllocator.allocateImage(&grey, {1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+
+	uint32 black = glm::packUnorm4x8(glm::vec4(0, 0, 0, 0));
+	m_BlackImage = mGlobalResourceAllocator.allocateImage(&white, {1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+
+	//checkerboard image
+	uint32_t magenta = glm::packUnorm4x8(glm::vec4(1, 0, 1, 1));
+	std::array<uint32_t, 16 *16 > pixels; //for 16x16 checkerboard texture
+	for (int x = 0; x < 16; x++) {
+		for (int y = 0; y < 16; y++) {
+			pixels[y*16 + x] = ((x % 2) ^ (y % 2)) ? magenta : black;
+		}
+	}
+	m_ErrorCheckerboardImage = mGlobalResourceAllocator.allocateImage(pixels.data(), VkExtent3D{16, 16, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+
+	VkDevice device = CEngine::device();
+
+	VkSamplerCreateInfo sampl = {
+		.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO
+	};
+
+	sampl.magFilter = VK_FILTER_NEAREST;
+	sampl.minFilter = VK_FILTER_NEAREST;
+
+	vkCreateSampler(device, &sampl, nullptr, &m_DefaultSamplerNearest);
+
+	sampl.magFilter = VK_FILTER_LINEAR;
+	sampl.minFilter = VK_FILTER_LINEAR;
+	vkCreateSampler(device, &sampl, nullptr, &m_DefaultSamplerLinear);
+
+	// Images should be deallocated by CResourceAllocator
+	m_ResourceDeallocator.append({
+		m_DefaultSamplerNearest,
+		m_DefaultSamplerLinear
+	});
+
+	{
+		SDescriptorLayoutBuilder builder;
+		builder.addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+		m_SingleImageDescriptorLayout = builder.build(VK_SHADER_STAGE_FRAGMENT_BIT);
+	}
+
 	initTrianglePipeline();
 
 	initMeshPipeline();
+}
+
+void CGraphicsRenderer::destroy() {
+	CBaseRenderer::destroy();
+	vkDestroyDescriptorSetLayout(CEngine::device(), m_SingleImageDescriptorLayout, nullptr);
 }
 
 void CGraphicsRenderer::initTrianglePipeline() {
@@ -188,7 +249,7 @@ void CGraphicsRenderer::initMeshPipeline() {
 	SShader frag {
 		.mStage = EShaderStage::PIXEL
 	};
-	VK_CHECK(CShaderCompiler::getShader(device,"basic\\colored_triangle.frag", frag));
+	VK_CHECK(CShaderCompiler::getShader(device,"basic\\tex_image.frag", frag));
 
 	SShader vert {
 		.mStage = EShaderStage::VERTEX
@@ -207,7 +268,7 @@ void CGraphicsRenderer::initMeshPipeline() {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
 		.pNext = nullptr,
 		.setLayoutCount = 1,
-		.pSetLayouts = &m_DrawImageDescriptorLayout,
+		.pSetLayouts = &m_SingleImageDescriptorLayout,
 		.pushConstantRangeCount = 1,
 		.pPushConstantRanges = &bufferRange
 	};
@@ -229,8 +290,7 @@ void CGraphicsRenderer::initMeshPipeline() {
 	//no multisampling
 	pipelineBuilder.setNoMultisampling();
 	//no blending
-	pipelineBuilder.enableBlendingAdditive();
-	//pipelineBuilder.disableBlending();
+	pipelineBuilder.disableBlending();
 	//depth testing
 	pipelineBuilder.enableDepthTest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
 
@@ -310,6 +370,26 @@ void CGraphicsRenderer::renderTrianglePass(VkCommandBuffer cmd) {
 void CGraphicsRenderer::renderMeshPass(VkCommandBuffer cmd) {
 	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_MeshPipeline);
 
+	//bind a texture
+	VkDescriptorSet imageSet = getCurrentFrame().mDescriptorAllocator.allocate(m_SingleImageDescriptorLayout);
+	{
+		SDescriptorWriter writer;
+		writer.writeImage(0, m_ErrorCheckerboardImage->mImageView, m_DefaultSamplerNearest, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+
+		writer.updateSet(imageSet);
+	}
+
+	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_MeshPipelineLayout, 0, 1, &imageSet, 0, nullptr);
+
+	const auto [x, y, z] = m_EngineTextures->mDrawImage->mImageExtent;
+	glm::mat4 view = glm::translate(glm::mat4(1.f), { Translation.get().x,Translation.get().z,Translation.get().y }); // Swap y and z so z will be the up vector
+	// camera projection
+	glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)x / (float)y, 0.1f, 10000.f);
+
+	// invert the Y direction on projection matrix so that we are more similar
+	// to opengl and gltf axis
+	projection[1][1] *= -1;
+	
 	SGPUDrawPushConstants push_constants;
 	//TODO: make better initialization functions for types
 	// (identity matrix)
@@ -322,7 +402,7 @@ void CGraphicsRenderer::renderMeshPass(VkCommandBuffer cmd) {
 	vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);*/
 
 	auto mesh = m_EngineBuffers->testMeshes[0];
-	push_constants.worldMatrix = Matrix4f::Identity();
+	push_constants.worldMatrix = projection * view;
 	push_constants.vertexBuffer = mesh->meshBuffers->vertexBufferAddress;
 
 	vkCmdPushConstants(cmd, m_MeshPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(SGPUDrawPushConstants), &push_constants);

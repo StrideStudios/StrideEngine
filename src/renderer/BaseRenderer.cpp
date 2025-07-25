@@ -12,7 +12,9 @@ ADD_COMMAND(Vector4f, GradientColor1, {0, 0, 1, 1});
 ADD_COMMAND(Vector4f, SkyParameters, {0.1, 0.2, 0.4, 0.97});
 #undef COMMAND_CATEGORY
 
-CBaseRenderer::CBaseRenderer() {
+void CBaseRenderer::init() {
+	CVulkanRenderer::init();
+
 	VkPipelineLayoutCreateInfo computeLayout {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
 		.pNext = nullptr,

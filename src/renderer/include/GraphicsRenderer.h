@@ -1,8 +1,4 @@
 ﻿#pragma once
-#include <functional>
-
-
-#include <vma/vk_mem_alloc.h>
 
 #include "BaseRenderer.h"
 
@@ -131,7 +127,11 @@ class CGraphicsRenderer : public CBaseRenderer {
 
 public:
 
-	CGraphicsRenderer();
+	CGraphicsRenderer() = default;
+
+	void init() override;
+
+	void destroy() override;
 
 	void render(VkCommandBuffer cmd) override;
 
@@ -151,5 +151,15 @@ private:
 
 	VkPipelineLayout m_MeshPipelineLayout;
 	VkPipeline m_MeshPipeline;
+
+	VkDescriptorSetLayout m_SingleImageDescriptorLayout;
+
+	SImage m_WhiteImage;
+	SImage m_BlackImage;
+	SImage m_GreyImage;
+	SImage m_ErrorCheckerboardImage;
+
+	VkSampler m_DefaultSamplerLinear;
+	VkSampler m_DefaultSamplerNearest;
 
 };

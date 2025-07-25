@@ -6,14 +6,15 @@
 #include <vulkan/vk_enum_string_helper.h>
 
 #include "Engine.h"
-#include "VulkanDevice.h"
 #include "VulkanUtils.h"
 
 void* SBuffer_T::GetMappedData() const {
 	return allocation->GetMappedData();
 }
 
-void CResourceAllocator::init() {
+// TODO: turn this into a local that can be used at any point, forcing its own deallocation
+
+void CResourceAllocator::initAllocator() {
 	// initialize the memory allocator
 	VmaAllocatorCreateInfo allocatorInfo {
 		.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT,
@@ -22,16 +23,23 @@ void CResourceAllocator::init() {
 		.instance = CEngine::instance()
 	};
 
-	VK_CHECK(vmaCreateAllocator(&allocatorInfo, &get().m_Allocator));
+	VK_CHECK(vmaCreateAllocator(&allocatorInfo, &getAllocator()));
 }
 
-SImage CResourceAllocator::allocateImage(VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags, VkImageAspectFlags inViewFlags, bool inShouldDeallocate) {
+void CResourceAllocator::destroyAllocator() {
+	vmaDestroyAllocator(getAllocator());
+}
+
+SImage CResourceAllocator::allocateImage(VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags, VkImageAspectFlags inViewFlags, bool inMipmapped) {
 	auto image = std::make_unique<SImage_T>();
 
 	image->mImageExtent = inExtent;
 	image->mImageFormat = inFormat;
 
 	VkImageCreateInfo imageInfo = CVulkanInfo::createImageInfo(image->mImageFormat, inFlags, image->mImageExtent);
+	if (inMipmapped) {
+		imageInfo.mipLevels = static_cast<uint32>(std::floor(std::log2(std::max(inExtent.width, inExtent.height)))) + 1;
+	}
 
 	//for the draw image, we want to allocate it from gpu local memory
 	VmaAllocationCreateInfo imageAllocationInfo = {
@@ -39,25 +47,64 @@ SImage CResourceAllocator::allocateImage(VkExtent3D inExtent, VkFormat inFormat,
 		.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
 	};
 
-	vmaCreateImage(get().m_Allocator, &imageInfo, &imageAllocationInfo, &image->mImage, &image->mAllocation, nullptr);
+	vmaCreateImage(getAllocator(), &imageInfo, &imageAllocationInfo, &image->mImage, &image->mAllocation, nullptr);
 
 	//build a image-view for the draw image to use for rendering
 	VkImageViewCreateInfo imageViewInfo = CVulkanInfo::createImageViewInfo(image->mImageFormat, image->mImage, inViewFlags);
+	imageViewInfo.subresourceRange.levelCount = imageInfo.mipLevels;
 
 	VK_CHECK(vkCreateImageView(CEngine::device(), &imageViewInfo, nullptr, &image->mImageView));
 
 	// Textures for the screen have their own deallocators
-	if (inShouldDeallocate) get().m_ResourceDeallocator.push(image);
+	m_ResourceDeallocator.push(image);
 
 	return image;
 }
 
+SImage CResourceAllocator::allocateImage(void* inData, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags, VkImageAspectFlags inViewFlags, bool inMipmapped) {
+	size_t data_size = inExtent.depth * inExtent.width * inExtent.height * 4;
+
+	// Upload buffer is not needed outside of this function
+	CResourceAllocator allocator;
+	const SBuffer uploadBuffer = allocator.allocateBuffer(data_size, VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+
+	memcpy(uploadBuffer->info.pMappedData, inData, data_size);
+
+	SImage new_image = allocateImage(inExtent, inFormat, inFlags | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, inViewFlags, inMipmapped);
+
+	CVulkanRenderer::immediateSubmit([&](VkCommandBuffer cmd) {
+		CVulkanUtils::transitionImage(cmd, new_image->mImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+		VkBufferImageCopy copyRegion = {};
+		copyRegion.bufferOffset = 0;
+		copyRegion.bufferRowLength = 0;
+		copyRegion.bufferImageHeight = 0;
+
+		copyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		copyRegion.imageSubresource.mipLevel = 0;
+		copyRegion.imageSubresource.baseArrayLayer = 0;
+		copyRegion.imageSubresource.layerCount = 1;
+		copyRegion.imageExtent = inExtent;
+
+		// copy the buffer into the image
+		vkCmdCopyBufferToImage(cmd, uploadBuffer->buffer, new_image->mImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
+			&copyRegion);
+
+		CVulkanUtils::transitionImage(cmd, new_image->mImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		});
+
+	allocator.flush();
+
+	return new_image;
+}
+
 void CResourceAllocator::deallocateImage(const SImage_T* inImage) {
-	vmaDestroyImage(get().m_Allocator, inImage->mImage, inImage->mAllocation);
+	vmaDestroyImage(getAllocator(), inImage->mImage, inImage->mAllocation);
 	vkDestroyImageView(CEngine::device(), inImage->mImageView, nullptr);
 }
 
-SBuffer CResourceAllocator::allocateBuffer(size_t allocSize, VmaMemoryUsage memoryUsage, VkBufferUsageFlags usage, bool inShouldDeallocate) {
+SBuffer CResourceAllocator::allocateBuffer(size_t allocSize, VmaMemoryUsage memoryUsage, VkBufferUsageFlags usage) {
 	// allocate buffer
 	VkBufferCreateInfo bufferInfo = {
 		.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
@@ -77,18 +124,18 @@ SBuffer CResourceAllocator::allocateBuffer(size_t allocSize, VmaMemoryUsage memo
 	auto buffer = std::make_unique<SBuffer_T>();
 
 	// allocate the buffer
-	VK_CHECK(vmaCreateBuffer(get().m_Allocator, &bufferInfo, &vmaallocInfo, &buffer->buffer, &buffer->allocation, &buffer->info));
+	VK_CHECK(vmaCreateBuffer(getAllocator(), &bufferInfo, &vmaallocInfo, &buffer->buffer, &buffer->allocation, &buffer->info));
 
-	if (inShouldDeallocate) get().m_ResourceDeallocator.push(buffer);
+	m_ResourceDeallocator.push(buffer);
 
 	return buffer;
 }
 
 void CResourceAllocator::deallocateBuffer(const SBuffer_T* inBuffer) {
-	vmaDestroyBuffer(get().m_Allocator, inBuffer->buffer, inBuffer->allocation);
+	vmaDestroyBuffer(getAllocator(), inBuffer->buffer, inBuffer->allocation);
 }
 
-SMeshBuffers CResourceAllocator::allocateMeshBuffer(size_t indicesSize, size_t verticesSize, bool inShouldDeallocate) {
+SMeshBuffers CResourceAllocator::allocateMeshBuffer(size_t indicesSize, size_t verticesSize) {
 	const VkDevice device = CEngine::device();
 
 	// Although it would normally be bad practice to return a heap allocated pointer
@@ -96,9 +143,9 @@ SMeshBuffers CResourceAllocator::allocateMeshBuffer(size_t indicesSize, size_t v
 	// if not, then the user can call CAllocator::deallocate
 	auto meshBuffers = std::make_unique<SMeshBuffers_T>();
 
-	meshBuffers->indexBuffer = allocateBuffer(indicesSize, VMA_MEMORY_USAGE_GPU_ONLY, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, false);
+	meshBuffers->indexBuffer = allocateBuffer(indicesSize, VMA_MEMORY_USAGE_GPU_ONLY, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
 
-	meshBuffers->vertexBuffer = allocateBuffer(verticesSize, VMA_MEMORY_USAGE_GPU_ONLY, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, false);
+	meshBuffers->vertexBuffer = allocateBuffer(verticesSize, VMA_MEMORY_USAGE_GPU_ONLY, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
 
 	//find the address of the vertex buffer
 	// TODO: pointer math for large buffers
@@ -109,18 +156,10 @@ SMeshBuffers CResourceAllocator::allocateMeshBuffer(size_t indicesSize, size_t v
 
 	meshBuffers->vertexBufferAddress = vkGetBufferDeviceAddress(device, &deviceAddressInfo);
 
-	if (inShouldDeallocate) get().m_ResourceDeallocator.push(meshBuffers);
-
 	return meshBuffers;
 }
 
-void CResourceAllocator::deallocateMeshBuffer(const SMeshBuffers_T* inBuffer) {
-	deallocateBuffer(inBuffer->indexBuffer);
-	deallocateBuffer(inBuffer->vertexBuffer);
-}
-
-void CResourceAllocator::destroy() {
-	get().m_ResourceDeallocator.flush();
-	vmaDestroyAllocator(get().m_Allocator);
+void CResourceAllocator::flush() {
+	m_ResourceDeallocator.flush();
 }
 

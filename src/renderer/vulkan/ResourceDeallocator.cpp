@@ -14,9 +14,6 @@ void CResourceDeallocator::Resource::destroy() const {
 		case Type::BUFFER:
 			CResourceAllocator::deallocateBuffer(mResource.buffer);
 			break;
-		case Type::MESHBUFFER:
-			CResourceAllocator::deallocateMeshBuffer(mResource.meshBuffers);
-			break;
 		case Type::IMAGE:
 			CResourceAllocator::deallocateImage(mResource.image);
 			break;

@@ -1,5 +1,6 @@
 ﻿#pragma once
 
+#include "ResourceAllocator.h"
 #include "ResourceDeallocator.h"
 #include "Swapchain.h"
 
@@ -29,7 +30,7 @@ public:
 
 private:
 
-	CResourceDeallocator m_ResourceDeallocator;
+	CResourceAllocator m_ResourceAllocator;
 
 	//
 	// SwapChain

@@ -2,17 +2,12 @@
 
 #include <span>
 
+#include "ResourceAllocator.h"
 #include "ResourceDeallocator.h"
 #include "Swapchain.h"
 #include "vk_mem_alloc.h"
 
 struct SStaticMesh;
-
-struct SUploadContext {
-	VkFence _uploadFence;
-	VkCommandPool _commandPool;
-	VkCommandBuffer _commandBuffer;
-};
 
 // Represents a vertex
 struct SVertex {
@@ -31,15 +26,9 @@ public:
 
 	CEngineBuffers(CVulkanRenderer* renderer);
 
-	void destroy();
-
 	void initDefaultData(CVulkanRenderer* renderer);
 
-	void immediateSubmit(CVulkanRenderer* renderer, std::function<void(VkCommandBuffer cmd)>&& function);
-
-	SMeshBuffers uploadMesh(CVulkanRenderer* renderer, std::span<uint32> indices, std::span<SVertex> vertices);
-
-	SUploadContext m_UploadContext;
+	SMeshBuffers uploadMesh(CResourceAllocator& inAllocator, std::span<uint32> indices, std::span<SVertex> vertices);
 
 	//
 	// Buffers

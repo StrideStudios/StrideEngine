@@ -1,5 +1,6 @@
 ﻿#pragma once
 
+#include <deque>
 #include <vector>
 #include <span>
 
@@ -45,7 +46,7 @@ struct SDescriptorLayoutBuilder {
 
 	void clear();
 
-	VkDescriptorSetLayout build(VkDevice inDevice, VkShaderStageFlags inShaderStages, void* pNext = nullptr, VkDescriptorSetLayoutCreateFlags inFlags = 0);
+	VkDescriptorSetLayout build(VkShaderStageFlags inShaderStages, void* pNext = nullptr, VkDescriptorSetLayoutCreateFlags inFlags = 0);
 };
 
 struct SDescriptorAllocator {
@@ -57,11 +58,41 @@ struct SDescriptorAllocator {
 
 	VkDescriptorPool mPool;
 
-	void init(VkDevice inDevice, uint32_t inMaxSets, std::span<PoolSizeRatio> inPoolRatios);
+	void init(uint32_t inInitialSets, std::span<PoolSizeRatio> inPoolRatios);
 
-	void clear(VkDevice inDevice);
+	void clear();
 
-	void destroy(VkDevice inDevice);
+	void destroy();
 
-	VkDescriptorSet allocate(VkDevice inDevice, VkDescriptorSetLayout inLayout);
+	VkDescriptorSet allocate(VkDescriptorSetLayout inLayout, void* pNext = nullptr);
+
+private:
+
+	VkDescriptorPool getPool();
+	static VkDescriptorPool createPool(uint32 inSetCount, std::span<PoolSizeRatio> inPoolRatios);
+
+	std::vector<PoolSizeRatio> ratios;
+	std::vector<VkDescriptorPool> fullPools;
+	std::vector<VkDescriptorPool> readyPools;
+	uint32 setsPerPool;
+};
+
+struct SDescriptorWriter {
+	std::deque<VkDescriptorImageInfo> imageInfos;
+	std::deque<VkDescriptorBufferInfo> bufferInfos;
+	std::vector<VkWriteDescriptorSet> writes;
+
+	void writeImage(uint32 inBinding, VkImageView inImage, VkSampler inSampler, VkImageLayout inLayout, VkDescriptorType inType);
+	//TODO: write_sampler?
+	/*
+	The descriptor types that are allowed for a buffer are these.
+	VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
+	VK_DESCRIPTOR_TYPE_STORAGE_BUFFER
+	VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC
+	VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC
+	 */
+	void writeBuffer(uint32 inBinding, VkBuffer inBuffer, size_t inSize, size_t inOffset, VkDescriptorType inType);
+
+	void clear();
+	void updateSet(VkDescriptorSet inSet);
 };

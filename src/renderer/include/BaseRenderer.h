@@ -6,7 +6,9 @@ class CBaseRenderer : public CVulkanRenderer {
 
 public:
 
-	CBaseRenderer();
+	CBaseRenderer() = default;
+
+	void init() override;
 
 	void render(VkCommandBuffer cmd) override;
 

@@ -4,6 +4,7 @@
 
 #include "EngineTextures.h"
 #include "EngineBuffers.h"
+#include "ResourceAllocator.h"
 #include "VulkanUtils.h"
 
 class CEngineTextures;
@@ -25,11 +26,13 @@ struct SComputeEffect {
 	SComputePushConstants data;
 };
 
+struct SUploadContext {
+	VkFence _uploadFence;
+	VkCommandPool _commandPool;
+	VkCommandBuffer _commandBuffer;
+};
+
 class CVulkanRenderer {
-
-	friend class CEngineTextures;
-
-	friend class CEngineBuffers;
 
 public:
 
@@ -38,13 +41,34 @@ public:
 		VkCommandBuffer mMainCommandBuffer = nullptr;
 
 		CResourceDeallocator mResourceDeallocator;
+
+		/*
+		 * A resource allocator that is persistent for a single frame
+		 * Good for data that only needs to exist for a single frame
+		 */
+		CResourceAllocator mFrameResourceAllocator;
+
+		SDescriptorAllocator mDescriptorAllocator;
 	};
 
-	CVulkanRenderer();
+	struct GPUSceneData {
+		Matrix4f view;
+		Matrix4f proj;
+		Matrix4f viewProj;
+		Vector4f ambientColor;
+		Vector4f sunlightDirection; // w for sun power
+		Vector4f sunlightColor;
+	};
+
+	CVulkanRenderer() = default;
 
 	virtual ~CVulkanRenderer() = default;
 
-	void destroy();
+	static void immediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function);
+
+	virtual void init();
+
+	virtual void destroy();
 
 	force_inline uint32 getFrameNumber() const { return m_FrameNumber; }
 
@@ -70,6 +94,12 @@ public:
 
 	void waitForGpu() const;
 
+	/*
+	 * This resource allocator is flushed when the renderer is destroyed
+	 * This is useful for any objects that need a persistent lifetime
+	 */
+	CResourceAllocator mGlobalResourceAllocator;
+
 protected:
 
 	void initDescriptors();
@@ -88,9 +118,13 @@ protected:
 	// Rendering Utils
 	//
 
+	SBuffer m_GPUSceneDataBuffer;
+
 	uint64 m_FrameNumber = 0;
 
 	SFrameData m_Frames[gFrameOverlap];
+
+	SUploadContext m_UploadContext;
 
 	VkQueue m_GraphicsQueue;
 	uint32 m_GraphicsQueueFamily;
@@ -105,14 +139,20 @@ protected:
 
 	CResourceDeallocator m_ResourceDeallocator;
 
-	CResourceDeallocator m_DescriptorResourceDeallocator;
-
 	SDescriptorAllocator m_GlobalDescriptorAllocator;
 
 	VkDescriptorSet m_DrawImageDescriptors;
 	VkDescriptorSetLayout m_DrawImageDescriptorLayout;
 
 	VkDescriptorPool m_ImGuiDescriptorPool;
+
+	//
+	// Scene Data
+	//
+
+	GPUSceneData m_SceneData;
+
+	VkDescriptorSetLayout m_GPUSceneDataDescriptorLayout;
 
 	//
 	// Temp shader stuff

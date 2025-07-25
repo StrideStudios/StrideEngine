@@ -15,13 +15,55 @@
 #include "EngineSettings.h"
 #include "ResourceAllocator.h"
 
-CVulkanRenderer::CVulkanRenderer() {
+void CVulkanRenderer::immediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function) {
+	VkDevice device = CEngine::device();
+
+	const CVulkanRenderer& renderer = CEngine::renderer();
+
+	VkCommandBuffer cmd = renderer.m_UploadContext._commandBuffer;
+
+	//begin the command buffer recording. We will use this command buffer exactly once before resetting, so we tell vulkan that
+	VkCommandBufferBeginInfo cmdBeginInfo = CVulkanInfo::createCommandBufferBeginInfo(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+
+	VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
+
+	//execute the function
+	function(cmd);
+
+	VK_CHECK(vkEndCommandBuffer(cmd));
+
+	VkSubmitInfo submit = CVulkanInfo::submitInfo(&cmd);
+
+	vkResetFences(device, 1, &renderer.m_UploadContext._uploadFence);
+
+	//submit command buffer to the queue and execute it.
+	// _uploadFence will now block until the graphic commands finish execution
+	VK_CHECK(vkQueueSubmit(CEngine::renderer().m_GraphicsQueue, 1, &submit, renderer.m_UploadContext._uploadFence));
+
+	vkWaitForFences(device, 1, &renderer.m_UploadContext._uploadFence, true, 9999999999);
+
+	// reset the command buffers inside the command pool
+	vkResetCommandPool(device, renderer.m_UploadContext._commandPool, 0);
+}
+
+void CVulkanRenderer::init() {
 	// Ensure the renderer is only created once
 	astsOnce(CVulkanRenderer);
 
 	// Use vkb to get a Graphics queue
 	m_GraphicsQueue = CEngine::device().get_queue(vkb::QueueType::graphics).value();
 	m_GraphicsQueueFamily = CEngine::device().get_queue_index(vkb::QueueType::graphics).value();
+
+	VkCommandPoolCreateInfo uploadCommandPoolInfo = CVulkanInfo::createCommandPoolInfo(CEngine::renderer().m_GraphicsQueueFamily);
+	//create pool for upload context
+	VK_CHECK(vkCreateCommandPool(CEngine::device(), &uploadCommandPoolInfo, nullptr, &m_UploadContext._commandPool));
+
+	//allocate the default command buffer that we will use for the instant commands
+	VkCommandBufferAllocateInfo cmdAllocInfo = CVulkanInfo::createCommandAllocateInfo(m_UploadContext._commandPool, 1);
+	VK_CHECK(vkAllocateCommandBuffers(CEngine::device(), &cmdAllocInfo, &m_UploadContext._commandBuffer));
+
+	VkFenceCreateInfo fenceCreateInfo = CVulkanInfo::createFenceInfo(VK_FENCE_CREATE_SIGNALED_BIT);
+	VK_CHECK(vkCreateFence(CEngine::device(), &fenceCreateInfo, nullptr, &m_UploadContext._uploadFence));
 
 	{
 		// Create a command pool for commands submitted to the graphics queue.
@@ -38,6 +80,20 @@ CVulkanRenderer::CVulkanRenderer() {
 			VkCommandBufferAllocateInfo cmdAllocInfo = CVulkanInfo::createCommandAllocateInfo(frame.mCommandPool, 1);
 
 			VK_CHECK(vkAllocateCommandBuffers(CEngine::device(), &cmdAllocInfo, &frame.mMainCommandBuffer));
+
+			std::vector<SDescriptorAllocator::PoolSizeRatio> frameSizes = {
+				{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 3 },
+				{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3 },
+				{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3 },
+				{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4 },
+			};
+
+			frame.mDescriptorAllocator = SDescriptorAllocator();
+			frame.mDescriptorAllocator.init(1000, frameSizes);
+
+			m_ResourceDeallocator.push([&] {
+				frame.mDescriptorAllocator.destroy();
+			});
 		}
 	}
 
@@ -51,16 +107,14 @@ CVulkanRenderer::CVulkanRenderer() {
 		{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1 }
 	};
 
-	m_GlobalDescriptorAllocator.init(CEngine::device(), 10, sizes);
+	m_GlobalDescriptorAllocator.init(10, sizes);
 
 	//make the descriptor set layout for our compute draw
 	{
 		SDescriptorLayoutBuilder builder;
 		builder.addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
-		m_DrawImageDescriptorLayout = builder.build(CEngine::device(), VK_SHADER_STAGE_COMPUTE_BIT);
+		m_DrawImageDescriptorLayout = builder.build(VK_SHADER_STAGE_COMPUTE_BIT);
 	}
-
-	m_ResourceDeallocator.push(m_GlobalDescriptorAllocator.mPool);
 
 	initDescriptors();
 
@@ -73,17 +127,24 @@ void CVulkanRenderer::destroy() {
 	ImGui_ImplSDL3_Shutdown();
 	ImGui::DestroyContext();
 
+	m_GlobalDescriptorAllocator.destroy();
+
+	mGlobalResourceAllocator.flush();
+
 	m_ResourceDeallocator.flush();
 
 	for (auto & mFrame : m_Frames) {
-		mFrame.mResourceDeallocator.flush();
+		//mFrame.mResourceDeallocator.flush();
 	}
 
-	m_DescriptorResourceDeallocator.flush();
+	vkDestroyDescriptorSetLayout(CEngine::device(), m_GPUSceneDataDescriptorLayout, nullptr);
+
+	vkDestroyDescriptorSetLayout(CEngine::device(), m_DrawImageDescriptorLayout, nullptr);
+
+	vkDestroyCommandPool(CEngine::device(), m_UploadContext._commandPool, nullptr);
+	vkDestroyFence(CEngine::device(), m_UploadContext._uploadFence, nullptr);
 
 	m_EngineTextures->destroy();
-
-	m_EngineBuffers->destroy();
 }
 
 void CVulkanRenderer::draw() {
@@ -114,13 +175,36 @@ void CVulkanRenderer::draw() {
 	// Reset the current fences, done here so the swapchain acquire doesn't stall the engine
 	m_EngineTextures->getSwapchain().reset(getFrameIndex());
 
-	// Flush temporary frame data TODO: not sure when this should be used
-	m_Frames[getFrameIndex()].mResourceDeallocator.flush();
-
 	// Make the swapchain image into writeable mode before rendering
 	CVulkanUtils::transitionImage(cmd, m_EngineTextures->mDrawImage->mImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
 
+	// Flush temporary frame data
+	getCurrentFrame().mResourceDeallocator.flush();
+
+	// Reset descriptor allocators
+	getCurrentFrame().mDescriptorAllocator.clear();
+
+	//allocate a new uniform buffer for the scene data
+
+	// GPU Scene is only needed in render TODO: (should put in frame)
+	m_GPUSceneDataBuffer = getCurrentFrame().mFrameResourceAllocator.allocateBuffer(sizeof(GPUSceneData), VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
+
+	//write the buffer
+	auto* sceneUniformData = (GPUSceneData*)m_GPUSceneDataBuffer->GetMappedData();
+	m_SceneData = *sceneUniformData;
+
+	//create a descriptor set that binds that buffer and update it
+	VkDescriptorSet globalDescriptor = getCurrentFrame().mDescriptorAllocator.allocate(m_GPUSceneDataDescriptorLayout);
+
+	SDescriptorWriter writer;
+	writer.writeBuffer(0, m_GPUSceneDataBuffer->buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+	writer.updateSet(globalDescriptor);
+
 	render(cmd);
+
+	// Flush temporary frame data after it is no longer needed
+	getCurrentFrame().mResourceDeallocator.flush();
+	getCurrentFrame().mFrameResourceAllocator.flush();
 
 	// Make the swapchain image into presentable mode
 	CVulkanUtils::transitionImage(cmd, swapchainImage,VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
@@ -167,36 +251,24 @@ void CVulkanRenderer::waitForGpu() const {
 
 void CVulkanRenderer::initDescriptors() {
 
-	// Ensure previous descriptors are destroyed
-	m_DescriptorResourceDeallocator.flush();
-
 	//allocate a descriptor set for our draw image
-	m_DrawImageDescriptors = m_GlobalDescriptorAllocator.allocate(CEngine::device(),m_DrawImageDescriptorLayout);
+	m_DrawImageDescriptors = m_GlobalDescriptorAllocator.allocate(m_DrawImageDescriptorLayout);
+
+	{
+		SDescriptorLayoutBuilder builder;
+		builder.addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+		m_GPUSceneDataDescriptorLayout = builder.build(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+	}
 
 	updateDescriptors();
-
-	//cleanup previous descriptor set layouts
-	m_DescriptorResourceDeallocator.push(m_DrawImageDescriptorLayout);
 }
 
 void CVulkanRenderer::updateDescriptors() {
-	VkDescriptorImageInfo imgInfo {
-		.imageView = m_EngineTextures->mDrawImage->mImageView,
-		.imageLayout = VK_IMAGE_LAYOUT_GENERAL,
-	};
+	SDescriptorWriter writer;
 
-	VkWriteDescriptorSet drawImageWrite = {
-		.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-		.pNext = nullptr,
+	writer.writeImage(0, m_EngineTextures->mDrawImage->mImageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
 
-		.dstSet = m_DrawImageDescriptors,
-		.dstBinding = 0,
-		.descriptorCount = 1,
-		.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-		.pImageInfo = &imgInfo
-	};
-
-	vkUpdateDescriptorSets(CEngine::device(), 1, &drawImageWrite, 0, nullptr);
+	writer.updateSet(m_DrawImageDescriptors);
 }
 
 void CVulkanRenderer::initImGui() {

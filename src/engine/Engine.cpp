@@ -62,11 +62,14 @@ void CEngine::init() {
 	// Initialize the device and physical device
 	m_Device->initDevice();
 
+	// Create the renderer
+	m_Renderer = std::make_unique<CGraphicsRenderer>();
+
 	// Initialize the allocator
-	CResourceAllocator::init();
+	CResourceAllocator::initAllocator();
 
 	// Initialize the renderer
-	m_Renderer = std::make_unique<CGraphicsRenderer>();
+	m_Renderer->init();
 }
 
 void CEngine::end() {
@@ -75,7 +78,7 @@ void CEngine::end() {
 
 	m_Renderer->destroy();
 
-	CResourceAllocator::destroy();
+	CResourceAllocator::destroyAllocator();
 
 	vkb::destroy_surface(instance(), m_EngineWindow.mVkSurface);
 	m_Device->destroy();

@@ -1,5 +1,7 @@
 ﻿#pragma once
 
+#include <glm/gtc/matrix_transform.hpp>
+
 typedef unsigned char uint8;
 typedef signed char int8;
 typedef unsigned short uint16;
@@ -14,6 +16,19 @@ requires std::is_arithmetic_v<TType>
 struct TType2 {
 	using Type = TType;
 	Type x, y;
+
+	TType2() = default;
+
+	TType2(Type x, Type y):
+	x(x), y(y) {}
+
+	TType2(glm::vec2 inVector):
+	x((Type)inVector.x),
+	y((Type)inVector.y) {}
+
+	operator glm::vec2() const {
+		return {x, y};
+	}
 
 	TType2 operator+(const TType2& otherType) {
 		return {x + otherType.x, y + otherType.y};
@@ -38,6 +53,20 @@ struct TType3 {
 	using Type = TType;
 	Type x, y, z;
 
+	TType3() = default;
+
+	TType3(Type x, Type y, Type z):
+	x(x), y(y), z(z) {}
+
+	TType3(glm::vec3 inVector):
+	x((Type)inVector.x),
+	y((Type)inVector.y),
+	z((Type)inVector.z) {}
+
+	operator glm::vec3() const {
+		return {x, y, z};
+	}
+
 	TType3 operator+(const TType3& b) const {
 		return {x + b.x, y + b.y, z + b.z};
 	}
@@ -60,6 +89,37 @@ requires std::is_arithmetic_v<TType>
 struct TType4 {
 	using Type = TType;
 	Type x, y, z, w;
+
+	TType4() = default;
+
+	TType4(Type x, Type y, Type z, Type w):
+	x(x), y(y), z(z), w(w) {}
+
+	TType4(glm::vec4 inVector):
+	x((Type)inVector.x),
+	y((Type)inVector.y),
+	z((Type)inVector.z),
+	w((Type)inVector.w) {}
+
+	operator glm::vec4() const {
+		return {x, y, z, w};
+	}
+
+	TType4 operator+(const TType4& b) const {
+		return {x + b.x, y + b.y, z + b.z, w + b.w};
+	}
+
+	TType4 operator-(const TType4& b) const {
+		return {x - b.x, y - b.y, z - b.z, w - b.w};
+	}
+
+	TType4 operator*(const TType4& b) const {
+		return {x * b.x, y * b.y, z * b.z, w * b.w};
+	}
+
+	TType4 operator/(const TType4& b) const {
+		return {x / b.x, y / b.y, z / b.z, w / b.w};
+	}
 };
 
 
@@ -68,6 +128,38 @@ requires std::is_arithmetic_v<TType>
 struct TType4x4 {
 	using Type = TType;
 	TType4<Type> x, y, z, w;
+
+	TType4x4() = default;
+
+	TType4x4(Type x, Type y, Type z, Type w):
+	x(x), y(y), z(z), w(w) {}
+
+	TType4x4(glm::mat4 inMatrix) {
+		x = inMatrix[0];
+		y = inMatrix[1];
+		z = inMatrix[2];
+		w = inMatrix[3];
+	}
+
+	operator glm::mat4() const {
+		return {x, y, z, w};
+	}
+
+	/*TType4x4 operator+(const TType4x4& b) const {
+		return {x + b.x, y + b.y, z + b.z, w + b.w};
+	}
+
+	TType4x4 operator-(const TType4x4& b) const {
+		return {x - b.x, y - b.y, z - b.z, w - b.w};
+	}
+
+	TType4x4 operator*(const TType4x4& b) const {
+		return {x * b.x, y * b.y, z * b.z, w * b.w};
+	}
+
+	TType4x4 operator/(const TType4x4& b) const {
+		return {x / b.x, y / b.y, z / b.z, w / b.w};
+	}*/ //TODO: matrix operations tend to work differently
 
 	// The identity matrix
 	constexpr static TType4x4 Identity() {

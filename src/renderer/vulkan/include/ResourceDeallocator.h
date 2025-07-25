@@ -17,7 +17,6 @@ class CResourceDeallocator {
 
 	enum class Type : uint8 {
 		BUFFER,
-		MESHBUFFER,
 		COMMANDPOOL,
 		DESCRIPTORPOOL,
 		DESCRIPTORSETLAYOUT,
@@ -67,12 +66,6 @@ class CResourceDeallocator {
 		mResource.buffer = buffer.get();
 	}
 
-	// Mesh Buffers are allocated via VMA, and thus must be deallocated with it
-	Resource(const SMeshBuffers& meshBuffers)
-	: mType(Type::MESHBUFFER) {
-		mResource.meshBuffers = meshBuffers.get();
-	}
-
 	// Images are allocated via VMA, and thus must be deallocated with it
 	Resource(const SImage& image)
 	: mType(Type::IMAGE) {
@@ -89,7 +82,6 @@ class CResourceDeallocator {
 	union {
 		FOR_EACH_TYPE(CREATE_UNION)
 		SBuffer_T* buffer;
-		SMeshBuffers_T* meshBuffers;
 		SImage_T* image;
 	} mResource;
 
