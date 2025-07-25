@@ -119,15 +119,15 @@ std::string readShaderFile(const char* inFileName) {
 	while (code.find("#include ") != code.npos)
 	{
 		const auto pos = code.find("#include ");
-		const auto p1 = code.find('<', pos);
-		const auto p2 = code.find('>', pos);
+		const auto p1 = code.find("\"", pos);
+		const auto p2 = code.find("\"", p1 + 1);
 		if (p1 == code.npos || p2 == code.npos || p2 <= p1)
 		{
 			printf("Error while loading shader program: %s\n", code.c_str());
 			return std::string();
 		}
 		const std::string name = code.substr(p1 + 1, p2 - p1 - 1);
-		const std::string include = readShaderFile(name.c_str());
+		const std::string include = readShaderFile((CEngine::get().mShaderPath + name.c_str()).c_str());
 		code.replace(pos, p2-pos+1, include.c_str());
 	}
 
@@ -178,7 +178,7 @@ bool loadShader(VkDevice inDevice, const char* inFileName, uint32 Hash, SShader&
 		.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
 		.pNext = nullptr,
 		// CodeSize has to be in bytes, so multply the ints in the buffer by size of
-		.codeSize = buffer.size() * sizeof(uint32_t),
+		.codeSize = buffer.size() * sizeof(uint32),
 		.pCode = buffer.data()
 	};
 

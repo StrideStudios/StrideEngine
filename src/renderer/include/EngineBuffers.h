@@ -17,7 +17,7 @@ struct SVertex {
 	Vector4f color;
 };
 
-class CEngineBuffers {
+class CEngineBuffers : public IDestroyable {
 
 	friend class CVulkanRenderer;
 

@@ -117,6 +117,10 @@ struct TType4 {
 		return {x * b.x, y * b.y, z * b.z, w * b.w};
 	}
 
+	TType4 operator*(const float& f) const {
+		return {x * f, y * f, z * f, w * f};
+	}
+
 	TType4 operator/(const TType4& b) const {
 		return {x / b.x, y / b.y, z / b.z, w / b.w};
 	}
@@ -151,13 +155,28 @@ struct TType4x4 {
 
 	TType4x4 operator-(const TType4x4& b) const {
 		return {x - b.x, y - b.y, z - b.z, w - b.w};
-	}
+	}*/
 
 	TType4x4 operator*(const TType4x4& b) const {
-		return {x * b.x, y * b.y, z * b.z, w * b.w};
+		const TType4<Type> SrcA0 = x;
+		const TType4<Type> SrcA1 = y;
+		const TType4<Type> SrcA2 = z;
+		const TType4<Type> SrcA3 = w;
+
+		const TType4<Type> SrcB0 = b.x;
+		const TType4<Type> SrcB1 = b.y;
+		const TType4<Type> SrcB2 = b.z;
+		const TType4<Type> SrcB3 = b.w;
+
+		TType4x4 Result;
+		Result.x = SrcA0 * SrcB0.x + SrcA1 * SrcB0.y + SrcA2 * SrcB0.z + SrcA3 * SrcB0.w;
+		Result.y = SrcA0 * SrcB1.x + SrcA1 * SrcB1.y + SrcA2 * SrcB1.z + SrcA3 * SrcB1.w;
+		Result.z = SrcA0 * SrcB2.x + SrcA1 * SrcB2.y + SrcA2 * SrcB2.z + SrcA3 * SrcB2.w;
+		Result.w = SrcA0 * SrcB3.x + SrcA1 * SrcB3.y + SrcA2 * SrcB3.z + SrcA3 * SrcB3.w;
+		return Result;
 	}
 
-	TType4x4 operator/(const TType4x4& b) const {
+	/*TType4x4 operator/(const TType4x4& b) const {
 		return {x / b.x, y / b.y, z / b.z, w / b.w};
 	}*/ //TODO: matrix operations tend to work differently
 

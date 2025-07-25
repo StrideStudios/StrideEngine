@@ -11,14 +11,13 @@ namespace vkb {
 	struct Swapchain;
 }
 
-struct SFrameData;
 class CVulkanDevice;
 
 class CSwapchain {
 
 public:
 
-	struct SFrameData {
+	struct FrameData {
 		VkSemaphore mSwapchainSemaphore = nullptr;
 		VkSemaphore mRenderSemaphore = nullptr;
 
@@ -70,7 +69,7 @@ private:
 
 	CResourceManager m_ResourceManager;
 
-	SFrameData m_Frames[gFrameOverlap];
+	FrameData m_Frames[gFrameOverlap];
 
 	bool m_Dirty = false;
 };

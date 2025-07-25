@@ -154,12 +154,4 @@ private:
 
 	VkDescriptorSetLayout m_SingleImageDescriptorLayout;
 
-	SImage m_WhiteImage;
-	SImage m_BlackImage;
-	SImage m_GreyImage;
-	SImage m_ErrorCheckerboardImage;
-
-	VkSampler m_DefaultSamplerLinear;
-	VkSampler m_DefaultSamplerNearest;
-
 };

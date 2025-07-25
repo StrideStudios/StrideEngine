@@ -4,7 +4,7 @@
 #include "Swapchain.h"
 
 // Class used to house textures for the engine, easily resizable when necessary
-class CEngineTextures {
+class CEngineTextures : public IDestroyable {
 
 	friend class CVulkanRenderer;
 
@@ -12,13 +12,11 @@ public:
 
 	CEngineTextures();
 
-	~CEngineTextures();
-
 	void initializeTextures();
 
-	void reallocate();
+	void reallocate(bool inUseVSync = true);
 
-	void destroy();
+	void destroy() override;
 
 	CSwapchain& getSwapchain() { return m_Swapchain; }
 

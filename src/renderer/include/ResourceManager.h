@@ -3,6 +3,7 @@
 #include <functional>
 #include <memory>
 #include <vma/vk_mem_alloc.h>
+#include <vulkan/vulkan_core.h>
 #include <vector>
 #include <deque>
 #include <span>
@@ -18,7 +19,7 @@ struct SImage_T {
 	VkExtent3D mImageExtent;
 	VkFormat mImageFormat;
 };
-typedef std::unique_ptr<SImage_T> SImage;
+typedef std::shared_ptr<SImage_T> SImage;
 
 struct SBuffer_T {
 	VkBuffer buffer = nullptr;
@@ -27,7 +28,7 @@ struct SBuffer_T {
 
 	no_discard void* GetMappedData() const;
 };
-typedef std::unique_ptr<SBuffer_T> SBuffer;
+typedef std::shared_ptr<SBuffer_T> SBuffer;
 
 // Holds the resources needed for mesh rendering
 struct SMeshBuffers_T {
@@ -35,8 +36,13 @@ struct SMeshBuffers_T {
 	SBuffer vertexBuffer = nullptr;
 	VkDeviceAddress vertexBufferAddress;
 };
-typedef std::unique_ptr<SMeshBuffers_T> SMeshBuffers;
+typedef std::shared_ptr<SMeshBuffers_T> SMeshBuffers;
 
+// adds bindings for descriptors and constructs a descriptor set layout
+// descriptor set layouts are then used by SDescriptorAllocator to allocate descriptors
+// they are added to the setallocateinfo to create descriptorsets
+// Descriptor sets connect CPU data to the GPU, and are key to sending buffers and images
+// SDescriptorWriter is then used to bind buffers and textures, which then get used in updateSet
 struct SDescriptorLayoutBuilder {
 
 	std::vector<VkDescriptorSetLayoutBinding> bindings;
@@ -57,7 +63,7 @@ struct SDescriptorAllocator {
 
 	VkDescriptorPool mPool;
 
-	void init(uint32_t inInitialSets, std::span<PoolSizeRatio> inPoolRatios);
+	void init(uint32 inMaxSets, std::span<PoolSizeRatio> inPoolRatios);
 
 	void clear();
 
@@ -96,6 +102,17 @@ struct SDescriptorWriter {
 	void updateSet(VkDescriptorSet inSet);
 };
 
+class IDestroyable {
+public:
+
+	virtual void destroy() {}
+};
+
+/*
+ * Stores pointers to vulkan resources so they can be automatically deallocated when flush is called
+ * Can also store IDestroyable pointers in which delete does not need to be called
+ * This means initialization can be done in a local context to remove clutter
+ */
 class CResourceManager {
 
 	enum class Type : uint8 {
@@ -134,7 +151,7 @@ class CResourceManager {
 #define CREATE_CONSTRUCTORS(inType, inName, inEnum) \
 	Resource(const inType& inName) \
 	: mType(Type::inEnum) { \
-		mResource.inName = inName; \
+		ptr = (void*)inName; \
 	}
 
 	FOR_EACH_TYPE(CREATE_CONSTRUCTORS)
@@ -143,13 +160,13 @@ class CResourceManager {
 	// Buffers are allocated via VMA, and thus must be deallocated with it
 	Resource(const SBuffer& buffer)
 	: mType(Type::BUFFER) {
-		mResource.Buffer = buffer.get();
+		mResource = buffer;
 	}
 
 	// Images are allocated via VMA, and thus must be deallocated with it
 	Resource(const SImage& image)
 	: mType(Type::IMAGE) {
-		mResource.Image = image.get();
+		mResource = image;
 	}
 
 #undef CREATE_CONSTRUCTORS
@@ -158,17 +175,10 @@ class CResourceManager {
 
 	Type mType;
 
-#define CREATE_UNION(inType, inName, inEnum) \
-		inType inName;
+	void* ptr = nullptr;
 
-	union {
-		FOR_EACH_TYPE(CREATE_UNION)
-		SBuffer_T* Buffer;
-		SImage_T* Image;
-		VkPipeline Pipeline;
-	} mResource;
-
-#undef CREATE_UNION
+	// images and buffers need a shared resource so they don't get destroyed locally
+	std::shared_ptr<void> mResource = nullptr;
 
 	};
 
@@ -185,6 +195,22 @@ public:
 
 	static void destroyAllocator();
 
+	template <typename TType>
+	requires std::is_convertible_v<TType, IDestroyable>
+	TType* createDestroyable() {
+		TType* destroyable = new TType();
+		m_Destroyables.push_back(destroyable);
+		return destroyable;
+	}
+
+	template <typename TType, typename... TArgs>
+	requires std::is_convertible_v<TType, IDestroyable>
+	TType* createDestroyable(TArgs&&... args) {
+		TType* destroyable = new TType(args...);
+		m_Destroyables.push_back(destroyable);
+		return destroyable;
+	}
+
 	template <typename... TType>
 	void push(const TType&... objects) {
 		m_Resources.append_range(std::vector<Resource>{objects...});
@@ -200,6 +226,10 @@ public:
 			itr->destroy();
 		}
 		m_Resources.clear();
+		for (const auto& destroyable : m_Destroyables) {
+			destroyable->destroy();
+			delete destroyable;
+		}
 		for (auto& function : m_Functions) {
 			function();
 		}
@@ -266,6 +296,8 @@ public:
 	static void deallocateBuffer(const SBuffer& inImage) { deallocateBuffer(inImage.get()); }
 
 private:
+
+	std::vector<IDestroyable*> m_Destroyables;
 
 	std::vector<Resource> m_Resources;
 

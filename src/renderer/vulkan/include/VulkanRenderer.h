@@ -4,7 +4,7 @@
 #include <memory>
 
 #include "ResourceManager.h"
-#include "VulkanUtils.h"
+#include "SceneViewport.h"
 
 class CEngineTextures;
 class CEngineBuffers;
@@ -34,9 +34,12 @@ struct SUploadContext {
 
 class CVulkanRenderer {
 
+	//TODO: remove
+	friend struct SGLTFMetallic_Roughness;
+
 public:
 
-	struct SFrameData {
+	struct FrameData {
 		VkCommandPool mCommandPool = nullptr;
 		VkCommandBuffer mMainCommandBuffer = nullptr;
 
@@ -49,18 +52,7 @@ public:
 		SDescriptorAllocator mDescriptorAllocator;
 	};
 
-	struct SGPUSceneData {
-		Matrix4f view;
-		Matrix4f proj;
-		Matrix4f viewProj;
-		Vector4f ambientColor;
-		Vector4f sunlightDirection; // w for sun power
-		Vector4f sunlightColor;
-	};
-
 	CVulkanRenderer();
-
-	virtual ~CVulkanRenderer();
 
 	static void immediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function);
 
@@ -68,19 +60,15 @@ public:
 
 	virtual void destroy();
 
-	force_inline uint32 getFrameNumber() const { return m_FrameNumber; }
+	force_inline FrameData& getCurrentFrame() { return mFrames[getFrameIndex()]; }
 
-	force_inline uint32 getFrameIndex() const { return m_FrameNumber % gFrameOverlap; }
+	force_inline uint32 getFrameNumber() const { return mFrameNumber; }
 
-	force_inline const SFrameData& getCurrentFrame() const { return m_Frames[getFrameIndex()]; }
+	force_inline uint32 getFrameIndex() const { return mFrameNumber % gFrameOverlap; }
 
-	no_discard CEngineTextures& getEngineTextures() { return *m_EngineTextures; }
+	force_inline const FrameData& getCurrentFrame() const { return mFrames[getFrameIndex()]; }
 
-	no_discard const CEngineTextures& getEngineTextures() const { return *m_EngineTextures; }
-
-	no_discard CEngineBuffers& getEngineBuffers() { return *m_EngineBuffers; }
-
-	no_discard const CEngineBuffers& getEngineBuffers() const { return *m_EngineBuffers; }
+	no_discard const SSceneViewport& getViewport() const { return mViewport; }
 
 	// Draw to the screen
 	void draw();
@@ -96,65 +84,49 @@ public:
 	 */
 	CResourceManager mGlobalResourceManager;
 
+	// Stores textures used internally by the engine
+	CEngineTextures* mEngineTextures = nullptr;
+
+	// Stores buffers used internally by the engine
+	CEngineBuffers* mEngineBuffers = nullptr;
+
+	SSceneViewport mViewport;
+
+	class CGPUScene* mGPUScene;
+
+	//
+	// Rendering Utils
+	//
+
+	bool mVSync;
+
+	uint64 mFrameNumber = 0;
+
+	FrameData mFrames[gFrameOverlap];
+
+	SUploadContext mUploadContext;
+
+	VkQueue mGraphicsQueue;
+	uint32 mGraphicsQueueFamily;
+
+	//
+	// Descriptor Resources
+	//
+
+	SDescriptorAllocator mGlobalDescriptorAllocator;
+
+	VkDescriptorSet mDrawImageDescriptors;
+	VkDescriptorSetLayout mDrawImageDescriptorLayout;
+
 protected:
 
 	void initDescriptors();
 
 	void updateDescriptors();
 
-	void initImGui();
-
-	//
-	// Private non-const getters
-	//
-
-	force_inline SFrameData& getCurrentFrame() { return m_Frames[getFrameIndex()]; }
-
-	//
-	// Rendering Utils
-	//
-
-	bool m_VSync;
-
-	SBuffer m_GPUSceneDataBuffer;
-
-	uint64 m_FrameNumber = 0;
-
-	SFrameData m_Frames[gFrameOverlap];
-
-	SUploadContext m_UploadContext;
-
-	VkQueue m_GraphicsQueue;
-	uint32 m_GraphicsQueueFamily;
-
-	std::unique_ptr<CEngineTextures> m_EngineTextures = nullptr;
-
-	std::unique_ptr<CEngineBuffers> m_EngineBuffers = nullptr;
-
-	//
-	// Descriptor Resources
-	//
-
-	SDescriptorAllocator m_GlobalDescriptorAllocator;
-
-	VkDescriptorSet m_DrawImageDescriptors;
-	VkDescriptorSetLayout m_DrawImageDescriptorLayout;
-
-	VkDescriptorPool m_ImGuiDescriptorPool;
-
-	//
-	// Scene Data
-	//
-
-	SGPUSceneData m_SceneData;
-
-	VkDescriptorSetLayout m_GPUSceneDataDescriptorLayout;
-
 	//
 	// Temp shader stuff
 	//
-
-	friend class CEngine;//lazy remove
 
 };
 

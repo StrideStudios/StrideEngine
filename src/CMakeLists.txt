@@ -64,6 +64,10 @@ add_executable(StrideEngine
         imgui/imgui_widgets.cpp
         imgui/imgui_impl_vulkan.cpp
         imgui/imgui_impl_sdl3.cpp
+        renderer/include/GpuScene.h
+        renderer/GpuScene.cpp
+        engine/include/Material.h
+        renderer/include/SceneViewport.h
 )
 
 find_package(Vulkan REQUIRED)

@@ -5,6 +5,7 @@
 #include "imgui.h"
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_vulkan.h"
+#include "VulkanRenderer.h"
 #include "VulkanUtils.h"
 
 void CEngineSettings::render(VkCommandBuffer cmd, VkExtent2D inExtent, VkImageView inTargetImageView) {
@@ -40,9 +41,34 @@ void CEngineSettings::render(VkCommandBuffer cmd, VkExtent2D inExtent, VkImageVi
 	vkCmdEndRendering(cmd);
 }
 
-void CEngineSettings::init(VkQueue inQueue, VkDescriptorPool inPool, VkFormat format) {
+void CEngineSettings::init(CVulkanRenderer* renderer, VkQueue inQueue, VkFormat format) {
 	// Setup Dear ImGui context
 	ImGui::CreateContext();
+
+	// 1: create descriptor pool for IMGUI
+	//  the size of the pool is very oversize, but it's copied from imgui demo
+	//  itself.
+	VkDescriptorPoolSize poolSizes[] = { { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
+		{ VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
+		{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 } };
+
+	VkDescriptorPoolCreateInfo poolCreateInfo {
+		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+		.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
+		.maxSets = 1000,
+		.poolSizeCount = (uint32)std::size(poolSizes),
+		.pPoolSizes = poolSizes
+	};
+
+	const VkDescriptorPool descriptorPool = renderer->mGlobalResourceManager.allocateDescriptorPool(poolCreateInfo);
 
 	// this initializes imgui for Vulkan
 	ImGui_ImplVulkan_InitInfo initInfo {
@@ -50,7 +76,7 @@ void CEngineSettings::init(VkQueue inQueue, VkDescriptorPool inPool, VkFormat fo
 		.PhysicalDevice = CEngine::physicalDevice(),
 		.Device = CEngine::device(),
 		.Queue = inQueue,
-		.DescriptorPool = inPool,
+		.DescriptorPool = descriptorPool,
 		.MinImageCount = 3,
 		.ImageCount = 3,
 		.UseDynamicRendering = true

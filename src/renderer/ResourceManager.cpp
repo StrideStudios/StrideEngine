@@ -17,20 +17,18 @@ void* SBuffer_T::GetMappedData() const {
 
 #define CREATE_SWITCH(inType, inName, inEnum) \
 	case Type::inEnum: \
-		deallocate##inName(mResource.inName); \
+		deallocate##inName(static_cast<inType>(ptr)); \
 		break;
 
 void CResourceManager::Resource::destroy() const {
 	switch (mType) {
 		FOR_EACH_TYPE(CREATE_SWITCH)
+		CREATE_SWITCH(VkPipeline, Pipeline, PIPELINE)
 		case Type::BUFFER:
-			deallocateBuffer(mResource.Buffer);
+			deallocateBuffer(static_cast<const SBuffer_T *>(mResource.get()));
 			break;
 		case Type::IMAGE:
-			deallocateImage(mResource.Image);
-			break;
-		case Type::PIPELINE:
-			deallocatePipeline(mResource.Pipeline);
+			deallocateImage(static_cast<const SImage_T *>(mResource.get()));
 			break;
 		default:
 			astsNoEntry();
@@ -91,7 +89,7 @@ VkPipeline CResourceManager::allocatePipeline(const CPipelineBuilder& inPipeline
 }
 
 SImage CResourceManager::allocateImage(VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags, VkImageAspectFlags inViewFlags, bool inMipmapped) {
-	auto image = std::make_unique<SImage_T>();
+	auto image = std::make_shared<SImage_T>();
 
 	image->mImageExtent = inExtent;
 	image->mImageFormat = inFormat;
@@ -177,7 +175,7 @@ SBuffer CResourceManager::allocateBuffer(size_t allocSize, VmaMemoryUsage memory
 		.usage = memoryUsage
 	};
 
-	auto buffer = std::make_unique<SBuffer_T>();
+	auto buffer = std::make_shared<SBuffer_T>();
 
 	// allocate the buffer
 	VK_CHECK(vmaCreateBuffer(getAllocator(), &bufferInfo, &vmaallocInfo, &buffer->buffer, &buffer->allocation, &buffer->info));
@@ -193,7 +191,7 @@ SMeshBuffers CResourceManager::allocateMeshBuffer(size_t indicesSize, size_t ver
 	// Although it would normally be bad practice to return a heap allocated pointer
 	// CAllocator (so long as inShouldDeallocate is true) will automatically destroy the pointer
 	// if not, then the user can call CAllocator::deallocate
-	auto meshBuffers = std::make_unique<SMeshBuffers_T>();
+	auto meshBuffers = std::make_shared<SMeshBuffers_T>();
 
 	meshBuffers->indexBuffer = allocateBuffer(indicesSize, VMA_MEMORY_USAGE_GPU_ONLY, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
 
@@ -246,7 +244,7 @@ VkDescriptorSetLayout SDescriptorLayoutBuilder::build(VkShaderStageFlags inShade
 	return set;
 }
 
-void SDescriptorAllocator::init(uint32_t inMaxSets, std::span<PoolSizeRatio> inPoolRatios) {
+void SDescriptorAllocator::init(uint32 inMaxSets, std::span<PoolSizeRatio> inPoolRatios) {
 	ratios.clear();
 
 	for (auto r : inPoolRatios) {
@@ -291,7 +289,7 @@ VkDescriptorSet SDescriptorAllocator::allocate(VkDescriptorSetLayout inLayout, v
 		.pNext = pNext,
 		.descriptorPool = poolToUse,
 		.descriptorSetCount = 1,
-		.pSetLayouts = &inLayout
+		.pSetLayouts = &inLayout,
 	};
 
 	VkDescriptorSet ds;

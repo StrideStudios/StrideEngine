@@ -7,6 +7,7 @@
 !*.h
 
 # Shader Files
+!*.glsl
 !*.vert
 !*.frag
 !*.comp

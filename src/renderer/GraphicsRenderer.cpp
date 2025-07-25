@@ -9,14 +9,11 @@
 #include "EngineBuffers.h"
 #include "EngineSettings.h"
 #include "EngineTextures.h"
+#include "GpuScene.h"
 #include "ResourceManager.h"
 #include "StaticMesh.h"
 #include "VkBootstrap.h"
-
-#define COMMAND_CATEGORY "Camera"
-ADD_COMMAND(Vector3f, Translation, {0.f, -5.f, 0.f});
-ADD_COMMAND(Vector3f, Rotation, {0.f, 0.f, 0.f});
-#undef COMMAND_CATEGORY
+#include "VulkanUtils.h"
 
 VkPipeline CPipelineBuilder::buildPipeline(VkDevice inDevice) const {
 	// Make viewport state from our stored viewport and scissor.
@@ -58,7 +55,7 @@ VkPipeline CPipelineBuilder::buildPipeline(VkDevice inDevice) const {
 		.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
 		.pNext = &m_RenderInfo,
 
-		.stageCount = (uint32_t)m_ShaderStages.size(),
+		.stageCount = (uint32)m_ShaderStages.size(),
 		.pStages = m_ShaderStages.data(),
 		.pVertexInputState = &_vertexInputInfo,
 		.pInputAssemblyState = &m_InputAssembly,
@@ -129,38 +126,6 @@ void CPipelineBuilder::clear() {
 void CGraphicsRenderer::init() {
 	CBaseRenderer::init();
 
-	uint32 white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
-	m_WhiteImage = mGlobalResourceManager.allocateImage(&white, {1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
-
-	uint32 grey = glm::packUnorm4x8(glm::vec4(0.66f, 0.66f, 0.66f, 1));
-	m_GreyImage = mGlobalResourceManager.allocateImage(&grey, {1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
-
-	uint32 black = glm::packUnorm4x8(glm::vec4(0, 0, 0, 0));
-	m_BlackImage = mGlobalResourceManager.allocateImage(&white, {1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
-
-	//checkerboard image
-	uint32_t magenta = glm::packUnorm4x8(glm::vec4(1, 0, 1, 1));
-	std::array<uint32_t, 16 *16 > pixels; //for 16x16 checkerboard texture
-	for (int x = 0; x < 16; x++) {
-		for (int y = 0; y < 16; y++) {
-			pixels[y*16 + x] = ((x % 2) ^ (y % 2)) ? magenta : black;
-		}
-	}
-	m_ErrorCheckerboardImage = mGlobalResourceManager.allocateImage(pixels.data(), VkExtent3D{16, 16, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
-
-	VkSamplerCreateInfo sampl = {
-		.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO
-	};
-
-	sampl.magFilter = VK_FILTER_NEAREST;
-	sampl.minFilter = VK_FILTER_NEAREST;
-
-	m_DefaultSamplerNearest = mGlobalResourceManager.allocateSampler(sampl);
-
-	sampl.magFilter = VK_FILTER_LINEAR;
-	sampl.minFilter = VK_FILTER_LINEAR;
-	m_DefaultSamplerLinear = mGlobalResourceManager.allocateSampler(sampl);
-
 	{
 		SDescriptorLayoutBuilder builder;
 		builder.addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
@@ -196,7 +161,7 @@ void CGraphicsRenderer::initTrianglePipeline() {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
 		.pNext = nullptr,
 		.setLayoutCount = 1,
-		.pSetLayouts = &m_DrawImageDescriptorLayout
+		.pSetLayouts = &mDrawImageDescriptorLayout
 	};
 
 	m_TrianglePipelineLayout = mGlobalResourceManager.allocatePipelineLayout(layoutCreateInfo);
@@ -221,7 +186,7 @@ void CGraphicsRenderer::initTrianglePipeline() {
 	pipelineBuilder.disableDepthTest();
 
 	//connect the image format we will draw into, from draw image
-	pipelineBuilder.setColorAttachementFormat(m_EngineTextures->mDrawImage->mImageFormat);
+	pipelineBuilder.setColorAttachementFormat(mEngineTextures->mDrawImage->mImageFormat);
 	pipelineBuilder.setDepthFormat(VK_FORMAT_UNDEFINED);
 
 	//finally build the pipeline
@@ -284,8 +249,8 @@ void CGraphicsRenderer::initMeshPipeline() {
 	pipelineBuilder.enableDepthTest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
 
 	//connect the image format we will draw into, from draw image
-	pipelineBuilder.setColorAttachementFormat(m_EngineTextures->mDrawImage->mImageFormat);
-	pipelineBuilder.setDepthFormat(m_EngineTextures->mDepthImage->mImageFormat);
+	pipelineBuilder.setColorAttachementFormat(mEngineTextures->mDrawImage->mImageFormat);
+	pipelineBuilder.setDepthFormat(mEngineTextures->mDepthImage->mImageFormat);
 
 	//finally build the pipeline
 	m_MeshPipeline = mGlobalResourceManager.allocatePipeline(pipelineBuilder);
@@ -300,7 +265,7 @@ void CGraphicsRenderer::render(VkCommandBuffer cmd) {
 	// Render the background
 	CBaseRenderer::render(cmd);
 
-	CVulkanUtils::transitionImage(cmd, m_EngineTextures->mDrawImage->mImage, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	/*CVulkanUtils::transitionImage(cmd, m_EngineTextures->mDrawImage->mImage, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 	CVulkanUtils::transitionImage(cmd, m_EngineTextures->mDepthImage->mImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
 	//begin a render pass  connected to our draw image
@@ -336,11 +301,11 @@ void CGraphicsRenderer::render(VkCommandBuffer cmd) {
 
 	//renderTrianglePass(cmd);
 
-	renderMeshPass(cmd);
+	//renderMeshPass(cmd);
 
-	vkCmdEndRendering(cmd);
+	vkCmdEndRendering(cmd);*/
 
-	CVulkanUtils::transitionImage(cmd, m_EngineTextures->mDrawImage->mImage,VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+	//CVulkanUtils::transitionImage(cmd, m_EngineTextures->mDrawImage->mImage,VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 
 }
 
@@ -358,21 +323,21 @@ void CGraphicsRenderer::renderMeshPass(VkCommandBuffer cmd) {
 	VkDescriptorSet imageSet = getCurrentFrame().mDescriptorAllocator.allocate(m_SingleImageDescriptorLayout);
 	{
 		SDescriptorWriter writer;
-		writer.writeImage(0, m_ErrorCheckerboardImage->mImageView, m_DefaultSamplerNearest, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+		writer.writeImage(0, mGPUScene->m_ErrorCheckerboardImage->mImageView, mGPUScene->m_DefaultSamplerNearest, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
 		writer.updateSet(imageSet);
 	}
 
 	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_MeshPipelineLayout, 0, 1, &imageSet, 0, nullptr);
 
-	const auto [x, y, z] = m_EngineTextures->mDrawImage->mImageExtent;
-	glm::mat4 view = glm::translate(glm::mat4(1.f), { Translation.get().x,Translation.get().z,Translation.get().y }); // Swap y and z so z will be the up vector
+	const auto [x, y, z] = mEngineTextures->mDrawImage->mImageExtent;
+	//glm::mat4 view = glm::translate(glm::mat4(1.f), { Translation.get().x,Translation.get().z,Translation.get().y }); // Swap y and z so z will be the up vector
 	// camera projection
-	glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)x / (float)y, 0.1f, 10000.f);
+	//glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)x / (float)y, 0.1f, 10000.f);
 
 	// invert the Y direction on projection matrix so that we are more similar
 	// to opengl and gltf axis
-	projection[1][1] *= -1;
+	//projection[1][1] *= -1;
 	
 	SGPUDrawPushConstants push_constants;
 	/*push_constants.worldMatrix = Matrix4f::Identity();
@@ -383,8 +348,8 @@ void CGraphicsRenderer::renderMeshPass(VkCommandBuffer cmd) {
 
 	vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);*/
 
-	auto mesh = m_EngineBuffers->testMeshes[0];
-	push_constants.worldMatrix = projection * view;
+	auto mesh = mEngineBuffers->testMeshes[0];
+	//push_constants.worldMatrix = projection * view;
 	push_constants.vertexBuffer = mesh->meshBuffers->vertexBufferAddress;
 
 	vkCmdPushConstants(cmd, m_MeshPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(SGPUDrawPushConstants), &push_constants);

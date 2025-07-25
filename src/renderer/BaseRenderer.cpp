@@ -6,6 +6,7 @@
 #include "ShaderCompiler.h"
 #include "ResourceManager.h"
 #include "VkBootstrap.h"
+#include "VulkanUtils.h"
 
 #define COMMAND_CATEGORY "Visuals"
 ADD_COMMAND(int32, UseSky, 0, 0, 1);
@@ -21,7 +22,7 @@ void CBaseRenderer::init() {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
 		.pNext = nullptr,
 		.setLayoutCount = 1,
-		.pSetLayouts = &m_DrawImageDescriptorLayout
+		.pSetLayouts = &mDrawImageDescriptorLayout
 	};
 
 	VkPushConstantRange pushConstant {
@@ -98,7 +99,7 @@ void CBaseRenderer::render(VkCommandBuffer cmd) {
 	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, effect.pipeline);
 
 	// bind the descriptor set containing the draw image for the compute pipeline
-	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_GradientPipelineLayout, 0, 1, &m_DrawImageDescriptors, 0, nullptr);
+	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_GradientPipelineLayout, 0, 1, &mDrawImageDescriptors, 0, nullptr);
 
 	if (UseSky.get() > 0) {
 		effect.data.data1 = SkyParameters.get();
@@ -110,7 +111,7 @@ void CBaseRenderer::render(VkCommandBuffer cmd) {
 	vkCmdPushConstants(cmd, m_GradientPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0 ,sizeof(SComputePushConstants), &effect.data);
 
 	// execute the compute pipeline dispatch. We are using 16x16 workgroup size so we need to divide by it
-	auto [x, y, z] = m_EngineTextures->mDrawImage->mImageExtent;
+	auto [x, y, z] = mEngineTextures->mDrawImage->mImageExtent;
 	vkCmdDispatch(cmd, std::ceil(x / 16.0), std::ceil(y / 16.0), 1);
 
 	//CVulkanUtils::transitionImage(cmd, m_EngineTextures->mDrawImage->mImage,VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);

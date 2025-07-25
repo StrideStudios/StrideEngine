@@ -170,7 +170,7 @@ void CEngine::run() {
 		if (UseFrameCap.get() > 0) {
 			const double TargetDeltaTime = 1.0 / UseFrameCap.get();
 			if (const auto frameTime = std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - previousTime).count(); TargetDeltaTime > frameTime) {
-				SDL_Delay(static_cast<std::uint32_t>((TargetDeltaTime - frameTime) * 1000.0));
+				SDL_Delay(static_cast<uint32>((TargetDeltaTime - frameTime) * 1000.0));
 			}
 		}
 	}

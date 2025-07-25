@@ -9,6 +9,7 @@
  * To keep it simple yet readable these are some naming conventions:
  *
  * Classes (Should not be data only): CClassName
+ * Interfaces (abstract Classes with pure virual functions) IInterface
  * Structs (Should be data only with only basic functions): SStructName
  * Enums (Should always be enum classes): EEnumName enumerators should always be ALL_CAPS
  * Enums should also always try to use the lowest integer type it can
@@ -51,9 +52,9 @@ constexpr static uint8 gFrameOverlap = 2;
 // Common but hard to write forward includes
 //
 
-typedef std::unique_ptr<struct SImage_T> SImage;
-typedef std::unique_ptr<struct SBuffer_T> SBuffer;
-typedef std::unique_ptr<struct SMeshBuffers_T> SMeshBuffers;
+typedef std::shared_ptr<struct SImage_T> SImage;
+typedef std::shared_ptr<struct SBuffer_T> SBuffer;
+typedef std::shared_ptr<struct SMeshBuffers_T> SMeshBuffers;
 
 //
 // Ugly c++ replacement Macros
