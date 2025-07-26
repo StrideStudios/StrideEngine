@@ -15,6 +15,13 @@
 ADD_COMMAND(int32, UseFrameCap, 180, 0, 500);
 #undef COMMAND_CATEGORY
 
+#define COMMAND_CATEGORY "Engine"
+ADD_TEXT(FrameRate);
+ADD_TEXT(AverageFrameRate);
+ADD_TEXT(GameTime);
+ADD_TEXT(DeltaTime);
+#undef COMMAND_CATEGORY
+
 int main() {
 	CEngine::get().init();
 
@@ -120,18 +127,12 @@ void CEngine::run() {
 			previousTime = currentTime;
 		}
 
-		// Easy way to visualize FPS before text is implemented
 		// It's hard to read at 180 hz, so update every tenth frame (or 18 hz)
 		if (m_Renderer->getFrameNumber() % 10 == 0) {
-			std::string title = std::string(gEngineName) + " Rate: ";
-			title.append(std::to_string(m_Time.mAverageFrameRate));
-			title.append(", Dt: ");
-			title.append(std::to_string(m_Time.mDeltaTime));
-			title.append(", Num: ");
-			title.append(std::to_string(m_Renderer->getFrameNumber()));
-			title.append(", Time: ");
-			title.append(std::to_string(m_Time.mGameTime));
-			SDL_SetWindowTitle(getWindow().mWindow, title.c_str());
+			DeltaTime.setText(fmts("Delta Time: {}", std::to_string(m_Time.mDeltaTime)));
+			FrameRate.setText(fmts("Frame Rate: {}", std::to_string(m_Time.mFrameRate)));
+			AverageFrameRate.setText(fmts("Average Frame Rate: {}", std::to_string(m_Time.mAverageFrameRate)));
+			GameTime.setText(fmts("Game Time: {}", std::to_string(m_Time.mGameTime)));
 		}
 
 		// Handle events on queue

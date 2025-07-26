@@ -68,6 +68,8 @@ add_executable(StrideEngine
         renderer/GpuScene.cpp
         engine/include/Material.h
         renderer/include/SceneViewport.h
+        renderer/include/DescriptorManager.h
+        renderer/DescriptorManager.cpp
 )
 
 find_package(Vulkan REQUIRED)

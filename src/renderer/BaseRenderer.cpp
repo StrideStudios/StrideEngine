@@ -22,7 +22,7 @@ void CBaseRenderer::init() {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
 		.pNext = nullptr,
 		.setLayoutCount = 1,
-		.pSetLayouts = &mDrawImageDescriptorLayout
+		.pSetLayouts = &mEngineTextures->mDrawImageDescriptorLayout
 	};
 
 	VkPushConstantRange pushConstant {
@@ -99,7 +99,7 @@ void CBaseRenderer::render(VkCommandBuffer cmd) {
 	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, effect.pipeline);
 
 	// bind the descriptor set containing the draw image for the compute pipeline
-	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_GradientPipelineLayout, 0, 1, &mDrawImageDescriptors, 0, nullptr);
+	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_GradientPipelineLayout, 0, 1, &mEngineTextures->mDrawImageDescriptors, 0, nullptr);
 
 	if (UseSky.get() > 0) {
 		effect.data.data1 = SkyParameters.get();

@@ -4,6 +4,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include "Common.h"
+#include "DescriptorManager.h"
 #include "Material.h"
 #include "ResourceManager.h"
 #include "StaticMesh.h"

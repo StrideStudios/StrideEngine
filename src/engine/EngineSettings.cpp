@@ -16,9 +16,9 @@ void CEngineSettings::render(VkCommandBuffer cmd, VkExtent2D inExtent, VkImageVi
 
 	if (ImGui::Begin("Engine Settings")) {
 		if (ImGui::BeginTabBar("Settings")) {
-			for (auto&[category, commands] : CCommand::getCategoryMap()) {
+			for (auto&[category, guiTypes] : CGuiType::getCategoryMap()) {
 				if (ImGui::BeginTabItem(category.c_str())) {
-					for (auto& command : commands) {
+					for (auto& command : guiTypes) {
 						command->render();
 					}
 					ImGui::EndTabItem();

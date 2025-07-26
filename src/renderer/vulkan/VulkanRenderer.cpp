@@ -5,6 +5,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/glm.hpp>
 
+#include "DescriptorManager.h"
 #include "VulkanDevice.h"
 #include "VulkanUtils.h"
 #include "vulkan/vk_enum_string_helper.h"
@@ -106,10 +107,6 @@ void CVulkanRenderer::init() {
 		}
 	}
 
-	mEngineTextures = mGlobalResourceManager.createDestroyable<CEngineTextures>();
-
-	mEngineBuffers = mGlobalResourceManager.createDestroyable<CEngineBuffers>(this);
-
 	//create a descriptor pool that will hold 10 sets with 1 image each
 	std::vector<SDescriptorAllocator::PoolSizeRatio> sizes =
 	{
@@ -120,16 +117,11 @@ void CVulkanRenderer::init() {
 
 	mGlobalDescriptorAllocator.init(10, sizes);
 
+	mEngineTextures = mGlobalResourceManager.createDestroyable<CEngineTextures>();
+
+	mEngineBuffers = mGlobalResourceManager.createDestroyable<CEngineBuffers>(this);
+
 	mGPUScene = mGlobalResourceManager.createDestroyable<CGPUScene>(this);
-
-	//make the descriptor set layout for our compute draw
-	{
-		SDescriptorLayoutBuilder builder;
-		builder.addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
-		mDrawImageDescriptorLayout = builder.build(VK_SHADER_STAGE_COMPUTE_BIT);
-	}
-
-	initDescriptors();
 
 	// Setup Dear ImGui
 	CEngineSettings::init(this, mGraphicsQueue, mEngineTextures->getSwapchain().mFormat);
@@ -147,8 +139,6 @@ void CVulkanRenderer::destroy() {
 	mGlobalDescriptorAllocator.destroy();
 
 	mGlobalResourceManager.flush();
-
-	vkDestroyDescriptorSetLayout(CEngine::device(), mDrawImageDescriptorLayout, nullptr);
 }
 
 void CVulkanRenderer::draw() {
@@ -165,8 +155,6 @@ void CVulkanRenderer::draw() {
 		waitForGpu();
 
 		mEngineTextures->reallocate(UseVsync.get());
-
-		updateDescriptors();
 	}
 
 	// Wait for the previous render to stop
@@ -250,23 +238,6 @@ void CVulkanRenderer::waitForGpu() const {
 	vkDeviceWaitIdle(CEngine::device());
 
 	mEngineTextures->getSwapchain().wait(getFrameIndex());
-}
-
-void CVulkanRenderer::initDescriptors() {
-
-	//allocate a descriptor set for our draw image
-	//TODO: engine textures
-	mDrawImageDescriptors = mGlobalDescriptorAllocator.allocate(mDrawImageDescriptorLayout);
-
-	updateDescriptors();
-}
-
-void CVulkanRenderer::updateDescriptors() {
-	SDescriptorWriter writer;
-
-	writer.writeImage(0, mEngineTextures->mDrawImage->mImageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
-
-	writer.updateSet(mDrawImageDescriptors);
 }
 
 void CNullRenderer::render(VkCommandBuffer cmd) {

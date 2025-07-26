@@ -4,6 +4,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/glm.hpp>
 
+#include "DescriptorManager.h"
 #include "Engine.h"
 #include "EngineBuffers.h"
 #include "EngineSettings.h"

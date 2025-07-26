@@ -27,6 +27,13 @@ public:
 	SImage mDrawImage;
 	SImage mDepthImage;
 
+	//
+	// Descriptors
+	//
+
+	VkDescriptorSet mDrawImageDescriptors;
+	VkDescriptorSetLayout mDrawImageDescriptorLayout;
+
 private:
 
 	CResourceManager m_ResourceManager;

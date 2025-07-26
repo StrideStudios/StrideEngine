@@ -2,8 +2,10 @@
 
 #include <array>
 
+#include "DescriptorManager.h"
 #include "Engine.h"
 #include "VulkanDevice.h"
+#include "VulkanRenderer.h"
 #include "ResourceManager.h"
 
 CEngineTextures::CEngineTextures() {
@@ -25,6 +27,21 @@ void CEngineTextures::initializeTextures() {
 	auto [width, height] = CEngine::get().getWindow().mExtent;
 
 	mDrawImage = m_ResourceManager.allocateImage({width, height, 1}, VK_FORMAT_R16G16B16A16_SFLOAT, drawImageUsages, VK_IMAGE_ASPECT_COLOR_BIT, false);
+
+	//make the descriptor set layout for our compute draw
+	{
+		SDescriptorLayoutBuilder builder;
+		builder.addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+		mDrawImageDescriptorLayout = builder.build(VK_SHADER_STAGE_COMPUTE_BIT);
+
+		CEngine::renderer().mGlobalResourceManager.push(mDrawImageDescriptorLayout);
+
+		mDrawImageDescriptors = CEngine::renderer().mGlobalDescriptorAllocator.allocate(mDrawImageDescriptorLayout);
+
+		SDescriptorWriter writer;
+		writer.writeImage(0, mDrawImage->mImageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+		writer.updateSet(mDrawImageDescriptors);
+	}
 
 	mDepthImage = m_ResourceManager.allocateImage({width, height, 1}, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_ASPECT_DEPTH_BIT, false);
 }

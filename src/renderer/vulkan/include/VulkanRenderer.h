@@ -3,6 +3,7 @@
 #include <functional>
 #include <memory>
 
+#include "DescriptorManager.h"
 #include "ResourceManager.h"
 #include "SceneViewport.h"
 
@@ -114,19 +115,6 @@ public:
 	//
 
 	SDescriptorAllocator mGlobalDescriptorAllocator;
-
-	VkDescriptorSet mDrawImageDescriptors;
-	VkDescriptorSetLayout mDrawImageDescriptorLayout;
-
-protected:
-
-	void initDescriptors();
-
-	void updateDescriptors();
-
-	//
-	// Temp shader stuff
-	//
 
 };
 

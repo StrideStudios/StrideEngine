@@ -68,6 +68,7 @@ typedef std::shared_ptr<struct SMeshBuffers_T> SMeshBuffers;
 //
 
 #define fmts(x, ...) fmt::format(x, __VA_ARGS__)
+#define toText(x) fmts("{}", x)
 #define msgs(x, ...) std::cout << fmts(x, __VA_ARGS__) << std::endl
 #define errs(x, ...) throw std::runtime_error(fmts(x, __VA_ARGS__))
 #define asts(cond, x, ...) if (!(cond)) errs(x, __VA_ARGS__)

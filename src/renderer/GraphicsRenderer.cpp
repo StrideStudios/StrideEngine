@@ -161,7 +161,7 @@ void CGraphicsRenderer::initTrianglePipeline() {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
 		.pNext = nullptr,
 		.setLayoutCount = 1,
-		.pSetLayouts = &mDrawImageDescriptorLayout
+		.pSetLayouts = &mEngineTextures->mDrawImageDescriptorLayout
 	};
 
 	m_TrianglePipelineLayout = mGlobalResourceManager.allocatePipelineLayout(layoutCreateInfo);
