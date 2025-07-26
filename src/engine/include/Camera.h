@@ -1,5 +1,6 @@
 ﻿#pragma once
 
+#include <array>
 #include <map>
 
 #include "Common.h"
@@ -288,7 +289,5 @@ public:
 
 	std::map<EKey, bool> keyMap;
 
-	bool mLeftMouseDown = false;
-
-	bool mRightMouseDown = false;
+	std::array<bool, 256> mouseArray;
 };

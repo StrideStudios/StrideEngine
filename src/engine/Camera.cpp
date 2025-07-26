@@ -11,7 +11,7 @@ ADD_COMMAND(float, FieldOfView, 70.f, 0.f, 180.f);
 #undef COMMAND_CATEGORY
 
 CCamera::CCamera(): mFOV(FieldOfView.get()) {
-
+	mouseArray.fill(false);
 }
 
 Matrix4f CCamera::getViewMatrix() const {
@@ -36,45 +36,11 @@ void CCamera::processSDLEvent(const SDL_Event &e) {
 		case SDL_EVENT_KEY_UP:
 			keyMap[static_cast<EKey>(e.key.key)] = false;
 			break;
-		default:
-			break;
-	}
-
-	switch (e.type) {
-		case SDL_EVENT_KEY_DOWN:
-			switch (e.key.key) {
-			case M:
-					bShowMouse = !bShowMouse;
-					break;
-			default:
-					break;
-			}
-			break;
 		case SDL_EVENT_MOUSE_BUTTON_DOWN:
-			switch (e.button.button) {
-				case 1:
-					mLeftMouseDown = true;
-					break;
-				case 3:
-					mRightMouseDown = true;
-					bShowMouse = false;
-					break;
-				default:
-					break;
-			}
+			mouseArray[e.button.button] = true;
 			break;
 		case SDL_EVENT_MOUSE_BUTTON_UP:
-			switch (e.button.button) {
-				case 1:
-					mLeftMouseDown = false;
-					break;
-				case 3:
-					mRightMouseDown = false;
-					bShowMouse = true;
-					break;
-				default:
-					break;
-			}
+			mouseArray[e.button.button] = false;
 			break;
 		case SDL_EVENT_MOUSE_MOTION:
 			if (!bShowMouse) {
@@ -82,7 +48,11 @@ void CCamera::processSDLEvent(const SDL_Event &e) {
 				mRotation.y -= e.motion.yrel / 250.f;
 			}
 			break;
+		default:
+			break;
 	}
+
+	bShowMouse = !mouseArray[3]; //RightClick
 }
 
 void CCamera::update() {
