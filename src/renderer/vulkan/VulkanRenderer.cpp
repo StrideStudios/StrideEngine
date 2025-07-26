@@ -208,6 +208,13 @@ void CVulkanRenderer::draw() {
 
 	CVulkanUtils::transitionImage(cmd, mEngineTextures->mDrawImage->mImage,VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 
+	/*CVulkanUtils::transitionImage(cmd, mEngineTextures->mDrawImage->mImage,VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+	CVulkanUtils::transitionImage(cmd, mEngineTextures->mDepthImage->mImage,VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+
+	auto [width, height, depth] = mEngineTextures->mDrawImage->mImageExtent;
+	CVulkanUtils::copyImageToImage(cmd, mEngineTextures->mDepthImage->mImage, mEngineTextures->mDrawImage->mImage, {width, height}, {mEngineTextures->mDepthImage->mImageExtent.width, mEngineTextures->mDepthImage->mImageExtent.height});
+	CVulkanUtils::transitionImage(cmd, mEngineTextures->mDrawImage->mImage,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+*/
 	// Make the swapchain image into presentable mode
 	CVulkanUtils::transitionImage(cmd, swapchainImage,VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 

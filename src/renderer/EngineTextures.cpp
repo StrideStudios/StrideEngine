@@ -24,9 +24,9 @@ void CEngineTextures::initializeTextures() {
 	drawImageUsages |= VK_IMAGE_USAGE_STORAGE_BIT;
 	drawImageUsages |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-	auto [width, height] = CEngine::get().getWindow().mExtent;
+	auto extent = CEngine::get().getWindow().mExtent;
 
-	mDrawImage = m_ResourceManager.allocateImage({width, height, 1}, VK_FORMAT_R16G16B16A16_SFLOAT, drawImageUsages, VK_IMAGE_ASPECT_COLOR_BIT, false);
+	mDrawImage = m_ResourceManager.allocateImage({extent.x, extent.y, 1}, VK_FORMAT_R16G16B16A16_SFLOAT, drawImageUsages, VK_IMAGE_ASPECT_COLOR_BIT, false);
 
 	//make the descriptor set layout for our compute draw
 	{
@@ -43,13 +43,13 @@ void CEngineTextures::initializeTextures() {
 		writer.updateSet(mDrawImageDescriptors);
 	}
 
-	mDepthImage = m_ResourceManager.allocateImage({width, height, 1}, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_ASPECT_DEPTH_BIT, false);
+	mDepthImage = m_ResourceManager.allocateImage({extent.x, extent.y, 1}, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_ASPECT_DEPTH_BIT, false);
 }
 
 void CEngineTextures::reallocate(const bool inUseVSync) {
 
-	auto [x, y] = CEngine::get().getWindow().mExtent;
-	msgs("Reallocating Engine Textures to ({}, {})", x, y);
+	auto extent = CEngine::get().getWindow().mExtent;
+	msgs("Reallocating Engine Textures to ({}, {})", extent.x, extent.y);
 
 	m_Swapchain.recreate(inUseVSync);
 

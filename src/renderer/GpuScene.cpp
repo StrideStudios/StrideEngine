@@ -16,11 +16,6 @@
 #include "VulkanRenderer.h"
 #include "VulkanUtils.h"
 
-#define COMMAND_CATEGORY "Camera"
-ADD_COMMAND(Vector3f, Translation, {0.f, -5.f, 0.f});
-ADD_COMMAND(Vector3f, Rotation, {0.f, 0.f, 0.f});
-#undef COMMAND_CATEGORY
-
 void SGLTFMetallic_Roughness::buildPipelines(CVulkanRenderer* renderer, CGPUScene* gpuScene) {
 
 	SShader frag {
@@ -72,7 +67,7 @@ void SGLTFMetallic_Roughness::buildPipelines(CVulkanRenderer* renderer, CGPUScen
 	pipelineBuilder.setShaders(vert.mModule, frag.mModule);
 	pipelineBuilder.setInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
 	pipelineBuilder.setPolygonMode(VK_POLYGON_MODE_FILL);
-	pipelineBuilder.setCullMode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
+	pipelineBuilder.setCullMode(VK_CULL_MODE_FRONT_BIT, VK_FRONT_FACE_CLOCKWISE);
 	pipelineBuilder.setNoMultisampling();
 	pipelineBuilder.disableBlending();
 	pipelineBuilder.enableDepthTest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
@@ -90,9 +85,10 @@ void SGLTFMetallic_Roughness::buildPipelines(CVulkanRenderer* renderer, CGPUScen
 	// create the transparent variant
 	pipelineBuilder.enableBlendingAdditive();
 
-	pipelineBuilder.enableDepthTest(false, VK_COMPARE_OP_GREATER_OR_EQUAL);
+	//pipelineBuilder.enableDepthTest(false, VK_COMPARE_OP_GREATER_OR_EQUAL);
+	pipelineBuilder.disableDepthTest();
 
-	opaquePipeline.pipeline = renderer->mGlobalResourceManager.allocatePipeline(pipelineBuilder);
+	transparentPipeline.pipeline = renderer->mGlobalResourceManager.allocatePipeline(pipelineBuilder);
 
 	vkDestroyShaderModule(CEngine::device(), frag.mModule, nullptr);
 	vkDestroyShaderModule(CEngine::device(), vert.mModule, nullptr);
@@ -239,12 +235,21 @@ void CGPUScene::render(CVulkanRenderer* renderer, VkCommandBuffer cmd) {
 void CGPUScene::update(CVulkanRenderer* renderer) {
 	m_MainRenderContext.opaqueSurfaces.clear();
 
-	m_LoadedNodes["Suzanne"]->render(glm::mat4(1.f), m_MainRenderContext);
+	m_LoadedNodes["Suzanne"]->render(Matrix4f(1.f), m_MainRenderContext);
+
+	CEngine::get().mMainCamera.update();
 
 	const auto [x, y, z] = renderer->mEngineTextures->mDrawImage->mImageExtent;
-	glm::mat4 view = glm::translate(glm::mat4(1.f), { Translation.get().x,Translation.get().z,Translation.get().y }); // Swap y and z so z will be the up vector
+	Matrix4f view = CEngine::get().mMainCamera.getViewMatrix();
 	// camera projection
-	glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)x / (float)y, 0.1f, 10000.f);
+	float tanHalfFovy = tan(glm::radians(CEngine::get().mMainCamera.mFOV) / 2.f);
+	float aspect = (float)x / (float)y;
+
+	Matrix4f projection(0.f);
+	projection[0][0] = 1.f / (aspect * tanHalfFovy);
+	projection[1][1] = 1.f / tanHalfFovy;
+	projection[2][3] = - 1.f;
+	projection[3][2] = 0.1f;
 
 	m_GPUSceneData.view = view;
 	// camera projection
@@ -252,7 +257,7 @@ void CGPUScene::update(CVulkanRenderer* renderer) {
 
 	// invert the Y direction on projection matrix so that we are more similar
 	// to opengl and gltf axis
-	m_GPUSceneData.proj.y.y *= -1;
+	m_GPUSceneData.proj[1][1] *= -1;
 	m_GPUSceneData.viewProj = m_GPUSceneData.proj * m_GPUSceneData.view;
 
 	//some default lighting parameters

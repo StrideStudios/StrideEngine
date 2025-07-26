@@ -63,8 +63,13 @@ void CEngine::init() {
 		gEngineName,
 		static_cast<int32>(m_EngineWindow.mExtent.x),
 		static_cast<int32>(m_EngineWindow.mExtent.y),
-		SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE
+		SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_MOUSE_GRABBED | SDL_WINDOW_KEYBOARD_GRABBED | SDL_WINDOW_MOUSE_RELATIVE_MODE
 	);
+
+	SDL_SetWindowRelativeMouseMode(m_EngineWindow.mWindow, true);
+
+	//SDL_SetWindowMouseGrab(m_EngineWindow.mWindow, true)
+
 	asts(m_EngineWindow.mWindow, "No window found.");
 
 	SDL_SetWindowResizable(m_EngineWindow.mWindow, true);
@@ -151,9 +156,15 @@ void CEngine::run() {
 				case SDL_EVENT_WINDOW_MAXIMIZED:
 					m_EngineWindow.mExtent = {static_cast<uint32>(e.window.data1), static_cast<uint32>(e.window.data2)};
 					break;
+				case SDL_EVENT_KEY_DOWN:
+					if (e.key.key == SDLK_ESCAPE || e.key.key == SDLK_END)
+						bRunning = false;
+					break;
 				default: break;
 			}
-			// Forward events to backend
+
+			mMainCamera.processSDLEvent(e);
+			SDL_SetWindowRelativeMouseMode(m_EngineWindow.mWindow, !mMainCamera.bShowMouse);
 			ImGui_ImplSDL3_ProcessEvent(&e);
 		}
 

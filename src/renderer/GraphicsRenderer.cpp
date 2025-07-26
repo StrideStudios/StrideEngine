@@ -333,7 +333,7 @@ void CGraphicsRenderer::renderMeshPass(VkCommandBuffer cmd) {
 	const auto [x, y, z] = mEngineTextures->mDrawImage->mImageExtent;
 	//glm::mat4 view = glm::translate(glm::mat4(1.f), { Translation.get().x,Translation.get().z,Translation.get().y }); // Swap y and z so z will be the up vector
 	// camera projection
-	//glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)x / (float)y, 0.1f, 10000.f);
+	//glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)x / (float)y, 10000.f, 0.1f);
 
 	// invert the Y direction on projection matrix so that we are more similar
 	// to opengl and gltf axis

@@ -3,6 +3,7 @@
 #include <memory>
 #include <vulkan/vulkan_core.h>
 
+#include "Camera.h"
 #include "Common.h"
 
 // Forward declare vkb types
@@ -66,6 +67,8 @@ public:
 	std::string mSourcePath;
 	std::string mShaderPath;
 	std::string mAssetPath;
+
+	CCamera mMainCamera;
 
 private:
 

@@ -70,6 +70,8 @@ add_executable(StrideEngine
         renderer/include/SceneViewport.h
         renderer/include/DescriptorManager.h
         renderer/DescriptorManager.cpp
+        engine/include/Camera.h
+        engine/Camera.cpp
 )
 
 find_package(Vulkan REQUIRED)
