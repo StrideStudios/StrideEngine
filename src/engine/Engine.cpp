@@ -63,7 +63,7 @@ void CEngine::init() {
 		gEngineName,
 		static_cast<int32>(m_EngineWindow.mExtent.x),
 		static_cast<int32>(m_EngineWindow.mExtent.y),
-		SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_MOUSE_GRABBED | SDL_WINDOW_KEYBOARD_GRABBED | SDL_WINDOW_MOUSE_RELATIVE_MODE
+		SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE
 	);
 
 	SDL_SetWindowRelativeMouseMode(m_EngineWindow.mWindow, true);
