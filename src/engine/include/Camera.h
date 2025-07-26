@@ -277,7 +277,7 @@ public:
 
 	void update();
 
-	bool bShowMouse = false;
+	bool bShowMouse = true;
 
 	Vector3f mVelocity{0,0,0};
 	Vector3f mPosition{0, 0, 0};
@@ -287,4 +287,8 @@ public:
 	float mFOV;
 
 	std::map<EKey, bool> keyMap;
+
+	bool mLeftMouseDown = false;
+
+	bool mRightMouseDown = false;
 };

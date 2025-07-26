@@ -40,19 +40,48 @@ void CCamera::processSDLEvent(const SDL_Event &e) {
 			break;
 	}
 
-	if (e.type == SDL_EVENT_KEY_DOWN) {
-		switch (e.key.key) {
+	switch (e.type) {
+		case SDL_EVENT_KEY_DOWN:
+			switch (e.key.key) {
 			case M:
-				bShowMouse = !bShowMouse;
-				break;
+					bShowMouse = !bShowMouse;
+					break;
 			default:
-				break;
-		}
-	} else if (e.type == SDL_EVENT_MOUSE_MOTION) {
-		if (!bShowMouse) {
-			mRotation.x += e.motion.xrel / 500.f;
-			mRotation.y -= e.motion.yrel / 500.f;
-		}
+					break;
+			}
+			break;
+		case SDL_EVENT_MOUSE_BUTTON_DOWN:
+			switch (e.button.button) {
+				case 1:
+					mLeftMouseDown = true;
+					break;
+				case 3:
+					mRightMouseDown = true;
+					bShowMouse = false;
+					break;
+				default:
+					break;
+			}
+			break;
+		case SDL_EVENT_MOUSE_BUTTON_UP:
+			switch (e.button.button) {
+				case 1:
+					mLeftMouseDown = false;
+					break;
+				case 3:
+					mRightMouseDown = false;
+					bShowMouse = true;
+					break;
+				default:
+					break;
+			}
+			break;
+		case SDL_EVENT_MOUSE_MOTION:
+			if (!bShowMouse) {
+				mRotation.x += e.motion.xrel / 250.f;
+				mRotation.y -= e.motion.yrel / 250.f;
+			}
+			break;
 	}
 }
 
