@@ -40,7 +40,15 @@ void CCamera::processSDLEvent(const SDL_Event &e) {
 			break;
 	}
 
-	if (e.type == SDL_EVENT_MOUSE_MOTION) {
+	if (e.type == SDL_EVENT_KEY_DOWN) {
+		switch (e.key.key) {
+			case M:
+				bShowMouse = !bShowMouse;
+				break;
+			default:
+				break;
+		}
+	} else if (e.type == SDL_EVENT_MOUSE_MOTION) {
 		if (!bShowMouse) {
 			mRotation.x += e.motion.xrel / 500.f;
 			mRotation.y -= e.motion.yrel / 500.f;
