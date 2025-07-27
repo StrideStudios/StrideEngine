@@ -7,6 +7,10 @@
 #include "ResourceManager.h"
 #include "SceneViewport.h"
 
+namespace tracy {
+	class VkCtx;
+}
+
 class CEngineTextures;
 class CEngineBuffers;
 class CVulkanDevice;
@@ -51,6 +55,8 @@ public:
 		CResourceManager mFrameResourceManager;
 
 		SDescriptorAllocator mDescriptorAllocator;
+
+		tracy::VkCtx* mTracyContext;
 	};
 
 	CVulkanRenderer();

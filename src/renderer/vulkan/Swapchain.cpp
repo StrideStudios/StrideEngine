@@ -3,6 +3,7 @@
 #include "Engine.h"
 #include "VulkanDevice.h"
 #include "VulkanUtils.h"
+#include "tracy/Tracy.hpp"
 
 #include "vulkan/vk_enum_string_helper.h"
 
@@ -121,6 +122,8 @@ void CSwapchain::reset(const uint32 inCurrentFrameIndex) const {
 
 void CSwapchain::submit(const VkCommandBuffer inCmd, const VkQueue inGraphicsQueue, uint32 inCurrentFrameIndex, const uint32 inSwapchainImageIndex) {
 	const auto& frame = m_Frames[inCurrentFrameIndex];
+
+	ZoneScopedN("Present");
 
 	// Submit
 	{

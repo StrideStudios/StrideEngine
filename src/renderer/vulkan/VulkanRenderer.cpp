@@ -4,6 +4,8 @@
 #include <iostream>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/glm.hpp>
+#include <tracy/Tracy.hpp>
+#include <tracy/TracyVulkan.hpp>
 
 #include "DescriptorManager.h"
 #include "VulkanDevice.h"
@@ -104,6 +106,8 @@ void CVulkanRenderer::init() {
 			mGlobalResourceManager.pushF([&] {
 				frame.mDescriptorAllocator.destroy();
 			});
+
+			frame.mTracyContext = TracyVkContext(CEngine::physicalDevice(), CEngine::device(), mGraphicsQueue, frame.mMainCommandBuffer);
 		}
 	}
 
@@ -129,9 +133,13 @@ void CVulkanRenderer::init() {
 
 void CVulkanRenderer::destroy() {
 
+	mGPUScene->m_LoadedScenes.clear();
+
 	CEngineSettings::destroy();
 
 	for (auto& frame : mFrames) {
+		TracyVkDestroy(frame.mTracyContext);
+
 		frame.mDescriptorAllocator.clear();
 		frame.mFrameResourceManager.flush();
 	}
@@ -142,6 +150,8 @@ void CVulkanRenderer::destroy() {
 }
 
 void CVulkanRenderer::draw() {
+
+	ZoneScopedN("render");
 
 	if (mVSync != UseVsync.get()) {
 		mVSync = UseVsync.get();
@@ -186,7 +196,10 @@ void CVulkanRenderer::draw() {
 		mEngineTextures->mDrawImage->mImageExtent.height
 	};
 
-	render(cmd);
+	{
+		ZoneScopedN("Child Render");
+		render(cmd);
+	}
 
 	CVulkanUtils::transitionImage(cmd, mEngineTextures->mDrawImage->mImage, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 	CVulkanUtils::transitionImage(cmd, mEngineTextures->mDepthImage->mImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
@@ -199,8 +212,8 @@ void CVulkanRenderer::draw() {
 	vkCmdBeginRendering(cmd, &renderInfo);
 
 	// TODO: update elsewhere and use instead of drawImage.extent
-	mViewport.update({extent.width, extent.height});
-	mViewport.set(cmd);
+	//mViewport.update({extent.width, extent.height});
+	//mViewport.set(cmd);
 
 	mGPUScene->render(this, cmd);
 
@@ -236,8 +249,14 @@ void CVulkanRenderer::draw() {
 
 	mEngineTextures->getSwapchain().submit(cmd, mGraphicsQueue, getFrameIndex(), swapchainImageIndex);
 
+	//TODO: send frame
+	//FrameImage();
+
 	//increase the number of frames drawn
 	mFrameNumber++;
+
+	// Tell tracy we just rendered a frame
+	FrameMark;
 }
 
 void CVulkanRenderer::waitForGpu() const {

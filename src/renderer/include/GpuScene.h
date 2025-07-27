@@ -18,12 +18,14 @@ struct SRenderObject {
 
 	SMaterialInstance* material;
 
+	SBounds bounds;
 	Matrix4f transform;
 	VkDeviceAddress vertexBufferAddress;
 };
 
 struct SRenderContext {
 	std::vector<SRenderObject> opaqueSurfaces;
+	std::vector<SRenderObject> transparentSurfaces;
 };
 
 // base class for a renderable dynamic object
@@ -69,6 +71,31 @@ struct SMeshNode : public SNode {
 	void render(const Matrix4f& topMatrix, SRenderContext& ctx) override;
 };
 
+struct SLoadedGLTF : public IRenderable {
+
+	// storage for all the data on a given glTF file
+	std::unordered_map<std::string, std::shared_ptr<SStaticMesh>> meshes;
+	std::unordered_map<std::string, std::shared_ptr<SNode>> nodes;
+	std::unordered_map<std::string, SImage> images;
+	std::unordered_map<std::string, std::shared_ptr<GLTFMaterial>> materials;
+
+	// nodes that dont have a parent, for iterating through the file in tree order
+	std::vector<std::shared_ptr<SNode>> topNodes;
+
+	std::vector<VkSampler> samplers;
+
+	SDescriptorAllocator descriptorPool;
+
+	SBuffer materialDataBuffer;
+
+	~SLoadedGLTF() { clearAll(); };
+
+	void render(const glm::mat4& topMatrix, SRenderContext& ctx) override;
+
+private:
+
+	void clearAll();
+};
 
 struct SGLTFMetallic_Roughness {
 	SMaterialPipeline opaquePipeline;
@@ -133,6 +160,8 @@ public:
 	VkDescriptorSetLayout m_GPUSceneDataDescriptorLayout;
 
 	SBuffer m_GPUSceneDataBuffer;
+
+	std::unordered_map<std::string, std::shared_ptr<SLoadedGLTF>> m_LoadedScenes;
 
 	//
 	// Default Data

@@ -10,11 +10,20 @@
 #include "EngineSettings.h"
 #include "EngineTextures.h"
 #include "GraphicsRenderer.h"
+#include "MeshLoader.h"
 #include "ResourceManager.h"
 #include "ShaderCompiler.h"
 #include "VulkanDevice.h"
 #include "VulkanRenderer.h"
 #include "VulkanUtils.h"
+#include "tracy/Tracy.hpp"
+
+#define COMMAND_CATEGORY "Rendering"
+ADD_TEXT(Meshes, "Meshes: ");
+ADD_TEXT(Drawcalls, "Draw Calls: ");
+ADD_TEXT(Vertices, "Vertices: ");
+ADD_TEXT(Triangles, "Triangles: ");
+#undef COMMAND_CATEGORY
 
 void SGLTFMetallic_Roughness::buildPipelines(CVulkanRenderer* renderer, CGPUScene* gpuScene) {
 
@@ -40,7 +49,7 @@ void SGLTFMetallic_Roughness::buildPipelines(CVulkanRenderer* renderer, CGPUScen
 
     materialLayout = layoutBuilder.build(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
 
-	renderer->mGlobalResourceManager.push(materialLayout);
+	CEngine::renderer().mGlobalResourceManager.push(materialLayout);
 
 	VkDescriptorSetLayout layouts[] = {
 		gpuScene->m_GPUSceneDataDescriptorLayout,
@@ -124,15 +133,30 @@ void SMeshNode::render(const Matrix4f &topMatrix, SRenderContext &ctx) {
 		def.firstIndex = s.startIndex;
 		def.indexBuffer = mesh->meshBuffers->indexBuffer->buffer;
 		def.material = &s.material->data;
-
+		def.bounds = s.bounds;
 		def.transform = nodeMatrix;
 		def.vertexBufferAddress = mesh->meshBuffers->vertexBufferAddress;
 
-		ctx.opaqueSurfaces.push_back(def);
+		if (def.material->passType == EMaterialPass::TRANSLUCENT) {
+			ctx.transparentSurfaces.push_back(def);
+		} else {
+			ctx.opaqueSurfaces.push_back(def);
+		}
 	}
 
 	// recurse down
 	SNode::render(topMatrix, ctx);
+}
+
+void SLoadedGLTF::render(const glm::mat4 &topMatrix, SRenderContext &ctx) {
+	// create renderables from the scenenodes
+	for (auto& n : topNodes) {
+		n->render(topMatrix, ctx);
+	}
+}
+
+void SLoadedGLTF::clearAll() {
+	descriptorPool.destroy();
 }
 
 CGPUScene::CGPUScene(CVulkanRenderer* renderer) {
@@ -210,32 +234,165 @@ CGPUScene::CGPUScene(CVulkanRenderer* renderer) {
 
 		m_LoadedNodes[mesh->name] = std::move(newNode);
 	}
+
+	std::string structurePath = { "structure.glb" };
+	auto structureFile = CMeshLoader::loadGLTF(renderer, this, structurePath);
+
+	assert(structureFile.has_value());
+
+	m_LoadedScenes["structure"] = *structureFile;
 }
+
+//TODO: probably faster with gpu
+bool isVisible(const SRenderObject& obj, const Matrix4f& viewproj) {
+	std::array corners {
+		Vector3f { 1, 1, 1 },
+		Vector3f { 1, 1, -1 },
+		Vector3f { 1, -1, 1 },
+		Vector3f { 1, -1, -1 },
+		Vector3f { -1, 1, 1 },
+		Vector3f { -1, 1, -1 },
+		Vector3f { -1, -1, 1 },
+		Vector3f { -1, -1, -1 },
+	};
+
+	Matrix4f matrix = viewproj * obj.transform;
+
+	Vector3f min = { 1.5, 1.5, 1.5 };
+	Vector3f max = { -1.5, -1.5, -1.5 };
+
+	for (int c = 0; c < 8; c++) {
+		// project each corner into clip space
+		Vector4f v = matrix * Vector4f(obj.bounds.origin + (corners[c] * obj.bounds.extents), 1.f);
+
+		// perspective correction
+		v.x = v.x / v.w;
+		v.y = v.y / v.w;
+		v.z = v.z / v.w;
+
+		min = glm::min(Vector3f { v.x, v.y, v.z }, min);
+		max = glm::max(Vector3f { v.x, v.y, v.z }, max);
+	}
+
+	// check the clip space box is within the view
+	if (min.z > 1.f || max.z < 0.f || min.x > 1.f || max.x < -1.f || min.y > 1.f || max.y < -1.f) {
+		return false;
+	}
+	return true;
+}
+
 
 void CGPUScene::render(CVulkanRenderer* renderer, VkCommandBuffer cmd) {
 	update(renderer);
 
-	for (const SRenderObject& draw : m_MainRenderContext.opaqueSurfaces) {
+	std::vector<uint32_t> opaque_draws;
+	opaque_draws.reserve(m_MainRenderContext.opaqueSurfaces.size());
 
-		vkCmdBindPipeline(cmd,VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->pipeline);
-		vkCmdBindDescriptorSets(cmd,VK_PIPELINE_BIND_POINT_GRAPHICS,draw.material->pipeline->layout, 0,1, &m_Frames[renderer->getFrameIndex()].sceneDescriptor,0,nullptr );
-		vkCmdBindDescriptorSets(cmd,VK_PIPELINE_BIND_POINT_GRAPHICS,draw.material->pipeline->layout, 1,1, &draw.material->materialSet,0,nullptr );
-
-		vkCmdBindIndexBuffer(cmd, draw.indexBuffer,0,VK_INDEX_TYPE_UINT32);
-
-		SGPUDrawPushConstants pushConstants;
-		pushConstants.vertexBuffer = draw.vertexBufferAddress;
-		pushConstants.worldMatrix = draw.transform;
-		vkCmdPushConstants(cmd,draw.material->pipeline->layout ,VK_SHADER_STAGE_VERTEX_BIT,0, sizeof(SGPUDrawPushConstants), &pushConstants);
-
-		vkCmdDrawIndexed(cmd,draw.indexCount,1,draw.firstIndex,0,0);
+	{
+		ZoneScopedN("Frustrum Culling");
+		for (uint32_t i = 0; i < m_MainRenderContext.opaqueSurfaces.size(); i++) {
+			if (isVisible(m_MainRenderContext.opaqueSurfaces[i], m_GPUSceneData.viewProj)) {
+				opaque_draws.push_back(i);
+			}
+		}
 	}
+
+	// Set number of meshes being drawn
+	Meshes.setText(fmts("Meshes: {}", opaque_draws.size()));
+
+	// sort the opaque surfaces by material and mesh
+	{
+		ZoneScopedN("Sort Draws");
+		std::sort(opaque_draws.begin(), opaque_draws.end(), [&](const auto& iA, const auto& iB) {
+			const SRenderObject& A = m_MainRenderContext.opaqueSurfaces[iA];
+			const SRenderObject& B = m_MainRenderContext.opaqueSurfaces[iB];
+			if (A.material == B.material) {
+				return A.indexBuffer < B.indexBuffer;
+			}
+			return A.material < B.material;
+		});
+	}
+
+	//defined outside of the draw function, this is the state we will try to skip
+	SMaterialPipeline* lastPipeline = nullptr;
+	SMaterialInstance* lastMaterial = nullptr;
+	VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
+
+	uint32 drawCallCount = 0;
+	uint64 vertexCount = 0;
+	uint64 triangleCount = 0;
+
+	auto render = [&](const SRenderObject& draw) {
+		if (draw.material != lastMaterial) {
+			lastMaterial = draw.material;
+
+			VkExtent2D extent {
+				renderer->mEngineTextures->mDrawImage->mImageExtent.width,
+				renderer->mEngineTextures->mDrawImage->mImageExtent.height
+			};
+			//rebind pipeline and descriptors if the material changed
+			if (draw.material->pipeline != lastPipeline) {
+
+				lastPipeline = draw.material->pipeline;
+				vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->pipeline);
+				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,draw.material->pipeline->layout, 0, 1,
+					&m_Frames[renderer->getFrameIndex()].sceneDescriptor, 0, nullptr); //Global descriptor?
+
+				CEngine::renderer().mViewport.update({extent.width, extent.height});
+				CEngine::renderer().mViewport.set(cmd);
+			}
+			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->layout, 1, 1,
+						 &draw.material->materialSet, 0, nullptr);
+		}
+
+		//rebind index buffer if needed
+		if (draw.indexBuffer != lastIndexBuffer) {
+			lastIndexBuffer = draw.indexBuffer;
+			vkCmdBindIndexBuffer(cmd, draw.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+		}
+		// calculate final mesh matrix
+		SGPUDrawPushConstants push_constants;
+		push_constants.worldMatrix = draw.transform;
+		push_constants.vertexBuffer = draw.vertexBufferAddress;
+
+		vkCmdPushConstants(cmd, draw.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(SGPUDrawPushConstants), &push_constants);
+
+		vkCmdDrawIndexed(cmd, draw.indexCount, 1, draw.firstIndex, 0, 0);
+
+		drawCallCount++;
+		vertexCount += draw.indexCount;
+		triangleCount += vertexCount / 3;
+	};
+
+	ZoneScopedN("Base Pass");
+
+	/*for (const SRenderObject& draw : m_MainRenderContext.opaqueSurfaces) {
+		render(draw);
+	}*/
+
+	for (const auto& r : opaque_draws) {
+		render(m_MainRenderContext.opaqueSurfaces[r]);
+	}
+
+	for (const SRenderObject& draw : m_MainRenderContext.transparentSurfaces) {
+		render(draw);
+	}
+
+	// Set number of drawcalls, vertices, and triangles
+	Drawcalls.setText(fmts("Draw Calls: {}", drawCallCount));
+	Vertices.setText(fmts("Vertices: {}", vertexCount));
+	Triangles.setText(fmts("Triangles: {}", triangleCount));
+
 }
 
 void CGPUScene::update(CVulkanRenderer* renderer) {
-	m_MainRenderContext.opaqueSurfaces.clear();
+	ZoneScopedN("GPUScene Update");
 
-	m_LoadedNodes["Suzanne"]->render(Matrix4f(1.f), m_MainRenderContext);
+	m_MainRenderContext.opaqueSurfaces.clear();
+	m_MainRenderContext.transparentSurfaces.clear();
+
+	//m_LoadedNodes["Suzanne"]->render(Matrix4f(1.f), m_MainRenderContext);
+	m_LoadedScenes["structure"]->render(glm::mat4{ 1.f }, m_MainRenderContext);
 
 	CEngine::get().mMainCamera.update();
 

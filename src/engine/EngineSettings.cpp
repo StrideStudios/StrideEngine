@@ -7,8 +7,11 @@
 #include "imgui_impl_vulkan.h"
 #include "VulkanRenderer.h"
 #include "VulkanUtils.h"
+#include "tracy/Tracy.hpp"
 
 void CEngineSettings::render(VkCommandBuffer cmd, VkExtent2D inExtent, VkImageView inTargetImageView) {
+	ZoneScopedN("Engine UI");
+
 	// Start the Dear ImGui frame
 	ImGui_ImplVulkan_NewFrame();
 	ImGui_ImplSDL3_NewFrame();

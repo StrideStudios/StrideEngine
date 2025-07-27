@@ -10,6 +10,7 @@
 #include "VulkanDevice.h"
 #include "VulkanRenderer.h"
 #include "VulkanUtils.h"
+#include "tracy/Tracy.hpp"
 
 void* SBuffer_T::GetMappedData() const {
 	return allocation->GetMappedData();
@@ -57,6 +58,7 @@ void CResourceManager::destroyAllocator() {
 
 #define DEFINE_ALLOCATER(inType, inName, inEnum) \
 	inType CResourceManager::allocate##inName(const inType##CreateInfo& pCreateInfo, const VkAllocationCallbacks* pAllocator) { \
+		ZoneScopedN("Allocate " #inName); \
 		inType inName; \
 		VK_CHECK(vkCreate##inName(CEngine::device(), &pCreateInfo, pAllocator, &inName)); \
 		push(inName); \
@@ -77,18 +79,21 @@ void CResourceManager::destroyAllocator() {
 #undef DEFINE_DEALLOCATOR
 
 VkCommandBuffer CResourceManager::allocateCommandBuffer(const VkCommandBufferAllocateInfo& pCreateInfo) {
+	ZoneScopedN("Allocate CommandBuffer");
 	VkCommandBuffer Buffer;
 	VK_CHECK(vkAllocateCommandBuffers(CEngine::device(), &pCreateInfo, &Buffer));
 	return Buffer;
 }
 
 VkPipeline CResourceManager::allocatePipeline(const CPipelineBuilder& inPipelineBuilder, const VkAllocationCallbacks* pAllocator) {
+	ZoneScopedN("Allocate Pipeline");
 	const VkPipeline Pipeline = inPipelineBuilder.buildPipeline(CEngine::device());
 	push(Pipeline);
 	return Pipeline;
 }
 
 SImage CResourceManager::allocateImage(VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags, VkImageAspectFlags inViewFlags, bool inMipmapped) {
+	ZoneScopedN("Allocate Image");
 	auto image = std::make_shared<SImage_T>();
 
 	image->mImageExtent = inExtent;
@@ -116,6 +121,76 @@ SImage CResourceManager::allocateImage(VkExtent3D inExtent, VkFormat inFormat, V
 	push(image);
 
 	return image;
+}
+
+void generateMipmaps(VkCommandBuffer cmd, VkImage image, VkExtent2D extent) {
+	int mipLevels = int(std::floor(std::log2(std::max(extent.width, extent.height)))) + 1;
+    for (int mip = 0; mip < mipLevels; mip++) {
+
+        VkExtent2D halfSize = extent;
+        halfSize.width /= 2;
+        halfSize.height /= 2;
+
+        VkImageMemoryBarrier2 imageBarrier { .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2, .pNext = nullptr };
+
+        imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+        imageBarrier.srcAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT;
+        imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+        imageBarrier.dstAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT | VK_ACCESS_2_MEMORY_READ_BIT;
+
+        imageBarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        imageBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+
+        VkImageAspectFlags aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        imageBarrier.subresourceRange = CVulkanUtils::imageSubresourceRange(aspectMask);
+        imageBarrier.subresourceRange.levelCount = 1;
+        imageBarrier.subresourceRange.baseMipLevel = mip;
+        imageBarrier.image = image;
+
+        VkDependencyInfo depInfo { .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO, .pNext = nullptr };
+        depInfo.imageMemoryBarrierCount = 1;
+        depInfo.pImageMemoryBarriers = &imageBarrier;
+
+        vkCmdPipelineBarrier2(cmd, &depInfo);
+
+        if (mip < mipLevels - 1) {
+            VkImageBlit2 blitRegion { .sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2, .pNext = nullptr };
+
+            blitRegion.srcOffsets[1].x = extent.width;
+            blitRegion.srcOffsets[1].y = extent.height;
+            blitRegion.srcOffsets[1].z = 1;
+
+            blitRegion.dstOffsets[1].x = halfSize.width;
+            blitRegion.dstOffsets[1].y = halfSize.height;
+            blitRegion.dstOffsets[1].z = 1;
+
+            blitRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            blitRegion.srcSubresource.baseArrayLayer = 0;
+            blitRegion.srcSubresource.layerCount = 1;
+            blitRegion.srcSubresource.mipLevel = mip;
+
+            blitRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            blitRegion.dstSubresource.baseArrayLayer = 0;
+            blitRegion.dstSubresource.layerCount = 1;
+            blitRegion.dstSubresource.mipLevel = mip + 1;
+
+            VkBlitImageInfo2 blitInfo {.sType = VK_STRUCTURE_TYPE_BLIT_IMAGE_INFO_2, .pNext = nullptr};
+            blitInfo.dstImage = image;
+            blitInfo.dstImageLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+            blitInfo.srcImage = image;
+            blitInfo.srcImageLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+            blitInfo.filter = VK_FILTER_LINEAR;
+            blitInfo.regionCount = 1;
+            blitInfo.pRegions = &blitRegion;
+
+            vkCmdBlitImage2(cmd, &blitInfo);
+
+            extent = halfSize;
+        }
+    }
+
+    // transition all mip levels into the final read_only layout
+    CVulkanUtils::transitionImage(cmd, image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 }
 
 SImage CResourceManager::allocateImage(void* inData, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags, VkImageAspectFlags inViewFlags, bool inMipmapped) {
@@ -147,9 +222,14 @@ SImage CResourceManager::allocateImage(void* inData, VkExtent3D inExtent, VkForm
 		vkCmdCopyBufferToImage(cmd, uploadBuffer->buffer, new_image->mImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
 			&copyRegion);
 
-		CVulkanUtils::transitionImage(cmd, new_image->mImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-		});
+		if (inMipmapped) {
+			generateMipmaps(cmd, new_image->mImage, VkExtent2D{new_image->mImageExtent.width,new_image->mImageExtent.height});
+		} else {
+			CVulkanUtils::transitionImage(cmd, new_image->mImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+			}
+		}
+	);
 
 	manager.flush();
 
@@ -162,6 +242,7 @@ void CResourceManager::deallocateImage(const SImage_T* inImage) {
 }
 
 SBuffer CResourceManager::allocateBuffer(size_t allocSize, VmaMemoryUsage memoryUsage, VkBufferUsageFlags usage) {
+	ZoneScopedN("Allocate Buffer");
 	// allocate buffer
 	VkBufferCreateInfo bufferInfo = {
 		.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,

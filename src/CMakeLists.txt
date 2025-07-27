@@ -5,6 +5,7 @@ include_directories("renderer/include")
 include_directories("renderer/vulkan/include")
 include_directories("engine/include")
 include_directories("imgui/include")
+include_directories("stb/include")
 
 add_executable(StrideEngine
 
@@ -23,6 +24,9 @@ add_executable(StrideEngine
         engine/MeshLoader.cpp
         engine/include/Engine.h
         engine/Engine.cpp
+        engine/include/Material.h
+        engine/include/Camera.h
+        engine/Camera.cpp
 
         # Renderer
 
@@ -46,6 +50,11 @@ add_executable(StrideEngine
         renderer/GraphicsRenderer.cpp
         renderer/include/EngineBuffers.h
         renderer/EngineBuffers.cpp
+        renderer/include/GpuScene.h
+        renderer/GpuScene.cpp
+        renderer/include/SceneViewport.h
+        renderer/include/DescriptorManager.h
+        renderer/DescriptorManager.cpp
 
         # Dear ImGui
 
@@ -64,14 +73,9 @@ add_executable(StrideEngine
         imgui/imgui_widgets.cpp
         imgui/imgui_impl_vulkan.cpp
         imgui/imgui_impl_sdl3.cpp
-        renderer/include/GpuScene.h
-        renderer/GpuScene.cpp
-        engine/include/Material.h
-        renderer/include/SceneViewport.h
-        renderer/include/DescriptorManager.h
-        renderer/DescriptorManager.cpp
-        engine/include/Camera.h
-        engine/Camera.cpp
+
+        # stb
+        stb/include/stb_image.h
 )
 
 find_package(Vulkan REQUIRED)
@@ -84,7 +88,10 @@ target_link_libraries(StrideEngine PUBLIC
         glslang::glslang-default-resource-limits
         glslang::glslang
         fastgltf::fastgltf
+        Tracy::TracyClient
 )
+target_compile_definitions(TracyClient PRIVATE TRACY_ENABLE>)
+target_compile_definitions(StrideEngine PRIVATE TRACY_ENABLE>)
 # Tell cmake to copy dlls to the target directory
 add_custom_command(TARGET StrideEngine POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:StrideEngine> $<TARGET_FILE_DIR:StrideEngine>

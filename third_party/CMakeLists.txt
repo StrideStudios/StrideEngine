@@ -4,3 +4,7 @@ add_subdirectory(vk-bootstrap)
 add_subdirectory(vma)
 add_subdirectory(glslang)
 add_subdirectory(fastgltf)
+
+option(TRACY_ENABLE "" ON)
+option(TRACY_ON_DEMAND "" ON)
+add_subdirectory(tracy)

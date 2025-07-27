@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include <thread>
+#include <tracy/Tracy.hpp>
 
 #include "EngineSettings.h"
 #include "GraphicsRenderer.h"
@@ -117,6 +118,8 @@ void CEngine::run() {
 
 	bool bRunning = true;
 	while (bRunning) {
+
+		ZoneScopedN("Update");
 
 		// Time utils
 		{
