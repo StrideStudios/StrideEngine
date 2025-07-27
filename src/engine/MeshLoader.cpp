@@ -180,7 +180,7 @@ std::optional<SImage> loadImage(CVulkanRenderer* renderer, fastgltf::Asset& asse
                     imagesize.height = height;
                     imagesize.depth = 1;
 
-                    newImage = renderer->mGlobalResourceManager.allocateImage(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT,VK_IMAGE_ASPECT_COLOR_BIT,true);
+                    newImage = renderer->mGlobalResourceManager.allocateImage(data, image.name.c_str(), imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT,VK_IMAGE_ASPECT_COLOR_BIT,true);
 
                     stbi_image_free(data);
                 }
@@ -194,7 +194,7 @@ std::optional<SImage> loadImage(CVulkanRenderer* renderer, fastgltf::Asset& asse
                     imagesize.height = height;
                     imagesize.depth = 1;
 
-                    newImage = renderer->mGlobalResourceManager.allocateImage(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT,VK_IMAGE_ASPECT_COLOR_BIT,true);
+                    newImage = renderer->mGlobalResourceManager.allocateImage(data, image.name.c_str(), imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT,VK_IMAGE_ASPECT_COLOR_BIT,true);
 
                     stbi_image_free(data);
                 }
@@ -218,7 +218,7 @@ std::optional<SImage> loadImage(CVulkanRenderer* renderer, fastgltf::Asset& asse
                                        imagesize.height = height;
                                        imagesize.depth = 1;
 
-                                       newImage = renderer->mGlobalResourceManager.allocateImage(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM,
+                                       newImage = renderer->mGlobalResourceManager.allocateImage(data, image.name.c_str(), imagesize, VK_FORMAT_R8G8B8A8_UNORM,
                                            VK_IMAGE_USAGE_SAMPLED_BIT,VK_IMAGE_ASPECT_COLOR_BIT,true);
 
                                        stbi_image_free(data);
@@ -246,7 +246,6 @@ std::optional<std::shared_ptr<SLoadedGLTF>> CMeshLoader::loadGLTF(CVulkanRendere
 	SLoadedGLTF& file = *scene.get();
 
 	constexpr auto gltfOptions = fastgltf::Options::DontRequireValidAssetMember | fastgltf::Options::AllowDouble | fastgltf::Options::LoadExternalBuffers | fastgltf::Options::LoadExternalImages;
-	// fastgltf::Options::LoadExternalImages;
 
 	fastgltf::GltfFileStream data{path};
 

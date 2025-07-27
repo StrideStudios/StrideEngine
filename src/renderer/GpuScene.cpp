@@ -44,8 +44,6 @@ void SGLTFMetallic_Roughness::buildPipelines(CVulkanRenderer* renderer, CGPUScen
 
     SDescriptorLayoutBuilder layoutBuilder;
     layoutBuilder.addBinding(0,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-    layoutBuilder.addBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	layoutBuilder.addBinding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
     materialLayout = layoutBuilder.build(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
 
@@ -117,8 +115,6 @@ SMaterialInstance SGLTFMetallic_Roughness::writeMaterial(EMaterialPass pass, con
 
 	writer.clear();
 	writer.writeBuffer(0, resources.dataBuffer, sizeof(MaterialConstants), resources.dataBufferOffset, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-	writer.writeImage(1, resources.colorImage->mImageView, resources.colorSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	writer.writeImage(2, resources.metalRoughImage->mImageView, resources.metalRoughSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
 	writer.updateSet(matData.materialSet);
 
@@ -206,13 +202,13 @@ CGPUScene::CGPUScene(CVulkanRenderer* renderer) {
 	vkUpdateDescriptorSets(CEngine::device(), (uint32)sets.size(), sets.begin(), 0, nullptr);
 
 	uint32 white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
-	m_WhiteImage = renderer->mGlobalResourceManager.allocateImage(&white, {1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+	m_WhiteImage = renderer->mGlobalResourceManager.allocateImage(&white, "Default White", {1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
 
 	uint32 grey = glm::packUnorm4x8(glm::vec4(0.66f, 0.66f, 0.66f, 1));
-	m_GreyImage = renderer->mGlobalResourceManager.allocateImage(&grey, {1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+	m_GreyImage = renderer->mGlobalResourceManager.allocateImage(&grey, "Default Grey", {1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
 
 	uint32 black = glm::packUnorm4x8(glm::vec4(0, 0, 0, 0));
-	m_BlackImage = renderer->mGlobalResourceManager.allocateImage(&white, {1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+	m_BlackImage = renderer->mGlobalResourceManager.allocateImage(&black, "Default Black", {1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
 
 	//checkerboard image
 	uint32 magenta = glm::packUnorm4x8(glm::vec4(1, 0, 1, 1));
@@ -222,7 +218,7 @@ CGPUScene::CGPUScene(CVulkanRenderer* renderer) {
 			pixels[y*16 + x] = ((x % 2) ^ (y % 2)) ? magenta : black;
 		}
 	}
-	m_ErrorCheckerboardImage = renderer->mGlobalResourceManager.allocateImage(pixels.data(), VkExtent3D{16, 16, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+	m_ErrorCheckerboardImage = renderer->mGlobalResourceManager.allocateImage(pixels.data(), "Default Error", VkExtent3D{16, 16, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
 
 	SDescriptorLayoutBuilder builder;
 	builder.addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
@@ -366,18 +362,14 @@ void CGPUScene::render(CVulkanRenderer* renderer, VkCommandBuffer cmd) {
 			if (draw.material->pipeline != lastPipeline) {
 
 				lastPipeline = draw.material->pipeline;
-				vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->pipeline);
-				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,draw.material->pipeline->layout, 0, 1,
-					&m_Frames[renderer->getFrameIndex()].sceneDescriptor, 0, nullptr); //Global descriptor?
+				CResourceManager::bindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->pipeline);
+				CResourceManager::bindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->layout, 0, 1, m_Frames[renderer->getFrameIndex()].sceneDescriptor);
+				CResourceManager::bindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->layout, 2, 1, CResourceManager::getBindlessDescriptorSet());
 
 				CEngine::renderer().mViewport.update({extent.width, extent.height});
 				CEngine::renderer().mViewport.set(cmd);
 			}
-			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->layout, 1, 1,
-						 &draw.material->materialSet, 0, nullptr);
-
-			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->layout, 2, 1,
-						 &CResourceManager::getBindlessDescriptorSet(), 0, nullptr);
+			CResourceManager::bindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->layout, 1, 1, draw.material->materialSet);
 		}
 
 		//rebind index buffer if needed

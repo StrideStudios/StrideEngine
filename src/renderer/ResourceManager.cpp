@@ -144,9 +144,18 @@ void CResourceManager::destroyAllocator() {
 	vkDestroyDescriptorSetLayout(CEngine::device(), getBindlessDescriptorSetLayout(), nullptr);
 }
 
+#define DEBUG_SHOW_ALLOCATIONS 0
+
+#if DEBUG_SHOW_ALLOCATIONS
+#define ZoneScopedAllocation(inScope) \
+	ZoneScopedN(inScope)
+#else
+#define ZoneScopedAllocation(inScope)
+#endif
+
 #define DEFINE_ALLOCATER(inType, inName, inEnum) \
 	inType CResourceManager::allocate##inName(const inType##CreateInfo& pCreateInfo, const VkAllocationCallbacks* pAllocator) { \
-		ZoneScopedN("Allocate " #inName); \
+		ZoneScopedAllocation("Allocate " #inName); \
 		inType inName; \
 		VK_CHECK(vkCreate##inName(CEngine::device(), &pCreateInfo, pAllocator, &inName)); \
 		push(inName); \
@@ -167,21 +176,31 @@ void CResourceManager::destroyAllocator() {
 #undef DEFINE_DEALLOCATOR
 
 VkCommandBuffer CResourceManager::allocateCommandBuffer(const VkCommandBufferAllocateInfo& pCreateInfo) {
-	ZoneScopedN("Allocate CommandBuffer");
+	ZoneScopedAllocation("Allocate CommandBuffer");
 	VkCommandBuffer Buffer;
 	VK_CHECK(vkAllocateCommandBuffers(CEngine::device(), &pCreateInfo, &Buffer));
 	return Buffer;
 }
 
+void CResourceManager::bindDescriptorSets(VkCommandBuffer cmd, VkPipelineBindPoint inBindPoint, VkPipelineLayout inPipelineLayout, uint32 inFirstSet, uint32 inDescriptorSetCount, const VkDescriptorSet& inDescriptorSets) {
+	ZoneScopedAllocation("Bind Descriptor Sets");
+	vkCmdBindDescriptorSets(cmd, inBindPoint,inPipelineLayout, inFirstSet, inDescriptorSetCount, &inDescriptorSets, 0, nullptr);
+}
+
 VkPipeline CResourceManager::allocatePipeline(const CPipelineBuilder& inPipelineBuilder, const VkAllocationCallbacks* pAllocator) {
-	ZoneScopedN("Allocate Pipeline");
+	ZoneScopedAllocation("Allocate Pipeline");
 	const VkPipeline Pipeline = inPipelineBuilder.buildPipeline(CEngine::device());
 	push(Pipeline);
 	return Pipeline;
 }
 
-SImage CResourceManager::allocateImage(VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags, VkImageAspectFlags inViewFlags, bool inMipmapped) {
-	ZoneScopedN("Allocate Image");
+void CResourceManager::bindPipeline(VkCommandBuffer cmd, const VkPipelineBindPoint inBindPoint, const VkPipeline inPipeline) {
+	ZoneScopedAllocation("Bind Pipeline");
+	vkCmdBindPipeline(cmd, inBindPoint, inPipeline);
+}
+
+SImage CResourceManager::allocateImage(const char* inDebugName, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags, VkImageAspectFlags inViewFlags, bool inMipmapped) {
+	ZoneScopedAllocation("Allocate Image");
 	auto image = std::make_shared<SImage_T>();
 
 	image->mImageExtent = inExtent;
@@ -207,12 +226,11 @@ SImage CResourceManager::allocateImage(VkExtent3D inExtent, VkFormat inFormat, V
 	VK_CHECK(vkCreateImageView(CEngine::device(), &imageViewInfo, nullptr, &image->mImageView));
 
 	// Update descriptors with new image
-	if ((inFlags & VK_IMAGE_USAGE_SAMPLED_BIT) != 0) {
+	if ((inFlags & VK_IMAGE_USAGE_SAMPLED_BIT) != 0) { //TODO: VK_IMAGE_USAGE_SAMPLED_BIT is not a permanent solution
 		// Set and increment current texture address
 		image->mBindlessAddress = gCurrentTextureAddress;
 		gCurrentTextureAddress++;
 
-		msgs("Tex ID: {}", gCurrentTextureAddress);
 		const auto imageDescriptorInfo = VkDescriptorImageInfo{
 			.imageView = image->mImageView, .imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL};
 
@@ -303,7 +321,7 @@ void generateMipmaps(VkCommandBuffer cmd, VkImage image, VkExtent2D extent) {
     CVulkanUtils::transitionImage(cmd, image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 }
 
-SImage CResourceManager::allocateImage(void* inData, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags, VkImageAspectFlags inViewFlags, bool inMipmapped) {
+SImage CResourceManager::allocateImage(void* inData, const char* inDebugName, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags, VkImageAspectFlags inViewFlags, bool inMipmapped) {
 	size_t data_size = inExtent.depth * inExtent.width * inExtent.height * 4;
 
 	// Upload buffer is not needed outside of this function
@@ -312,7 +330,7 @@ SImage CResourceManager::allocateImage(void* inData, VkExtent3D inExtent, VkForm
 
 	memcpy(uploadBuffer->info.pMappedData, inData, data_size);
 
-	SImage new_image = allocateImage(inExtent, inFormat, inFlags | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, inViewFlags, inMipmapped);
+	SImage new_image = allocateImage(inDebugName, inExtent, inFormat, inFlags | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, inViewFlags, inMipmapped);
 
 	CVulkanRenderer::immediateSubmit([&](VkCommandBuffer cmd) {
 		CVulkanUtils::transitionImage(cmd, new_image->mImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
@@ -352,7 +370,7 @@ void CResourceManager::deallocateImage(const SImage_T* inImage) {
 }
 
 SBuffer CResourceManager::allocateBuffer(size_t allocSize, VmaMemoryUsage memoryUsage, VkBufferUsageFlags usage) {
-	ZoneScopedN("Allocate Buffer");
+	ZoneScopedAllocation("Allocate Buffer");
 	// allocate buffer
 	VkBufferCreateInfo bufferInfo = {
 		.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,

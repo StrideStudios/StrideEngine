@@ -310,14 +310,14 @@ void CGraphicsRenderer::render(VkCommandBuffer cmd) {
 }
 
 void CGraphicsRenderer::renderTrianglePass(VkCommandBuffer cmd) {
-	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_TrianglePipeline);
+	CResourceManager::bindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_TrianglePipeline);
 
 	//launch a draw command to draw 3 vertices
 	vkCmdDraw(cmd, 3, 1, 0, 0);
 }
 
 void CGraphicsRenderer::renderMeshPass(VkCommandBuffer cmd) {
-	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_MeshPipeline);
+	CResourceManager::bindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_MeshPipeline);
 
 	//bind a texture
 	VkDescriptorSet imageSet = getCurrentFrame().mDescriptorAllocator.allocate(m_SingleImageDescriptorLayout);
@@ -328,7 +328,7 @@ void CGraphicsRenderer::renderMeshPass(VkCommandBuffer cmd) {
 		writer.updateSet(imageSet);
 	}
 
-	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_MeshPipelineLayout, 0, 1, &imageSet, 0, nullptr);
+	CResourceManager::bindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_MeshPipelineLayout, 0, 1, imageSet);
 
 	const auto [x, y, z] = mEngineTextures->mDrawImage->mImageExtent;
 	//glm::mat4 view = glm::translate(glm::mat4(1.f), { Translation.get().x,Translation.get().z,Translation.get().y }); // Swap y and z so z will be the up vector

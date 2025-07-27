@@ -96,10 +96,10 @@ void CBaseRenderer::init() {
 void CBaseRenderer::render(VkCommandBuffer cmd) {
 	// bind the gradient drawing compute pipeline
 	SComputeEffect& effect = m_BackgroundEffects[UseSky.get()];
-	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, effect.pipeline);
+	CResourceManager::bindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, effect.pipeline);
 
 	// bind the descriptor set containing the draw image for the compute pipeline
-	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_GradientPipelineLayout, 0, 1, &mEngineTextures->mDrawImageDescriptors, 0, nullptr);
+	CResourceManager::bindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_GradientPipelineLayout, 0, 1, mEngineTextures->mDrawImageDescriptors);
 
 	if (UseSky.get() > 0) {
 		effect.data.data1 = SkyParameters.get();

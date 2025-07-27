@@ -215,6 +215,7 @@ public:
 	//
 
 	//TODO: descriptors here
+	static void bindDescriptorSets(VkCommandBuffer cmd, VkPipelineBindPoint inBindPoint, VkPipelineLayout inPipelineLayout, uint32 inFirstSet, uint32 inDescriptorSetCount, const VkDescriptorSet& inDescriptorSets);
 
 	//
 	// Pipelines
@@ -223,13 +224,15 @@ public:
 	//TODO: have pipelines build by flags instead of a builder, for now this works fine
 	no_discard VkPipeline allocatePipeline(const class CPipelineBuilder& inPipelineBuilder, const VkAllocationCallbacks* pAllocator = nullptr);
 
+	static void bindPipeline(VkCommandBuffer cmd, VkPipelineBindPoint inBindPoint, VkPipeline inPipeline);
+
 	//
 	// Images
 	//
 
-	no_discard SImage allocateImage(VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags = 0, VkImageAspectFlags inViewFlags = 0, bool inMipmapped = false);
+	no_discard SImage allocateImage(const char* inDebugName, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags = 0, VkImageAspectFlags inViewFlags = 0, bool inMipmapped = false);
 
-	no_discard SImage allocateImage(void* inData, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags = 0, VkImageAspectFlags inViewFlags = 0, bool inMipmapped = false);
+	no_discard SImage allocateImage(void* inData, const char* inDebugName, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags = 0, VkImageAspectFlags inViewFlags = 0, bool inMipmapped = false);
 
 	static void deallocateImage(const SImage_T* inImage);
 
