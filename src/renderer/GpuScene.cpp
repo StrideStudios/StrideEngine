@@ -391,7 +391,6 @@ void CGPUScene::update(CVulkanRenderer* renderer) {
 	m_MainRenderContext.opaqueSurfaces.clear();
 	m_MainRenderContext.transparentSurfaces.clear();
 
-	//m_LoadedNodes["Suzanne"]->render(Matrix4f(1.f), m_MainRenderContext);
 	m_LoadedScenes["structure"]->render(glm::mat4{ 1.f }, m_MainRenderContext);
 
 	CEngine::get().mMainCamera.update();
