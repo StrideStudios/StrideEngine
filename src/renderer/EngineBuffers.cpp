@@ -39,7 +39,7 @@ void CEngineBuffers::initDefaultData(CVulkanRenderer* renderer) {
 
 	mRectangle = uploadMesh(renderer->mGlobalResourceManager, rect_indices, rect_vertices);
 
-	testMeshes = CMeshLoader::loadStaticMesh(renderer, this, "basicmesh.glb").value();
+	//testMeshes = CMeshLoader::loadStaticMesh(renderer, this, "basicmesh.glb").value();
 }
 
 SMeshBuffers CEngineBuffers::uploadMesh(CResourceManager& inManager, std::span<uint32> indices, std::span<SVertex> vertices) {

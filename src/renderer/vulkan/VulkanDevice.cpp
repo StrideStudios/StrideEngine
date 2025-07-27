@@ -36,6 +36,15 @@ void CVulkanDevice::initDevice() {
     VkPhysicalDeviceVulkan12Features features12{
         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
         .descriptorIndexing = true,
+        .descriptorBindingUniformBufferUpdateAfterBind = true, //TODO: not sure al these features are necessary
+        .descriptorBindingSampledImageUpdateAfterBind = true, //descriptorBindingUpdateUnusedWhilePending
+        .descriptorBindingStorageImageUpdateAfterBind = true,
+        .descriptorBindingStorageBufferUpdateAfterBind = true,
+        .descriptorBindingUniformTexelBufferUpdateAfterBind = true,
+        .descriptorBindingStorageTexelBufferUpdateAfterBind = true,
+        .descriptorBindingPartiallyBound = true,
+        .descriptorBindingVariableDescriptorCount = true,
+        .runtimeDescriptorArray = true,
         .bufferDeviceAddress = true
     };
 

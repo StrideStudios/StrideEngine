@@ -53,13 +53,14 @@ void SGLTFMetallic_Roughness::buildPipelines(CVulkanRenderer* renderer, CGPUScen
 
 	VkDescriptorSetLayout layouts[] = {
 		gpuScene->m_GPUSceneDataDescriptorLayout,
-        materialLayout
+        materialLayout,
+		CResourceManager::getBindlessDescriptorSetLayout()
 	};
 
 	VkPipelineLayoutCreateInfo layoutCreateInfo {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
 		.pNext = nullptr,
-		.setLayoutCount = 2,
+		.setLayoutCount = 3,
 		.pSetLayouts = layouts,
 		.pushConstantRangeCount = 1,
 		.pPushConstantRanges = &matrixRange
@@ -161,6 +162,49 @@ void SLoadedGLTF::clearAll() {
 
 CGPUScene::CGPUScene(CVulkanRenderer* renderer) {
 
+	VkSamplerCreateInfo samplerCreateInfo = {
+		.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO
+	};
+
+	samplerCreateInfo.magFilter = VK_FILTER_NEAREST;
+	samplerCreateInfo.minFilter = VK_FILTER_NEAREST;
+
+	m_DefaultSamplerNearest = renderer->mGlobalResourceManager.allocateSampler(samplerCreateInfo);
+
+	samplerCreateInfo.magFilter = VK_FILTER_LINEAR;
+	samplerCreateInfo.minFilter = VK_FILTER_LINEAR;
+	m_DefaultSamplerLinear = renderer->mGlobalResourceManager.allocateSampler(samplerCreateInfo);
+
+	const auto imageDescriptorInfo = VkDescriptorImageInfo{
+		.sampler = m_DefaultSamplerNearest};
+
+	const auto writeSet = VkWriteDescriptorSet{
+		.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+		.dstSet = CResourceManager::getBindlessDescriptorSet(),
+		.dstBinding = 1,
+		.dstArrayElement = 0,
+		.descriptorCount = 1,
+		.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER,
+		.pImageInfo = &imageDescriptorInfo,
+	};
+
+	const auto imageDescriptorInfo2 = VkDescriptorImageInfo{
+		.sampler = m_DefaultSamplerLinear};
+
+	const auto writeSet2 = VkWriteDescriptorSet{
+		.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+		.dstSet = CResourceManager::getBindlessDescriptorSet(),
+		.dstBinding = 1,
+		.dstArrayElement = 1,
+		.descriptorCount = 1,
+		.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER,
+		.pImageInfo = &imageDescriptorInfo2,
+	};
+
+	auto sets = {writeSet, writeSet2};
+
+	vkUpdateDescriptorSets(CEngine::device(), (uint32)sets.size(), sets.begin(), 0, nullptr);
+
 	uint32 white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
 	m_WhiteImage = renderer->mGlobalResourceManager.allocateImage(&white, {1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
 
@@ -180,19 +224,6 @@ CGPUScene::CGPUScene(CVulkanRenderer* renderer) {
 	}
 	m_ErrorCheckerboardImage = renderer->mGlobalResourceManager.allocateImage(pixels.data(), VkExtent3D{16, 16, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
 
-	VkSamplerCreateInfo samplerCreateInfo = {
-		.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO
-	};
-
-	samplerCreateInfo.magFilter = VK_FILTER_NEAREST;
-	samplerCreateInfo.minFilter = VK_FILTER_NEAREST;
-
-	m_DefaultSamplerNearest = renderer->mGlobalResourceManager.allocateSampler(samplerCreateInfo);
-
-	samplerCreateInfo.magFilter = VK_FILTER_LINEAR;
-	samplerCreateInfo.minFilter = VK_FILTER_LINEAR;
-	m_DefaultSamplerLinear = renderer->mGlobalResourceManager.allocateSampler(samplerCreateInfo);
-
 	SDescriptorLayoutBuilder builder;
 	builder.addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 	m_GPUSceneDataDescriptorLayout = builder.build(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
@@ -211,8 +242,9 @@ CGPUScene::CGPUScene(CVulkanRenderer* renderer) {
 
 	//write the buffer
 	const auto sceneUniformData = static_cast<SGLTFMetallic_Roughness::MaterialConstants *>(materialConstants->GetMappedData());
-	sceneUniformData->colorFactors = glm::vec4{1,1,1,1};
-	sceneUniformData->metal_rough_factors = glm::vec4{1,0.5,0,0};
+	sceneUniformData->colorFactors = {1.f,1.f,1.f,1.f};
+	sceneUniformData->metal_rough_factors = {1.f,0.5f,0.f,0.f};
+	sceneUniformData->samplingIDs = {0.f, 0.f, 0.f, 0.f};
 
 	materialResources.dataBuffer = materialConstants->buffer;
 	materialResources.dataBufferOffset = 0;
@@ -343,6 +375,9 @@ void CGPUScene::render(CVulkanRenderer* renderer, VkCommandBuffer cmd) {
 			}
 			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->layout, 1, 1,
 						 &draw.material->materialSet, 0, nullptr);
+
+			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->layout, 2, 1,
+						 &CResourceManager::getBindlessDescriptorSet(), 0, nullptr);
 		}
 
 		//rebind index buffer if needed

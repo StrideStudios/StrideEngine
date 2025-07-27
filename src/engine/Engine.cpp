@@ -50,7 +50,7 @@ const vkb::PhysicalDevice& CEngine::physicalDevice() {
 
 void CEngine::init() {
 
-	astsOnce(CEngine);
+	astsOnce(CEngine)
 
 	std::filesystem::path cwd = std::filesystem::current_path();
 	mSourcePath = cwd.string().append("\\");
@@ -89,7 +89,7 @@ void CEngine::init() {
 	m_Renderer = std::make_unique<CGraphicsRenderer>();
 
 	// Initialize the allocator
-	CResourceManager::initAllocator();
+	CResourceManager::init();
 
 	// Initialize the renderer
 	m_Renderer->init();

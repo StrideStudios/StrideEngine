@@ -6,6 +6,7 @@
 #include <vulkan/vk_enum_string_helper.h>
 
 #include "Engine.h"
+#include "GpuScene.h"
 #include "GraphicsRenderer.h"
 #include "VulkanDevice.h"
 #include "VulkanRenderer.h"
@@ -40,20 +41,107 @@ void CResourceManager::Resource::destroy() const {
 
 // TODO: turn this into a local that can be used at any point, forcing its own deallocation
 
-void CResourceManager::initAllocator() {
-	// initialize the memory allocator
-	VmaAllocatorCreateInfo allocatorInfo {
-		.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT,
-		.physicalDevice = CEngine::physicalDevice(),
-		.device = CEngine::device(),
-		.instance = CEngine::instance()
-	};
+static uint32 gTextureBinding = 0;
+static uint32 gSamplerBinding = 1;
 
-	VK_CHECK(vmaCreateAllocator(&allocatorInfo, &getAllocator()));
+static uint32 gCurrentTextureAddress = 0;
+
+void CResourceManager::init() {
+
+	// initialize the memory allocator
+	{
+		VmaAllocatorCreateInfo allocatorInfo {
+			.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT,
+			.physicalDevice = CEngine::physicalDevice(),
+			.device = CEngine::device(),
+			.instance = CEngine::instance()
+		};
+
+		VK_CHECK(vmaCreateAllocator(&allocatorInfo, &getAllocator()));
+	}
+
+	// Create Descriptor pool
+	{
+		auto poolSizes = {
+			VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, gMaxBindlessResources},
+			VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_SAMPLER, gMaxSamplers}
+		};
+
+		VkDescriptorPoolCreateInfo poolCreateInfo {
+			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+			.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT_EXT,
+			.maxSets = gMaxBindlessResources + gMaxSamplers,
+			.poolSizeCount = (uint32)poolSizes.size(),
+			.pPoolSizes = poolSizes.begin()
+		};
+
+		VK_CHECK(vkCreateDescriptorPool(CEngine::device(), &poolCreateInfo, nullptr, &getBindlessDescriptorPool()));
+	}
+
+	// Create Descriptor Set layout
+	{
+		constexpr VkDescriptorBindingFlags flags = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT; //VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT
+
+		const auto inputFlags = {flags, flags};
+
+        auto binding = {
+        	VkDescriptorSetLayoutBinding {
+        		.binding = gTextureBinding,
+				.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
+				.descriptorCount = gMaxBindlessResources,
+				.stageFlags = VK_SHADER_STAGE_ALL,
+        	},
+			VkDescriptorSetLayoutBinding {
+				.binding = gSamplerBinding,
+				.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER,
+				.descriptorCount = gMaxSamplers,
+				.stageFlags = VK_SHADER_STAGE_ALL,
+			}
+        };
+
+		const auto flagInfo = VkDescriptorSetLayoutBindingFlagsCreateInfo {
+			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO,
+			.bindingCount = (uint32)inputFlags.size(),
+			.pBindingFlags = inputFlags.begin(),
+		};
+
+        VkDescriptorSetLayoutCreateInfo layoutCreateInfo {
+        	.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+        	.pNext = &flagInfo,
+        	.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT_EXT,
+        	.bindingCount = (uint32)binding.size(),
+        	.pBindings = binding.begin(),
+        };
+
+        VK_CHECK(vkCreateDescriptorSetLayout(CEngine::device(), &layoutCreateInfo, nullptr, &getBindlessDescriptorSetLayout()));
+	}
+
+	{
+		constexpr uint32 maxBinding = gMaxBindlessResources - 1;
+		VkDescriptorSetVariableDescriptorCountAllocateInfoEXT countInfo {
+			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO_EXT,
+			.descriptorSetCount = 1,
+			.pDescriptorCounts = &maxBinding
+		};
+
+		VkDescriptorSetAllocateInfo AllocationCreateInfo {
+			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+			.pNext = &countInfo,
+			.descriptorPool = getBindlessDescriptorPool(),
+			.descriptorSetCount = 1,
+			.pSetLayouts = &getBindlessDescriptorSetLayout()
+		};
+
+		VK_CHECK( vkAllocateDescriptorSets(CEngine::device(), &AllocationCreateInfo, &getBindlessDescriptorSet()));
+	}
+
+	// TODO: init samplers, done in engine textures for now
 }
 
 void CResourceManager::destroyAllocator() {
 	vmaDestroyAllocator(getAllocator());
+	vkDestroyDescriptorPool(CEngine::device(), getBindlessDescriptorPool(), nullptr);
+	vkDestroyDescriptorSetLayout(CEngine::device(), getBindlessDescriptorSetLayout(), nullptr);
 }
 
 #define DEFINE_ALLOCATER(inType, inName, inEnum) \
@@ -117,6 +205,28 @@ SImage CResourceManager::allocateImage(VkExtent3D inExtent, VkFormat inFormat, V
 	imageViewInfo.subresourceRange.levelCount = imageInfo.mipLevels;
 
 	VK_CHECK(vkCreateImageView(CEngine::device(), &imageViewInfo, nullptr, &image->mImageView));
+
+	// Update descriptors with new image
+	if ((inFlags & VK_IMAGE_USAGE_SAMPLED_BIT) != 0) {
+		// Set and increment current texture address
+		image->mBindlessAddress = gCurrentTextureAddress;
+		gCurrentTextureAddress++;
+
+		msgs("Tex ID: {}", gCurrentTextureAddress);
+		const auto imageDescriptorInfo = VkDescriptorImageInfo{
+			.imageView = image->mImageView, .imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL};
+
+		const auto writeSet = VkWriteDescriptorSet{
+			.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+			.dstSet = getBindlessDescriptorSet(),
+			.dstBinding = gTextureBinding,
+			.dstArrayElement = image->mBindlessAddress,
+			.descriptorCount = 1,
+			.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
+			.pImageInfo = &imageDescriptorInfo,
+		};
+		vkUpdateDescriptorSets(CEngine::device(), 1, &writeSet, 0, nullptr);
+	}
 
 	push(image);
 

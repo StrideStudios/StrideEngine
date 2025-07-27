@@ -338,8 +338,6 @@ std::optional<std::shared_ptr<SLoadedGLTF>> CMeshLoader::loadGLTF(CVulkanRendere
 
         constants.metal_rough_factors.x = mat.pbrData.metallicFactor;
         constants.metal_rough_factors.y = mat.pbrData.roughnessFactor;
-        // write material parameters to buffer
-        sceneMaterialConstants[dataIndex] = constants;
 
         EMaterialPass passType = EMaterialPass::OPAQUE;
         if (mat.alphaMode == fastgltf::AlphaMode::Blend) {
@@ -361,9 +359,12 @@ std::optional<std::shared_ptr<SLoadedGLTF>> CMeshLoader::loadGLTF(CVulkanRendere
             size_t img = gltf.textures[mat.pbrData.baseColorTexture.value().textureIndex].imageIndex.value();
             size_t sampler = gltf.textures[mat.pbrData.baseColorTexture.value().textureIndex].samplerIndex.value();
 
+        	constants.samplingIDs.x = images[img]->mBindlessAddress;
             materialResources.colorImage = images[img];
             materialResources.colorSampler = file.samplers[sampler];
         }
+		// write material parameters to buffer
+		sceneMaterialConstants[dataIndex] = constants;
         // build material
         newMat->data = GPUscene->metalRoughMaterial.writeMaterial(passType, materialResources, file.descriptorPool);
 

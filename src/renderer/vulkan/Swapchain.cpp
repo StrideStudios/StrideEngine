@@ -110,8 +110,8 @@ std::tuple<VkImage, VkImageView, uint32> CSwapchain::getSwapchainImage(const uin
 
 void CSwapchain::wait(const uint32 inCurrentFrameIndex) const {
 	auto& frame = m_Frames[inCurrentFrameIndex];
-	VK_CHECK(vkWaitForFences(CEngine::device(), 1, &frame.mRenderFence, true, 1000000000));
-	VK_CHECK(vkWaitForFences(CEngine::device(), 1, &frame.mPresentFence, true, 1000000000));
+	VK_CHECK(vkWaitForFences(CEngine::device(), 1, &frame.mRenderFence, true, 10000000));
+	VK_CHECK(vkWaitForFences(CEngine::device(), 1, &frame.mPresentFence, true, 10000000));
 }
 
 void CSwapchain::reset(const uint32 inCurrentFrameIndex) const {

@@ -18,6 +18,7 @@ struct SImage_T {
 	VmaAllocation mAllocation;
 	VkExtent3D mImageExtent;
 	VkFormat mImageFormat;
+	uint32 mBindlessAddress;
 };
 typedef std::shared_ptr<SImage_T> SImage;
 
@@ -49,6 +50,9 @@ public:
  * Can also store IDestroyable pointers in which delete does not need to be called
  * This means initialization can be done in a local context to remove clutter
  */
+constexpr static uint32 gMaxBindlessResources = 16536;
+constexpr static uint32 gMaxSamplers = 32;
+
 class CResourceManager {
 
 	enum class Type : uint8 {
@@ -123,11 +127,26 @@ class CResourceManager {
 		return allocator;
 	}
 
+	constexpr static VkDescriptorPool& getBindlessDescriptorPool() {
+		static VkDescriptorPool pool;
+		return pool;
+	}
+
 public:
+
+	constexpr static VkDescriptorSetLayout& getBindlessDescriptorSetLayout() {
+		static VkDescriptorSetLayout layout;
+		return layout;
+	}
+
+	constexpr static VkDescriptorSet& getBindlessDescriptorSet() {
+		static VkDescriptorSet set;
+		return set;
+	}
 
 	CResourceManager() = default;
 
-	static void initAllocator();
+	static void init();
 
 	static void destroyAllocator();
 
