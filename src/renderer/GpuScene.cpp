@@ -348,7 +348,6 @@ void CGPUScene::render(CVulkanRenderer* renderer, VkCommandBuffer cmd) {
 
 	uint32 drawCallCount = 0;
 	uint64 vertexCount = 0;
-	uint64 triangleCount = 0;
 
 	auto render = [&](const SRenderObject& draw) {
 		if (draw.material != lastMaterial) {
@@ -388,7 +387,6 @@ void CGPUScene::render(CVulkanRenderer* renderer, VkCommandBuffer cmd) {
 
 		drawCallCount++;
 		vertexCount += draw.indexCount;
-		triangleCount += vertexCount / 3;
 	};
 
 	ZoneScopedN("Base Pass");
@@ -408,7 +406,7 @@ void CGPUScene::render(CVulkanRenderer* renderer, VkCommandBuffer cmd) {
 	// Set number of drawcalls, vertices, and triangles
 	Drawcalls.setText(fmts("Draw Calls: {}", drawCallCount));
 	Vertices.setText(fmts("Vertices: {}", vertexCount));
-	Triangles.setText(fmts("Triangles: {}", triangleCount));
+	Triangles.setText(fmts("Triangles: {}", vertexCount / 3));
 
 }
 
