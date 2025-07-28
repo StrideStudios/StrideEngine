@@ -270,12 +270,12 @@ CGPUScene::CGPUScene(CVulkanRenderer* renderer) {
 		m_LoadedNodes[mesh->name] = std::move(newNode);
 	}
 
-	std::string structurePath = { "structure.glb" };
+	std::string structurePath = { "structure2.glb" };
 	auto structureFile = CMeshLoader::loadGLTF(renderer, this, structurePath);
 
 	assert(structureFile.has_value());
 
-	m_LoadedScenes["structure"] = *structureFile;
+	m_LoadedScenes["structure2"] = *structureFile;
 }
 
 //TODO: probably faster with gpu
@@ -425,7 +425,7 @@ void CGPUScene::update(CVulkanRenderer* renderer) {
 	m_MainRenderContext.opaqueSurfaces.clear();
 	m_MainRenderContext.transparentSurfaces.clear();
 
-	m_LoadedScenes["structure"]->render(glm::mat4{ 1.f }, m_MainRenderContext);
+	m_LoadedScenes["structure2"]->render(glm::mat4{ 1.f }, m_MainRenderContext);
 
 	CEngine::get().mMainCamera.update();
 
