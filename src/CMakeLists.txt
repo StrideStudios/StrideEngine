@@ -87,6 +87,7 @@ target_link_libraries(StrideEngine PUBLIC
         glslang::glslang
         fastgltf::fastgltf
         Tracy::TracyClient
+        meshoptimizer
 )
 target_compile_definitions(TracyClient PRIVATE TRACY_ENABLE>)
 target_compile_definitions(StrideEngine PRIVATE TRACY_ENABLE>)

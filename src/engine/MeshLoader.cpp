@@ -10,6 +10,8 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
+#include <meshoptimizer.h>
+
 #include "Common.h"
 #include "Engine.h"
 #include "VulkanRenderer.h"
@@ -131,6 +133,43 @@ std::optional<SImage> loadImage(CVulkanRenderer* renderer, fastgltf::Asset& asse
     }
     return newImage;
 }
+
+void optimizeMesh(std::vector<uint32>& indices, std::vector<SVertex>& vertices) {
+	size_t numIndices = indices.size();
+	size_t numVertices = vertices.size();
+
+	// Create a remap table
+	std::vector<uint32> remap(numIndices);
+	size_t optimizedVertexCount = meshopt_generateVertexRemap(remap.data(), indices.data(), numIndices, vertices.data(), numVertices, sizeof(SVertex));
+
+	std::vector<uint32> optimizedIndices;
+	std::vector<SVertex> optimizedVertices;
+	optimizedIndices.resize(numIndices);
+	optimizedVertices.resize(optimizedVertexCount);
+
+	// Remove duplicates
+	meshopt_remapIndexBuffer(optimizedIndices.data(), indices.data(), numIndices, remap.data());
+	meshopt_remapVertexBuffer(optimizedVertices.data(), vertices.data(), numVertices, sizeof(SVertex), remap.data());
+
+	// Optimize cache
+	meshopt_optimizeVertexCache(optimizedIndices.data(), optimizedIndices.data(), numIndices, optimizedVertexCount);
+
+	// reduce overdraw TODO: positions probably wont work
+	//meshopt_optimizeOverdraw(optimizedIndices.data(), optimizedIndices.data(), numIndices, &(optimizedVertices[0].position.x), optimizedVertexCount, sizeof(SVertex), 1.05f);
+
+	// optimize access
+	meshopt_optimizeVertexFetch(optimizedVertices.data(), optimizedIndices.data(), numIndices, optimizedVertices.data(), optimizedVertexCount, sizeof(SVertex));
+
+	// TODO: simplify mesh?
+	/*constexpr float Threshold = 0.5f;
+	size_t TargetIndexCount = (size_t)(numIndices * Threshold);
+	float TargetError = 0.2f;
+	std::vector<uint32> SimplifiedIndices(optimizedIndices.size());
+	size_t optimizedIndexCount = meshopt_simplify(SimplifiedIndices.data(), optimizedIndices.data(), numIndices, &optimizedVertices[0].position.x, optimizedVertexCount, sizeof(SVertex), TargetIndexCount, TargetError);
+
+	SimplifiedIndices.resize(optimizedIndexCount);*/
+}
+
 //TODO: each glb/gltf mesh will be combined into one with different surfaces, this should lower draw calls to ONLY be the number of surfaces
 // and give flexibility to creators of meshes
 std::optional<std::shared_ptr<SLoadedGLTF>> CMeshLoader::loadGLTF(CVulkanRenderer* renderer, CGPUScene* GPUscene, std::filesystem::path filePath) {
@@ -394,6 +433,9 @@ std::optional<std::shared_ptr<SLoadedGLTF>> CMeshLoader::loadGLTF(CVulkanRendere
 
 			outMesh->surfaces.push_back(newSurface);
 		}
+
+		optimizeMesh(indices, vertices);
+
 		outMesh->meshBuffers = renderer->mEngineBuffers->uploadMesh(renderer->mGlobalResourceManager, indices, vertices);
 	}
 
