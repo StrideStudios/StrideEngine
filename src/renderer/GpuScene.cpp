@@ -9,7 +9,7 @@
 #include "EngineBuffers.h"
 #include "EngineSettings.h"
 #include "EngineTextures.h"
-#include "GraphicsRenderer.h"
+#include "PipelineBuilder.h"
 #include "MeshLoader.h"
 #include "ResourceManager.h"
 #include "ShaderCompiler.h"
@@ -37,10 +37,18 @@ void SGLTFMetallic_Roughness::buildPipelines(CVulkanRenderer* renderer, CGPUScen
 	};
 	VK_CHECK(CShaderCompiler::getShader(CEngine::device(),"material\\mesh.vert", vert))
 
-	VkPushConstantRange matrixRange{};
-	matrixRange.offset = 0;
-	matrixRange.size = sizeof(SGPUDrawPushConstants);
-	matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	auto pushConstants = {
+		VkPushConstantRange{
+			.stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+			.offset = 0,
+			.size = sizeof(SGPUDrawPushConstants)
+		},
+		VkPushConstantRange{
+			.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+			.offset = 72,
+			.size = sizeof(uint32)
+		}
+	};
 
     SDescriptorLayoutBuilder layoutBuilder;
     layoutBuilder.addBinding(0,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
@@ -60,8 +68,8 @@ void SGLTFMetallic_Roughness::buildPipelines(CVulkanRenderer* renderer, CGPUScen
 		.pNext = nullptr,
 		.setLayoutCount = 3,
 		.pSetLayouts = layouts,
-		.pushConstantRangeCount = 1,
-		.pPushConstantRanges = &matrixRange
+		.pushConstantRangeCount = (uint32)pushConstants.size(),
+		.pPushConstantRanges = pushConstants.begin()
 	};
 
 	auto newLayout = renderer->mGlobalResourceManager.allocatePipelineLayout(layoutCreateInfo);
@@ -177,7 +185,7 @@ CGPUScene::CGPUScene(CVulkanRenderer* renderer) {
 	const auto writeSet = VkWriteDescriptorSet{
 		.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
 		.dstSet = CResourceManager::getBindlessDescriptorSet(),
-		.dstBinding = 1,
+		.dstBinding = gSamplerBinding,
 		.dstArrayElement = 0,
 		.descriptorCount = 1,
 		.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER,
@@ -190,7 +198,7 @@ CGPUScene::CGPUScene(CVulkanRenderer* renderer) {
 	const auto writeSet2 = VkWriteDescriptorSet{
 		.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
 		.dstSet = CResourceManager::getBindlessDescriptorSet(),
-		.dstBinding = 1,
+		.dstBinding = gSamplerBinding,
 		.dstArrayElement = 1,
 		.descriptorCount = 1,
 		.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER,
@@ -240,7 +248,6 @@ CGPUScene::CGPUScene(CVulkanRenderer* renderer) {
 	const auto sceneUniformData = static_cast<SGLTFMetallic_Roughness::MaterialConstants *>(materialConstants->GetMappedData());
 	sceneUniformData->colorFactors = {1.f,1.f,1.f,1.f};
 	sceneUniformData->metal_rough_factors = {1.f,0.5f,0.f,0.f};
-	sceneUniformData->samplingIDs = {0.f, 0.f, 0.f, 0.f};
 
 	materialResources.dataBuffer = materialConstants->buffer;
 	materialResources.dataBufferOffset = 0;
@@ -382,6 +389,8 @@ void CGPUScene::render(CVulkanRenderer* renderer, VkCommandBuffer cmd) {
 		push_constants.vertexBuffer = draw.vertexBufferAddress;
 
 		vkCmdPushConstants(cmd, draw.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(SGPUDrawPushConstants), &push_constants);
+		auto i = { uint32(0) };
+		vkCmdPushConstants(cmd, draw.material->pipeline->layout, VK_SHADER_STAGE_FRAGMENT_BIT, 72, sizeof(uint32), i.begin());
 
 		vkCmdDrawIndexed(cmd, draw.indexCount, 1, draw.firstIndex, 0, 0);
 

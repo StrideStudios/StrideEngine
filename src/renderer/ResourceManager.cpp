@@ -7,7 +7,7 @@
 
 #include "Engine.h"
 #include "GpuScene.h"
-#include "GraphicsRenderer.h"
+#include "PipelineBuilder.h"
 #include "VulkanDevice.h"
 #include "VulkanRenderer.h"
 #include "VulkanUtils.h"
@@ -40,11 +40,6 @@ void CResourceManager::Resource::destroy() const {
 #undef CREATE_SWITCH
 
 // TODO: turn this into a local that can be used at any point, forcing its own deallocation
-
-static uint32 gTextureBinding = 0;
-static uint32 gSamplerBinding = 1;
-
-static uint32 gCurrentTextureAddress = 0;
 
 void CResourceManager::init() {
 
@@ -228,6 +223,7 @@ SImage CResourceManager::allocateImage(const char* inDebugName, VkExtent3D inExt
 	// Update descriptors with new image
 	if ((inFlags & VK_IMAGE_USAGE_SAMPLED_BIT) != 0) { //TODO: VK_IMAGE_USAGE_SAMPLED_BIT is not a permanent solution
 		// Set and increment current texture address
+		static uint32 gCurrentTextureAddress = 0;
 		image->mBindlessAddress = gCurrentTextureAddress;
 		gCurrentTextureAddress++;
 

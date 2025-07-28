@@ -18,7 +18,7 @@ typedef glm::vec<2, uint32> Extent32u;
 typedef glm::vec<2, int64> Extent64;
 typedef glm::vec<2, uint64> Extent64u;
 
-// Vector should always be used with floating point types
+// Vector are normally used with floating point types
 
 typedef glm::vec<2, float> Vector2f;
 typedef glm::vec<2, double> Vector2d;
@@ -26,6 +26,11 @@ typedef glm::vec<3, float> Vector3f;
 typedef glm::vec<3, double> Vector3d;
 typedef glm::vec<4, float> Vector4f;
 typedef glm::vec<4, double> Vector4d;
+
+typedef glm::vec<3, int32> Vector3i;
+typedef glm::vec<3, uint32> uVector3i;
+typedef glm::vec<4, int32> Vector4i;
+typedef glm::vec<4, uint32> uVector4i;
 
 // Matrices are always floating point types
 

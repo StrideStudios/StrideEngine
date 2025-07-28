@@ -4,6 +4,7 @@
 #extension GL_EXT_scalar_block_layout : enable
 #extension GL_EXT_nonuniform_qualifier : enable
 #include "material\input_structures.glsl"
+#include "material\texturing.glsl"
 
 layout (location = 0) in vec3 inNormal;
 layout (location = 1) in vec3 inColor;
@@ -15,7 +16,7 @@ void main()
 {
     float lightValue = max(dot(inNormal, sceneData.sunlightDirection.xyz), 0.1f);
 
-    vec3 color = inColor * sampleTexture2DLinear(uint(materialData.samplerIDs.x),inUV).xyz;
+    vec3 color = inColor * sampleTexture2DLinear(PushConstants.colorId,inUV).xyz;
     vec3 ambient = color *  sceneData.ambientColor.xyz;
 
     outFragColor = vec4(color * lightValue *  sceneData.sunlightColor.w + ambient ,1.0f);

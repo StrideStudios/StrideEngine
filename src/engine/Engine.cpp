@@ -5,9 +5,11 @@
 #include <tracy/Tracy.hpp>
 
 #include "EngineSettings.h"
-#include "GraphicsRenderer.h"
+#include "PipelineBuilder.h"
 #include "imgui_impl_sdl3.h"
+#include "ResourceManager.h"
 #include "VulkanDevice.h"
+#include "VulkanRenderer.h"
 #include "SDL3/SDL_init.h"
 #include "SDL3/SDL_timer.h"
 #include "SDL3/SDL_vulkan.h"
@@ -85,8 +87,8 @@ void CEngine::init() {
 	// Initialize the device and physical device
 	m_Device->initDevice();
 
+	m_Renderer = std::make_unique<CNullRenderer>();
 	// Create the renderer
-	m_Renderer = std::make_unique<CGraphicsRenderer>();
 
 	// Initialize the allocator
 	CResourceManager::init();

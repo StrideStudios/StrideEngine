@@ -53,6 +53,9 @@ public:
 constexpr static uint32 gMaxBindlessResources = 16536;
 constexpr static uint32 gMaxSamplers = 32;
 
+static uint32 gTextureBinding = 0;
+static uint32 gSamplerBinding = 1;
+
 class CResourceManager {
 
 	enum class Type : uint8 {

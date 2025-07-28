@@ -44,10 +44,8 @@ add_executable(StrideEngine
         renderer/ResourceManager.cpp
         renderer/include/EngineTextures.h
         renderer/EngineTextures.cpp
-        renderer/include/BaseRenderer.h
-        renderer/BaseRenderer.cpp
-        renderer/include/GraphicsRenderer.h
-        renderer/GraphicsRenderer.cpp
+        renderer/include/PipelineBuilder.h
+        renderer/PipelineBuilder.cpp
         renderer/include/EngineBuffers.h
         renderer/EngineBuffers.cpp
         renderer/include/GpuScene.h

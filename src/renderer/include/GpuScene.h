@@ -74,7 +74,7 @@ struct SMeshNode : public SNode {
 struct SLoadedGLTF : public IRenderable {
 
 	// storage for all the data on a given glTF file
-	std::unordered_map<std::string, std::shared_ptr<SStaticMesh>> meshes;
+	std::shared_ptr<SStaticMesh> mesh;
 	std::unordered_map<std::string, std::shared_ptr<SNode>> nodes;
 	std::unordered_map<std::string, SImage> images;
 	std::unordered_map<std::string, std::shared_ptr<GLTFMaterial>> materials;
@@ -106,9 +106,8 @@ struct SGLTFMetallic_Roughness {
 	struct MaterialConstants {
 		Vector4f colorFactors;
 		Vector4f metal_rough_factors;
-		Vector4f samplingIDs;
 		//padding, we need it anyway for uniform buffers
-		Vector4f extra[13];
+		Vector4f extra[14];
 	};
 
 	struct MaterialResources {

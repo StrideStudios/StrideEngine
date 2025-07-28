@@ -1,6 +1,9 @@
 ﻿#pragma once
 
-#include "BaseRenderer.h"
+#include <vector>
+#include <vulkan/vulkan_core.h>
+
+#include "BasicTypes.h"
 
 // push constants for our mesh object draws
 struct SGPUDrawPushConstants {
@@ -120,38 +123,5 @@ public:
 	}
 
 	void clear();
-
-};
-
-class CGraphicsRenderer : public CBaseRenderer {
-
-public:
-
-	CGraphicsRenderer() = default;
-
-	void init() override;
-
-	void destroy() override;
-
-	void render(VkCommandBuffer cmd) override;
-
-	void renderTrianglePass(VkCommandBuffer cmd);
-
-	void renderMeshPass(VkCommandBuffer cmd);
-
-private:
-
-	void initTrianglePipeline();
-
-	void initMeshPipeline();
-
-	VkPipeline m_TrianglePipeline;
-
-	VkPipelineLayout m_TrianglePipelineLayout = nullptr;
-
-	VkPipelineLayout m_MeshPipelineLayout;
-	VkPipeline m_MeshPipeline;
-
-	VkDescriptorSetLayout m_SingleImageDescriptorLayout;
 
 };

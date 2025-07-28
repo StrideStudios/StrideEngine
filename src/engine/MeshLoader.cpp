@@ -20,111 +20,6 @@
 
 struct SVertex;
 
-std::optional<std::vector<std::shared_ptr<SStaticMesh>>> CMeshLoader::loadStaticMesh(CVulkanRenderer* renderer, CEngineBuffers* buffers, std::filesystem::path filePath) {
-	msgs("Loading GLTF: {}", filePath.string().c_str());
-
-	std::filesystem::path path = CEngine::get().mAssetPath + filePath.string();
-
-	constexpr auto gltfOptions = fastgltf::Options::LoadGLBBuffers | fastgltf::Options::LoadExternalBuffers;
-
-	fastgltf::GltfFileStream data{path};
-
-	fastgltf::Asset gltf;
-	fastgltf::Parser parser {};
-
-	if (auto load = parser.loadGltfBinary(data, path.parent_path(), gltfOptions); load) {
-		gltf = std::move(load.get());
-	} else {
-		msgs("Failed to load GLTF: {}", fastgltf::to_underlying(load.error()));
-		return {};
-	}
-
-	std::vector<std::shared_ptr<SStaticMesh>> meshes;
-
-	std::vector<uint32> indices;
-	std::vector<SVertex> vertices;
-	for (fastgltf::Mesh& mesh : gltf.meshes) {
-		SStaticMesh newMesh;
-
-		newMesh.name = mesh.name;
-
-		indices.clear();
-		vertices.clear();
-
-		for (auto&& primitive : mesh.primitives) {
-			SStaticMesh::Surface newSurface;
-			newSurface.startIndex = (uint32)indices.size();
-			newSurface.count = (uint32)gltf.accessors[primitive.indicesAccessor.value()].count;
-
-			size_t initial_vtx = vertices.size();
-
-			// Load indexes
-			{
-				fastgltf::Accessor& indexAccessor = gltf.accessors[primitive.indicesAccessor.value()];
-				indices.reserve(indices.size() + indexAccessor.count);
-
-				fastgltf::iterateAccessor<uint32>(gltf, indexAccessor, [&](const uint32 index) {
-					indices.push_back(initial_vtx + index);
-				});
-			}
-
-			// Load vertex positions
-			{
-				fastgltf::Accessor& posAccessor = gltf.accessors[primitive.findAttribute("POSITION")->accessorIndex];
-				vertices.resize(vertices.size() + posAccessor.count);
-
-				fastgltf::iterateAccessorWithIndex<glm::fvec3>(gltf, posAccessor, [&](glm::fvec3 vector, size_t index) {
-					SVertex vertex;
-					vertex.position = {vector.x, vector.y, vector.z};
-					vertex.normal = { 1, 0, 0 };
-					vertex.color = { 1.f, 1.f, 1.f, 1.f };
-					vertex.uv_x = 0;
-					vertex.uv_y = 0;
-					vertices[initial_vtx + index] = vertex;
-				});
-			}
-
-			// Load vertex normals
-			if (auto normals = primitive.findAttribute("NORMAL"); normals != primitive.attributes.end()) {
-				fastgltf::iterateAccessorWithIndex<glm::fvec3>(gltf, gltf.accessors[normals->accessorIndex], [&](glm::fvec3 vector, size_t index) {
-					vertices[initial_vtx + index].normal = {vector.x, vector.y, vector.z};
-				});
-			}
-
-			// Load UVs
-			if (auto uv = primitive.findAttribute("TEXCOORD_0"); uv != primitive.attributes.end()) {
-				fastgltf::iterateAccessorWithIndex<glm::fvec2>(gltf, gltf.accessors[uv->accessorIndex], [&](glm::fvec2 vector, size_t index) {
-					vertices[initial_vtx + index].uv_x = vector.x;
-					vertices[initial_vtx + index].uv_y = vector.y;
-				});
-			}
-
-			// Load Vertex Colors
-			if (auto colors = primitive.findAttribute("COLOR_0"); colors != primitive.attributes.end()) {
-				fastgltf::iterateAccessorWithIndex<glm::fvec4>(gltf, gltf.accessors[colors->accessorIndex], [&](glm::fvec4 vector, size_t index) {
-					vertices[initial_vtx + index].color = {vector.x, vector.y, vector.z, vector.w};
-				});
-			}
-			newMesh.surfaces.push_back(newSurface);
-		}
-
-		// Display the vertex normals
-		constexpr bool OverrideColors = true;
-		if (OverrideColors) {
-			for (SVertex& vertex : vertices) {
-				vertex.color = {vertex.normal.x, vertex.normal.y, vertex.normal.z, 1.f};
-			}
-		}
-		newMesh.meshBuffers = buffers->uploadMesh(renderer->mGlobalResourceManager, indices, vertices);
-
-		meshes.emplace_back(std::make_shared<SStaticMesh>(std::move(newMesh)));
-	}
-
-	msgs("GLTF {} loaded.", filePath.string().c_str());
-
-	return meshes;
-}
-
 VkFilter extractFilter(const fastgltf::Filter filter)
 {
 	switch (filter) {
@@ -236,7 +131,8 @@ std::optional<SImage> loadImage(CVulkanRenderer* renderer, fastgltf::Asset& asse
     }
     return newImage;
 }
-
+//TODO: each glb/gltf mesh will be combined into one with different surfaces, this should lower draw calls to ONLY be the number of surfaces
+// and give flexibility to creators of meshes
 std::optional<std::shared_ptr<SLoadedGLTF>> CMeshLoader::loadGLTF(CVulkanRenderer* renderer, CGPUScene* GPUscene, std::filesystem::path filePath) {
 	msgs("Loading GLTF: {}", filePath.string().c_str());
 
@@ -297,7 +193,6 @@ std::optional<std::shared_ptr<SLoadedGLTF>> CMeshLoader::loadGLTF(CVulkanRendere
 	}
 
 	// temporal arrays for all the objects to use while creating the GLTF data
-	std::vector<std::shared_ptr<SStaticMesh>> meshes;
 	std::vector<std::shared_ptr<SNode>> nodes;
 	std::vector<SImage> images;
 	std::vector<std::shared_ptr<GLTFMaterial>> materials;
@@ -338,6 +233,9 @@ std::optional<std::shared_ptr<SLoadedGLTF>> CMeshLoader::loadGLTF(CVulkanRendere
         constants.metal_rough_factors.x = mat.pbrData.metallicFactor;
         constants.metal_rough_factors.y = mat.pbrData.roughnessFactor;
 
+		// write material parameters to buffer
+		sceneMaterialConstants[dataIndex] = constants;
+
         EMaterialPass passType = EMaterialPass::OPAQUE;
         if (mat.alphaMode == fastgltf::AlphaMode::Blend) {
             passType = EMaterialPass::TRANSLUCENT;
@@ -358,12 +256,9 @@ std::optional<std::shared_ptr<SLoadedGLTF>> CMeshLoader::loadGLTF(CVulkanRendere
             size_t img = gltf.textures[mat.pbrData.baseColorTexture.value().textureIndex].imageIndex.value();
             size_t sampler = gltf.textures[mat.pbrData.baseColorTexture.value().textureIndex].samplerIndex.value();
 
-        	constants.samplingIDs.x = images[img]->mBindlessAddress;
             materialResources.colorImage = images[img];
             materialResources.colorSampler = file.samplers[sampler];
         }
-		// write material parameters to buffer
-		sceneMaterialConstants[dataIndex] = constants;
         // build material
         newMat->data = GPUscene->metalRoughMaterial.writeMaterial(passType, materialResources, file.descriptorPool);
 
@@ -372,18 +267,46 @@ std::optional<std::shared_ptr<SLoadedGLTF>> CMeshLoader::loadGLTF(CVulkanRendere
 
 	// use the same vectors for all meshes so that the memory doesnt reallocate as
 	// often
-	std::vector<uint32_t> indices;
-	std::vector<SVertex> vertices;
+	for (fastgltf::Node& node : gltf.nodes) {
+		if (!node.meshIndex.has_value()) continue;
+		fastgltf::Mesh& mesh = gltf.meshes[*node.meshIndex];
 
-	for (fastgltf::Mesh& mesh : gltf.meshes) {
-		std::shared_ptr<SStaticMesh> newmesh = std::make_shared<SStaticMesh>();
-		meshes.push_back(newmesh);
-		file.meshes[mesh.name.c_str()] = newmesh;
-		newmesh->name = mesh.name;
+		std::shared_ptr<SStaticMesh> outMesh = std::make_shared<SStaticMesh>();
+		outMesh->name = mesh.name;
+		file.mesh = outMesh;
 
-		// clear the mesh arrays each mesh, we dont want to merge them by error
-		indices.clear();
-		vertices.clear();
+		std::shared_ptr<SMeshNode> meshNode = std::make_shared<SMeshNode>();
+		meshNode->mesh = outMesh;
+		meshNode->localTransform = Matrix4f(1.f);
+		meshNode->worldTransform = Matrix4f(1.f);
+		file.topNodes.push_back(meshNode);
+
+		Matrix4f localMatrix = Matrix4f(1.f);
+
+		// Create a local matrix for this mesh so it can be applied to vertices
+		{
+			std::visit(fastgltf::visitor
+				{
+					[&](fastgltf::math::fmat4x4 matrix) {
+						memcpy(&localMatrix, matrix.data(), sizeof(matrix));
+					},
+					[&](fastgltf::TRS transform) {
+						glm::vec3 tl(transform.translation[0], transform.translation[1], transform.translation[2]);
+						glm::quat rot(transform.rotation[3], transform.rotation[0], transform.rotation[1], transform.rotation[2]);
+						glm::vec3 sc(transform.scale[0], transform.scale[1], transform.scale[2]);
+
+						glm::mat4 tm = glm::translate(glm::mat4(1.f), tl);
+						glm::mat4 rm = glm::toMat4(rot);
+						glm::mat4 sm = glm::scale(glm::mat4(1.f), sc);
+
+						localMatrix = tm * rm * sm;
+					}
+				},
+			node.transform);
+		}
+
+		std::vector<uint32_t> indices;
+		std::vector<SVertex> vertices;
 
 		for (auto&& p : mesh.primitives) {
 			SStaticMesh::Surface newSurface;
@@ -411,7 +334,7 @@ std::optional<std::shared_ptr<SLoadedGLTF>> CMeshLoader::loadGLTF(CVulkanRendere
 				fastgltf::iterateAccessorWithIndex<glm::vec3>(gltf, posAccessor,
 					[&](glm::vec3 v, size_t index) {
 						SVertex newvtx;
-						newvtx.position = v;
+						newvtx.position = localMatrix * Vector4f{v, 1.f};
 						newvtx.normal = { 1, 0, 0 };
 						newvtx.color = glm::vec4 { 1.f };
 						newvtx.uv_x = 0;
@@ -469,20 +392,20 @@ std::optional<std::shared_ptr<SLoadedGLTF>> CMeshLoader::loadGLTF(CVulkanRendere
 			newSurface.bounds.extents = (maxpos - minpos) / 2.f;
 			newSurface.bounds.sphereRadius = glm::length(newSurface.bounds.extents);
 
-			newmesh->surfaces.push_back(newSurface);
+			outMesh->surfaces.push_back(newSurface);
 		}
-
-		newmesh->meshBuffers = renderer->mEngineBuffers->uploadMesh(renderer->mGlobalResourceManager, indices, vertices);
+		outMesh->meshBuffers = renderer->mEngineBuffers->uploadMesh(renderer->mGlobalResourceManager, indices, vertices);
 	}
 
+
 	// load all nodes and their meshes
-	for (fastgltf::Node& node : gltf.nodes) {
+	/*for (fastgltf::Node& node : gltf.nodes) {
 		std::shared_ptr<SNode> newNode;
 
 		// find if the node has a mesh, and if it does hook it to the mesh pointer and allocate it with the meshnode class
 		if (node.meshIndex.has_value()) {
 			newNode = std::make_shared<SMeshNode>();
-			static_cast<SMeshNode*>(newNode.get())->mesh = meshes[*node.meshIndex];
+			static_cast<SMeshNode*>(newNode.get())->mesh = outMesh;
 		} else {
 			newNode = std::make_shared<SNode>();
 		}
@@ -518,7 +441,7 @@ std::optional<std::shared_ptr<SLoadedGLTF>> CMeshLoader::loadGLTF(CVulkanRendere
 			sceneNode->children.push_back(nodes[c]);
 			nodes[c]->parent = sceneNode;
 		}
-	}
+	}*/
 
 	// find the top nodes, with no parents
 	for (auto& node : nodes) {
@@ -527,5 +450,7 @@ std::optional<std::shared_ptr<SLoadedGLTF>> CMeshLoader::loadGLTF(CVulkanRendere
 			node->refreshTransform(glm::mat4 { 1.f });
 		}
 	}
+
+
 	return scene;
 }

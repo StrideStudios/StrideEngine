@@ -19,7 +19,7 @@
 #include "EngineTextures.h"
 #include "EngineBuffers.h"
 #include "GpuScene.h"
-#include "GraphicsRenderer.h"
+#include "PipelineBuilder.h"
 #include "ResourceManager.h"
 
 #define COMMAND_CATEGORY "Engine"
@@ -267,5 +267,5 @@ void CVulkanRenderer::waitForGpu() const {
 }
 
 void CNullRenderer::render(VkCommandBuffer cmd) {
-	CVulkanUtils::transitionImage(cmd, mEngineTextures->mDrawImage->mImage,VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+	//CVulkanUtils::transitionImage(cmd, mEngineTextures->mDrawImage->mImage,VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 }
