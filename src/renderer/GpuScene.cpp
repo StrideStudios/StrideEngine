@@ -63,21 +63,14 @@ CGPUScene::CGPUScene(CVulkanRenderer* renderer) {
 
 	vkUpdateDescriptorSets(CEngine::device(), (uint32)sets.size(), sets.begin(), 0, nullptr);
 
-	uint32 white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
-	m_WhiteImage = renderer->mGlobalResourceManager.allocateImage(&white, "Default White", {1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
-
-	uint32 grey = glm::packUnorm4x8(glm::vec4(0.66f, 0.66f, 0.66f, 1));
-	m_GreyImage = renderer->mGlobalResourceManager.allocateImage(&grey, "Default Grey", {1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
-
-	uint32 black = glm::packUnorm4x8(glm::vec4(0, 0, 0, 0));
-	m_BlackImage = renderer->mGlobalResourceManager.allocateImage(&black, "Default Black", {1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
 
 	//checkerboard image
-	uint32 magenta = glm::packUnorm4x8(glm::vec4(1, 0, 1, 1));
-	std::array<uint32, 16 *16 > pixels; //for 16x16 checkerboard texture
+	uint32 red = glm::packUnorm4x8(glm::vec4(1, 0, 0, 1));
+	uint32 black = glm::packUnorm4x8(glm::vec4(0, 0, 0, 0));
+	std::array<uint32, 16 * 16> pixels; //for 16x16 checkerboard texture
 	for (int x = 0; x < 16; x++) {
 		for (int y = 0; y < 16; y++) {
-			pixels[y*16 + x] = ((x % 2) ^ (y % 2)) ? magenta : black;
+			pixels[y*16 + x] = (x % 2 ^ y % 2) ? red : black;
 		}
 	}
 	m_ErrorCheckerboardImage = renderer->mGlobalResourceManager.allocateImage(pixels.data(), "Default Error", VkExtent3D{16, 16, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);

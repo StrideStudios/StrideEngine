@@ -53,9 +53,6 @@ public:
 	// TODO: probably shouldnt be in gpu scene
 	//
 
-	SImage m_WhiteImage;
-	SImage m_BlackImage;
-	SImage m_GreyImage;
 	SImage m_ErrorCheckerboardImage;
 
 	SMaterialInstance m_DefaultData;

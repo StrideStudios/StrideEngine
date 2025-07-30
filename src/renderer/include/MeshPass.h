@@ -34,5 +34,6 @@ struct SMeshPass {
 	//
 
 	SMaterialPipeline opaquePipeline;
+	SMaterialPipeline errorPipeline;
 	SMaterialPipeline transparentPipeline;
 };

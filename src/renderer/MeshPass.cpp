@@ -26,6 +26,11 @@ void SMeshPass::build(CVulkanRenderer* renderer, CGPUScene* gpuScene) {
 	};
 	VK_CHECK(CShaderCompiler::getShader(CEngine::device(), "material\\mesh.frag", frag));
 
+	SShader errorFrag {
+		.mStage = EShaderStage::PIXEL
+	};
+	VK_CHECK(CShaderCompiler::getShader(CEngine::device(), "material\\mesh_error.frag", errorFrag));
+
 	SShader vert {
 		.mStage = EShaderStage::VERTEX
 	};
@@ -62,6 +67,7 @@ void SMeshPass::build(CVulkanRenderer* renderer, CGPUScene* gpuScene) {
 	auto newLayout = renderer->mGlobalResourceManager.allocatePipelineLayout(layoutCreateInfo);
 
     opaquePipeline.layout = newLayout;
+	errorPipeline.layout = newLayout;
     transparentPipeline.layout = newLayout;
 
 	// Set shader modules and standard pipeline
@@ -88,7 +94,14 @@ void SMeshPass::build(CVulkanRenderer* renderer, CGPUScene* gpuScene) {
 
 	transparentPipeline.pipeline = renderer->mGlobalResourceManager.allocatePipeline(pipelineBuilder);
 
+	pipelineBuilder.setShaders(vert.mModule, errorFrag.mModule);
+	pipelineBuilder.disableBlending();
+	pipelineBuilder.enableDepthTest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
+
+	errorPipeline.pipeline = renderer->mGlobalResourceManager.allocatePipeline(pipelineBuilder);
+
 	vkDestroyShaderModule(CEngine::device(), frag.mModule, nullptr);
+	vkDestroyShaderModule(CEngine::device(), errorFrag.mModule, nullptr);
 	vkDestroyShaderModule(CEngine::device(), vert.mModule, nullptr);
 }
 

@@ -258,6 +258,13 @@ void CVulkanRenderer::draw() {
 	auto [width, height, depth] = mEngineTextures->mDrawImage->mImageExtent;
 	CVulkanUtils::copyImageToImage(cmd, mEngineTextures->mDrawImage->mImage, swapchainImage, {width, height}, mEngineTextures->getSwapchain().mSwapchain->extent);
 
+	// After copy to swapchain, clear the draw image
+	CVulkanUtils::transitionImage(cmd, mEngineTextures->mDrawImage->mImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+	constexpr VkClearColorValue color = { .float32 = {0.0, 0.0, 0.0} };
+	constexpr VkImageSubresourceRange imageSubresourceRange { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+	vkCmdClearColorImage(cmd, mEngineTextures->mDrawImage->mImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &color, 1, &imageSubresourceRange);
+
 	// Set swapchain layout so it can be used by ImGui
 	CVulkanUtils::transitionImage(cmd, swapchainImage,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
