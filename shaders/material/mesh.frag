@@ -6,18 +6,18 @@
 #include "material\input_structures.glsl"
 #include "material\texturing.glsl"
 
-layout (location = 0) in vec3 inNormal;
-layout (location = 1) in vec3 inColor;
-layout (location = 2) in vec2 inUV;
+layout (location = 0) in vec3 vertexNormal;
+layout (location = 1) in vec3 vertexColor;
+layout (location = 2) in vec2 uv0;
 
-layout (location = 0) out vec4 outFragColor;
+layout (location = 0) out vec4 outColor;
 
 void main()
 {
-    float lightValue = max(dot(inNormal, sceneData.sunlightDirection.xyz), 0.1f);
+    float lightValue = max(dot(vertexNormal, sceneData.sunlightDirection.xyz), 0.1f);
 
-    vec3 color = inColor * sampleTexture2DLinear(PushConstants.colorId,inUV).xyz;
+    vec3 color = vertexColor * sampleTexture2DLinear(PushConstants.colorId,uv0).xyz;
     vec3 ambient = color *  sceneData.ambientColor.xyz;
 
-    outFragColor = vec4(color * lightValue *  sceneData.sunlightColor.w + ambient ,1.0f);
+    outColor = vec4(color * lightValue *  sceneData.sunlightColor.w + ambient, 1.f);
 }

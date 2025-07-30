@@ -6,6 +6,7 @@
 #include "Common.h"
 #include "Engine.h"
 #include "VulkanDevice.h"
+#include "tracy/Tracy.hpp"
 
 VkImageSubresourceRange CVulkanUtils::imageSubresourceRange(VkImageAspectFlags inAspectMask) {
 	return {
@@ -18,6 +19,8 @@ VkImageSubresourceRange CVulkanUtils::imageSubresourceRange(VkImageAspectFlags i
 }
 
 void CVulkanUtils::copyImageToImage(VkCommandBuffer inCmd, VkImage inSource, VkImage inDestination, VkExtent2D inSrcSize, VkExtent2D inDstSize) {
+	ZoneScopedN("Image Blit");
+
 	VkImageBlit2 blitRegion { .sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2, .pNext = nullptr };
 
 	blitRegion.srcOffsets[1].x = inSrcSize.width;

@@ -75,7 +75,19 @@ public:
 		m_RenderInfo.depthAttachmentFormat = format;
 	}
 
-	void disableDepthTest() {
+	void depthTestAlwaysBehind() {
+		m_DepthStencil.depthTestEnable = VK_FALSE;
+		m_DepthStencil.depthWriteEnable = VK_FALSE;
+		m_DepthStencil.depthCompareOp = VK_COMPARE_OP_ALWAYS;
+		m_DepthStencil.depthBoundsTestEnable = VK_FALSE;
+		m_DepthStencil.stencilTestEnable = VK_FALSE;
+		m_DepthStencil.front = {};
+		m_DepthStencil.back = {};
+		m_DepthStencil.minDepthBounds = 0.f;
+		m_DepthStencil.maxDepthBounds = 1.f;
+	}
+
+	void depthTestAlwaysInFront() {
 		m_DepthStencil.depthTestEnable = VK_FALSE;
 		m_DepthStencil.depthWriteEnable = VK_FALSE;
 		m_DepthStencil.depthCompareOp = VK_COMPARE_OP_NEVER;

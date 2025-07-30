@@ -5,7 +5,6 @@
 #include <vector>
 
 #include "BasicTypes.h"
-#include "Material.h"
 
 struct SBounds {
 	Vector3f origin;
@@ -16,14 +15,19 @@ struct SBounds {
 struct SStaticMesh {
 
 	struct Surface {
+
+		std::string name;
+
+		std::shared_ptr<SMaterialInstance> material;
+
 		uint32 startIndex;
 		uint32 count;
-		std::shared_ptr<GLTFMaterial> material;
-		SBounds bounds;
 	};
 
 	std::string name;
 
+	SBounds bounds;
+	Matrix4f transform;
 	std::vector<Surface> surfaces;
 	SMeshBuffers meshBuffers;
 };

@@ -1,5 +1,5 @@
-﻿layout (set = 2, binding = 0) uniform texture2D textures[];
-layout (set = 2, binding = 1) uniform sampler samplers[];
+﻿layout (set = 1, binding = 0) uniform texture2D textures[];
+layout (set = 1, binding = 1) uniform sampler samplers[];
 
 //push constants block
 layout( push_constant ) uniform constants

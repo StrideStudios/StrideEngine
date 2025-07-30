@@ -19,6 +19,7 @@
 #include "EngineTextures.h"
 #include "EngineBuffers.h"
 #include "GpuScene.h"
+#include "MeshLoader.h"
 #include "PipelineBuilder.h"
 #include "ResourceManager.h"
 
@@ -47,16 +48,16 @@ void CVulkanRenderer::immediateSubmit(std::function<void(VkCommandBuffer cmd)>&&
 
 	VkSubmitInfo submit = CVulkanInfo::submitInfo(&cmd);
 
-	vkResetFences(device, 1, &renderer.mUploadContext._uploadFence);
+	VK_CHECK(vkResetFences(device, 1, &renderer.mUploadContext._uploadFence));
 
 	//submit command buffer to the queue and execute it.
 	// _uploadFence will now block until the graphic commands finish execution
 	VK_CHECK(vkQueueSubmit(CEngine::renderer().mGraphicsQueue, 1, &submit, renderer.mUploadContext._uploadFence));
 
-	vkWaitForFences(device, 1, &renderer.mUploadContext._uploadFence, true, 1000000000);
+	VK_CHECK(vkWaitForFences(device, 1, &renderer.mUploadContext._uploadFence, true, 1000000000));
 
 	// reset the command buffers inside the command pool
-	vkResetCommandPool(device, renderer.mUploadContext._commandPool, 0);
+	VK_CHECK(vkResetCommandPool(device, renderer.mUploadContext._commandPool, 0));
 }
 
 void CVulkanRenderer::init() {
@@ -121,6 +122,8 @@ void CVulkanRenderer::init() {
 
 	mGlobalDescriptorAllocator.init(10, sizes);
 
+	mMeshLoader = mGlobalResourceManager.createDestroyable<CMeshLoader>();
+
 	mEngineTextures = mGlobalResourceManager.createDestroyable<CEngineTextures>();
 
 	mEngineBuffers = mGlobalResourceManager.createDestroyable<CEngineBuffers>(this);
@@ -133,7 +136,8 @@ void CVulkanRenderer::init() {
 
 void CVulkanRenderer::destroy() {
 
-	mGPUScene->m_LoadedScenes.clear();
+	//mGPUScene->m_LoadedScenes.clear();
+	mMeshLoader->mLoadedModels.clear();
 
 	CEngineSettings::destroy();
 
@@ -167,34 +171,48 @@ void CVulkanRenderer::draw() {
 		mEngineTextures->reallocate(UseVsync.get());
 	}
 
-	// Wait for the previous render to stop
-	mEngineTextures->getSwapchain().wait(getFrameIndex());
+	CEngineSettings::begin();
+
+	{
+		// Wait for the previous render to stop
+		mEngineTextures->getSwapchain().wait(getFrameIndex());
+	}
 
 	// Get command buffer from current frame
 	VkCommandBuffer cmd = getCurrentFrame().mMainCommandBuffer;
-	VK_CHECK(vkResetCommandBuffer(cmd, 0));
 
-	// Tell Vulkan the buffer will only be used once
-	VkCommandBufferBeginInfo cmdBeginInfo = CVulkanInfo::createCommandBufferBeginInfo(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
-	VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
+	VkImage swapchainImage;
+	VkImageView swapchainImageView;
+	uint32 swapchainImageIndex;
 
-	// Get the current swapchain image
-	const auto [swapchainImage, swapchainImageView, swapchainImageIndex] = mEngineTextures->getSwapchain().getSwapchainImage(getFrameIndex());
+	{
+		ZoneScopedN("Initialize Frame");
 
-	// Reset the current fences, done here so the swapchain acquire doesn't stall the engine
-	mEngineTextures->getSwapchain().reset(getFrameIndex());
+		VK_CHECK(vkResetCommandBuffer(cmd, 0));
+
+		// Tell Vulkan the buffer will only be used once
+		VkCommandBufferBeginInfo cmdBeginInfo = CVulkanInfo::createCommandBufferBeginInfo(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+		VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
+
+		// Get the current swapchain image
+		const auto [outSwapchainImage, outSwapchainImageView, outSwapchainImageIndex] = mEngineTextures->getSwapchain().getSwapchainImage(getFrameIndex());
+		swapchainImage = outSwapchainImage;
+		swapchainImageView = outSwapchainImageView;
+		swapchainImageIndex = outSwapchainImageIndex;
+
+		// Reset the current fences, done here so the swapchain acquire doesn't stall the engine
+		mEngineTextures->getSwapchain().reset(getFrameIndex());
+	}
 
 	// Make the swapchain image into writeable mode before rendering
 	CVulkanUtils::transitionImage(cmd, mEngineTextures->mDrawImage->mImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
 
-	// Flush temporary frame data before it is used
-	getCurrentFrame().mDescriptorAllocator.clear();
-	getCurrentFrame().mFrameResourceManager.flush();
-
-	VkExtent2D extent {
-		mEngineTextures->mDrawImage->mImageExtent.width,
-		mEngineTextures->mDrawImage->mImageExtent.height
-	};
+	{
+		ZoneScopedN("Flush Frame Data");
+		// Flush temporary frame data before it is used
+		getCurrentFrame().mDescriptorAllocator.clear();
+		getCurrentFrame().mFrameResourceManager.flush();
+	}
 
 	{
 		ZoneScopedN("Child Render");
@@ -208,16 +226,21 @@ void CVulkanRenderer::draw() {
 	VkRenderingAttachmentInfo colorAttachment = CVulkanUtils::createAttachmentInfo(mEngineTextures->mDrawImage->mImageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 	VkRenderingAttachmentInfo depthAttachment = CVulkanUtils::createDepthAttachmentInfo(mEngineTextures->mDepthImage->mImageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
-	VkRenderingInfo renderInfo = CVulkanUtils::createRenderingInfo(extent, &colorAttachment, &depthAttachment);
-	vkCmdBeginRendering(cmd, &renderInfo);
+	VkExtent2D extent {
+		mEngineTextures->mDrawImage->mImageExtent.width,
+		mEngineTextures->mDrawImage->mImageExtent.height
+	};
 
-	// TODO: update elsewhere and use instead of drawImage.extent
-	//mViewport.update({extent.width, extent.height});
-	//mViewport.set(cmd);
+	{
+		ZoneScopedN("Run GPU Scene");
 
-	mGPUScene->render(this, cmd);
+		VkRenderingInfo renderInfo = CVulkanUtils::createRenderingInfo(extent, &colorAttachment, &depthAttachment);
+		vkCmdBeginRendering(cmd, &renderInfo);
 
-	vkCmdEndRendering(cmd);
+		mGPUScene->render(this, cmd);
+
+		vkCmdEndRendering(cmd);
+	}
 
 	CVulkanUtils::transitionImage(cmd, mEngineTextures->mDrawImage->mImage,VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 
@@ -248,9 +271,6 @@ void CVulkanRenderer::draw() {
 	VK_CHECK(vkEndCommandBuffer(cmd));
 
 	mEngineTextures->getSwapchain().submit(cmd, mGraphicsQueue, getFrameIndex(), swapchainImageIndex);
-
-	//TODO: send frame
-	//FrameImage();
 
 	//increase the number of frames drawn
 	mFrameNumber++;

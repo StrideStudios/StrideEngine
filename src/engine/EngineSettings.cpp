@@ -9,13 +9,15 @@
 #include "VulkanUtils.h"
 #include "tracy/Tracy.hpp"
 
-void CEngineSettings::render(VkCommandBuffer cmd, VkExtent2D inExtent, VkImageView inTargetImageView) {
-	ZoneScopedN("Engine UI");
-
+void CEngineSettings::begin() {
 	// Start the Dear ImGui frame
 	ImGui_ImplVulkan_NewFrame();
 	ImGui_ImplSDL3_NewFrame();
 	ImGui::NewFrame();
+}
+
+void CEngineSettings::render(VkCommandBuffer cmd, VkExtent2D inExtent, VkImageView inTargetImageView) {
+	ZoneScopedN("Engine UI");
 
 	if (ImGui::Begin("Engine Settings")) {
 		if (ImGui::BeginTabBar("Settings")) {

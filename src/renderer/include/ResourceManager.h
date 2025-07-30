@@ -13,6 +13,7 @@
 class CVulkanDevice;
 
 struct SImage_T {
+	std::string name;
 	VkImage mImage;
 	VkImageView mImageView;
 	VmaAllocation mAllocation;
@@ -184,6 +185,10 @@ public:
 			itr->destroy();
 		}
 		m_Resources.clear();
+		for (const auto& image : m_Images) {
+			deallocateImage(image);
+		}
+		m_Images.clear();
 		for (const auto& destroyable : m_Destroyables) {
 			destroyable->destroy();
 			delete destroyable;
@@ -231,11 +236,14 @@ public:
 
 	//
 	// Images
+	// Since bindless images are used, it is unnecessary to keep the result
 	//
 
-	no_discard SImage allocateImage(const char* inDebugName, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags = 0, VkImageAspectFlags inViewFlags = 0, bool inMipmapped = false);
+	SImage allocateImage(const std::string &inDebugName, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags = 0, VkImageAspectFlags inViewFlags = 0, bool inMipmapped = false);
 
-	no_discard SImage allocateImage(void* inData, const char* inDebugName, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags = 0, VkImageAspectFlags inViewFlags = 0, bool inMipmapped = false);
+	SImage allocateImage(void* inData, const std::string& inDebugName, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags = 0, VkImageAspectFlags inViewFlags = 0, bool inMipmapped = false);
+
+	void loadImage(const std::filesystem::path& imageName, bool inMipmapped = true);
 
 	static void deallocateImage(const SImage_T* inImage);
 
@@ -255,6 +263,8 @@ public:
 	static void deallocateBuffer(const SBuffer_T* inBuffer);
 
 	static void deallocateBuffer(const SBuffer& inImage) { deallocateBuffer(inImage.get()); }
+
+	std::vector<SImage> m_Images;
 
 private:
 

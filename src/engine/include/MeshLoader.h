@@ -1,13 +1,19 @@
 ﻿#pragma once
 
 #include <filesystem>
+#include <set>
 
-#include "StaticMesh.h"
+#include "ResourceManager.h"
 
-struct SLoadedGLTF;
+struct SStaticMesh;
 
 // TODO: automatically load meshes, and have some members for that
-class CMeshLoader {
+class CMeshLoader : public IDestroyable {
 public:
-	static std::optional<std::shared_ptr<SLoadedGLTF>> loadGLTF(class CVulkanRenderer* renderer, class CGPUScene* GPUscene, std::filesystem::path filePath);
+
+	CMeshLoader() = default;
+
+	void loadGLTF(class CVulkanRenderer* renderer, std::filesystem::path filePath);
+
+	std::set<std::shared_ptr<SStaticMesh>> mLoadedModels{};
 };

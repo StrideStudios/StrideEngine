@@ -74,6 +74,10 @@ add_executable(StrideEngine
 
         # stb
         stb/include/stb_image.h
+        renderer/include/TestRenderer.h
+        renderer/TestRenderer.cpp
+        renderer/include/MeshPass.h
+        renderer/MeshPass.cpp
 )
 
 find_package(Vulkan REQUIRED)

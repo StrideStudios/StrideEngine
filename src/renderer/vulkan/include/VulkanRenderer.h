@@ -39,9 +39,6 @@ struct SUploadContext {
 
 class CVulkanRenderer {
 
-	//TODO: remove
-	friend struct SGLTFMetallic_Roughness;
-
 public:
 
 	struct FrameData {
@@ -121,6 +118,8 @@ public:
 	//
 
 	SDescriptorAllocator mGlobalDescriptorAllocator;
+
+	class CMeshLoader* mMeshLoader;
 
 };
 

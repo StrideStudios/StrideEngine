@@ -7,18 +7,15 @@
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/quaternion.hpp>
 
-#define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
-
 #include <meshoptimizer.h>
 
 #include "Common.h"
 #include "Engine.h"
 #include "VulkanRenderer.h"
 #include "EngineBuffers.h"
-#include "EngineTextures.h"
 #include "GpuScene.h"
 #include "fastgltf/core.hpp"
+#include "tracy/Tracy.hpp"
 
 struct SVertex;
 
@@ -54,93 +51,13 @@ VkSamplerMipmapMode extractMipmapMode(const fastgltf::Filter filter)
 	}
 }
 
-std::optional<SImage> loadImage(CVulkanRenderer* renderer, fastgltf::Asset& asset, fastgltf::Image& image) {
-    SImage newImage {};
-
-    int width, height, nrChannels;
-
-    std::visit(
-        fastgltf::visitor {
-            [](auto& arg) {},
-            [&](const fastgltf::sources::URI& filePath) {
-                assert(filePath.fileByteOffset == 0); // We don't support offsets with stbi.
-                assert(filePath.uri.isLocalPath()); // We're only capable of loading
-                                                    // local files.
-
-                const std::string path(filePath.uri.path().begin(),
-                    filePath.uri.path().end()); // Thanks C++.
-
-                unsigned char* data = stbi_load(path.c_str(), &width, &height, &nrChannels, 4);
-                if (data) {
-                    VkExtent3D imagesize;
-                    imagesize.width = width;
-                    imagesize.height = height;
-                    imagesize.depth = 1;
-
-                    newImage = renderer->mGlobalResourceManager.allocateImage(data, image.name.c_str(), imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT,VK_IMAGE_ASPECT_COLOR_BIT,true);
-
-                    stbi_image_free(data);
-                }
-            },
-            [&](fastgltf::sources::Vector& vector) {
-                unsigned char* data = stbi_load_from_memory(reinterpret_cast<stbi_uc const *>(vector.bytes.data()), static_cast<int>(vector.bytes.size()),
-                    &width, &height, &nrChannels, 4);
-                if (data) {
-                    VkExtent3D imagesize;
-                    imagesize.width = width;
-                    imagesize.height = height;
-                    imagesize.depth = 1;
-
-                    newImage = renderer->mGlobalResourceManager.allocateImage(data, image.name.c_str(), imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT,VK_IMAGE_ASPECT_COLOR_BIT,true);
-
-                    stbi_image_free(data);
-                }
-            },
-            [&](fastgltf::sources::BufferView& view) {
-                auto& bufferView = asset.bufferViews[view.bufferViewIndex];
-                auto& buffer = asset.buffers[bufferView.bufferIndex];
-
-
-                std::visit(fastgltf::visitor { // We only care about ArrayWithMime here, because we
-                                               // specify LoadExternalBuffers, meaning all buffers
-                                               // are already loaded into a Array.
-                               [](auto& arg) {},
-                               [&](fastgltf::sources::Array& array) {
-                                   unsigned char* data = stbi_load_from_memory(reinterpret_cast<stbi_uc const *>(array.bytes.data() + bufferView.byteOffset),
-                                       static_cast<int>(bufferView.byteLength),
-                                       &width, &height, &nrChannels, 4);
-                                   if (data) {
-                                       VkExtent3D imagesize;
-                                       imagesize.width = width;
-                                       imagesize.height = height;
-                                       imagesize.depth = 1;
-
-                                       newImage = renderer->mGlobalResourceManager.allocateImage(data, image.name.c_str(), imagesize, VK_FORMAT_R8G8B8A8_UNORM,
-                                           VK_IMAGE_USAGE_SAMPLED_BIT,VK_IMAGE_ASPECT_COLOR_BIT,true);
-
-                                       stbi_image_free(data);
-                                   }
-                               } },
-                    buffer.data);
-            },
-        },
-        image.data);
-
-    // if any of the attempts to load the data failed, we havent written the image
-    // so handle is null
-    if (!newImage || newImage->mImage == VK_NULL_HANDLE) {
-        return {};
-    }
-    return newImage;
-}
-
 void optimizeMesh(std::vector<uint32>& indices, std::vector<SVertex>& vertices) {
-	size_t numIndices = indices.size();
-	size_t numVertices = vertices.size();
+	const size_t numIndices = indices.size();
+	const size_t numVertices = vertices.size();
 
 	// Create a remap table
 	std::vector<uint32> remap(numIndices);
-	size_t optimizedVertexCount = meshopt_generateVertexRemap(remap.data(), indices.data(), numIndices, vertices.data(), numVertices, sizeof(SVertex));
+	const size_t optimizedVertexCount = meshopt_generateVertexRemap(remap.data(), indices.data(), numIndices, vertices.data(), numVertices, sizeof(SVertex));
 
 	std::vector<uint32> optimizedIndices;
 	std::vector<SVertex> optimizedVertices;
@@ -168,17 +85,21 @@ void optimizeMesh(std::vector<uint32>& indices, std::vector<SVertex>& vertices) 
 	size_t optimizedIndexCount = meshopt_simplify(SimplifiedIndices.data(), optimizedIndices.data(), numIndices, &optimizedVertices[0].position.x, optimizedVertexCount, sizeof(SVertex), TargetIndexCount, TargetError);
 
 	SimplifiedIndices.resize(optimizedIndexCount);*/
+
+	indices = optimizedIndices;
+	vertices = optimizedVertices;
 }
 
 //TODO: each glb/gltf mesh will be combined into one with different surfaces, this should lower draw calls to ONLY be the number of surfaces
 // and give flexibility to creators of meshes
-std::optional<std::shared_ptr<SLoadedGLTF>> CMeshLoader::loadGLTF(CVulkanRenderer* renderer, CGPUScene* GPUscene, std::filesystem::path filePath) {
+void CMeshLoader::loadGLTF(CVulkanRenderer* renderer, std::filesystem::path filePath) {
+	ZoneScoped;
+	std::string string = "Loading: " + filePath.string();
+	ZoneName(string.c_str(), string.size());
+
 	msgs("Loading GLTF: {}", filePath.string().c_str());
 
 	std::filesystem::path path = CEngine::get().mAssetPath + filePath.string();
-
-	std::shared_ptr<SLoadedGLTF> scene = std::make_shared<SLoadedGLTF>();
-	SLoadedGLTF& file = *scene.get();
 
 	constexpr auto gltfOptions = fastgltf::Options::DontRequireValidAssetMember | fastgltf::Options::AllowDouble | fastgltf::Options::LoadExternalBuffers | fastgltf::Options::LoadExternalImages;
 
@@ -193,116 +114,19 @@ std::optional<std::shared_ptr<SLoadedGLTF>> CMeshLoader::loadGLTF(CVulkanRendere
 			gltf = std::move(load.get());
 		} else {
 			msgs("Failed to load GLTF: {}", fastgltf::to_underlying(load.error()));
-			return {};
+			return;
 		}
 	} else if (type == fastgltf::GltfType::GLB) {
 		if (auto load = parser.loadGltfBinary(data, path.parent_path(), gltfOptions); load) {
 			gltf = std::move(load.get());
 		} else {
 			msgs("Failed to load GLTF: {}", fastgltf::to_underlying(load.error()));
-			return {};
+			return;
 		}
 	} else {
 		msgs("Invalid GLTF file : {}", filePath.string().c_str());
+		return;
 	}
-
-	// we can estimate the descriptors we will need accurately
-	std::vector<SDescriptorAllocator::PoolSizeRatio> sizes = { { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 3 },
-		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3 },
-		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1 } };
-
-	file.descriptorPool.init(gltf.materials.size(), sizes);
-
-
-	// load samplers
-	for (fastgltf::Sampler& sampler : gltf.samplers) {
-
-		VkSamplerCreateInfo samplerCreateInfo = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO, .pNext = nullptr};
-		samplerCreateInfo.maxLod = VK_LOD_CLAMP_NONE;
-		samplerCreateInfo.minLod = 0;
-
-		samplerCreateInfo.magFilter = extractFilter(sampler.magFilter.value_or(fastgltf::Filter::Nearest));
-		samplerCreateInfo.minFilter = extractFilter(sampler.minFilter.value_or(fastgltf::Filter::Nearest));
-
-		samplerCreateInfo.mipmapMode= extractMipmapMode(sampler.minFilter.value_or(fastgltf::Filter::Nearest));
-
-		VkSampler newSampler = renderer->mGlobalResourceManager.allocateSampler(samplerCreateInfo);
-
-		file.samplers.push_back(newSampler);
-	}
-
-	// temporal arrays for all the objects to use while creating the GLTF data
-	std::vector<std::shared_ptr<SNode>> nodes;
-	std::vector<SImage> images;
-	std::vector<std::shared_ptr<GLTFMaterial>> materials;
-
-	// load all textures
-	for (fastgltf::Image& image : gltf.images) {
-		std::optional<SImage> img = loadImage(renderer, gltf, image);
-
-		if (img.has_value()) {
-			images.push_back(*img);
-			file.images[image.name.c_str()] = *img;
-		}
-		else {
-			// we failed to load, so lets give the slot a default white texture to not
-			// completely break loading
-			images.push_back(GPUscene->m_ErrorCheckerboardImage);
-			std::cout << "gltf failed to load texture " << image.name << std::endl;
-		}
-	}
-
-	// create buffer to hold the material data
-	file.materialDataBuffer = renderer->mGlobalResourceManager.allocateBuffer(sizeof(SGLTFMetallic_Roughness::MaterialConstants) * gltf.materials.size(),
-		VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
-
-	int dataIndex = 0;
-	SGLTFMetallic_Roughness::MaterialConstants* sceneMaterialConstants = (SGLTFMetallic_Roughness::MaterialConstants*)file.materialDataBuffer->info.pMappedData;
-	for (fastgltf::Material& mat : gltf.materials) {
-        std::shared_ptr<GLTFMaterial> newMat = std::make_shared<GLTFMaterial>();
-        materials.push_back(newMat);
-        file.materials[mat.name.c_str()] = newMat;
-
-        SGLTFMetallic_Roughness::MaterialConstants constants;
-        constants.colorFactors.x = mat.pbrData.baseColorFactor[0];
-        constants.colorFactors.y = mat.pbrData.baseColorFactor[1];
-        constants.colorFactors.z = mat.pbrData.baseColorFactor[2];
-        constants.colorFactors.w = mat.pbrData.baseColorFactor[3];
-
-        constants.metal_rough_factors.x = mat.pbrData.metallicFactor;
-        constants.metal_rough_factors.y = mat.pbrData.roughnessFactor;
-
-		// write material parameters to buffer
-		sceneMaterialConstants[dataIndex] = constants;
-
-        EMaterialPass passType = EMaterialPass::OPAQUE;
-        if (mat.alphaMode == fastgltf::AlphaMode::Blend) {
-            passType = EMaterialPass::TRANSLUCENT;
-        }
-
-        SGLTFMetallic_Roughness::MaterialResources materialResources;
-        // default the material textures
-        materialResources.colorImage = GPUscene->m_WhiteImage;
-        materialResources.colorSampler = GPUscene->m_DefaultSamplerLinear;
-        materialResources.metalRoughImage = GPUscene->m_WhiteImage;
-        materialResources.metalRoughSampler = GPUscene->m_DefaultSamplerLinear;
-
-        // set the uniform buffer for the material data
-        materialResources.dataBuffer = file.materialDataBuffer->buffer;
-        materialResources.dataBufferOffset = dataIndex * sizeof(SGLTFMetallic_Roughness::MaterialConstants);
-        // grab textures from gltf file
-        if (mat.pbrData.baseColorTexture.has_value()) {
-            size_t img = gltf.textures[mat.pbrData.baseColorTexture.value().textureIndex].imageIndex.value();
-            size_t sampler = gltf.textures[mat.pbrData.baseColorTexture.value().textureIndex].samplerIndex.value();
-
-            materialResources.colorImage = images[img];
-            materialResources.colorSampler = file.samplers[sampler];
-        }
-        // build material
-        newMat->data = GPUscene->metalRoughMaterial.writeMaterial(passType, materialResources, file.descriptorPool);
-
-        dataIndex++;
-    }
 
 	// use the same vectors for all meshes so that the memory doesnt reallocate as
 	// often
@@ -310,17 +134,14 @@ std::optional<std::shared_ptr<SLoadedGLTF>> CMeshLoader::loadGLTF(CVulkanRendere
 		if (!node.meshIndex.has_value()) continue;
 		fastgltf::Mesh& mesh = gltf.meshes[*node.meshIndex];
 
-		std::shared_ptr<SStaticMesh> outMesh = std::make_shared<SStaticMesh>();
+		auto outMesh = std::make_shared<SStaticMesh>();
 		outMesh->name = mesh.name;
-		file.mesh = outMesh;
+		outMesh->transform = Matrix4f(1.f);
 
-		std::shared_ptr<SMeshNode> meshNode = std::make_shared<SMeshNode>();
-		meshNode->mesh = outMesh;
-		meshNode->localTransform = Matrix4f(1.f);
-		meshNode->worldTransform = Matrix4f(1.f);
-		file.topNodes.push_back(meshNode);
+		// Add the object
+		mLoadedModels.insert(outMesh);
 
-		Matrix4f localMatrix = Matrix4f(1.f);
+		auto localMatrix = Matrix4f(1.f);
 
 		// Create a local matrix for this mesh so it can be applied to vertices
 		{
@@ -344,13 +165,29 @@ std::optional<std::shared_ptr<SLoadedGLTF>> CMeshLoader::loadGLTF(CVulkanRendere
 			node.transform);
 		}
 
-		std::vector<uint32_t> indices;
+		std::vector<uint32> indices;
 		std::vector<SVertex> vertices;
 
+		uint32 unnamedSurfaceIndex = 0;
 		for (auto&& p : mesh.primitives) {
+			// primitives without indices should be ignored
+			if (gltf.accessors[p.indicesAccessor.value()].count <= 0) continue;
+
+			auto matData = std::make_shared<SMaterialInstance>();
+			matData->passType = EMaterialPass::OPAQUE;
+			matData->pipeline = &renderer->mGPUScene->basePass.opaquePipeline;
+
 			SStaticMesh::Surface newSurface;
-			newSurface.startIndex = (uint32_t)indices.size();
-			newSurface.count = (uint32_t)gltf.accessors[p.indicesAccessor.value()].count;
+			newSurface.material = matData;
+			newSurface.startIndex = (uint32)indices.size();
+			newSurface.count = (uint32)gltf.accessors[p.indicesAccessor.value()].count;
+
+			if (p.materialIndex.has_value()) {
+				newSurface.name = gltf.materials[p.materialIndex.value()].name;
+			} else {
+				newSurface.name = fmts("Surface {}", unnamedSurfaceIndex);
+				unnamedSurfaceIndex++;
+			}
 
 			size_t initial_vtx = vertices.size();
 
@@ -407,47 +244,48 @@ std::optional<std::shared_ptr<SLoadedGLTF>> CMeshLoader::loadGLTF(CVulkanRendere
 			auto colors = p.findAttribute("COLOR_0");
 			if (colors != p.attributes.end()) {
 
-				fastgltf::iterateAccessorWithIndex<glm::vec4>(gltf, gltf.accessors[colors->accessorIndex],
-					[&](glm::vec4 v, size_t index) {
-						vertices[initial_vtx + index].color = v;
-					});
+				// Sometimes the color will not have an alpha, in such a case, the alpha can be set to 1.f
+				if (gltf.accessors[colors->accessorIndex].type == fastgltf::AccessorType::Vec3) {
+					fastgltf::iterateAccessorWithIndex<Vector3f>(gltf, gltf.accessors[colors->accessorIndex],
+						[&](Vector3f v, size_t index) {
+							vertices[initial_vtx + index].color = {v, 1.f};
+						});
+				} else {
+					fastgltf::iterateAccessorWithIndex<Vector4f>(gltf, gltf.accessors[colors->accessorIndex],
+						[&](Vector4f v, size_t index) {
+							vertices[initial_vtx + index].color = v;
+						});
+				}
 			}
-
-			if (p.materialIndex.has_value()) {
-				newSurface.material = materials[p.materialIndex.value()];
-			} else {
-				newSurface.material = materials[0];
-			}
-
-			//loop the vertices of this surface, find min/max bounds
-			Vector3f minpos = vertices[initial_vtx].position;
-			Vector3f maxpos = vertices[initial_vtx].position;
-			for (int i = initial_vtx; i < vertices.size(); i++) {
-				minpos = glm::min(minpos, vertices[i].position);
-				maxpos = glm::max(maxpos, vertices[i].position);
-			}
-			// calculate origin and extents from the min/max, use extent lenght for radius
-			newSurface.bounds.origin = (maxpos + minpos) / 2.f;
-			newSurface.bounds.extents = (maxpos - minpos) / 2.f;
-			newSurface.bounds.sphereRadius = glm::length(newSurface.bounds.extents);
 
 			outMesh->surfaces.push_back(newSurface);
 		}
 
+		// If no meshes are loaded, do not upload or add to mesh list
+		if (indices.empty()) {
+			return;
+		}
+
 		optimizeMesh(indices, vertices);
 
-		outMesh->meshBuffers = renderer->mEngineBuffers->uploadMesh(renderer->mGlobalResourceManager, indices, vertices);
-	}
-
-	// find the top nodes, with no parents
-	for (auto& node : nodes) {
-		if (node->parent.lock() == nullptr) {
-			file.topNodes.push_back(node);
-			node->refreshTransform(glm::mat4 { 1.f });
+		// Calculate Mesh bounds
+		{
+			// Loop the vertices of this surface, find min/max bounds
+			Vector3f minpos = vertices[0].position;
+			Vector3f maxpos = vertices[0].position;
+			for (int i = 0; i < vertices.size(); i++) {
+				minpos = glm::min(minpos, vertices[i].position);
+				maxpos = glm::max(maxpos, vertices[i].position);
+			}
+			// Calculate origin and extents from the min/max, use extent length for radius
+			outMesh->bounds.origin = (maxpos + minpos) / 2.f;
+			outMesh->bounds.extents = (maxpos - minpos) / 2.f;
+			outMesh->bounds.sphereRadius = glm::length(outMesh->bounds.extents);
 		}
+
+		outMesh->meshBuffers = renderer->mEngineBuffers->uploadMesh(renderer->mGlobalResourceManager, indices, vertices);
+
 	}
 
 	msgs("GLTF {} Loaded.", filePath.string().c_str());
-
-	return scene;
 }

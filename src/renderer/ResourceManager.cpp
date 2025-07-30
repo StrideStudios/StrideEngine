@@ -3,10 +3,13 @@
 #define VMA_IMPLEMENTATION
 #include <vma/vk_mem_alloc.h>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include <filesystem>
+#include <stb_image.h>
+
 #include <vulkan/vk_enum_string_helper.h>
 
 #include "Engine.h"
-#include "GpuScene.h"
 #include "PipelineBuilder.h"
 #include "VulkanDevice.h"
 #include "VulkanRenderer.h"
@@ -139,18 +142,19 @@ void CResourceManager::destroyAllocator() {
 	vkDestroyDescriptorSetLayout(CEngine::device(), getBindlessDescriptorSetLayout(), nullptr);
 }
 
-#define DEBUG_SHOW_ALLOCATIONS 0
+#define DEBUG_SHOW_ALLOCATIONS 1
 
 #if DEBUG_SHOW_ALLOCATIONS
 #define ZoneScopedAllocation(inScope) \
-	ZoneScopedN(inScope)
+	ZoneScoped; \
+	ZoneName(inScope.c_str(), inScope.size())
 #else
 #define ZoneScopedAllocation(inScope)
 #endif
 
 #define DEFINE_ALLOCATER(inType, inName, inEnum) \
 	inType CResourceManager::allocate##inName(const inType##CreateInfo& pCreateInfo, const VkAllocationCallbacks* pAllocator) { \
-		ZoneScopedAllocation("Allocate " #inName); \
+		ZoneScopedAllocation(std::string("Allocate " #inName)); \
 		inType inName; \
 		VK_CHECK(vkCreate##inName(CEngine::device(), &pCreateInfo, pAllocator, &inName)); \
 		push(inName); \
@@ -158,6 +162,7 @@ void CResourceManager::destroyAllocator() {
 	}
 #define DEFINE_DEALLOCATOR(inType, inName, inEnum) \
 	void CResourceManager::deallocate##inName(const inType& inName) { \
+		ZoneScopedAllocation(std::string("Deallocate " #inName)); \
 		vkDestroy##inName(CEngine::device(), inName, nullptr); \
 	}
 
@@ -171,33 +176,34 @@ void CResourceManager::destroyAllocator() {
 #undef DEFINE_DEALLOCATOR
 
 VkCommandBuffer CResourceManager::allocateCommandBuffer(const VkCommandBufferAllocateInfo& pCreateInfo) {
-	ZoneScopedAllocation("Allocate CommandBuffer");
+	ZoneScopedAllocation(std::string("Allocate CommandBuffer"));
 	VkCommandBuffer Buffer;
 	VK_CHECK(vkAllocateCommandBuffers(CEngine::device(), &pCreateInfo, &Buffer));
 	return Buffer;
 }
 
 void CResourceManager::bindDescriptorSets(VkCommandBuffer cmd, VkPipelineBindPoint inBindPoint, VkPipelineLayout inPipelineLayout, uint32 inFirstSet, uint32 inDescriptorSetCount, const VkDescriptorSet& inDescriptorSets) {
-	ZoneScopedAllocation("Bind Descriptor Sets");
+	ZoneScopedAllocation(std::string("Bind Descriptor Sets"));
 	vkCmdBindDescriptorSets(cmd, inBindPoint,inPipelineLayout, inFirstSet, inDescriptorSetCount, &inDescriptorSets, 0, nullptr);
 }
 
 VkPipeline CResourceManager::allocatePipeline(const CPipelineBuilder& inPipelineBuilder, const VkAllocationCallbacks* pAllocator) {
-	ZoneScopedAllocation("Allocate Pipeline");
+	ZoneScopedAllocation(std::string("Allocate Pipeline"));
 	const VkPipeline Pipeline = inPipelineBuilder.buildPipeline(CEngine::device());
 	push(Pipeline);
 	return Pipeline;
 }
 
 void CResourceManager::bindPipeline(VkCommandBuffer cmd, const VkPipelineBindPoint inBindPoint, const VkPipeline inPipeline) {
-	ZoneScopedAllocation("Bind Pipeline");
+	ZoneScopedAllocation(std::string("Bind Pipeline"));
 	vkCmdBindPipeline(cmd, inBindPoint, inPipeline);
 }
 
-SImage CResourceManager::allocateImage(const char* inDebugName, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags, VkImageAspectFlags inViewFlags, bool inMipmapped) {
-	ZoneScopedAllocation("Allocate Image");
+SImage CResourceManager::allocateImage(const std::string& inDebugName, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags, VkImageAspectFlags inViewFlags, bool inMipmapped) {
+	ZoneScopedAllocation(fmts("Allocate Image {}", inDebugName.c_str()));
 	auto image = std::make_shared<SImage_T>();
 
+	image->name = inDebugName;
 	image->mImageExtent = inExtent;
 	image->mImageFormat = inFormat;
 
@@ -242,12 +248,13 @@ SImage CResourceManager::allocateImage(const char* inDebugName, VkExtent3D inExt
 		vkUpdateDescriptorSets(CEngine::device(), 1, &writeSet, 0, nullptr);
 	}
 
-	push(image);
+	m_Images.push_back(image);
 
 	return image;
 }
 
 void generateMipmaps(VkCommandBuffer cmd, VkImage image, VkExtent2D extent) {
+	ZoneScopedAllocation(std::string("Generate Mipmaps"));
 	int mipLevels = int(std::floor(std::log2(std::max(extent.width, extent.height)))) + 1;
     for (int mip = 0; mip < mipLevels; mip++) {
 
@@ -317,7 +324,9 @@ void generateMipmaps(VkCommandBuffer cmd, VkImage image, VkExtent2D extent) {
     CVulkanUtils::transitionImage(cmd, image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 }
 
-SImage CResourceManager::allocateImage(void* inData, const char* inDebugName, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags, VkImageAspectFlags inViewFlags, bool inMipmapped) {
+SImage CResourceManager::allocateImage(void* inData, const std::string& inDebugName, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags, VkImageAspectFlags inViewFlags, bool inMipmapped) {
+	ZoneScopedAllocation(fmts("Allocate Image {}", inDebugName.c_str()));
+
 	size_t data_size = inExtent.depth * inExtent.width * inExtent.height * 4;
 
 	// Upload buffer is not needed outside of this function
@@ -329,6 +338,7 @@ SImage CResourceManager::allocateImage(void* inData, const char* inDebugName, Vk
 	SImage new_image = allocateImage(inDebugName, inExtent, inFormat, inFlags | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, inViewFlags, inMipmapped);
 
 	CVulkanRenderer::immediateSubmit([&](VkCommandBuffer cmd) {
+		ZoneScopedAllocation(std::string("Copy Image from Upload Buffer"));
 		CVulkanUtils::transitionImage(cmd, new_image->mImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
 		VkBufferImageCopy copyRegion = {};
@@ -343,8 +353,7 @@ SImage CResourceManager::allocateImage(void* inData, const char* inDebugName, Vk
 		copyRegion.imageExtent = inExtent;
 
 		// copy the buffer into the image
-		vkCmdCopyBufferToImage(cmd, uploadBuffer->buffer, new_image->mImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
-			&copyRegion);
+		vkCmdCopyBufferToImage(cmd, uploadBuffer->buffer, new_image->mImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
 
 		if (inMipmapped) {
 			generateMipmaps(cmd, new_image->mImage, VkExtent2D{new_image->mImageExtent.width,new_image->mImageExtent.height});
@@ -360,13 +369,32 @@ SImage CResourceManager::allocateImage(void* inData, const char* inDebugName, Vk
 	return new_image;
 }
 
+void CResourceManager::loadImage(const std::filesystem::path& imageName, bool inMipmapped) {
+	ZoneScopedAllocation(fmts("Load Image {}", imageName.string().c_str()));
+	const std::filesystem::path path = CEngine::get().mAssetPath + imageName.string();
+
+	int width, height, nrChannels;
+
+	if (unsigned char* data = stbi_load(path.string().c_str(), &width, &height, &nrChannels, 4)) {
+		VkExtent3D imagesize;
+		imagesize.width = width;
+		imagesize.height = height;
+		imagesize.depth = 1;
+
+		allocateImage(data, imageName.string(), imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT,VK_IMAGE_ASPECT_COLOR_BIT,inMipmapped);
+
+		stbi_image_free(data);
+	}
+}
+
 void CResourceManager::deallocateImage(const SImage_T* inImage) {
+	ZoneScopedAllocation(fmts("Deallocate Image {}", inImage->name.c_str()));
 	vmaDestroyImage(getAllocator(), inImage->mImage, inImage->mAllocation);
 	vkDestroyImageView(CEngine::device(), inImage->mImageView, nullptr);
 }
 
 SBuffer CResourceManager::allocateBuffer(size_t allocSize, VmaMemoryUsage memoryUsage, VkBufferUsageFlags usage) {
-	ZoneScopedAllocation("Allocate Buffer");
+	ZoneScopedAllocation(std::string("Allocate Buffer"));
 	// allocate buffer
 	VkBufferCreateInfo bufferInfo = {
 		.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
@@ -415,5 +443,6 @@ SMeshBuffers CResourceManager::allocateMeshBuffer(size_t indicesSize, size_t ver
 }
 
 void CResourceManager::deallocateBuffer(const SBuffer_T* inBuffer) {
+	ZoneScopedAllocation(std::string("Deallocate Buffer"));
 	vmaDestroyBuffer(getAllocator(), inBuffer->buffer, inBuffer->allocation);
 }

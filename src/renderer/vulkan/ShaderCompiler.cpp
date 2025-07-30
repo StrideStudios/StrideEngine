@@ -221,7 +221,13 @@ VkResult CShaderCompiler::getShader(VkDevice inDevice, const char* inFileName, S
 	const std::string SPIRVpath = path + ".spv";
 
 	// Get the hash of the original source file so we know if it changed
-	uint32 Hash = CHashing::getFileHash(path);
+	const auto shaderSource = readShaderFile(path.c_str());
+
+	if (shaderSource.empty()) {
+		errs("Nothing found in Shader file {}!", inFileName, SPIRVpath.c_str());
+	}
+
+	const uint32 Hash = CHashing::getHash(shaderSource);
 	if (Hash == 0) {
 		errs("Hash from file {} is not valid.", inFileName);
 	}
@@ -231,19 +237,16 @@ VkResult CShaderCompiler::getShader(VkDevice inDevice, const char* inFileName, S
 		return VK_SUCCESS;
 	}
 
-	uint32 result = 0;
-	if (const auto shaderSource = readShaderFile(path.c_str()); !shaderSource.empty()) {
-		inoutShader.mShaderCode = shaderSource;
-		result = compile(inoutShader);
-		// Save compiled shader
-		if (!saveShader(SPIRVpath.c_str(), Hash, inoutShader)) {
-			errs("Shader file {} failed to save to {}!", inFileName, SPIRVpath.c_str());
-		}
+	inoutShader.mShaderCode = shaderSource;
+	const uint32 result = compile(inoutShader);
+	// Save compiled shader
+	if (!saveShader(SPIRVpath.c_str(), Hash, inoutShader)) {
+		errs("Shader file {} failed to save to {}!", inFileName, SPIRVpath.c_str());
 	}
 
-	// If we get to this point without throwing some kind of other error, it means the shader file could not be found
+	// This means the shader didn't compile properly
 	if (!result) {
-		errs("Shader file {} not found!", inFileName);
+		errs("Shader file {} failed to compile!", inFileName);
 	}
 
 	if (loadShader(inDevice, SPIRVpath.c_str(), Hash, inoutShader)) {

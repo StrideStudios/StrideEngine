@@ -33,12 +33,12 @@ void main()
 {
     Vertex v = PushConstants.vertexBuffer.vertices[gl_VertexIndex];
 
-    vec4 position = vec4(v.position, 1.0f);
+    vec4 position = vec4(v.position, 1.f);
 
-    gl_Position =  sceneData.viewproj * PushConstants.render_matrix *position;
+    gl_Position =  sceneData.viewproj * PushConstants.render_matrix * position;
 
     outNormal = (PushConstants.render_matrix * vec4(v.normal, 0.f)).xyz;
-    outColor = v.color.xyz * materialData.colorFactors.xyz;
+    outColor = v.color.xyz;
     outUV.x = v.uv_x;
     outUV.y = v.uv_y;
 }

@@ -34,6 +34,8 @@ public:
 	}
 
 	// Render the commands on ImGui
+	static void begin();
+
 	static void render(VkCommandBuffer cmd, VkExtent2D inExtent, VkImageView inTargetImageView);
 
 	static void init(class CVulkanRenderer* renderer, VkQueue inQueue, VkFormat format);
