@@ -41,3 +41,16 @@ typedef glm::mat<4, 4, float> Matrix4f;
 
 #define text(x) x
 typedef const char* SChar;
+
+// Gives the ability for an enum to be saved or loaded to/from streams
+#define ENUM_OPERATORS(EnumClass, inType) \
+	inline std::ostream& operator<<(std::ostream& outStream, const EnumClass& inEnumClass) { \
+		outStream << static_cast<inType>(inEnumClass); \
+		return outStream; \
+	}\
+	inline std::istream& operator>>(std::istream& inStream, EnumClass& inEnumClass) { \
+		inType value; \
+		inStream >> value; \
+		inEnumClass = static_cast<EnumClass>(value); \
+		return inStream; \
+	}

@@ -171,7 +171,7 @@ void CEngine::run() {
 			}
 
 			mMainCamera.processSDLEvent(e);
-			SDL_SetWindowRelativeMouseMode(m_EngineWindow.mWindow, !mMainCamera.bShowMouse);
+			SDL_SetWindowRelativeMouseMode(m_EngineWindow.mWindow, !mMainCamera.mShowMouse);
 			ImGui_ImplSDL3_ProcessEvent(&e);
 		}
 

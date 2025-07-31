@@ -4,7 +4,10 @@
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/quaternion.hpp>
 
+#include "Engine.h"
 #include "EngineSettings.h"
+#include "EngineTextures.h"
+#include "VulkanRenderer.h"
 
 #define COMMAND_CATEGORY "Camera"
 ADD_COMMAND(float, FieldOfView, 70.f, 0.f, 180.f);
@@ -12,19 +15,6 @@ ADD_COMMAND(float, FieldOfView, 70.f, 0.f, 180.f);
 
 CCamera::CCamera(): mFOV(FieldOfView.get()) {
 	mouseArray.fill(false);
-}
-
-Matrix4f CCamera::getViewMatrix() const {
-	const Matrix4f cameraTranslation = glm::translate(Matrix4f(1.f), glm::vec3(mPosition));
-	const Matrix4f cameraRotation = getRotationMatrix();
-	return glm::inverse(cameraTranslation * cameraRotation);
-}
-
-Matrix4f CCamera::getRotationMatrix() const {
-	glm::quat pitchRotation = glm::angleAxis(mRotation.y, Vector3f{ 1.f, 0.f, 0.f });
-	glm::quat yawRotation = glm::angleAxis(mRotation.x, Vector3f{ 0.f, -1.f, 0.f });
-
-	return glm::toMat4(yawRotation) * glm::toMat4(pitchRotation);
 }
 
 void CCamera::processSDLEvent(const SDL_Event &e) {
@@ -43,7 +33,7 @@ void CCamera::processSDLEvent(const SDL_Event &e) {
 			mouseArray[e.button.button] = false;
 			break;
 		case SDL_EVENT_MOUSE_MOTION:
-			if (!bShowMouse) {
+			if (!mShowMouse) {
 				mRotation.x += e.motion.xrel / 250.f;
 				mRotation.y -= e.motion.yrel / 250.f;
 			}
@@ -52,10 +42,41 @@ void CCamera::processSDLEvent(const SDL_Event &e) {
 			break;
 	}
 
-	bShowMouse = !mouseArray[3]; //RightClick
+	mShowMouse = !mouseArray[3]; //RightClick
 }
 
 void CCamera::update() {
+
+	// Update View matrices
+	{
+		glm::quat pitchRotation = glm::angleAxis(mRotation.y, Vector3f{ 1.f, 0.f, 0.f });
+		glm::quat yawRotation = glm::angleAxis(mRotation.x, Vector3f{ 0.f, -1.f, 0.f });
+
+		mRotationMatrix = glm::toMat4(yawRotation) * glm::toMat4(pitchRotation);
+
+		const Matrix4f cameraTranslation = glm::translate(Matrix4f(1.f), glm::vec3(mPosition));
+		const Matrix4f cameraRotation = mRotationMatrix;
+		mViewMatrix = glm::inverse(cameraTranslation * cameraRotation);
+
+		// camera projection
+		const auto [x, y, z] = CEngine::renderer().mEngineTextures->mDrawImage->mImageExtent;
+		const float tanHalfFov = tan(glm::radians(mFOV) / 2.f);
+		const float aspect = (float)x / (float)y;
+
+		Matrix4f projection(0.f);
+		projection[0][0] = 1.f / (aspect * tanHalfFov);
+		projection[1][1] = 1.f / tanHalfFov;
+		projection[2][3] = - 1.f;
+		projection[3][2] = 0.1f;
+
+		// invert the Y direction on projection matrix so that we are more similar
+		// to opengl and gltf axis
+		projection[1][1] *= -1;
+
+		mProjectionMatrix = projection;
+
+		mViewProjectionMatrix = mProjectionMatrix * mViewMatrix;
+	}
 
 	float forwardAxis = keyMap[S] ? 0.25f : keyMap[W] ? -0.25f : 0.f;
 	float rightAxis = keyMap[D] ? 0.25f : keyMap[A] ? -0.25f : 0.f;
@@ -64,8 +85,7 @@ void CCamera::update() {
 	mVelocity = {rightAxis, upAxis, forwardAxis};
 
 	mFOV = FieldOfView.get();
-	Matrix4f cameraRotation = getRotationMatrix();
 	Vector2f movement{mVelocity.x * 0.5f, mVelocity.z * 0.5f};
-	mPosition += Vector3f(cameraRotation * Vector4f(movement.x, 0.f, movement.y, 0.f));
+	mPosition += Vector3f(mRotationMatrix * Vector4f(movement.x, 0.f, movement.y, 0.f));
 	mPosition += Vector3f(0.f, mVelocity.y * 0.5f, 0.f);
 }

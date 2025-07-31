@@ -371,6 +371,9 @@ SImage CResourceManager::allocateImage(void* inData, const std::string& inDebugN
 
 void CResourceManager::loadImage(const std::filesystem::path& imageName, bool inMipmapped) {
 	ZoneScopedAllocation(fmts("Load Image {}", imageName.string().c_str()));
+
+	msgs("Loading image: {}", imageName.string().c_str());
+
 	const std::filesystem::path path = CEngine::get().mAssetPath + imageName.string();
 
 	int width, height, nrChannels;
@@ -385,6 +388,8 @@ void CResourceManager::loadImage(const std::filesystem::path& imageName, bool in
 
 		stbi_image_free(data);
 	}
+
+	msgs("Image {} Loaded.", imageName.string().c_str());
 }
 
 void CResourceManager::deallocateImage(const SImage_T* inImage) {

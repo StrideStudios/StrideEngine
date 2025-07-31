@@ -14,6 +14,7 @@ add_executable(StrideEngine
         core/include/Hashing.h
         core/include/BasicTypes.h
         core/include/Common.h
+        core/include/Archive.h
 
         # Engine
 
@@ -27,6 +28,8 @@ add_executable(StrideEngine
         engine/include/Material.h
         engine/include/Camera.h
         engine/Camera.cpp
+        engine/include/SceneObject.h
+        engine/SceneObject.cpp
 
         # Renderer
 
@@ -53,6 +56,10 @@ add_executable(StrideEngine
         renderer/include/SceneViewport.h
         renderer/include/DescriptorManager.h
         renderer/DescriptorManager.cpp
+        renderer/include/TestRenderer.h
+        renderer/TestRenderer.cpp
+        renderer/include/MeshPass.h
+        renderer/MeshPass.cpp
 
         # Dear ImGui
 
@@ -74,10 +81,6 @@ add_executable(StrideEngine
 
         # stb
         stb/include/stb_image.h
-        renderer/include/TestRenderer.h
-        renderer/TestRenderer.cpp
-        renderer/include/MeshPass.h
-        renderer/MeshPass.cpp
 )
 
 find_package(Vulkan REQUIRED)

@@ -4,6 +4,7 @@
 #include <map>
 
 #include "Common.h"
+#include "SceneObject.h"
 #include "SDL3/SDL_events.h"
 
 enum EKey {
@@ -266,24 +267,24 @@ enum EKey {
 };
 
 //TODO: base class for position, rotation, and scale and such
-class CCamera {
+class CCamera : public CSceneObject {
 public:
 
 	CCamera();
-
-	no_discard Matrix4f getViewMatrix() const;
-	no_discard Matrix4f getRotationMatrix() const;
 
 	void processSDLEvent(const SDL_Event& e);
 
 	void update();
 
-	bool bShowMouse = true;
+	Matrix4f mViewMatrix;
+	Matrix4f mRotationMatrix;
+	Matrix4f mProjectionMatrix;
+
+	Matrix4f mViewProjectionMatrix;
+
+	bool mShowMouse = true;
 
 	Vector3f mVelocity{0,0,0};
-	Vector3f mPosition{0, 0, 0};
-	// Yaw + Pitch
-	Vector2f mRotation{0,0};
 
 	float mFOV;
 

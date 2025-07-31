@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <fstream>
 
+#include "Archive.h"
 #include "BasicTypes.h"
 #include "Common.h"
 #include "Engine.h"
@@ -85,35 +86,14 @@ static uint32 compile(SShader& inoutShader) {
 }
 
 std::string readShaderFile(const char* inFileName) {
-	FILE* file;
-	fopen_s(&file, inFileName, "r");
+	CFileArchive file(inFileName, "r");
 
-	if (!file)
-	{
+	if (!file.isOpen()) {
 		printf("I/O error. Cannot open shader file '%s'\n", inFileName);
 		return std::string();
 	}
 
-	fseek(file, 0L, SEEK_END);
-	const auto bytesinfile = ftell(file);
-	fseek(file, 0L, SEEK_SET);
-
-	char* buffer = (char*)alloca(bytesinfile + 1);
-	const size_t bytesread = fread(buffer, 1, bytesinfile, file);
-	fclose(file);
-
-	buffer[bytesread] = 0;
-
-	// Remove the BOM at the beginning of the file that causes the compiler to miss the #version specifier
-	static constexpr unsigned char BOM[] = { 0xEF, 0xBB, 0xBF };
-
-	if (bytesread > 3)
-	{
-		if (!memcmp(buffer, BOM, 3))
-			memset(buffer, ' ', 3);
-	}
-
-	std::string code(buffer);
+	std::string code = file.readFile(true);
 
 	// Process includes
 	while (code.find("#include ") != code.npos)
@@ -135,51 +115,30 @@ std::string readShaderFile(const char* inFileName) {
 }
 
 bool loadShader(VkDevice inDevice, const char* inFileName, uint32 Hash, SShader& inoutShader) {
-	// Make sure the file exists before attempting to open
-	if (!std::filesystem::exists(inFileName)) {
+	CFileArchive file(inFileName, "rb");
+
+	if (!file.isOpen()) {
 		return false;
 	}
 
-	// Open the file. With cursor at the end
-	std::ifstream file(inFileName, std::ios::ate | std::ios::binary);
-
-	if (!file.is_open()) {
-		return false;
-	}
-
-	// Find what the size of the file is by looking up the location of the cursor
-	// Because the cursor is at the end, it gives the size directly in bytes
-	size_t fileSize = file.tellg();
-
-	// SPIRV expects the buffer to be on uint32, so make sure to reserve a int
-	// Vector big enough for the entire file
-	std::vector<uint32> buffer(fileSize / sizeof(uint32));
-
-	// Put file cursor at beginning
-	file.seekg(0);
-
-	// Load the entire file into the buffer
-	file.read((char*)buffer.data(), fileSize);
-
-	// Now that the file is loaded into the buffer, we can close it
-	file.close();
+	std::vector<uint32> code = file.readFile<uint32>();
 
 	// The first uint32 value is the hash, if it does not equal the hash for the shader code, it means the shader has changed
-	if (buffer[0] != Hash) {
+	if (code[0] != Hash) {
 		msgs("Shader file {} has changed, recompiling.", inFileName);
 		return false;
 	}
 
 	// Remove the hash so it doesnt mess up the SPIRV shader
-	buffer.erase(buffer.begin());
+	code.erase(code.begin());
 
 	// Create a new shader module, using the buffer we loaded
 	VkShaderModuleCreateInfo createInfo {
 		.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
 		.pNext = nullptr,
 		// CodeSize has to be in bytes, so multply the ints in the buffer by size of
-		.codeSize = buffer.size() * sizeof(uint32),
-		.pCode = buffer.data()
+		.codeSize = code.size() * sizeof(uint32),
+		.pCode = code.data()
 	};
 
 	// Check that the creation goes well.
@@ -192,10 +151,10 @@ bool loadShader(VkDevice inDevice, const char* inFileName, uint32 Hash, SShader&
 }
 
 bool saveShader(const char* inFileName, uint32 Hash, const SShader& inShader) {
-	std::ofstream file(inFileName, std::ios::binary | std::ios::trunc);
+	CFileArchive file(inFileName, "wb");
 
 	// Make sure the file is open
-	if (!file.is_open()) {
+	if (!file.isOpen()) {
 		return false;
 	}
 
@@ -204,11 +163,7 @@ bool saveShader(const char* inFileName, uint32 Hash, const SShader& inShader) {
 	// Add the hash to the first part of the shader
 	data.insert(data.begin(), Hash);
 
-	// write the data to the file
-	file.write((char*)data.data(), data.size()*sizeof(uint32));
-
-	// Close the file
-	file.close();
+	file.writeFile(data);
 
 	msgs("Compiled Shader {}.", inFileName);
 

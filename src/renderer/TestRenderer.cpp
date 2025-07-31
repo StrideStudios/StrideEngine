@@ -1,5 +1,9 @@
 ﻿#include "TestRenderer.h"
 
+#include <fstream>
+
+#include "Archive.h"
+#include "Engine.h"
 #include "GpuScene.h"
 #include "imgui.h"
 #include "MeshLoader.h"
@@ -24,6 +28,41 @@ void CTestRenderer::init() {
 	mGlobalResourceManager.loadImage("trim_misc_2_albedo.png");
 	mMeshLoader->loadGLTF(this, "structure2.glb");
 	mGPUScene->basePass.push(mMeshLoader->mLoadedModels);
+
+	const std::string path = CEngine::get().mAssetPath + "testMaterial.txt";
+
+	CMaterial materialTest;
+
+	materialTest.mPassType = EMaterialPass::TRANSLUCENT;
+	materialTest.mCode = "Hello My Friend, how are you?.";
+	materialTest.otherNum = {857, 1235, 73};
+	materialTest.testNum0 = 1235;
+	materialTest.testNum1 = 616;
+
+	// Test writing a material
+	{
+		CFileArchive outFile(path, "wb");
+		outFile << materialTest;
+
+		msgs("{}", materialTest.testNum0);
+		msgs("{}", materialTest.testNum1);
+		msgs("{}", (uint8)materialTest.mPassType);
+		msgs("{}", materialTest.mCode.c_str());
+		msgs("x: {}, y: {}, z: {}", materialTest.otherNum.x, materialTest.otherNum.y, materialTest.otherNum.z);
+	}
+
+	// Test reading the material back
+	{
+		CMaterial inMaterialTest;
+		CFileArchive inFile(path, "rb");
+		inFile >> inMaterialTest;
+
+		msgs("{}", inMaterialTest.testNum0);
+		msgs("{}", inMaterialTest.testNum1);
+		msgs("{}", (uint8)inMaterialTest.mPassType);
+		msgs("{}", inMaterialTest.mCode.c_str());
+		msgs("x: {}, y: {}, z: {}", inMaterialTest.otherNum.x, inMaterialTest.otherNum.y, inMaterialTest.otherNum.z);
+	}
 }
 
 void CTestRenderer::render(VkCommandBuffer cmd) {
