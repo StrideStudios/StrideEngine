@@ -1,7 +1,7 @@
 ﻿#pragma once
 
 #include <vulkan/vulkan_core.h>
-#include <set>
+#include <map>
 
 #include "Archive.h"
 #include "Common.h"
@@ -14,9 +14,14 @@ struct SMaterialPipeline {
 enum class EMaterialPass : uint8 {
 	OPAQUE,
 	TRANSLUCENT,
-	HIGHLIGHT
+	HIGHLIGHT,
+	MAX
 };
-ENUM_OPERATORS(EMaterialPass, uint8)
+ENUM_TO_STRING(MaterialPass, uint8,
+	"Opaque",
+	"Translucent",
+	"Highlight");
+ENUM_OPERATORS(MaterialPass, uint8)
 
 struct SMaterialInstance {
 	SMaterialPipeline* pipeline;
@@ -27,46 +32,42 @@ struct SMaterialInstance {
 class CMaterial {
 public:
 
-	static std::set<SMaterialInstance> getMaterials() {
-		static std::set<SMaterialInstance> materials;
+	static std::vector<CMaterial>& getMaterials() {
+		static std::vector<CMaterial> materials;
 		return materials;
 	}
 
 	CMaterial() = default;
 
-	int32 testNum0 = 0;
-	int32 testNum1 = 0;
+	std::string mName;
 
 	EMaterialPass mPassType = EMaterialPass::OPAQUE;
 
+	// Inputs for the file, these are put into a uniform buffer
+	// which always has 16 Vector4fs
+	std::vector<Vector4f> mInputs;
+
 	// The code for the file
 	// This is compiled into glsl, then to spirv
+	//TODO: actually write the compiler and stuff
 	std::string mCode;
-
-	Vector3f otherNum = {0, 0, 0};
 
 	//TODO: for now this form of saving and loading should suffice
 	// but before going any further, a class with a standard c implementation should be used
 
 	friend CArchive& operator<<(CArchive& inArchive, const CMaterial& inMaterial) {
-		inArchive << inMaterial.testNum0;
-		inArchive << inMaterial.testNum1;
+		inArchive << inMaterial.mName;
 		inArchive << inMaterial.mPassType;
-
-		// Write the size so we know how much to read
+		inArchive << inMaterial.mInputs;
 		inArchive << inMaterial.mCode;
-		inArchive << inMaterial.otherNum;
 		return inArchive;
 	}
 
 	friend CArchive& operator>>(CArchive& inArchive, CMaterial& inMaterial) {
-		inArchive >> inMaterial.testNum0;
-		inArchive >> inMaterial.testNum1;
+		inArchive >> inMaterial.mName;
 		inArchive >> inMaterial.mPassType;
-
-		// Get size and read the file to the code
+		inArchive >> inMaterial.mInputs;
 		inArchive >> inMaterial.mCode;
-		inArchive >> inMaterial.otherNum;
 		return inArchive;
 	}
 };

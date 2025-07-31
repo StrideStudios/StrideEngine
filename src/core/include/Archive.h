@@ -78,16 +78,21 @@ public:
 	template <typename TType, class TAlloc = std::allocator<TType>>
 	friend CArchive& operator<<(CArchive& inArchive, const std::vector<TType, TAlloc>& inValue) {
 		inArchive << inValue.size();
-		inArchive.write(inValue.data(), sizeof(TType), inValue.size());
+		for (auto value : inValue) {
+			inArchive << value;
+		}
 		return inArchive;
 	}
 
+	// Vector assumes a default constructor and save overloads
 	template <typename TType, class TAlloc = std::allocator<TType>>
 	friend CArchive& operator>>(CArchive& inArchive, std::vector<TType, TAlloc>& inValue) {
 		size_t size;
 		inArchive >> size;
 		inValue.resize(size);
-		inArchive.read(inValue.data(), sizeof(TType), inValue.size());
+		for (size_t i = 0; i < size; ++i) {
+			inArchive >> inValue[i];
+		}
 		return inArchive;
 	}
 

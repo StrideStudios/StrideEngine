@@ -1,11 +1,13 @@
 ﻿#include "TestRenderer.h"
 
 #include <fstream>
+#include <ranges>
 
 #include "Archive.h"
 #include "Engine.h"
 #include "GpuScene.h"
 #include "imgui.h"
+#include "imgui_stdlib.h"
 #include "MeshLoader.h"
 
 void CTestRenderer::init() {
@@ -29,43 +31,103 @@ void CTestRenderer::init() {
 	mMeshLoader->loadGLTF(this, "structure2.glb");
 	mGPUScene->basePass.push(mMeshLoader->mLoadedModels);
 
-	const std::string path = CEngine::get().mAssetPath + "testMaterial.txt";
+	const std::string path = CEngine::get().mAssetPath + "materials.txt";
+	if (CFileArchive inFile(path, "rb"); inFile.isOpen())
+		inFile >> CMaterial::getMaterials();
+}
 
-	CMaterial materialTest;
-
-	materialTest.mPassType = EMaterialPass::TRANSLUCENT;
-	materialTest.mCode = "Hello My Friend, how are you?.";
-	materialTest.otherNum = {857, 1235, 73};
-	materialTest.testNum0 = 1235;
-	materialTest.testNum1 = 616;
-
-	// Test writing a material
-	{
-		CFileArchive outFile(path, "wb");
-		outFile << materialTest;
-
-		msgs("{}", materialTest.testNum0);
-		msgs("{}", materialTest.testNum1);
-		msgs("{}", (uint8)materialTest.mPassType);
-		msgs("{}", materialTest.mCode.c_str());
-		msgs("x: {}, y: {}, z: {}", materialTest.otherNum.x, materialTest.otherNum.y, materialTest.otherNum.z);
-	}
-
-	// Test reading the material back
-	{
-		CMaterial inMaterialTest;
-		CFileArchive inFile(path, "rb");
-		inFile >> inMaterialTest;
-
-		msgs("{}", inMaterialTest.testNum0);
-		msgs("{}", inMaterialTest.testNum1);
-		msgs("{}", (uint8)inMaterialTest.mPassType);
-		msgs("{}", inMaterialTest.mCode.c_str());
-		msgs("x: {}, y: {}, z: {}", inMaterialTest.otherNum.x, inMaterialTest.otherNum.y, inMaterialTest.otherNum.z);
-	}
+void CTestRenderer::destroy() {
+	CVulkanRenderer::destroy();
+	const std::string path = CEngine::get().mAssetPath + "materials.txt";
+	CFileArchive outFile(path, "wb");
+	outFile << CMaterial::getMaterials();
 }
 
 void CTestRenderer::render(VkCommandBuffer cmd) {
+
+	ImGui::ShowDemoWindow();
+
+	static int32 selected = 0;
+
+	if (ImGui::Begin("Materials")) {
+		ImGui::Text("Add Material");
+		ImGui::SameLine();
+		if (ImGui::SmallButton("+")) {
+			// Get a name that isn't taken
+			int32 materialNumber = 0;
+			std::string testName;
+			bool contains = true;
+			while (contains) {
+
+				testName = fmts("material {}", materialNumber);
+
+				contains = false;
+				for (auto& material : CMaterial::getMaterials()) {
+					if (material.mName == testName) {
+						contains = true;
+						break;
+					}
+				}
+
+				materialNumber++;
+			}
+
+			CMaterial material;
+			material.mName = testName;
+			CMaterial::getMaterials().push_back(material);
+			selected = CMaterial::getMaterials().size() - 1;
+		}
+
+		if (!CMaterial::getMaterials().empty()) {
+			ImGui::SameLine();
+			if (ImGui::SmallButton("-")) {
+				CMaterial::getMaterials().erase(CMaterial::getMaterials().begin() + selected);
+				selected = std::min(static_cast<int32>(CMaterial::getMaterials().size() - 1), selected);
+			}
+		}
+
+		if (!CMaterial::getMaterials().empty()) {
+
+			CMaterial& material = CMaterial::getMaterials()[selected];
+
+			if (ImGui::BeginCombo("Material", material.mName.c_str(), ImGuiComboFlags_HeightRegular)) {
+				for (int32 i = 0; i < CMaterial::getMaterials().size(); ++i) {
+					const bool isSelected = selected == i;
+					if (ImGui::Selectable(CMaterial::getMaterials()[i].mName.c_str(), isSelected))
+						selected = i;
+
+					// Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
+					if (isSelected)
+						ImGui::SetItemDefaultFocus();
+				}
+
+				ImGui::EndCombo();
+			}
+			ImGui::InputText("Name: ", &material.mName);
+
+			const char* passTypePreviewValue = getMaterialPassToString(material.mPassType);
+			if (ImGui::BeginCombo("Pass Type", passTypePreviewValue, ImGuiComboFlags_HeightRegular)) {
+				for (uint8 n = 0; n < valueOf(EMaterialPass::MAX); n++) {
+					const bool is_selected = material.mPassType == n;
+					if (ImGui::Selectable(getMaterialPassToString(toMaterialPass(n)), is_selected))
+						material.mPassType = toMaterialPass(n);
+
+					// Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
+					if (is_selected)
+						ImGui::SetItemDefaultFocus();
+				}
+
+				ImGui::EndCombo();
+			}
+
+			if (ImGui::TreeNode("Code")) {
+				ImGui::InputTextMultiline("##code", &material.mCode, ImVec2(-FLT_MIN, ImGui::GetTextLineHeight() * 16), ImGuiInputTextFlags_AllowTabInput);
+				ImGui::TreePop();
+			}
+		}
+	}
+	ImGui::End();
+
 	if (ImGui::Begin("Meshes")) {
 		for (const auto& mesh : mMeshLoader->mLoadedModels) {
 			if (ImGui::BeginTabBar("Mesh")) {

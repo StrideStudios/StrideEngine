@@ -42,15 +42,26 @@ typedef glm::mat<4, 4, float> Matrix4f;
 #define text(x) x
 typedef const char* SChar;
 
-// Gives the ability for an enum to be saved or loaded to/from streams
-#define ENUM_OPERATORS(EnumClass, inType) \
-	inline std::ostream& operator<<(std::ostream& outStream, const EnumClass& inEnumClass) { \
+// Gives the enum some convenience operators
+#define ENUM_OPERATORS(EnumName, inType) \
+	inline E##EnumName to##EnumName(const inType& inValue) { return static_cast<E##EnumName>(inValue); } \
+	inline inType valueOf(const E##EnumName& inValue) { return static_cast<inType>(inValue); } \
+	inline bool operator==(const E##EnumName& lhs, const inType& rhs) { \
+		return static_cast<inType>(lhs) == rhs; \
+	} \
+	inline std::ostream& operator<<(std::ostream& outStream, const E##EnumName& inEnumClass) { \
 		outStream << static_cast<inType>(inEnumClass); \
 		return outStream; \
-	}\
-	inline std::istream& operator>>(std::istream& inStream, EnumClass& inEnumClass) { \
+	} \
+	inline std::istream& operator>>(std::istream& inStream, E##EnumName& inEnumClass) { \
 		inType value; \
 		inStream >> value; \
-		inEnumClass = static_cast<EnumClass>(value); \
+		inEnumClass = static_cast<E##EnumName>(value); \
 		return inStream; \
+	}
+
+#define ENUM_TO_STRING(EnumName, inType, ...) \
+	constexpr static const char* EnumName##Map[] = {__VA_ARGS__}; \
+	inline const char* get##EnumName##ToString(E##EnumName inValue) { \
+		return EnumName##Map[(inType)inValue]; \
 	}
