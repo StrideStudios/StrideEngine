@@ -5,40 +5,23 @@
 
 #include "material\input_structures.glsl"
 
+layout(location = 0) in vec3 inPos;
+layout(location = 1) in float inUVx;
+layout(location = 2) in vec3 inNormal;
+layout(location = 3) in float inUVy;
+layout(location = 4) in vec4 inColor;
+
 layout (location = 0) out vec3 outNormal;
-layout (location = 1) out vec3 outColor;
+layout (location = 1) out vec4 outColor;
 layout (location = 2) out vec2 outUV;
 
-struct Vertex {
+void main() {
+    vec4 position = vec4(inPos, 1.f);
 
-    vec3 position;
-    float uv_x;
-    vec3 normal;
-    float uv_y;
-    vec4 color;
-};
+    gl_Position =  sceneData.viewproj * position;
 
-layout(buffer_reference, std430) readonly buffer VertexBuffer{
-    Vertex vertices[];
-};
-
-//push constants block
-layout( push_constant ) uniform constants
-{
-    mat4 render_matrix;
-    VertexBuffer vertexBuffer;
-} PushConstants;
-
-void main()
-{
-    Vertex v = PushConstants.vertexBuffer.vertices[gl_VertexIndex];
-
-    vec4 position = vec4(v.position, 1.f);
-
-    gl_Position =  sceneData.viewproj * PushConstants.render_matrix * position;
-
-    outNormal = (PushConstants.render_matrix * vec4(v.normal, 0.f)).xyz;
-    outColor = v.color.xyz;
-    outUV.x = v.uv_x;
-    outUV.y = v.uv_y;
+    outNormal = inNormal;
+    outColor = inColor;
+    outUV.x = inUVx;
+    outUV.y = inUVy;
 }

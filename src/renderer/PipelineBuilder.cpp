@@ -38,7 +38,54 @@ VkPipeline CPipelineBuilder::buildPipeline(VkDevice inDevice) const {
 	colorBlending.pAttachments = &m_ColorBlendAttachment;
 
 	// Completely clear VertexInputStateCreateInfo, as we have no need for it
-	VkPipelineVertexInputStateCreateInfo _vertexInputInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
+	//VkPipelineVertexInputStateCreateInfo _vertexInputInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
+
+	constexpr VkVertexInputBindingDescription binding = {
+		.binding = 0,
+		.stride = sizeof(SVertex),
+		.inputRate = VK_VERTEX_INPUT_RATE_VERTEX
+	};
+
+	auto attributes = {
+		{ // Vector3f position
+			0,
+			binding.binding,
+			VK_FORMAT_R32G32B32_SFLOAT,
+			0
+		},
+		VkVertexInputAttributeDescription{ // float uv_x
+			1,
+			binding.binding,
+			VK_FORMAT_R32_SFLOAT,
+			3 * sizeof(float)
+		},
+		VkVertexInputAttributeDescription{ // Vector3f normal
+			2,
+			binding.binding,
+			VK_FORMAT_R32G32B32_SFLOAT,
+			4 * sizeof(float)
+		},
+		VkVertexInputAttributeDescription{ // float uv_y
+			3,
+			binding.binding,
+			VK_FORMAT_R32_SFLOAT,
+			7 * sizeof(float)
+		},
+		VkVertexInputAttributeDescription{ // Vector4f color
+			4,
+			binding.binding,
+			VK_FORMAT_R32G32B32A32_SFLOAT,
+			8 * sizeof(float)
+		}
+	};
+
+	const VkPipelineVertexInputStateCreateInfo _vertexInputInfo = {
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+		.vertexBindingDescriptionCount = 1,
+		.pVertexBindingDescriptions = &binding,
+		.vertexAttributeDescriptionCount = (uint32)attributes.size(),
+		.pVertexAttributeDescriptions = attributes.begin()
+	};
 
 	VkDynamicState state[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
 

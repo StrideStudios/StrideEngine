@@ -1,6 +1,7 @@
 ﻿#include "MeshPass.h"
 
 #include "Engine.h"
+#include "EngineBuffers.h"
 #include "EngineTextures.h"
 #include "GpuScene.h"
 #include "PipelineBuilder.h"
@@ -38,13 +39,8 @@ void SMeshPass::build(CVulkanRenderer* renderer, CGPUScene* gpuScene) {
 
 	auto pushConstants = {
 		VkPushConstantRange{
-			.stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
-			.offset = 0,
-			.size = sizeof(SGPUDrawPushConstants)
-		},
-		VkPushConstantRange{
 			.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
-			.offset = 72,
+			.offset = 0,
 			.size = sizeof(uint32)
 		}
 	};
@@ -190,12 +186,9 @@ void SMeshPass::render(const CVulkanRenderer* renderer, VkCommandBuffer cmd) {
 		if (lastIndexBuffer != obj->meshBuffers->indexBuffer->buffer) {
 			lastIndexBuffer = obj->meshBuffers->indexBuffer->buffer;
 			vkCmdBindIndexBuffer(cmd, obj->meshBuffers->indexBuffer->buffer, 0, VK_INDEX_TYPE_UINT32);
+			constexpr VkDeviceSize offset = 0;
+			vkCmdBindVertexBuffers(cmd, 0, 1, &obj->meshBuffers->vertexBuffer->buffer, &offset);
 		}
-
-		// Add Mesh matrix
-		SGPUDrawPushConstants push_constants;
-		push_constants.worldMatrix = obj->transform;
-		push_constants.vertexBuffer = obj->meshBuffers->vertexBufferAddress;
 
 		// Loop through surfaces and render
 		for (const auto& surface : obj->surfaces) {
@@ -216,8 +209,7 @@ void SMeshPass::render(const CVulkanRenderer* renderer, VkCommandBuffer cmd) {
 				//CResourceManager::bindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->layout, 1, 1, draw.material->materialSet);
 			}
 
-			vkCmdPushConstants(cmd, surface.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(SGPUDrawPushConstants), &push_constants);
-			vkCmdPushConstants(cmd, surface.material->pipeline->layout, VK_SHADER_STAGE_FRAGMENT_BIT, 72, sizeof(uint32), &surface.material->colorTextureId);
+			vkCmdPushConstants(cmd, surface.material->pipeline->layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(uint32), &surface.material->colorTextureId);
 
 			vkCmdDrawIndexed(cmd, surface.count, 1, surface.startIndex, 0, 0);
 

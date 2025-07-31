@@ -2,9 +2,8 @@
 layout (set = 1, binding = 1) uniform sampler samplers[];
 
 //push constants block
-layout( push_constant ) uniform constants
-{
-    layout(offset = 72) uint colorId; //Useful for color, normal, metallic/specular/roughness, and one other texture
+layout( push_constant ) uniform constants {
+    uint colorId; //Useful for color, normal, metallic/specular/roughness, and one other texture
 } PushConstants;
 
 

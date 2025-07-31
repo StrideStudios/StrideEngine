@@ -3,14 +3,6 @@
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
-#include "BasicTypes.h"
-
-// push constants for our mesh object draws
-struct SGPUDrawPushConstants {
-	Matrix4f worldMatrix;
-	VkDeviceAddress vertexBuffer;
-};
-
 class CPipelineBuilder {
 public:
 	std::vector<VkPipelineShaderStageCreateInfo> m_ShaderStages;
