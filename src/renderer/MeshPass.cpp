@@ -39,9 +39,9 @@ void SMeshPass::build(CVulkanRenderer* renderer, CGPUScene* gpuScene) {
 
 	auto pushConstants = {
 		VkPushConstantRange{
-			.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+			.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
 			.offset = 0,
-			.size = sizeof(uint32)
+			.size = sizeof(SPushConstants)
 		}
 	};
 
@@ -167,7 +167,7 @@ void SMeshPass::render(const CVulkanRenderer* renderer, VkCommandBuffer cmd) {
 
 	//defined outside of the draw function, this is the state we will try to skip
 	SMaterialPipeline* lastPipeline = nullptr;
-	std::shared_ptr<SMaterialInstance> lastMaterial = nullptr;
+	std::shared_ptr<CMaterial> lastMaterial = nullptr;
 	VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
 
 	uint32 drawCallCount = 0;
@@ -195,21 +195,21 @@ void SMeshPass::render(const CVulkanRenderer* renderer, VkCommandBuffer cmd) {
 
 			//TODO: auto pipeline rebind (or something)
 			// If the materials arent the same, rebind material data
+			SMaterialPipeline& pipeline = surface.material->getPipeline(renderer);
 			if (surface.material != lastMaterial) {
 				// If the pipeline has changed, rebind pipeline data
-				if (surface.material->pipeline != lastPipeline) {
-					lastPipeline = surface.material->pipeline;
-					CResourceManager::bindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, surface.material->pipeline->pipeline);
-					CResourceManager::bindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, surface.material->pipeline->layout, 0, 1, renderer->mGPUScene->m_Frames[renderer->getFrameIndex()].sceneDescriptor);
-					CResourceManager::bindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, surface.material->pipeline->layout, 1, 1, CResourceManager::getBindlessDescriptorSet());
+				if (&pipeline != lastPipeline) {
+					lastPipeline = &pipeline;
+					CResourceManager::bindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline);
+					CResourceManager::bindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.layout, 0, 1, renderer->mGPUScene->m_Frames[renderer->getFrameIndex()].sceneDescriptor);
+					CResourceManager::bindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.layout, 1, 1, CResourceManager::getBindlessDescriptorSet());
 
 					CEngine::renderer().mViewport.update({extent.width, extent.height});
 					CEngine::renderer().mViewport.set(cmd);
 				}
-				//CResourceManager::bindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->layout, 1, 1, draw.material->materialSet);
 			}
 
-			vkCmdPushConstants(cmd, surface.material->pipeline->layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(uint32), &surface.material->colorTextureId);
+			vkCmdPushConstants(cmd, pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(SPushConstants), surface.material->mConstants.data());
 
 			vkCmdDrawIndexed(cmd, surface.count, 1, surface.startIndex, 0, 0);
 

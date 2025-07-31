@@ -97,18 +97,81 @@ public:
 	}
 
 	//
+	// Arrays
+	//
+
+	template <typename TType, size_t _Size>
+	friend CArchive& operator<<(CArchive& inArchive, const std::array<TType, _Size>& inValue) {
+		for (auto value : inValue) {
+			inArchive << value;
+		}
+		return inArchive;
+	}
+
+	// Since arrays have a set size, it does not need to be added to the save data
+	template <typename TType, size_t _Size>
+	friend CArchive& operator>>(CArchive& inArchive, std::array<TType, _Size>& inValue) {
+		for (size_t i = 0; i < _Size; ++i) {
+			inArchive >> inValue[i];
+		}
+		return inArchive;
+	}
+
+	//
+	// Pointers need to be dereferenced on write and constructed on read
+	//
+
+	/*template <typename TType> //TODO; unable to distinguish from heap or stack allocated pointers
+	friend CArchive& operator<<(CArchive& inArchive, const TType*& inValue) {
+		inArchive << *inValue;
+		return inArchive;
+	}
+
+	template <typename TType>
+	friend CArchive& operator>>(CArchive& inArchive, TType*& inValue) {
+		inArchive >> *inValue;
+		return inArchive;
+	}*/
+
+	template <typename TType>
+	friend CArchive& operator<<(CArchive& inArchive, const std::shared_ptr<TType>& inValue) {
+		inArchive << *inValue;
+		return inArchive;
+	}
+
+	template <typename TType>
+	friend CArchive& operator>>(CArchive& inArchive, std::shared_ptr<TType>& inValue) {
+		inValue = std::make_shared<TType>();
+		inArchive >> *inValue;
+		return inArchive;
+	}
+
+	template <typename TType>
+	friend CArchive& operator<<(CArchive& inArchive, const std::unique_ptr<TType>& inValue) {
+		inArchive << *inValue;
+		return inArchive;
+	}
+
+	template <typename TType>
+	friend CArchive& operator>>(CArchive& inArchive, std::unique_ptr<TType>& inValue) {
+		inValue = std::make_unique<TType>();
+		inArchive >> *inValue;
+		return inArchive;
+	}
+
+	//
 	// Templated (works for basic types)
 	//
 
 	template <typename TType>
 	friend CArchive& operator<<(CArchive& inArchive, const TType& inValue) {
-		inArchive.write(reinterpret_cast<const char*>(&inValue), sizeof(TType), 1);
+		inArchive.write(&inValue, sizeof(TType), 1);
 		return inArchive;
 	}
 
 	template <typename TType>
 	friend CArchive& operator>>(CArchive& inArchive, TType& inValue) {
-		inArchive.read(reinterpret_cast<char*>(&inValue), sizeof(TType), 1);
+		inArchive.read(&inValue, sizeof(TType), 1);
 		return inArchive;
 	}
 

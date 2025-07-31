@@ -173,13 +173,8 @@ void CMeshLoader::loadGLTF(CVulkanRenderer* renderer, std::filesystem::path file
 			// primitives without indices should be ignored
 			if (gltf.accessors[p.indicesAccessor.value()].count <= 0) continue;
 
-			//TODO: materials defined by + in new material imGui menu, which adds a file and does stuff to it
-			auto matData = std::make_shared<SMaterialInstance>();
-			matData->passType = EMaterialPass::OPAQUE;
-			matData->pipeline = &renderer->mGPUScene->basePass.errorPipeline;
-
 			SStaticMesh::Surface newSurface;
-			newSurface.material = matData;
+			newSurface.material = renderer->mGPUScene->mErrorMaterial;
 			newSurface.startIndex = (uint32)indices.size();
 			newSurface.count = (uint32)gltf.accessors[p.indicesAccessor.value()].count;
 

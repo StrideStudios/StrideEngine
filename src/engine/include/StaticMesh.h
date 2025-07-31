@@ -18,7 +18,7 @@ struct SStaticMesh {
 
 		std::string name;
 
-		std::shared_ptr<SMaterialInstance> material;
+		std::shared_ptr<CMaterial> material;
 
 		uint32 startIndex;
 		uint32 count;

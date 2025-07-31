@@ -55,7 +55,7 @@ public:
 
 	SImage m_ErrorCheckerboardImage;
 
-	SMaterialInstance m_DefaultData;
+	std::shared_ptr<CMaterial> mErrorMaterial;
 
 	VkSampler m_DefaultSamplerLinear;
 	VkSampler m_DefaultSamplerNearest;

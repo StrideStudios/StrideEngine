@@ -1,9 +1,9 @@
 ﻿#version 460
 
-#extension GL_GOOGLE_include_directive : require
-#extension GL_EXT_scalar_block_layout : enable
 #extension GL_EXT_nonuniform_qualifier : enable
-#include "material\input_structures.glsl"
+
+#include "material\scene_data.glsl"
+#include "material\material_constants.glsl"
 #include "material\texturing.glsl"
 
 layout (location = 0) in vec3 vertexNormal;

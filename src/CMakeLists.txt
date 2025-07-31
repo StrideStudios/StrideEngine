@@ -26,6 +26,7 @@ add_executable(StrideEngine
         engine/include/Engine.h
         engine/Engine.cpp
         engine/include/Material.h
+        engine/Material.cpp
         engine/include/Camera.h
         engine/Camera.cpp
         engine/include/SceneObject.h

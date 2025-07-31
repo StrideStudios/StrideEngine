@@ -1,9 +1,7 @@
 ﻿#version 460
 
-#extension GL_GOOGLE_include_directive : require
-#extension GL_EXT_buffer_reference : require
-
-#include "material\input_structures.glsl"
+#include "material\scene_data.glsl"
+#include "material\material_constants.glsl"
 
 layout(location = 0) in vec3 inPos;
 layout(location = 1) in float inUVx;

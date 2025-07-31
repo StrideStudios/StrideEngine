@@ -75,6 +75,13 @@ CGPUScene::CGPUScene(CVulkanRenderer* renderer) {
 	}
 	m_ErrorCheckerboardImage = renderer->mGlobalResourceManager.allocateImage(pixels.data(), "Default Error", VkExtent3D{16, 16, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
 
+	{
+		mErrorMaterial = std::make_shared<CMaterial>();
+		mErrorMaterial->mShouldSave = false;
+		mErrorMaterial->mName = "Error";
+		mErrorMaterial->mPassType = EMaterialPass::ERROR;
+	}
+
 	SDescriptorLayoutBuilder builder;
 	builder.addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 	m_GPUSceneDataDescriptorLayout = builder.build(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);

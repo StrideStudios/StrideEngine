@@ -1,12 +1,6 @@
 ﻿layout (set = 1, binding = 0) uniform texture2D textures[];
 layout (set = 1, binding = 1) uniform sampler samplers[];
 
-//push constants block
-layout( push_constant ) uniform constants {
-    uint colorId; //Useful for color, normal, metallic/specular/roughness, and one other texture
-} PushConstants;
-
-
 vec4 sampleTexture2DNearest(uint texID, vec2 uv) {
     return texture(nonuniformEXT(sampler2D(textures[texID], samplers[0])), uv);
 }

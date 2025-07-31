@@ -2,6 +2,7 @@
 
 #include <vulkan/vulkan_core.h>
 #include <map>
+#include <array>
 
 #include "Archive.h"
 #include "Common.h"
@@ -15,29 +16,49 @@ enum class EMaterialPass : uint8 {
 	OPAQUE,
 	TRANSLUCENT,
 	HIGHLIGHT,
+	ERROR,
 	MAX
 };
 ENUM_TO_STRING(MaterialPass, uint8,
 	"Opaque",
 	"Translucent",
-	"Highlight");
+	"Highlight",
+	"Error");
 ENUM_OPERATORS(MaterialPass, uint8)
+
+// Push constants allow for a max of 128 bytes (modern hardware can do 256, but is not guaranteed)
+// This means you can push 32 floating point values
+// Since these are used to access the bindless textures, that means a max of 32 textures, or 64 if double packed
+// If i wish to double pack i need to make sure max textures is uint16
+
+//TODO: ensure this, for now 32 works but having more textures would be more better
+static uint16 gMaxTextures = std::numeric_limits<uint16>::max();
+
+struct SPushConstants {
+	Vector4f mConstants[8];
+};
 
 struct SMaterialInstance {
 	SMaterialPipeline* pipeline;
 	EMaterialPass passType;
-	int32 colorTextureId = 0;
+	SPushConstants constants;
 };
 
 class CMaterial {
 public:
 
-	static std::vector<CMaterial>& getMaterials() {
-		static std::vector<CMaterial> materials;
+	static std::vector<std::shared_ptr<CMaterial>>& getMaterials() {
+		static std::vector<std::shared_ptr<CMaterial>> materials;
 		return materials;
 	}
 
-	CMaterial() = default;
+	CMaterial() {
+		mConstants.fill({});
+	}
+
+	SMaterialPipeline& getPipeline(const class CVulkanRenderer* renderer) const;
+
+	bool mShouldSave = true;
 
 	std::string mName;
 
@@ -52,22 +73,30 @@ public:
 	//TODO: actually write the compiler and stuff
 	std::string mCode;
 
+	std::array<Vector4f, 8> mConstants;
+
 	//TODO: for now this form of saving and loading should suffice
 	// but before going any further, a class with a standard c implementation should be used
 
 	friend CArchive& operator<<(CArchive& inArchive, const CMaterial& inMaterial) {
-		inArchive << inMaterial.mName;
-		inArchive << inMaterial.mPassType;
-		inArchive << inMaterial.mInputs;
-		inArchive << inMaterial.mCode;
+		if (inMaterial.mShouldSave) {
+			inArchive << inMaterial.mName;
+			inArchive << inMaterial.mPassType;
+			inArchive << inMaterial.mInputs;
+			inArchive << inMaterial.mCode;
+			inArchive << inMaterial.mConstants;
+		}
 		return inArchive;
 	}
 
 	friend CArchive& operator>>(CArchive& inArchive, CMaterial& inMaterial) {
-		inArchive >> inMaterial.mName;
-		inArchive >> inMaterial.mPassType;
-		inArchive >> inMaterial.mInputs;
-		inArchive >> inMaterial.mCode;
+		if (inMaterial.mShouldSave) {
+			inArchive >> inMaterial.mName;
+			inArchive >> inMaterial.mPassType;
+			inArchive >> inMaterial.mInputs;
+			inArchive >> inMaterial.mCode;
+			inArchive >> inMaterial.mConstants;
+		}
 		return inArchive;
 	}
 };
