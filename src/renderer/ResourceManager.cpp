@@ -9,6 +9,11 @@
 
 #include <vulkan/vk_enum_string_helper.h>
 
+#define BASISU_FORCE_DEVEL_MESSAGES 1
+#include "encoder/basisu_comp.h"
+#include "transcoder/basisu_transcoder.h"
+#include "encoder/basisu_gpu_texture.h"
+
 #include "Engine.h"
 #include "PipelineBuilder.h"
 #include "VulkanDevice.h"
@@ -324,16 +329,16 @@ void generateMipmaps(VkCommandBuffer cmd, VkImage image, VkExtent2D extent) {
     CVulkanUtils::transitionImage(cmd, image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 }
 
-SImage CResourceManager::allocateImage(void* inData, const std::string& inDebugName, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags, VkImageAspectFlags inViewFlags, bool inMipmapped) {
+SImage CResourceManager::allocateImage(void* inData, const uint32& size, const std::string& inDebugName, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags, VkImageAspectFlags inViewFlags, bool inMipmapped) {
 	ZoneScopedAllocation(fmts("Allocate Image {}", inDebugName.c_str()));
 
-	size_t data_size = inExtent.depth * inExtent.width * inExtent.height * 4;
+	//size_t data_size = inExtent.depth * inExtent.width * inExtent.height * 4;
 
 	// Upload buffer is not needed outside of this function
-	CResourceManager manager;
-	const SBuffer uploadBuffer = manager.allocateBuffer(data_size, VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+	CResourceManager manager; //TODO: temporary broken stuff with size, but it works
+	const SBuffer uploadBuffer = manager.allocateBuffer(size, VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
 
-	memcpy(uploadBuffer->info.pMappedData, inData, data_size);
+	memcpy(uploadBuffer->GetMappedData(), inData, size);
 
 	SImage new_image = allocateImage(inDebugName, inExtent, inFormat, inFlags | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, inViewFlags, inMipmapped);
 
@@ -369,16 +374,92 @@ SImage CResourceManager::allocateImage(void* inData, const std::string& inDebugN
 	return new_image;
 }
 
-void CResourceManager::loadImage(const std::filesystem::path& imageName, bool inMipmapped) {
-	ZoneScopedAllocation(fmts("Load Image {}", imageName.string().c_str()));
+bool encodeImage(CResourceManager& allocator, const char* fileName) {
 
-	msgs("Loading image: {}", imageName.string().c_str());
+	const std::string path = CEngine::get().mAssetPath + fileName;
 
-	const std::filesystem::path path = CEngine::get().mAssetPath + imageName.string();
+	basisu::image img;
+	basisu::load_png(path.c_str(), img);
+
+	uint32 width = img.get_width();
+	uint32 height = img.get_height();
+
+	size_t file_size = 0;
+	uint32 quality = 1;
+
+	basisu::vector<basisu::image> images;
+	images.push_back(img);
+
+	// TODO cETC1S is supremely smaller, but takes significantly longer to compress. cETC1S should be the main format.
+	void* pKTX2_data = basisu::basis_compress(
+		basist::basis_tex_format::cUASTC4x4,
+		images,
+		basisu::cFlagGenMipsClamp | basisu::cFlagKTX2 | basisu::cFlagSRGB | basisu::cFlagThreaded | basisu::cFlagUseOpenCL | basisu::cFlagDebug | basisu::cFlagPrintStats | basisu::cFlagPrintStatus, 0.0f,
+		&file_size,
+		nullptr);//quality |
+
+	if (!pKTX2_data)
+		return false;
+
+	// Create and Initialize the KTX2 transcoder object.
+	basist::ktx2_transcoder transcoder;
+	if (!transcoder.init(pKTX2_data, file_size)) {
+		errs("Basisu transcoder not initialized for file {}.", fileName);
+	}
+
+	printf("Texture dimensions: %ux%u, levels: %u\n", width, height, transcoder.get_levels());
+
+	transcoder.start_transcoding();
+
+	// Transcode each mipmap and add to vector
+	basisu::gpu_image_vec vec;
+	for (uint32 mipmap = 0; mipmap < transcoder.get_levels(); ++mipmap) {
+		const uint32_t level_width = basisu::maximum<uint32_t>(width >> mipmap, 1);
+		const uint32_t level_height = basisu::maximum<uint32_t>(height >> mipmap, 1);
+		basisu::gpu_image tex(basisu::texture_format::cBC1, level_width, level_height); //cDecodeFlagsTranscodeAlphaDataToOpaqueFormats
+
+		if (const bool status = transcoder.transcode_image_level(mipmap, 0, 0, tex.get_ptr(), tex.get_total_blocks(), basist::transcoder_texture_format::cTFBC1, 0); !status) {
+			errs("Image Transcode for file {} failed.", fileName);
+		}
+
+		vec.push_back(tex);
+	}
+
+	std::filesystem::path cachedPath(CEngine::get().mAssetCachePath + fileName);
+	cachedPath.replace_extension(".dds");
+
+	basisu::vector<basisu::gpu_image_vec> tex_vec;
+	tex_vec.push_back(vec);
+	if (!basisu::write_dds_file(cachedPath.string().c_str(), tex_vec, false, true)) {
+		errs("DDS Image for file {} failed to save.", fileName);
+	}
+
+	/*basisu::vector<basisu::image> ldr;
+	basisu::vector<basisu::imagef> hdr;
+	basisu::read_uncompressed_dds_file(path.string().c_str(), ldr, hdr);*/ //TODO: load from dds instead and load mips from it as well
+
+	{
+		VkExtent3D imagesize;
+		imagesize.width = width;
+		imagesize.height = height;
+		imagesize.depth = 1; //TODO: code cleanup
+
+		allocator.allocateImage(tex_vec[0][0].get_ptr(), tex_vec[0][0].get_size_in_bytes(), fileName, imagesize, VK_FORMAT_BC1_RGB_SRGB_BLOCK, VK_IMAGE_USAGE_SAMPLED_BIT,VK_IMAGE_ASPECT_COLOR_BIT, false);
+	}
+
+	basisu::basis_free_data(pKTX2_data);
+
+	return true;
+}
+
+void CResourceManager::loadImage(const char* imageName, bool inMipmapped) {
+	ZoneScopedAllocation(fmts("Load Image {}", imageName));
+
+	msgs("Loading image: {}", imageName);
 
 	int width, height, nrChannels;
 
-	if (unsigned char* data = stbi_load(path.string().c_str(), &width, &height, &nrChannels, 4)) {
+	/*if (uint8* data = stbi_load(path.string().c_str(), &width, &height, &nrChannels, 4)) {
 		VkExtent3D imagesize;
 		imagesize.width = width;
 		imagesize.height = height;
@@ -386,10 +467,17 @@ void CResourceManager::loadImage(const std::filesystem::path& imageName, bool in
 
 		allocateImage(data, imageName.string(), imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT,VK_IMAGE_ASPECT_COLOR_BIT,inMipmapped);
 
+		// Free image data
 		stbi_image_free(data);
+	}*/
+
+	if (encodeImage(*this, imageName)) {
+		//allocateImage(tex.get_ptr(), tex.get_total_blocks(), imageName.string(), imagesize, VK_FORMAT_BC7_SRGB_BLOCK, VK_IMAGE_USAGE_SAMPLED_BIT,VK_IMAGE_ASPECT_COLOR_BIT,inMipmapped);
+	} else {
+		errs("Image {} failed to load or compress.", imageName);
 	}
 
-	msgs("Image {} Loaded.", imageName.string().c_str());
+	msgs("Image {} Loaded.", imageName);
 }
 
 void CResourceManager::deallocateImage(const SImage_T* inImage) {

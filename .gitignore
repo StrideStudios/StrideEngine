@@ -22,6 +22,9 @@
 # Assets
 !assets/*
 
+# Ignore cache
+cache/
+
 # Third party
 !third_party/*
 

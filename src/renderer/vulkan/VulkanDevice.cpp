@@ -23,7 +23,19 @@ void CVulkanDevice::initDevice() {
         .swapchainMaintenance1 = true
     };
 
+    VkFormatProperties2 formatFeatures{
+        .sType = VK_STRUCTURE_TYPE_FORMAT_PROPERTIES_2,
+        .formatProperties = {
+            .bufferFeatures = VK_FORMAT_FEATURE_BLIT_DST_BIT
+        }
+    };
+
     //TODO: some better way of defining what features are required and what is not
+
+    // physical device features
+    VkPhysicalDeviceFeatures features{
+        .textureCompressionBC = true
+    };
 
     //vulkan 1.3 features
     VkPhysicalDeviceVulkan13Features features13{
@@ -52,6 +64,7 @@ void CVulkanDevice::initDevice() {
     vkb::PhysicalDeviceSelector selector{getInstance()};
     auto physicalDevice = selector
             .set_minimum_version(1, 3)
+            .set_required_features(features)
             .set_required_features_12(features12)
             .set_required_features_13(features13)
             .add_required_extension_features(swapchainMaintenance1Features)

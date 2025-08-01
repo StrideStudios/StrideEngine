@@ -10,8 +10,15 @@
 #include "imgui_stdlib.h"
 #include "MeshLoader.h"
 
+#define BASISU_FORCE_DEVEL_MESSAGES 1
+#include "encoder/basisu_enc.h"
+
+constexpr static bool gUseOpenCL = true;
+
 void CTestRenderer::init() {
 	CVulkanRenderer::init();
+
+	basisu::basisu_encoder_init(gUseOpenCL, false);
 
 	//load meshes
 	mGlobalResourceManager.loadImage("column_albedo.png");

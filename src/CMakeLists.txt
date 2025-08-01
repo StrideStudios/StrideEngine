@@ -6,6 +6,7 @@ include_directories("renderer/vulkan/include")
 include_directories("engine/include")
 include_directories("imgui/include")
 include_directories("stb/include")
+include_directories("../third_party/basis_universal")
 
 add_executable(StrideEngine
 
@@ -98,6 +99,7 @@ target_link_libraries(StrideEngine PUBLIC
         fastgltf::fastgltf
         Tracy::TracyClient
         meshoptimizer
+        basisu_encoder
 )
 target_compile_definitions(TracyClient PRIVATE TRACY_ENABLE>)
 target_compile_definitions(StrideEngine PRIVATE TRACY_ENABLE>)

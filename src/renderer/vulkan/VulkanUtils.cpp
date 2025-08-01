@@ -228,7 +228,8 @@ VkImageCreateInfo CVulkanInfo::createImageInfo(VkFormat inFormat, VkImageUsageFl
 
 		//optimal tiling, which means the image is stored on the best gpu format
 		.tiling = VK_IMAGE_TILING_OPTIMAL,
-		.usage = inUsageFlags
+		.usage = inUsageFlags,
+		.sharingMode = VK_SHARING_MODE_EXCLUSIVE
 	};
 }
 

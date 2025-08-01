@@ -73,7 +73,10 @@ CGPUScene::CGPUScene(CVulkanRenderer* renderer) {
 			pixels[y*16 + x] = (x % 2 ^ y % 2) ? red : black;
 		}
 	}
-	m_ErrorCheckerboardImage = renderer->mGlobalResourceManager.allocateImage(pixels.data(), "Default Error", VkExtent3D{16, 16, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+
+	constexpr VkExtent3D extent(16, 16, 1);
+	constexpr int32 size = extent.width * extent.height * extent.depth * 4;
+	m_ErrorCheckerboardImage = renderer->mGlobalResourceManager.allocateImage(pixels.data(), size, "Default Error", extent, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
 
 	{
 		mErrorMaterial = std::make_shared<CMaterial>();

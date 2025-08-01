@@ -64,9 +64,12 @@ public:
 
 	no_discard const SEngineWindow& getWindow() const { return m_EngineWindow; }
 
+	std::string mEnginePath;
 	std::string mSourcePath;
 	std::string mShaderPath;
 	std::string mAssetPath;
+	std::string mCachePath;
+	std::string mAssetCachePath;
 
 	CCamera mMainCamera;
 

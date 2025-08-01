@@ -56,10 +56,19 @@ void CEngine::init() {
 
 	astsOnce(CEngine)
 
-	std::filesystem::path cwd = std::filesystem::current_path();
-	mSourcePath = cwd.string().append("\\");
-	mShaderPath = mSourcePath.append("..\\shaders\\");
-	mAssetPath = mSourcePath.append("..\\assets\\");
+	const std::filesystem::path cwd = std::filesystem::current_path();
+	mEnginePath = cwd.parent_path().string() + "\\";
+	mSourcePath = mEnginePath + "src\\";
+	mShaderPath = mEnginePath + "shaders\\";
+	mAssetPath = mEnginePath + "assets\\";
+
+	mCachePath = mEnginePath + "cache\\";
+	mAssetCachePath = mCachePath + "assets\\";
+
+	// Cached directory does not exist in git, make sure they are created
+	//TODO: some struct for paths that does this automatically
+	std::filesystem::create_directory(mCachePath);
+	std::filesystem::create_directory(mAssetCachePath);
 
 	// Initialize SDL3
 	SDL_Init(SDL_INIT_VIDEO);

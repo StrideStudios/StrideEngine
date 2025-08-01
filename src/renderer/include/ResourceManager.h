@@ -241,9 +241,9 @@ public:
 
 	SImage allocateImage(const std::string &inDebugName, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags = 0, VkImageAspectFlags inViewFlags = 0, bool inMipmapped = false);
 
-	SImage allocateImage(void* inData, const std::string& inDebugName, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags = 0, VkImageAspectFlags inViewFlags = 0, bool inMipmapped = false);
+	SImage allocateImage(void* inData, const uint32& size, const std::string& inDebugName, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags = 0, VkImageAspectFlags inViewFlags = 0, bool inMipmapped = false);
 
-	void loadImage(const std::filesystem::path& imageName, bool inMipmapped = true);
+	void loadImage(const char* imageName, bool inMipmapped = true);
 
 	static void deallocateImage(const SImage_T* inImage);
 
