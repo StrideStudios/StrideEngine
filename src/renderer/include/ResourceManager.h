@@ -269,6 +269,11 @@ public:
 
 private:
 
+	// Load an image from a DDS file
+	void readDDSFile(const char* pFilename);
+
+	bool loadLDRImage(const std::string& cachedPath, const char* inFileName, uint32 inHash);
+
 	std::vector<IDestroyable*> m_Destroyables;
 
 	std::vector<Resource> m_Resources;

@@ -438,12 +438,15 @@ SImage CResourceManager::allocateImage(void* inData, const uint32& size, const s
 }
 
 basisu::image readImage(const std::string& path) {
+	ZoneScopedAllocation(std::string("Read Image"));
+
 	basisu::image img;
 	basisu::load_png(path.c_str(), img);
 	return img;
 }
 
 basisu::gpu_image_vec compress(const std::string& path, const basisu::image& image) {
+	ZoneScopedAllocation(std::string("Compress Image"));
 
 	size_t file_size = 0;
 	constexpr uint32 quality = 255;
@@ -458,36 +461,40 @@ basisu::gpu_image_vec compress(const std::string& path, const basisu::image& ima
 	void* pKTX2_data = basisu::basis_compress(
 		basist::basis_tex_format::cUASTC4x4,
 		images,
-		quality | basisu::cFlagGenMipsClamp | basisu::cFlagKTX2 | basisu::cFlagSRGB | basisu::cFlagThreaded | basisu::cFlagUseOpenCL | basisu::cFlagDebug | basisu::cFlagPrintStats | basisu::cFlagPrintStatus, 0.0f,
+		basisu::cFlagGenMipsClamp | basisu::cFlagKTX2 | basisu::cFlagSRGB | basisu::cFlagThreaded | basisu::cFlagUseOpenCL | basisu::cFlagDebug | basisu::cFlagPrintStats | basisu::cFlagPrintStatus, 0.0f,
 		&file_size,
-		nullptr);
+		nullptr);//quality |
 
 	if (!pKTX2_data) {
 		errs("Compress for file {} failed.", path.c_str());
 	}
 
-	// Create and Initialize the KTX2 transcoder object.
-	basist::ktx2_transcoder transcoder;
-	if (!transcoder.init(pKTX2_data, file_size)) {
-		errs("Basisu transcoder not initialized for file {}.", path.c_str());
-	}
-
-	printf("Texture dimensions: %ux%u, levels: %u\n", width, height, transcoder.get_levels());
-
-	transcoder.start_transcoding();
-
-	// Transcode each mipmap and add to vector
 	basisu::gpu_image_vec vec;
-	for (uint32 mipmap = 0; mipmap < transcoder.get_levels(); ++mipmap) {
-		const uint32_t level_width = basisu::maximum<uint32_t>(width >> mipmap, 1);
-		const uint32_t level_height = basisu::maximum<uint32_t>(height >> mipmap, 1);
-		basisu::gpu_image tex(basisu::texture_format::cBC1, level_width, level_height); //cDecodeFlagsTranscodeAlphaDataToOpaqueFormats
+	{
+		ZoneScopedAllocation(std::string("Transcode Image"));
 
-		if (const bool status = transcoder.transcode_image_level(mipmap, 0, 0, tex.get_ptr(), tex.get_total_blocks(), basist::transcoder_texture_format::cTFBC1, 0); !status) {
-			errs("Image Transcode for file {} failed.", path.c_str());
+		// Create and Initialize the KTX2 transcoder object.
+		basist::ktx2_transcoder transcoder;
+		if (!transcoder.init(pKTX2_data, file_size)) {
+			errs("Basisu transcoder not initialized for file {}.", path.c_str());
 		}
 
-		vec.push_back(tex);
+		printf("Texture dimensions: %ux%u, levels: %u\n", width, height, transcoder.get_levels());
+
+		transcoder.start_transcoding();
+
+		// Transcode each mipmap and add to vector
+		for (uint32 mipmap = 0; mipmap < transcoder.get_levels(); ++mipmap) {
+			const uint32_t level_width = basisu::maximum<uint32_t>(width >> mipmap, 1);
+			const uint32_t level_height = basisu::maximum<uint32_t>(height >> mipmap, 1);
+			basisu::gpu_image tex(basisu::texture_format::cBC7, level_width, level_height); //cDecodeFlagsTranscodeAlphaDataToOpaqueFormats
+
+			if (const bool status = transcoder.transcode_image_level(mipmap, 0, 0, tex.get_ptr(), tex.get_total_blocks(), basist::transcoder_texture_format::cTFBC7_RGBA, 0); !status) {
+				errs("Image Transcode for file {} failed.", path.c_str());
+			}
+
+			vec.push_back(tex);
+		}
 	}
 
 	basisu::basis_free_data(pKTX2_data);
@@ -495,15 +502,28 @@ basisu::gpu_image_vec compress(const std::string& path, const basisu::image& ima
 	return vec;
 }
 
-bool saveImage(const std::string& cachedPath, basisu::gpu_image_vec imageVector) {
+bool saveImage(const std::string& cachedPath, const basisu::gpu_image_vec& imageVector, const uint32 inHash) {
+	ZoneScopedAllocation(std::string("Save Image"));
+
 	basisu::vector<basisu::gpu_image_vec> tex_vec;
 	tex_vec.push_back(imageVector);
 	if (!basisu::write_dds_file(cachedPath.c_str(), tex_vec, false, true)) {
 		return false;
 	}
+
+	std::filesystem::path hashPath(cachedPath);
+	hashPath.replace_extension(".hash");
+
+	CFileArchive file(hashPath.string(), "wb");
+
+	const std::vector vector = {inHash};
+	file.writeFile(vector);
+
 	return true;
 }
 
+// Copied from TinyDDS, since it is implemented in basis, i cant use it here without making my own
+// TODO: texture utilities class
 uint32_t mipMapReduce(uint32_t value, uint32_t mipmaplevel) {
 
 	// handle 0 being passed in
@@ -520,9 +540,10 @@ uint32_t mipMapReduce(uint32_t value, uint32_t mipmaplevel) {
 	return value;
 }
 
-// TODO: currently basis doesnt support reading compressed files from dds
-// when this is added, i should just use their implementation
-void read_dds_file(CResourceManager& allocator, const char* pFilename) {
+// TODO: other file types (other bcs, cubemap, array)
+void CResourceManager::readDDSFile(const char* pFilename) {
+	ZoneScopedAllocation(std::string("Read DDS File"));
+
 	constexpr uint32 MAX_IMAGE_DIM = 16384;
 
 	TinyDDS_Callbacks cbs;
@@ -540,13 +561,14 @@ void read_dds_file(CResourceManager& allocator, const char* pFilename) {
 	cbs.tellFn = [](void* user) -> int64_t { return (int64_t)ftell((FILE*)user); };
 #endif
 
-	FILE* pFile = basisu::fopen_safe(pFilename, "rb");
+	FILE* pFile;
+	fopen_s(&pFile, pFilename, "rb");
 	if (!pFile) {
 		errs("Can't open .DDS file {}", pFilename);
 	}
 
 	bool status = false;
-	uint32_t width = 0, height = 0;
+	uint32 width = 0, height = 0;
 
 	const TinyDDS_ContextHandle ctx = TinyDDS_CreateContext(&cbs, pFile);
 	if (!ctx) {
@@ -580,7 +602,58 @@ void read_dds_file(CResourceManager& allocator, const char* pFilename) {
 
 	const uint32 numMips = TinyDDS_NumberOfMipmaps(ctx);
 
-	const SImage image = allocator.allocateImage(pFilename, imageSize, VK_FORMAT_BC1_RGB_SRGB_BLOCK, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_IMAGE_ASPECT_COLOR_BIT, numMips);
+	VkFormat format;
+
+	//TODO: how to know if using alpha to save on space
+	switch (TinyDDS_GetFormat(ctx)) {
+		case TDDS_BC1_RGBA_SRGB_BLOCK:
+			format = VK_FORMAT_BC1_RGBA_SRGB_BLOCK;
+			break;
+		case TDDS_BC1_RGBA_UNORM_BLOCK:
+			format = VK_FORMAT_BC1_RGBA_UNORM_BLOCK;
+			break;
+		case TDDS_BC2_SRGB_BLOCK:
+			format = VK_FORMAT_BC2_SRGB_BLOCK;
+			break;
+		case TDDS_BC2_UNORM_BLOCK:
+			format = VK_FORMAT_BC2_UNORM_BLOCK;
+			break;
+		case TDDS_BC3_SRGB_BLOCK:
+			format = VK_FORMAT_BC3_SRGB_BLOCK;
+			break;
+		case TDDS_BC3_UNORM_BLOCK:
+			format = VK_FORMAT_BC3_UNORM_BLOCK;
+			break;
+		case TDDS_BC4_SNORM_BLOCK:
+			format = VK_FORMAT_BC4_SNORM_BLOCK;
+			break;
+		case TDDS_BC4_UNORM_BLOCK:
+			format = VK_FORMAT_BC4_UNORM_BLOCK;
+			break;
+		case TDDS_BC5_SNORM_BLOCK:
+			format = VK_FORMAT_BC5_SNORM_BLOCK;
+			break;
+		case TDDS_BC5_UNORM_BLOCK:
+			format = VK_FORMAT_BC5_UNORM_BLOCK;
+			break;
+		case TDDS_BC6H_SFLOAT_BLOCK:
+			format = VK_FORMAT_BC6H_SFLOAT_BLOCK;
+			break;
+		case TDDS_BC6H_UFLOAT_BLOCK:
+			format = VK_FORMAT_BC6H_UFLOAT_BLOCK;
+			break;
+		case TDDS_BC7_SRGB_BLOCK:
+			format = VK_FORMAT_BC7_SRGB_BLOCK;
+			break;
+		case TDDS_BC7_UNORM_BLOCK:
+			format = VK_FORMAT_BC7_UNORM_BLOCK;
+			break;
+		default:
+			astsNoEntry();
+	}
+
+
+	const SImage image = allocateImage(pFilename, imageSize, format, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_IMAGE_ASPECT_COLOR_BIT, numMips);
 
 	CVulkanRenderer::immediateSubmit([&](VkCommandBuffer cmd) {
 		CVulkanUtils::transitionImage(cmd, image->mImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
@@ -605,9 +678,7 @@ void read_dds_file(CResourceManager& allocator, const char* pFilename) {
 		memcpy(uploadBuffer->GetMappedData(), pImage, image_size);
 
 		CVulkanRenderer::immediateSubmit([&](VkCommandBuffer cmd) {
-			const std::string scope2 = "Copy Image from Upload Buffer";
-			ZoneScoped;
-			ZoneName(scope2.c_str(), scope2.size());
+			ZoneScopedAllocation(std::string("Copy Image from Upload Buffer"));
 
 			VkBufferImageCopy copyRegion = {};
 			copyRegion.bufferOffset = 0;
@@ -635,11 +706,30 @@ void read_dds_file(CResourceManager& allocator, const char* pFilename) {
 	fclose(pFile);
 }
 
-bool loadLDRImage(CResourceManager& allocator, const std::string& cachedPath) {
+bool CResourceManager::loadLDRImage(const std::string& cachedPath, const char* inFileName, uint32 inHash) {
+	ZoneScopedAllocation(std::string("Load LDR Image"));
+
 	if (!std::filesystem::exists(cachedPath)) {
+		msgs("File {} could not be found, recompiling.", inFileName);
 		return false;
 	}
-	read_dds_file(allocator, cachedPath.c_str());
+
+	std::filesystem::path hashPath(cachedPath);
+	hashPath.replace_extension(".hash");
+
+	if (!std::filesystem::exists(hashPath)) {
+		msgs("Hash for file {} could not be found, recompiling.", inFileName);
+		return false;
+	}
+
+	CFileArchive file(hashPath.string(), "rb");
+
+	if (const std::vector<uint32> vector = file.readFile<uint32>(); inHash != vector[0]) {
+		msgs("Image file {} has changed, recompiling.", inFileName);
+		return false;
+	}
+
+	readDDSFile(cachedPath.c_str());
 	return true;
 }
 
@@ -672,17 +762,17 @@ void CResourceManager::loadImage(const char* inFileName) {
 		errs("Hash from file {} is not valid.", inFileName);
 	}
 
-	if (loadLDRImage(*this, cachedPath.string())) {
+	if (loadLDRImage(cachedPath.string(), inFileName, Hash)) {
 		return;
 	}
 
 	const basisu::gpu_image_vec& imageVector = compress(path, image);
 
-	if (!saveImage(cachedPath.string(), imageVector)) {
+	if (!saveImage(cachedPath.string(), imageVector, Hash)) {
 		errs("File {} failed to save.", inFileName);
 	}
 
-	if (!loadLDRImage(*this, cachedPath.string())) {
+	if (!loadLDRImage(cachedPath.string(), inFileName, Hash)) {
 		errs("File {} could not load.", inFileName);
 	}
 
