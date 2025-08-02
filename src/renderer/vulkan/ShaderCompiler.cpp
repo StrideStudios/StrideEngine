@@ -179,7 +179,7 @@ VkResult CShaderCompiler::getShader(VkDevice inDevice, const char* inFileName, S
 	const auto shaderSource = readShaderFile(path.c_str());
 
 	if (shaderSource.empty()) {
-		errs("Nothing found in Shader file {}!", inFileName, SPIRVpath.c_str());
+		errs("Nothing found in Shader file {}!", inFileName);
 	}
 
 	const uint32 Hash = CHashing::getHash(shaderSource);

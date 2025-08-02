@@ -235,22 +235,6 @@ public:
 	static void bindPipeline(VkCommandBuffer cmd, VkPipelineBindPoint inBindPoint, VkPipeline inPipeline);
 
 	//
-	// Images
-	// Since bindless images are used, it is unnecessary to keep the result
-	//
-
-	SImage allocateImage(const std::string &inDebugName, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags = 0, VkImageAspectFlags inViewFlags = 0, bool inMipmapped = false);
-
-	SImage allocateImage(void* inData, const uint32& size, const std::string& inDebugName, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags = 0, VkImageAspectFlags inViewFlags = 0, bool inMipmapped = false);
-
-	void loadImage(const char* imageName, bool inMipmapped = true);
-
-	static void deallocateImage(const SImage_T* inImage);
-
-	static void deallocateImage(const SImage& inImage) { deallocateImage(inImage.get()); }
-
-
-	//
 	// Buffers
 	//
 
@@ -263,6 +247,23 @@ public:
 	static void deallocateBuffer(const SBuffer_T* inBuffer);
 
 	static void deallocateBuffer(const SBuffer& inImage) { deallocateBuffer(inImage.get()); }
+
+	//
+	// Images
+	// Since bindless images are used, it is unnecessary to keep the result
+	//
+
+	SImage allocateImage(const std::string &inDebugName, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags = 0, VkImageAspectFlags inViewFlags = 0, bool inMipmapped = false);
+
+	SImage allocateImage(const std::string &inDebugName, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags = 0, VkImageAspectFlags inViewFlags = 0, uint32 NumMips = 1);
+
+	SImage allocateImage(void* inData, const uint32& size, const std::string& inDebugName, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags = 0, VkImageAspectFlags inViewFlags = 0, bool inMipmapped = false);
+
+	void loadImage(const char* inFileName);
+
+	static void deallocateImage(const SImage_T* inImage);
+
+	static void deallocateImage(const SImage& inImage) { deallocateImage(inImage.get()); }
 
 	std::vector<SImage> m_Images;
 

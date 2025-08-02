@@ -9,12 +9,14 @@
 
 #include <vulkan/vk_enum_string_helper.h>
 
-#define BASISU_FORCE_DEVEL_MESSAGES 1
+#include "encoder/3rdparty/tinydds.h"
+
 #include "encoder/basisu_comp.h"
 #include "transcoder/basisu_transcoder.h"
 #include "encoder/basisu_gpu_texture.h"
 
 #include "Engine.h"
+#include "Hashing.h"
 #include "PipelineBuilder.h"
 #include "VulkanDevice.h"
 #include "VulkanRenderer.h"
@@ -204,7 +206,68 @@ void CResourceManager::bindPipeline(VkCommandBuffer cmd, const VkPipelineBindPoi
 	vkCmdBindPipeline(cmd, inBindPoint, inPipeline);
 }
 
+SBuffer CResourceManager::allocateBuffer(size_t allocSize, VmaMemoryUsage memoryUsage, VkBufferUsageFlags usage) {
+	ZoneScopedAllocation(std::string("Allocate Buffer"));
+	// allocate buffer
+	VkBufferCreateInfo bufferInfo = {
+		.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+		.pNext = nullptr,
+		.size = allocSize,
+		.usage = usage
+	};
+
+	VmaAllocationCreateInfo vmaallocInfo = {
+		.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT,
+		.usage = memoryUsage
+	};
+
+	auto buffer = std::make_shared<SBuffer_T>();
+
+	// allocate the buffer
+	VK_CHECK(vmaCreateBuffer(getAllocator(), &bufferInfo, &vmaallocInfo, &buffer->buffer, &buffer->allocation, &buffer->info));
+
+	push(buffer);
+
+	return buffer;
+}
+
+SMeshBuffers CResourceManager::allocateMeshBuffer(size_t indicesSize, size_t verticesSize) {
+	const VkDevice device = CEngine::device();
+
+	// Although it would normally be bad practice to return a heap allocated pointer
+	// CAllocator (so long as inShouldDeallocate is true) will automatically destroy the pointer
+	// if not, then the user can call CAllocator::deallocate
+	auto meshBuffers = std::make_shared<SMeshBuffers_T>();
+
+	meshBuffers->indexBuffer = allocateBuffer(indicesSize, VMA_MEMORY_USAGE_GPU_ONLY, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+
+	meshBuffers->vertexBuffer = allocateBuffer(verticesSize, VMA_MEMORY_USAGE_GPU_ONLY, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
+
+	//find the address of the vertex buffer
+	// TODO: pointer math for large buffers
+	VkBufferDeviceAddressInfo deviceAddressInfo {
+		.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
+		.buffer = meshBuffers->vertexBuffer->buffer
+	};
+
+	meshBuffers->vertexBufferAddress = vkGetBufferDeviceAddress(device, &deviceAddressInfo);
+
+	return meshBuffers;
+}
+
+void CResourceManager::deallocateBuffer(const SBuffer_T* inBuffer) {
+	ZoneScopedAllocation(std::string("Deallocate Buffer"));
+	vmaDestroyBuffer(getAllocator(), inBuffer->buffer, inBuffer->allocation);
+}
+
 SImage CResourceManager::allocateImage(const std::string& inDebugName, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags, VkImageAspectFlags inViewFlags, bool inMipmapped) {
+	if (inMipmapped) {
+		return allocateImage(inDebugName, inExtent, inFormat, inFlags, inViewFlags, static_cast<uint32>(std::floor(std::log2(std::max(inExtent.width, inExtent.height)))) + 1);
+	}
+	return allocateImage(inDebugName, inExtent, inFormat, inFlags, inViewFlags, static_cast<uint32>(1));
+}
+
+SImage CResourceManager::allocateImage(const std::string& inDebugName, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags, VkImageAspectFlags inViewFlags, uint32 inNumMips) {
 	ZoneScopedAllocation(fmts("Allocate Image {}", inDebugName.c_str()));
 	auto image = std::make_shared<SImage_T>();
 
@@ -213,9 +276,7 @@ SImage CResourceManager::allocateImage(const std::string& inDebugName, VkExtent3
 	image->mImageFormat = inFormat;
 
 	VkImageCreateInfo imageInfo = CVulkanInfo::createImageInfo(image->mImageFormat, inFlags, image->mImageExtent);
-	if (inMipmapped) {
-		imageInfo.mipLevels = static_cast<uint32>(std::floor(std::log2(std::max(inExtent.width, inExtent.height)))) + 1;
-	}
+	imageInfo.mipLevels = inNumMips;
 
 	//for the draw image, we want to allocate it from gpu local memory
 	VmaAllocationCreateInfo imageAllocationInfo = {
@@ -239,7 +300,9 @@ SImage CResourceManager::allocateImage(const std::string& inDebugName, VkExtent3
 		gCurrentTextureAddress++;
 
 		const auto imageDescriptorInfo = VkDescriptorImageInfo{
-			.imageView = image->mImageView, .imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL};
+			.imageView = image->mImageView,
+			.imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL
+		};
 
 		const auto writeSet = VkWriteDescriptorSet{
 			.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
@@ -335,7 +398,7 @@ SImage CResourceManager::allocateImage(void* inData, const uint32& size, const s
 	//size_t data_size = inExtent.depth * inExtent.width * inExtent.height * 4;
 
 	// Upload buffer is not needed outside of this function
-	CResourceManager manager; //TODO: temporary broken stuff with size, but it works
+	CResourceManager manager;
 	const SBuffer uploadBuffer = manager.allocateBuffer(size, VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
 
 	memcpy(uploadBuffer->GetMappedData(), inData, size);
@@ -374,37 +437,39 @@ SImage CResourceManager::allocateImage(void* inData, const uint32& size, const s
 	return new_image;
 }
 
-bool encodeImage(CResourceManager& allocator, const char* fileName) {
-
-	const std::string path = CEngine::get().mAssetPath + fileName;
-
+basisu::image readImage(const std::string& path) {
 	basisu::image img;
 	basisu::load_png(path.c_str(), img);
+	return img;
+}
 
-	uint32 width = img.get_width();
-	uint32 height = img.get_height();
+basisu::gpu_image_vec compress(const std::string& path, const basisu::image& image) {
 
 	size_t file_size = 0;
-	uint32 quality = 1;
+	constexpr uint32 quality = 255;
+
+	const uint32 width = image.get_width();
+	const uint32 height = image.get_height();
 
 	basisu::vector<basisu::image> images;
-	images.push_back(img);
+	images.push_back(image);
 
 	// TODO cETC1S is supremely smaller, but takes significantly longer to compress. cETC1S should be the main format.
 	void* pKTX2_data = basisu::basis_compress(
 		basist::basis_tex_format::cUASTC4x4,
 		images,
-		basisu::cFlagGenMipsClamp | basisu::cFlagKTX2 | basisu::cFlagSRGB | basisu::cFlagThreaded | basisu::cFlagUseOpenCL | basisu::cFlagDebug | basisu::cFlagPrintStats | basisu::cFlagPrintStatus, 0.0f,
+		quality | basisu::cFlagGenMipsClamp | basisu::cFlagKTX2 | basisu::cFlagSRGB | basisu::cFlagThreaded | basisu::cFlagUseOpenCL | basisu::cFlagDebug | basisu::cFlagPrintStats | basisu::cFlagPrintStatus, 0.0f,
 		&file_size,
-		nullptr);//quality |
+		nullptr);
 
-	if (!pKTX2_data)
-		return false;
+	if (!pKTX2_data) {
+		errs("Compress for file {} failed.", path.c_str());
+	}
 
 	// Create and Initialize the KTX2 transcoder object.
 	basist::ktx2_transcoder transcoder;
 	if (!transcoder.init(pKTX2_data, file_size)) {
-		errs("Basisu transcoder not initialized for file {}.", fileName);
+		errs("Basisu transcoder not initialized for file {}.", path.c_str());
 	}
 
 	printf("Texture dimensions: %ux%u, levels: %u\n", width, height, transcoder.get_levels());
@@ -419,123 +484,213 @@ bool encodeImage(CResourceManager& allocator, const char* fileName) {
 		basisu::gpu_image tex(basisu::texture_format::cBC1, level_width, level_height); //cDecodeFlagsTranscodeAlphaDataToOpaqueFormats
 
 		if (const bool status = transcoder.transcode_image_level(mipmap, 0, 0, tex.get_ptr(), tex.get_total_blocks(), basist::transcoder_texture_format::cTFBC1, 0); !status) {
-			errs("Image Transcode for file {} failed.", fileName);
+			errs("Image Transcode for file {} failed.", path.c_str());
 		}
 
 		vec.push_back(tex);
 	}
 
-	std::filesystem::path cachedPath(CEngine::get().mAssetCachePath + fileName);
-	cachedPath.replace_extension(".dds");
-
-	basisu::vector<basisu::gpu_image_vec> tex_vec;
-	tex_vec.push_back(vec);
-	if (!basisu::write_dds_file(cachedPath.string().c_str(), tex_vec, false, true)) {
-		errs("DDS Image for file {} failed to save.", fileName);
-	}
-
-	/*basisu::vector<basisu::image> ldr;
-	basisu::vector<basisu::imagef> hdr;
-	basisu::read_uncompressed_dds_file(path.string().c_str(), ldr, hdr);*/ //TODO: load from dds instead and load mips from it as well
-
-	{
-		VkExtent3D imagesize;
-		imagesize.width = width;
-		imagesize.height = height;
-		imagesize.depth = 1; //TODO: code cleanup
-
-		allocator.allocateImage(tex_vec[0][0].get_ptr(), tex_vec[0][0].get_size_in_bytes(), fileName, imagesize, VK_FORMAT_BC1_RGB_SRGB_BLOCK, VK_IMAGE_USAGE_SAMPLED_BIT,VK_IMAGE_ASPECT_COLOR_BIT, false);
-	}
-
 	basisu::basis_free_data(pKTX2_data);
 
+	return vec;
+}
+
+bool saveImage(const std::string& cachedPath, basisu::gpu_image_vec imageVector) {
+	basisu::vector<basisu::gpu_image_vec> tex_vec;
+	tex_vec.push_back(imageVector);
+	if (!basisu::write_dds_file(cachedPath.c_str(), tex_vec, false, true)) {
+		return false;
+	}
 	return true;
 }
 
-void CResourceManager::loadImage(const char* imageName, bool inMipmapped) {
-	ZoneScopedAllocation(fmts("Load Image {}", imageName));
+uint32_t mipMapReduce(uint32_t value, uint32_t mipmaplevel) {
 
-	msgs("Loading image: {}", imageName);
+	// handle 0 being passed in
+	if (value <= 1)
+		return 1;
 
-	int width, height, nrChannels;
+	// there are better ways of doing this (log2 etc.) but this doesn't require any
+	// dependecies and isn't used enough to matter imho
+	for (uint32_t i = 0u; i < mipmaplevel; ++i) {
+		if (value <= 1)
+			return 1;
+		value = value / 2;
+	}
+	return value;
+}
 
-	/*if (uint8* data = stbi_load(path.string().c_str(), &width, &height, &nrChannels, 4)) {
-		VkExtent3D imagesize;
-		imagesize.width = width;
-		imagesize.height = height;
-		imagesize.depth = 1;
+// TODO: currently basis doesnt support reading compressed files from dds
+// when this is added, i should just use their implementation
+void read_dds_file(CResourceManager& allocator, const char* pFilename) {
+	constexpr uint32 MAX_IMAGE_DIM = 16384;
 
-		allocateImage(data, imageName.string(), imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT,VK_IMAGE_ASPECT_COLOR_BIT,inMipmapped);
+	TinyDDS_Callbacks cbs;
 
-		// Free image data
-		stbi_image_free(data);
-	}*/
+	cbs.errorFn = [](void* user, char const* msg) { BASISU_NOTE_UNUSED(user); fprintf(stderr, "tinydds: %s\n", msg); };
+	cbs.allocFn = [](void* user, size_t size) -> void* { BASISU_NOTE_UNUSED(user); return malloc(size); };
+	cbs.freeFn = [](void* user, void* memory) { BASISU_NOTE_UNUSED(user); free(memory); };
+	cbs.readFn = [](void* user, void* buffer, size_t byteCount) -> size_t { return (size_t)fread(buffer, 1, byteCount, (FILE*)user); };
 
-	if (encodeImage(*this, imageName)) {
-		//allocateImage(tex.get_ptr(), tex.get_total_blocks(), imageName.string(), imagesize, VK_FORMAT_BC7_SRGB_BLOCK, VK_IMAGE_USAGE_SAMPLED_BIT,VK_IMAGE_ASPECT_COLOR_BIT,inMipmapped);
-	} else {
-		errs("Image {} failed to load or compress.", imageName);
+#ifdef _MSC_VER
+	cbs.seekFn = [](void* user, int64_t ofs) -> bool { return _fseeki64((FILE*)user, ofs, SEEK_SET) == 0; };
+	cbs.tellFn = [](void* user) -> int64_t { return _ftelli64((FILE*)user); };
+#else
+	cbs.seekFn = [](void* user, int64_t ofs) -> bool { return fseek((FILE*)user, (long)ofs, SEEK_SET) == 0; };
+	cbs.tellFn = [](void* user) -> int64_t { return (int64_t)ftell((FILE*)user); };
+#endif
+
+	FILE* pFile = basisu::fopen_safe(pFilename, "rb");
+	if (!pFile) {
+		errs("Can't open .DDS file {}", pFilename);
 	}
 
-	msgs("Image {} Loaded.", imageName);
+	bool status = false;
+	uint32_t width = 0, height = 0;
+
+	const TinyDDS_ContextHandle ctx = TinyDDS_CreateContext(&cbs, pFile);
+	if (!ctx) {
+		errs("Tiny DDS failed to initialize in file {}", pFilename);
+	}
+
+	status = TinyDDS_ReadHeader(ctx);
+	if (!status) {
+		errs("Failed parsing DDS header in file {}", pFilename);
+	}
+
+	if (!TinyDDS_Is2D(ctx) || TinyDDS_ArraySlices(ctx) > 1 || TinyDDS_IsCubemap(ctx)) {
+		errs("Unsupported DDS texture type in file {}", pFilename);
+	}
+
+	width = TinyDDS_Width(ctx);
+	height = TinyDDS_Height(ctx);
+
+	if (!width || !height) {
+		errs("DDS texture dimensions invalid in file {}", pFilename);
+	}
+
+	if (width > MAX_IMAGE_DIM || height > MAX_IMAGE_DIM) {
+		errs("DDS texture dimensions too large in file {}", pFilename);
+	}
+
+	VkExtent3D imageSize;
+	imageSize.width = width;
+	imageSize.height = height;
+	imageSize.depth = 1;
+
+	const uint32 numMips = TinyDDS_NumberOfMipmaps(ctx);
+
+	const SImage image = allocator.allocateImage(pFilename, imageSize, VK_FORMAT_BC1_RGB_SRGB_BLOCK, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_IMAGE_ASPECT_COLOR_BIT, numMips);
+
+	CVulkanRenderer::immediateSubmit([&](VkCommandBuffer cmd) {
+		CVulkanUtils::transitionImage(cmd, image->mImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+	});
+
+	for (uint32 level = 0; level < numMips; level++) {
+		const uint32 level_width = mipMapReduce(width, level);
+		const uint32 level_height = mipMapReduce(height, level);
+
+		const void* pImage = TinyDDS_ImageRawData(ctx, level);
+		const uint32 image_size = TinyDDS_ImageSize(ctx, level);
+
+		VkExtent3D levelSize;
+		levelSize.width = level_width;
+		levelSize.height = level_height;
+		levelSize.depth = 1;
+
+		// Upload buffer is not needed outside of this function
+		CResourceManager manager;
+		const SBuffer uploadBuffer = manager.allocateBuffer(image_size, VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+
+		memcpy(uploadBuffer->GetMappedData(), pImage, image_size);
+
+		CVulkanRenderer::immediateSubmit([&](VkCommandBuffer cmd) {
+			const std::string scope2 = "Copy Image from Upload Buffer";
+			ZoneScoped;
+			ZoneName(scope2.c_str(), scope2.size());
+
+			VkBufferImageCopy copyRegion = {};
+			copyRegion.bufferOffset = 0;
+			copyRegion.bufferRowLength = 0;
+			copyRegion.bufferImageHeight = 0;
+
+			copyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			copyRegion.imageSubresource.mipLevel = level;
+			copyRegion.imageSubresource.baseArrayLayer = 0;
+			copyRegion.imageSubresource.layerCount = 1;
+			copyRegion.imageExtent = levelSize;
+
+			// copy the buffer into the image
+			vkCmdCopyBufferToImage(cmd, uploadBuffer->buffer, image->mImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+		});
+
+		manager.flush();
+	}
+
+	CVulkanRenderer::immediateSubmit([&](VkCommandBuffer cmd) {
+		CVulkanUtils::transitionImage(cmd, image->mImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	});
+
+	TinyDDS_DestroyContext(ctx);
+	fclose(pFile);
+}
+
+bool loadLDRImage(CResourceManager& allocator, const std::string& cachedPath) {
+	if (!std::filesystem::exists(cachedPath)) {
+		return false;
+	}
+	read_dds_file(allocator, cachedPath.c_str());
+	return true;
+}
+
+void CResourceManager::loadImage(const char* inFileName) {
+	ZoneScopedAllocation(fmts("Load Image {}", inFileName));
+
+	msgs("Loading image: {}", inFileName);
+
+	const std::string path = CEngine::get().mAssetPath + inFileName;
+	std::filesystem::path cachedPath = CEngine::get().mAssetCachePath + inFileName;
+	cachedPath.replace_extension(".dds");
+
+	basisu::image image = readImage(path);
+
+	VkExtent3D imagesize;
+	imagesize.width = image.get_width();
+	imagesize.height = image.get_height();
+	imagesize.depth = 1;
+
+	if (image.get_total_pixels() <= 0) {
+		errs("Nothing found in Texture file {}!", inFileName);
+	}
+
+	std::string str;
+	str.resize(image.get_pixels().size_in_bytes());
+	memcpy(str.data(), image.get_pixels().get_ptr(), image.get_pixels().size_in_bytes());
+
+	const uint32 Hash = CHashing::getHash(str);
+	if (Hash == 0) {
+		errs("Hash from file {} is not valid.", inFileName);
+	}
+
+	if (loadLDRImage(*this, cachedPath.string())) {
+		return;
+	}
+
+	const basisu::gpu_image_vec& imageVector = compress(path, image);
+
+	if (!saveImage(cachedPath.string(), imageVector)) {
+		errs("File {} failed to save.", inFileName);
+	}
+
+	if (!loadLDRImage(*this, cachedPath.string())) {
+		errs("File {} could not load.", inFileName);
+	}
+
+	msgs("Image {} Loaded.", inFileName);
 }
 
 void CResourceManager::deallocateImage(const SImage_T* inImage) {
 	ZoneScopedAllocation(fmts("Deallocate Image {}", inImage->name.c_str()));
 	vmaDestroyImage(getAllocator(), inImage->mImage, inImage->mAllocation);
 	vkDestroyImageView(CEngine::device(), inImage->mImageView, nullptr);
-}
-
-SBuffer CResourceManager::allocateBuffer(size_t allocSize, VmaMemoryUsage memoryUsage, VkBufferUsageFlags usage) {
-	ZoneScopedAllocation(std::string("Allocate Buffer"));
-	// allocate buffer
-	VkBufferCreateInfo bufferInfo = {
-		.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-		.pNext = nullptr,
-		.size = allocSize,
-		.usage = usage
-	};
-
-	VmaAllocationCreateInfo vmaallocInfo = {
-		.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT,
-		.usage = memoryUsage
-	};
-
-	auto buffer = std::make_shared<SBuffer_T>();
-
-	// allocate the buffer
-	VK_CHECK(vmaCreateBuffer(getAllocator(), &bufferInfo, &vmaallocInfo, &buffer->buffer, &buffer->allocation, &buffer->info));
-
-	push(buffer);
-
-	return buffer;
-}
-
-SMeshBuffers CResourceManager::allocateMeshBuffer(size_t indicesSize, size_t verticesSize) {
-	const VkDevice device = CEngine::device();
-
-	// Although it would normally be bad practice to return a heap allocated pointer
-	// CAllocator (so long as inShouldDeallocate is true) will automatically destroy the pointer
-	// if not, then the user can call CAllocator::deallocate
-	auto meshBuffers = std::make_shared<SMeshBuffers_T>();
-
-	meshBuffers->indexBuffer = allocateBuffer(indicesSize, VMA_MEMORY_USAGE_GPU_ONLY, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
-
-	meshBuffers->vertexBuffer = allocateBuffer(verticesSize, VMA_MEMORY_USAGE_GPU_ONLY, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
-
-	//find the address of the vertex buffer
-	// TODO: pointer math for large buffers
-	VkBufferDeviceAddressInfo deviceAddressInfo {
-		.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
-		.buffer = meshBuffers->vertexBuffer->buffer
-	};
-
-	meshBuffers->vertexBufferAddress = vkGetBufferDeviceAddress(device, &deviceAddressInfo);
-
-	return meshBuffers;
-}
-
-void CResourceManager::deallocateBuffer(const SBuffer_T* inBuffer) {
-	ZoneScopedAllocation(std::string("Deallocate Buffer"));
-	vmaDestroyBuffer(getAllocator(), inBuffer->buffer, inBuffer->allocation);
 }
