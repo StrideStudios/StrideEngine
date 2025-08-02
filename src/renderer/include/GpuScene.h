@@ -1,17 +1,15 @@
 ﻿#pragma once
 
-#include <vector>
 #include <vulkan/vulkan_core.h>
 
 #include "Common.h"
 #include "Material.h"
-#include "MeshPass.h"
 #include "ResourceManager.h"
 #include "StaticMesh.h"
 
 class CVulkanRenderer;
 
-class CGPUScene : public IDestroyable {
+class CGPUScene : public IDestroyable, public IInitializable<> {
 
 	struct Data {
 		Matrix4f view;
@@ -28,11 +26,13 @@ class CGPUScene : public IDestroyable {
 
 public:
 
-	CGPUScene(CVulkanRenderer* renderer);
+	CGPUScene() = default;
 
-	void render(CVulkanRenderer* renderer, VkCommandBuffer cmd);
+	void init() override;
 
-	void update(CVulkanRenderer* renderer);
+	void render(VkCommandBuffer cmd);
+
+	void update();
 
 	FrameData m_Frames[gFrameOverlap];
 
@@ -46,7 +46,7 @@ public:
 	// Passes
 	//
 
-	SMeshPass basePass{EMeshPass::BASE_PASS};
+	class CMeshPass* basePass;
 
 	//
 	// Default Data

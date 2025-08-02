@@ -46,7 +46,9 @@ void CEngineSettings::render(VkCommandBuffer cmd, VkExtent2D inExtent, VkImageVi
 	vkCmdEndRendering(cmd);
 }
 
-void CEngineSettings::init(CVulkanRenderer* renderer, VkQueue inQueue, VkFormat format) {
+void CEngineSettings::init(VkQueue inQueue, VkFormat format) {
+	CVulkanRenderer& renderer = CEngine::renderer();
+
 	// Setup Dear ImGui context
 	ImGui::CreateContext();
 
@@ -73,7 +75,7 @@ void CEngineSettings::init(CVulkanRenderer* renderer, VkQueue inQueue, VkFormat 
 		.pPoolSizes = poolSizes
 	};
 
-	const VkDescriptorPool descriptorPool = renderer->mGlobalResourceManager.allocateDescriptorPool(poolCreateInfo);
+	const VkDescriptorPool descriptorPool = renderer.mGlobalResourceManager.allocateDescriptorPool(poolCreateInfo);
 
 	// this initializes imgui for Vulkan
 	ImGui_ImplVulkan_InitInfo initInfo {

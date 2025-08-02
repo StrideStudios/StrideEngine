@@ -2,7 +2,6 @@
 
 #include <cmath>
 #include <iostream>
-#include <glm/gtc/matrix_transform.hpp>
 #include <glm/glm.hpp>
 #include <tracy/Tracy.hpp>
 #include <tracy/TracyVulkan.hpp>
@@ -20,7 +19,6 @@
 #include "EngineBuffers.h"
 #include "GpuScene.h"
 #include "MeshLoader.h"
-#include "PipelineBuilder.h"
 #include "ResourceManager.h"
 
 #define COMMAND_CATEGORY "Engine"
@@ -122,16 +120,16 @@ void CVulkanRenderer::init() {
 
 	mGlobalDescriptorAllocator.init(10, sizes);
 
-	mMeshLoader = mGlobalResourceManager.createDestroyable<CMeshLoader>();
+	mGlobalResourceManager.createDestroyable(mMeshLoader);
 
-	mEngineTextures = mGlobalResourceManager.createDestroyable<CEngineTextures>();
+	mGlobalResourceManager.createDestroyable(mEngineTextures);
 
-	mEngineBuffers = mGlobalResourceManager.createDestroyable<CEngineBuffers>(this);
+	mGlobalResourceManager.createDestroyable(mEngineBuffers);
 
-	mGPUScene = mGlobalResourceManager.createDestroyable<CGPUScene>(this);
+	mGlobalResourceManager.createDestroyable(mGPUScene);
 
 	// Setup Dear ImGui
-	CEngineSettings::init(this, mGraphicsQueue, mEngineTextures->getSwapchain().mFormat);
+	CEngineSettings::init(mGraphicsQueue, mEngineTextures->getSwapchain().mFormat);
 }
 
 void CVulkanRenderer::destroy() {
@@ -237,7 +235,7 @@ void CVulkanRenderer::draw() {
 		VkRenderingInfo renderInfo = CVulkanUtils::createRenderingInfo(extent, &colorAttachment, &depthAttachment);
 		vkCmdBeginRendering(cmd, &renderInfo);
 
-		mGPUScene->render(this, cmd);
+		mGPUScene->render(cmd);
 
 		vkCmdEndRendering(cmd);
 	}

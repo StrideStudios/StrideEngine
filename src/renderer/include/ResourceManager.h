@@ -46,6 +46,16 @@ public:
 	virtual void destroy() {}
 };
 
+// class which makes it easy to check if a class extends Initializable
+class CInitializable {};
+
+template <typename... TArgs>
+class IInitializable : public CInitializable {
+public:
+
+	virtual void init(TArgs... args) {}
+};
+
 /*
  * Stores pointers to vulkan resources so they can be automatically deallocated when flush is called
  * Can also store IDestroyable pointers in which delete does not need to be called
@@ -155,19 +165,25 @@ public:
 	static void destroyAllocator();
 
 	template <typename TType>
-	requires std::is_convertible_v<TType, IDestroyable>
-	TType* createDestroyable() {
-		TType* destroyable = new TType();
-		m_Destroyables.push_back(destroyable);
-		return destroyable;
+	requires std::is_base_of_v<IDestroyable, TType>
+	void createDestroyable(TType*& outType) {
+		outType = new TType();
+		if constexpr (std::is_base_of_v<CInitializable, TType>) {
+			outType->init();
+		}
+		m_Destroyables.push_back(outType);
 	}
 
 	template <typename TType, typename... TArgs>
-	requires std::is_convertible_v<TType, IDestroyable>
-	TType* createDestroyable(TArgs&&... args) {
-		TType* destroyable = new TType(args...);
-		m_Destroyables.push_back(destroyable);
-		return destroyable;
+	requires std::is_base_of_v<IDestroyable, TType>
+	void createDestroyable(TType*& outType, TArgs&&... args) {
+		if constexpr (std::is_base_of_v<CInitializable, TType>) {
+			outType = new TType();
+			outType->init(args...);
+		} else {
+			outType = new TType(args...);
+		}
+		m_Destroyables.push_back(outType);
 	}
 
 	template <typename... TType>

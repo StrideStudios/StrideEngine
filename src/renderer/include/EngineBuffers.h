@@ -23,20 +23,10 @@ class CEngineBuffers : public IDestroyable {
 
 public:
 
-	CEngineBuffers(CVulkanRenderer* renderer);
+	CEngineBuffers();
 
 	~CEngineBuffers();
 
-	void initDefaultData(CVulkanRenderer* renderer);
-
 	SMeshBuffers uploadMesh(CResourceManager& inManager, std::span<uint32> indices, std::span<SVertex> vertices);
-
-	//
-	// Buffers
-	//
-
-	SMeshBuffers mRectangle; // For Graphics Renderer should do vector but for now this works
-
-	std::vector<std::shared_ptr<SStaticMesh>> testMeshes;
 
 };

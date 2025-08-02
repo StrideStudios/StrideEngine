@@ -3,6 +3,7 @@
 include_directories("core/include")
 include_directories("renderer/include")
 include_directories("renderer/vulkan/include")
+include_directories("renderer/passes/include")
 include_directories("engine/include")
 include_directories("imgui/include")
 include_directories("stb/include")
@@ -35,16 +36,6 @@ add_executable(StrideEngine
 
         # Renderer
 
-        renderer/vulkan/include/VulkanUtils.h
-        renderer/vulkan/VulkanUtils.cpp
-        renderer/vulkan/include/Swapchain.h
-        renderer/vulkan/Swapchain.cpp
-        renderer/vulkan/include/VulkanDevice.h
-        renderer/vulkan/VulkanDevice.cpp
-        renderer/vulkan/include/ShaderCompiler.h
-        renderer/vulkan/ShaderCompiler.cpp
-        renderer/vulkan/include/VulkanRenderer.h
-        renderer/vulkan/VulkanRenderer.cpp
         renderer/include/ResourceManager.h
         renderer/ResourceManager.cpp
         renderer/include/EngineTextures.h
@@ -60,8 +51,28 @@ add_executable(StrideEngine
         renderer/DescriptorManager.cpp
         renderer/include/TestRenderer.h
         renderer/TestRenderer.cpp
-        renderer/include/MeshPass.h
-        renderer/MeshPass.cpp
+
+        # Vulkan
+
+        renderer/vulkan/include/VulkanUtils.h
+        renderer/vulkan/VulkanUtils.cpp
+        renderer/vulkan/include/Swapchain.h
+        renderer/vulkan/Swapchain.cpp
+        renderer/vulkan/include/VulkanDevice.h
+        renderer/vulkan/VulkanDevice.cpp
+        renderer/vulkan/include/ShaderCompiler.h
+        renderer/vulkan/ShaderCompiler.cpp
+        renderer/vulkan/include/VulkanRenderer.h
+        renderer/vulkan/VulkanRenderer.cpp
+
+        # Passes
+
+        renderer/passes/include/Pass.h
+        renderer/passes/Pass.cpp
+        renderer/passes/include/MeshPass.h
+        renderer/passes/MeshPass.cpp
+        renderer/passes/include/SpritePass.h
+        renderer/passes/SpritePass.cpp
 
         # Dear ImGui
 

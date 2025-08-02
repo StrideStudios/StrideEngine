@@ -56,7 +56,7 @@ public:
 		mConstants.fill({});
 	}
 
-	SMaterialPipeline& getPipeline(const class CVulkanRenderer* renderer) const;
+	SMaterialPipeline& getPipeline(const class CVulkanRenderer& renderer) const;
 
 	bool mShouldSave = true;
 

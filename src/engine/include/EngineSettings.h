@@ -38,7 +38,7 @@ public:
 
 	static void render(VkCommandBuffer cmd, VkExtent2D inExtent, VkImageView inTargetImageView);
 
-	static void init(class CVulkanRenderer* renderer, VkQueue inQueue, VkFormat format);
+	static void init(VkQueue inQueue, VkFormat format);
 
 	static void destroy();
 

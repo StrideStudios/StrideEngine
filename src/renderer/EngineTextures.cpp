@@ -8,11 +8,7 @@
 #include "VulkanRenderer.h"
 #include "ResourceManager.h"
 
-CEngineTextures::CEngineTextures() {
-	initializeTextures();
-}
-
-void CEngineTextures::initializeTextures() {
+void CEngineTextures::init() {
 
 	// Ensure previous textures have been destroyed
 	// This is in the case of screen resizing
@@ -38,7 +34,7 @@ void CEngineTextures::reallocate(const bool inUseVSync) {
 
 	m_Swapchain.recreate(inUseVSync);
 
-	initializeTextures();
+	init();
 }
 
 void CEngineTextures::destroy() {

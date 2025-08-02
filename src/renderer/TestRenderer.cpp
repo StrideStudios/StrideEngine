@@ -11,6 +11,7 @@
 #include "MeshLoader.h"
 
 #define BASISU_FORCE_DEVEL_MESSAGES 1
+#include "MeshPass.h"
 #include "encoder/basisu_enc.h"
 
 constexpr static bool gUseOpenCL = true;
@@ -36,7 +37,7 @@ void CTestRenderer::init() {
 	mGlobalResourceManager.loadImage("trim_misc_1_albedo.png");
 	mGlobalResourceManager.loadImage("trim_misc_2_albedo.png");
 	mMeshLoader->loadGLTF(this, "structure2.glb");
-	mGPUScene->basePass.push(mMeshLoader->mLoadedModels);
+	mGPUScene->basePass->push(mMeshLoader->mLoadedModels);
 
 	const std::string path = CEngine::get().mAssetPath + "materials.txt";
 	if (CFileArchive inFile(path, "rb"); inFile.isOpen())

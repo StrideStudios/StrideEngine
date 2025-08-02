@@ -6,19 +6,17 @@
 
 #include "DescriptorManager.h"
 #include "Engine.h"
-#include "EngineBuffers.h"
 #include "EngineSettings.h"
-#include "EngineTextures.h"
-#include "PipelineBuilder.h"
 #include "MeshLoader.h"
+#include "MeshPass.h"
 #include "ResourceManager.h"
 #include "ShaderCompiler.h"
 #include "VulkanDevice.h"
 #include "VulkanRenderer.h"
-#include "VulkanUtils.h"
 #include "tracy/Tracy.hpp"
 
-CGPUScene::CGPUScene(CVulkanRenderer* renderer) {
+void CGPUScene::init() {
+	CVulkanRenderer& renderer = CEngine::renderer();
 
 	VkSamplerCreateInfo samplerCreateInfo = {
 		.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO
@@ -27,11 +25,11 @@ CGPUScene::CGPUScene(CVulkanRenderer* renderer) {
 	samplerCreateInfo.magFilter = VK_FILTER_NEAREST;
 	samplerCreateInfo.minFilter = VK_FILTER_NEAREST;
 
-	m_DefaultSamplerNearest = renderer->mGlobalResourceManager.allocateSampler(samplerCreateInfo);
+	m_DefaultSamplerNearest = renderer.mGlobalResourceManager.allocateSampler(samplerCreateInfo);
 
 	samplerCreateInfo.magFilter = VK_FILTER_LINEAR;
 	samplerCreateInfo.minFilter = VK_FILTER_LINEAR;
-	m_DefaultSamplerLinear = renderer->mGlobalResourceManager.allocateSampler(samplerCreateInfo);
+	m_DefaultSamplerLinear = renderer.mGlobalResourceManager.allocateSampler(samplerCreateInfo);
 
 	const auto imageDescriptorInfo = VkDescriptorImageInfo{
 		.sampler = m_DefaultSamplerNearest};
@@ -76,7 +74,7 @@ CGPUScene::CGPUScene(CVulkanRenderer* renderer) {
 
 	constexpr VkExtent3D extent(16, 16, 1);
 	constexpr int32 size = extent.width * extent.height * extent.depth * 4;
-	m_ErrorCheckerboardImage = renderer->mGlobalResourceManager.allocateImage(pixels.data(), size, "Default Error", extent, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+	m_ErrorCheckerboardImage = renderer.mGlobalResourceManager.allocateImage(pixels.data(), size, "Default Error", extent, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
 
 	{
 		mErrorMaterial = std::make_shared<CMaterial>();
@@ -89,20 +87,21 @@ CGPUScene::CGPUScene(CVulkanRenderer* renderer) {
 	builder.addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 	m_GPUSceneDataDescriptorLayout = builder.build(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
 
-	renderer->mGlobalResourceManager.push(m_GPUSceneDataDescriptorLayout);
+	renderer.mGlobalResourceManager.push(m_GPUSceneDataDescriptorLayout);
 
-	basePass.build(renderer, this);
+	renderer.mGlobalResourceManager.createDestroyable(basePass, EMeshPass::BASE_PASS);
 }
 
-void CGPUScene::render(CVulkanRenderer* renderer, VkCommandBuffer cmd) {
-	update(renderer);
+void CGPUScene::render(VkCommandBuffer cmd) {
+	update();
 
-	basePass.render(renderer, cmd);
-
+	basePass->render(cmd);
 }
 
-void CGPUScene::update(CVulkanRenderer* renderer) {
+void CGPUScene::update() {
 	ZoneScopedN("GPUScene Update");
+
+	CVulkanRenderer& renderer = CEngine::renderer();
 
 	CEngine::get().mMainCamera.update();
 
@@ -120,7 +119,7 @@ void CGPUScene::update(CVulkanRenderer* renderer) {
 		m_GPUSceneData.sunlightDirection = glm::vec4(0,1,0.5,1.f);
 
 		//allocate a new uniform buffer for the scene data
-		m_GPUSceneDataBuffer = renderer->getCurrentFrame().mFrameResourceManager.allocateBuffer(sizeof(Data), VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
+		m_GPUSceneDataBuffer = renderer.getCurrentFrame().mFrameResourceManager.allocateBuffer(sizeof(Data), VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
 	}
 
 	//write the buffer
@@ -128,9 +127,9 @@ void CGPUScene::update(CVulkanRenderer* renderer) {
 	*sceneUniformData = m_GPUSceneData;
 
 	//create a descriptor set that binds that buffer and update it
-	m_Frames[renderer->getFrameIndex()].sceneDescriptor = renderer->getCurrentFrame().mDescriptorAllocator.allocate(m_GPUSceneDataDescriptorLayout);
+	m_Frames[renderer.getFrameIndex()].sceneDescriptor = renderer.getCurrentFrame().mDescriptorAllocator.allocate(m_GPUSceneDataDescriptorLayout);
 
 	SDescriptorWriter writer;
 	writer.writeBuffer(0, m_GPUSceneDataBuffer->buffer, sizeof(Data), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-	writer.updateSet(m_Frames[renderer->getFrameIndex()].sceneDescriptor);
+	writer.updateSet(m_Frames[renderer.getFrameIndex()].sceneDescriptor);
 }

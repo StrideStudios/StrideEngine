@@ -3,6 +3,7 @@
 #include <set>
 
 #include "Material.h"
+#include "Pass.h"
 #include "StaticMesh.h"
 
 enum class EMeshPass : uint8 {
@@ -12,13 +13,13 @@ enum class EMeshPass : uint8 {
 class CVulkanRenderer;
 class CGPUScene;
 
-struct SMeshPass {
+class CMeshPass : public CPass, public IInitializable<EMeshPass> {
 
-	SMeshPass(EMeshPass inPassType): passType(inPassType) {}
+public:
 
-	void build(CVulkanRenderer* renderer, CGPUScene* gpuScene);
+	void init(EMeshPass inPassType) override;
 
-	void render(const CVulkanRenderer* renderer, VkCommandBuffer cmd);
+	void render(VkCommandBuffer cmd);
 
 	void push(const std::set<std::shared_ptr<SStaticMesh>>& inObjects) {
 		objects.insert_range(inObjects);

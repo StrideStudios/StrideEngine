@@ -1,4 +1,4 @@
-﻿#include "MeshPass.h"
+﻿#include "include/MeshPass.h"
 
 #include "Engine.h"
 #include "EngineBuffers.h"
@@ -20,7 +20,11 @@ ADD_TEXT(Triangles, "Triangles: ");
 #undef COMMAND_CATEGORY
 
 //TODO: for now this is hard coded base pass, dont need anything else for now
-void SMeshPass::build(CVulkanRenderer* renderer, CGPUScene* gpuScene) {
+void CMeshPass::init(const EMeshPass inPassType) {
+	passType = inPassType;
+
+	CVulkanRenderer& renderer = CEngine::renderer();
+	CGPUScene* gpuScene = renderer.mGPUScene;
 
 	SShader frag {
 		.mStage = EShaderStage::PIXEL
@@ -60,7 +64,7 @@ void SMeshPass::build(CVulkanRenderer* renderer, CGPUScene* gpuScene) {
 		.pPushConstantRanges = pushConstants.begin()
 	};
 
-	auto newLayout = renderer->mGlobalResourceManager.allocatePipelineLayout(layoutCreateInfo);
+	auto newLayout = renderer.mGlobalResourceManager.allocatePipelineLayout(layoutCreateInfo);
 
     opaquePipeline.layout = newLayout;
 	errorPipeline.layout = newLayout;
@@ -77,24 +81,24 @@ void SMeshPass::build(CVulkanRenderer* renderer, CGPUScene* gpuScene) {
 	pipelineBuilder.enableDepthTest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
 
 	// Set color and depth format
-	pipelineBuilder.setColorAttachementFormat(renderer->mEngineTextures->mDrawImage->mImageFormat);
-	pipelineBuilder.setDepthFormat(renderer->mEngineTextures->mDepthImage->mImageFormat);
+	pipelineBuilder.setColorAttachementFormat(renderer.mEngineTextures->mDrawImage->mImageFormat);
+	pipelineBuilder.setDepthFormat(renderer.mEngineTextures->mDepthImage->mImageFormat);
 
 	pipelineBuilder.m_PipelineLayout = newLayout;
 
-	opaquePipeline.pipeline = renderer->mGlobalResourceManager.allocatePipeline(pipelineBuilder);
+	opaquePipeline.pipeline = renderer.mGlobalResourceManager.allocatePipeline(pipelineBuilder);
 
 	// Transparent should be additive and always render in front
 	pipelineBuilder.enableBlendingAdditive();
 	pipelineBuilder.depthTestAlwaysInFront();
 
-	transparentPipeline.pipeline = renderer->mGlobalResourceManager.allocatePipeline(pipelineBuilder);
+	transparentPipeline.pipeline = renderer.mGlobalResourceManager.allocatePipeline(pipelineBuilder);
 
 	pipelineBuilder.setShaders(vert.mModule, errorFrag.mModule);
 	pipelineBuilder.disableBlending();
 	pipelineBuilder.enableDepthTest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
 
-	errorPipeline.pipeline = renderer->mGlobalResourceManager.allocatePipeline(pipelineBuilder);
+	errorPipeline.pipeline = renderer.mGlobalResourceManager.allocatePipeline(pipelineBuilder);
 
 	vkDestroyShaderModule(CEngine::device(), frag.mModule, nullptr);
 	vkDestroyShaderModule(CEngine::device(), errorFrag.mModule, nullptr);
@@ -103,7 +107,7 @@ void SMeshPass::build(CVulkanRenderer* renderer, CGPUScene* gpuScene) {
 
 //TODO: probably faster with gpu
 bool isVisible(const std::shared_ptr<SStaticMesh>& obj, const Matrix4f& viewproj) {
-	std::array corners {
+	constexpr static std::array corners {
 		Vector3f { 1, 1, 1 },
 		Vector3f { 1, 1, -1 },
 		Vector3f { 1, -1, 1 },
@@ -114,7 +118,7 @@ bool isVisible(const std::shared_ptr<SStaticMesh>& obj, const Matrix4f& viewproj
 		Vector3f { -1, -1, -1 },
 	};
 
-	Matrix4f matrix = viewproj;// * obj.transform;
+	const Matrix4f matrix = viewproj;// * obj.transform;
 
 	Vector3f min = { 1.5, 1.5, 1.5 };
 	Vector3f max = { -1.5, -1.5, -1.5 };
@@ -139,9 +143,9 @@ bool isVisible(const std::shared_ptr<SStaticMesh>& obj, const Matrix4f& viewproj
 	return true;
 }
 
-void SMeshPass::render(const CVulkanRenderer* renderer, VkCommandBuffer cmd) {
-
-	const CGPUScene* scene = renderer->mGPUScene;
+void CMeshPass::render(const VkCommandBuffer cmd) {
+	const CVulkanRenderer& renderer = CEngine::renderer();
+	const CGPUScene* scene = renderer.mGPUScene;
 
 	std::vector<std::shared_ptr<SStaticMesh>> renderObjects;
 
@@ -174,8 +178,8 @@ void SMeshPass::render(const CVulkanRenderer* renderer, VkCommandBuffer cmd) {
 	uint64 vertexCount = 0;
 
 	VkExtent2D extent {
-		renderer->mEngineTextures->mDrawImage->mImageExtent.width,
-		renderer->mEngineTextures->mDrawImage->mImageExtent.height
+		renderer.mEngineTextures->mDrawImage->mImageExtent.width,
+		renderer.mEngineTextures->mDrawImage->mImageExtent.height
 	};
 
 	auto render = [&](const std::shared_ptr<SStaticMesh>& obj) {
@@ -201,7 +205,7 @@ void SMeshPass::render(const CVulkanRenderer* renderer, VkCommandBuffer cmd) {
 				if (&pipeline != lastPipeline) {
 					lastPipeline = &pipeline;
 					CResourceManager::bindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline);
-					CResourceManager::bindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.layout, 0, 1, renderer->mGPUScene->m_Frames[renderer->getFrameIndex()].sceneDescriptor);
+					CResourceManager::bindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.layout, 0, 1, renderer.mGPUScene->m_Frames[renderer.getFrameIndex()].sceneDescriptor);
 					CResourceManager::bindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.layout, 1, 1, CResourceManager::getBindlessDescriptorSet());
 
 					CEngine::renderer().mViewport.update({extent.width, extent.height});
