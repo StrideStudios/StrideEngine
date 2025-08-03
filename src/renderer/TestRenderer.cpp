@@ -100,14 +100,12 @@ void CTestRenderer::init() {
 
 	material->mConstants[0] = {highBits, lowBits, 0.f, 0.f};
 
-	static int32 currentname = 0;
-	for (int32 i = 0; i < 1; ++i) {
-		auto sprite = std::make_shared<SSprite>();
-		sprite->name = fmts("Test Sprite {}", currentname);
-		currentname++;
-		sprite->material = material;
-		mGPUScene->spritePass->push(sprite);
-	}
+	auto sprite = std::make_shared<SSprite>();
+	sprite->name = "Test Sprite";
+	sprite->material = material;
+	sprite->mInstances = numSprites;
+	mGPUScene->spritePass->push(sprite);
+
 
 	const std::string path = CEngine::get().mAssetPath + "materials.txt";
 	if (CFileArchive inFile(path, "rb"); inFile.isOpen())

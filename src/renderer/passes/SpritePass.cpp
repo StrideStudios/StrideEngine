@@ -123,7 +123,7 @@ void CSpritePass::render(VkCommandBuffer cmd) {
 
 		vkCmdPushConstants(cmd, pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(SPushConstants), obj->material->mConstants.data());
 
-		vkCmdDraw(cmd, 6, 10000, 0, 0);
+		vkCmdDraw(cmd, 6, obj->mInstances, 0, 0);
 
 		drawCallCount++;
 		vertexCount += 6;

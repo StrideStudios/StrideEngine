@@ -17,4 +17,6 @@ struct SSprite {
 
 	// Surface Data
 	std::shared_ptr<CMaterial> material;
+
+	int32 mInstances = 1;
 };
