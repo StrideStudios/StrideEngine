@@ -52,7 +52,7 @@ void CVulkanRenderer::immediateSubmit(std::function<void(VkCommandBuffer cmd)>&&
 	// _uploadFence will now block until the graphic commands finish execution
 	VK_CHECK(vkQueueSubmit(CEngine::renderer().mGraphicsQueue, 1, &submit, renderer.mUploadContext._uploadFence));
 
-	VK_CHECK(vkWaitForFences(device, 1, &renderer.mUploadContext._uploadFence, true, 1000000000));
+	vkWaitForFences(device, 1, &renderer.mUploadContext._uploadFence, true, 1000000000);
 
 	// reset the command buffers inside the command pool
 	VK_CHECK(vkResetCommandPool(device, renderer.mUploadContext._commandPool, 0));
@@ -164,7 +164,7 @@ void CVulkanRenderer::draw() {
 	// Make sure that the swapchain is not dirty before recreating it
 	while (mEngineTextures->getSwapchain().isDirty()) {
 		// Wait for gpu before recreating swapchain
-		waitForGpu();
+		if (!waitForGpu()) continue;
 
 		mEngineTextures->reallocate(UseVsync.get());
 	}
@@ -173,7 +173,9 @@ void CVulkanRenderer::draw() {
 
 	{
 		// Wait for the previous render to stop
-		mEngineTextures->getSwapchain().wait(getFrameIndex());
+		if (!mEngineTextures->getSwapchain().wait(getFrameIndex())) {
+			return;
+		}
 	}
 
 	// Get command buffer from current frame
@@ -284,11 +286,11 @@ void CVulkanRenderer::draw() {
 	FrameMark;
 }
 
-void CVulkanRenderer::waitForGpu() const {
+bool CVulkanRenderer::waitForGpu() const {
 	// Make sure the gpu is not working
 	vkDeviceWaitIdle(CEngine::device());
 
-	mEngineTextures->getSwapchain().wait(getFrameIndex());
+	return mEngineTextures->getSwapchain().wait(getFrameIndex());
 }
 
 void CNullRenderer::render(VkCommandBuffer cmd) {

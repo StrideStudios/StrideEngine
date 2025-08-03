@@ -5,6 +5,7 @@
 
 #include "Archive.h"
 #include "Engine.h"
+#include "VulkanDevice.h"
 #include "GpuScene.h"
 #include "imgui.h"
 #include "imgui_stdlib.h"
@@ -41,11 +42,58 @@ void CTestRenderer::init() {
 	mMeshLoader->loadGLTF(this, "structure2.glb");
 	mGPUScene->basePass->push(mMeshLoader->mLoadedModels);
 
-	auto sprite = std::make_shared<SSprite>();
-	sprite->name = "Test Sprite";
-	sprite->material = mGPUScene->mErrorMaterial;
-	testSprite = sprite;
-	mGPUScene->spritePass->push(sprite);
+	auto material = std::make_shared<CMaterial>();
+	material->mShouldSave = false;
+	material->mName = "Test";
+	material->mPassType = EMaterialPass::OPAQUE;
+
+	constexpr int32 numSprites = 10000;
+
+	std::vector<Vector4f> spriteData;
+	spriteData.resize(numSprites);
+
+	for (int32 i = 0; i < numSprites; ++i) {
+		spriteData[i] = Vector4f(i, i, 500.f, 500.f);
+	}
+
+	SBuffer buffer = mGlobalResourceManager.allocateBuffer(spriteData.size(), VMA_MEMORY_USAGE_GPU_ONLY, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
+
+	VkBufferDeviceAddressInfo deviceAdressInfo{ .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,.buffer = buffer->buffer };
+	VkDeviceAddress vertexBufferAddress = vkGetBufferDeviceAddress(CEngine::device(), &deviceAdressInfo);
+
+	// Staging is not needed outside of this function
+	CResourceManager manager;
+	const SBuffer staging = manager.allocateBuffer(spriteData.size(), VMA_MEMORY_USAGE_CPU_ONLY, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+
+	void* data = staging->GetMappedData();
+
+	// copy vertex buffer
+	memcpy(data, spriteData.data(), spriteData.size());
+
+	immediateSubmit([&](VkCommandBuffer cmd) {
+		VkBufferCopy copy{};
+		copy.dstOffset = 0;
+		copy.srcOffset = 0;
+		copy.size = spriteData.size();
+
+		vkCmdCopyBuffer(cmd, staging->buffer, buffer->buffer, 1, &copy);
+	});
+
+	manager.flush();
+
+	auto lowBits = (uint32) (vertexBufferAddress & 0xffffffffUL);
+	auto highBits = (uint32) (vertexBufferAddress >> 32);
+
+	material->mConstants[0] = {highBits, lowBits, 0.f, 0.f};
+
+	static int32 currentname = 0;
+	for (int32 i = 0; i < 1; ++i) {
+		auto sprite = std::make_shared<SSprite>();
+		sprite->name = fmts("Test Sprite {}", currentname);
+		currentname++;
+		sprite->material = material;
+		mGPUScene->spritePass->push(sprite);
+	}
 
 	const std::string path = CEngine::get().mAssetPath + "materials.txt";
 	if (CFileArchive inFile(path, "rb"); inFile.isOpen())
@@ -154,33 +202,36 @@ void CTestRenderer::render(VkCommandBuffer cmd) {
 	}
 	ImGui::End();
 
-	if (ImGui::Begin("Meshes")) {
-			if (ImGui::BeginTabBar("Mesh")) {
-				if (ImGui::BeginTabItem(testSprite->name.c_str())) {
-						//ImGui::Checkbox("Highlight", &material.material->mHighlight);
-						//ImGui::InputInt("Color Texture ID", &material.second->data.colorTextureId);
-						/*const char* combo_preview_value = mGlobalResourceManager.m_Images[surface.material->colorTextureId]->name.c_str();
-						if (ImGui::BeginCombo("Color Texture", combo_preview_value, ImGuiComboFlags_HeightRegular)) {
-							for (int n = 0; n < mGlobalResourceManager.m_Images.size(); n++) {
-								if (mGlobalResourceManager.m_Images[n]->name.empty()) continue;
+	if (ImGui::Begin("Sprites")) {
+		for (const auto& sprite : mGPUScene->spritePass->objects) {
+			if (ImGui::BeginTabBar("Sprite")) {
+				if (ImGui::BeginTabItem(sprite->name.c_str())) {
+					//ImGui::Checkbox("Highlight", &material.material->mHighlight);
+					//ImGui::InputInt("Color Texture ID", &material.second->data.colorTextureId);
+					/*const char* combo_preview_value = mGlobalResourceManager.m_Images[surface.material->colorTextureId]->name.c_str();
+					if (ImGui::BeginCombo("Color Texture", combo_preview_value, ImGuiComboFlags_HeightRegular)) {
+						for (int n = 0; n < mGlobalResourceManager.m_Images.size(); n++) {
+							if (mGlobalResourceManager.m_Images[n]->name.empty()) continue;
 
-								const bool is_selected = (surface.material->colorTextureId == n);
-								if (ImGui::Selectable(mGlobalResourceManager.m_Images[n]->name.c_str(), is_selected))
-									surface.material->colorTextureId = n;
+							const bool is_selected = (surface.material->colorTextureId == n);
+							if (ImGui::Selectable(mGlobalResourceManager.m_Images[n]->name.c_str(), is_selected))
+								surface.material->colorTextureId = n;
 
-								// Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
-								if (is_selected)
-									ImGui::SetItemDefaultFocus();
-							}
-							ImGui::EndCombo();
-						}*/
+							// Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
+							if (is_selected)
+								ImGui::SetItemDefaultFocus();
+						}
+						ImGui::EndCombo();
+					}*/
+
+
 
 					if (!CMaterial::getMaterials().empty()) {
-						if (ImGui::BeginCombo("Surface Material", testSprite->material->mName.c_str(), ImGuiComboFlags_HeightRegular)) {
+						if (ImGui::BeginCombo("Surface Material", sprite->material->mName.c_str(), ImGuiComboFlags_HeightRegular)) {
 							for (const auto& material : CMaterial::getMaterials()) {
-								const bool isSelected = testSprite->material == material;
+								const bool isSelected = sprite->material == material;
 								if (ImGui::Selectable(material->mName.c_str(), isSelected)) {
-									testSprite->material = material;
+									sprite->material = material;
 								}
 
 								// Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
@@ -199,12 +250,13 @@ void CTestRenderer::render(VkCommandBuffer cmd) {
 				}
 			}
 			ImGui::EndTabBar();
+		}
 	}
 	ImGui::End();
 
-	if (ImGui::Begin("Sprites")) {
+	if (ImGui::Begin("Meshes")) {
 		for (const auto& mesh : mMeshLoader->mLoadedModels) {
-			if (ImGui::BeginTabBar("Sprite")) {
+			if (ImGui::BeginTabBar("Mesh")) {
 				if (ImGui::BeginTabItem(mesh->name.c_str())) {
 					for (auto& surface : mesh->surfaces) {
 						ImGui::PushID(surface.name.c_str());

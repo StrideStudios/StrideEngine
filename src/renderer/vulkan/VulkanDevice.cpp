@@ -34,7 +34,8 @@ void CVulkanDevice::initDevice() {
 
     // physical device features
     VkPhysicalDeviceFeatures features{
-        .textureCompressionBC = true
+        .textureCompressionBC = true,
+        .shaderInt64 = true
     };
 
     //vulkan 1.3 features

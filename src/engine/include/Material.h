@@ -34,14 +34,11 @@ ENUM_OPERATORS(MaterialPass, uint8)
 //TODO: ensure this, for now 32 works but having more textures would be more better
 static uint16 gMaxTextures = std::numeric_limits<uint16>::max();
 
-struct SPushConstants {
-	Vector4f mConstants[8];
-};
-
-struct SMaterialInstance {
-	SMaterialPipeline* pipeline;
-	EMaterialPass passType;
-	SPushConstants constants;
+// Safe array for push constants that is always filled by default
+struct SPushConstants : std::array<Vector4f, 8> {
+	SPushConstants() : array() {
+		fill(Vector4f(0.f));
+	}
 };
 
 class CMaterial {
@@ -52,11 +49,9 @@ public:
 		return materials;
 	}
 
-	CMaterial() {
-		mConstants.fill({});
-	}
+	CMaterial() = default;
 
-	SMaterialPipeline& getPipeline(const class CVulkanRenderer& renderer) const;
+	no_discard SMaterialPipeline& getPipeline(const class CVulkanRenderer& renderer) const;
 
 	bool mShouldSave = true;
 
@@ -64,16 +59,14 @@ public:
 
 	EMaterialPass mPassType = EMaterialPass::OPAQUE;
 
-	// Inputs for the file, these are put into a uniform buffer
-	// which always has 16 Vector4fs
-	std::vector<Vector4f> mInputs;
-
 	// The code for the file
 	// This is compiled into glsl, then to spirv
 	//TODO: actually write the compiler and stuff
 	std::string mCode;
 
-	std::array<Vector4f, 8> mConstants;
+	// The push constants for this material
+	// They are always in the form of floating point values, but can be multipurpose
+	SPushConstants mConstants;
 
 	//TODO: for now this form of saving and loading should suffice
 	// but before going any further, a class with a standard c implementation should be used
@@ -82,7 +75,6 @@ public:
 		if (inMaterial.mShouldSave) {
 			inArchive << inMaterial.mName;
 			inArchive << inMaterial.mPassType;
-			inArchive << inMaterial.mInputs;
 			inArchive << inMaterial.mCode;
 			inArchive << inMaterial.mConstants;
 		}
@@ -93,7 +85,6 @@ public:
 		if (inMaterial.mShouldSave) {
 			inArchive >> inMaterial.mName;
 			inArchive >> inMaterial.mPassType;
-			inArchive >> inMaterial.mInputs;
 			inArchive >> inMaterial.mCode;
 			inArchive >> inMaterial.mConstants;
 		}

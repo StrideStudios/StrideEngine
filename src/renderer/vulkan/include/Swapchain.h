@@ -47,7 +47,7 @@ public:
 
 	std::tuple<VkImage, VkImageView, uint32> getSwapchainImage(uint32 inCurrentFrameIndex);
 
-	void wait(uint32 inCurrentFrameIndex) const;
+	no_discard bool wait(uint32 inCurrentFrameIndex) const;
 
 	void reset(uint32 inCurrentFrameIndex) const;
 

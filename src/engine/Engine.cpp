@@ -110,7 +110,9 @@ void CEngine::init() {
 
 void CEngine::end() {
 	// Wait for the gpu to finish instructions
-	m_Renderer->waitForGpu();
+	if (!m_Renderer->waitForGpu()) {
+		errs("Engine did not stop properly!");
+	}
 
 	m_Renderer->destroy();
 

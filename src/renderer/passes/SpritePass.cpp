@@ -121,11 +121,9 @@ void CSpritePass::render(VkCommandBuffer cmd) {
 			}
 		}
 
-		const auto [x, y, z] = CEngine::renderer().mEngineTextures->mDrawImage->mImageExtent;
-		obj->material->mConstants.at(0) = Vector4f(0.f, 0.f, x, y);
 		vkCmdPushConstants(cmd, pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(SPushConstants), obj->material->mConstants.data());
 
-		vkCmdDraw(cmd, 6, 1, 0, 0);
+		vkCmdDraw(cmd, 6, 10000, 0, 0);
 
 		drawCallCount++;
 		vertexCount += 6;

@@ -9,5 +9,4 @@ class CTestRenderer : public CVulkanRenderer {
 
 	void render(VkCommandBuffer cmd) override;
 
-	std::shared_ptr<struct SSprite> testSprite;
 };

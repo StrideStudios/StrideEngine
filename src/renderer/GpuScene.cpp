@@ -66,7 +66,7 @@ void CGPUScene::init() {
 
 	//checkerboard image
 	uint32 red = glm::packUnorm4x8(glm::vec4(1, 0, 0, 1));
-	uint32 black = glm::packUnorm4x8(glm::vec4(0, 0, 0, 0));
+	uint32 black = glm::packUnorm4x8(glm::vec4(0, 0, 0, 1));
 	std::array<uint32, 16 * 16> pixels; //for 16x16 checkerboard texture
 	for (int x = 0; x < 16; x++) {
 		for (int y = 0; y < 16; y++) {

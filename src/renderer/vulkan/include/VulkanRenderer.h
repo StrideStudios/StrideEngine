@@ -80,7 +80,7 @@ public:
 	// Tell children to render
 	virtual void render(VkCommandBuffer cmd) = 0;
 
-	void waitForGpu() const;
+	no_discard bool waitForGpu() const;
 
 	/*
 	 * This resource allocator is flushed when the renderer is destroyed
