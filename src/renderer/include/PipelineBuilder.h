@@ -20,6 +20,8 @@ public:
 
 	VkPipeline buildPipeline(VkDevice inDevice) const;
 
+	VkPipeline buildSpritePipeline(VkDevice inDevice) const;
+
 	void setShaders(VkShaderModule inVertexShader, VkShaderModule inFragmentShader);
 
 	void setInputTopology(VkPrimitiveTopology inTopology) {

@@ -12,6 +12,8 @@
 
 #define BASISU_FORCE_DEVEL_MESSAGES 1
 #include "MeshPass.h"
+#include "Sprite.h"
+#include "SpritePass.h"
 #include "encoder/basisu_enc.h"
 
 constexpr static bool gUseOpenCL = true;
@@ -38,6 +40,12 @@ void CTestRenderer::init() {
 	mGlobalResourceManager.loadImage("trim_misc_2_albedo.png");
 	mMeshLoader->loadGLTF(this, "structure2.glb");
 	mGPUScene->basePass->push(mMeshLoader->mLoadedModels);
+
+	auto sprite = std::make_shared<SSprite>();
+	sprite->name = "Test Sprite";
+	sprite->material = mGPUScene->mErrorMaterial;
+	testSprite = sprite;
+	mGPUScene->spritePass->push(sprite);
 
 	const std::string path = CEngine::get().mAssetPath + "materials.txt";
 	if (CFileArchive inFile(path, "rb"); inFile.isOpen())
@@ -147,8 +155,56 @@ void CTestRenderer::render(VkCommandBuffer cmd) {
 	ImGui::End();
 
 	if (ImGui::Begin("Meshes")) {
-		for (const auto& mesh : mMeshLoader->mLoadedModels) {
 			if (ImGui::BeginTabBar("Mesh")) {
+				if (ImGui::BeginTabItem(testSprite->name.c_str())) {
+						//ImGui::Checkbox("Highlight", &material.material->mHighlight);
+						//ImGui::InputInt("Color Texture ID", &material.second->data.colorTextureId);
+						/*const char* combo_preview_value = mGlobalResourceManager.m_Images[surface.material->colorTextureId]->name.c_str();
+						if (ImGui::BeginCombo("Color Texture", combo_preview_value, ImGuiComboFlags_HeightRegular)) {
+							for (int n = 0; n < mGlobalResourceManager.m_Images.size(); n++) {
+								if (mGlobalResourceManager.m_Images[n]->name.empty()) continue;
+
+								const bool is_selected = (surface.material->colorTextureId == n);
+								if (ImGui::Selectable(mGlobalResourceManager.m_Images[n]->name.c_str(), is_selected))
+									surface.material->colorTextureId = n;
+
+								// Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
+								if (is_selected)
+									ImGui::SetItemDefaultFocus();
+							}
+							ImGui::EndCombo();
+						}*/
+
+					if (!CMaterial::getMaterials().empty()) {
+						if (ImGui::BeginCombo("Surface Material", testSprite->material->mName.c_str(), ImGuiComboFlags_HeightRegular)) {
+							for (const auto& material : CMaterial::getMaterials()) {
+								const bool isSelected = testSprite->material == material;
+								if (ImGui::Selectable(material->mName.c_str(), isSelected)) {
+									testSprite->material = material;
+								}
+
+								// Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
+								if (isSelected)
+									ImGui::SetItemDefaultFocus();
+							}
+
+							ImGui::EndCombo();
+						}
+					}
+
+					if (ImGui::TreeNode("Material")) {
+						ImGui::TreePop();
+					}
+					ImGui::EndTabItem();
+				}
+			}
+			ImGui::EndTabBar();
+	}
+	ImGui::End();
+
+	if (ImGui::Begin("Sprites")) {
+		for (const auto& mesh : mMeshLoader->mLoadedModels) {
+			if (ImGui::BeginTabBar("Sprite")) {
 				if (ImGui::BeginTabItem(mesh->name.c_str())) {
 					for (auto& surface : mesh->surfaces) {
 						ImGui::PushID(surface.name.c_str());

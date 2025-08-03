@@ -12,9 +12,9 @@ class CVulkanRenderer;
 class CGPUScene : public IDestroyable, public IInitializable<> {
 
 	struct Data {
-		Matrix4f view;
-		Matrix4f proj;
 		Matrix4f viewProj;
+		Vector2f ScreenSize;
+		Vector2f InvScreenSize;
 		Vector4f ambientColor;
 		Vector4f sunlightDirection; // w for sun power
 		Vector4f sunlightColor;
@@ -47,6 +47,8 @@ public:
 	//
 
 	class CMeshPass* basePass;
+
+	class CSpritePass* spritePass;
 
 	//
 	// Default Data

@@ -281,6 +281,7 @@ public:
 	Matrix4f mProjectionMatrix;
 
 	Matrix4f mViewProjectionMatrix;
+	Matrix4f mOrthogonalViewProjectionMatrix;
 
 	bool mShowMouse = true;
 

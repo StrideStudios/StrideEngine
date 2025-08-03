@@ -40,6 +40,7 @@ void CVulkanDevice::initDevice() {
     //vulkan 1.3 features
     VkPhysicalDeviceVulkan13Features features13{
         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
+        .shaderDemoteToHelperInvocation = true,
         .synchronization2 = true,
         .dynamicRendering = true
     };

@@ -96,6 +96,7 @@ add_executable(StrideEngine
 
         # stb
         stb/include/stb_image.h
+        engine/include/Sprite.h
 )
 
 find_package(Vulkan REQUIRED)

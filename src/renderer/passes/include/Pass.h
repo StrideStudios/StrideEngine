@@ -3,4 +3,5 @@
 
 class CPass : public IDestroyable {
 
+	virtual void render(VkCommandBuffer cmd) = 0;
 };

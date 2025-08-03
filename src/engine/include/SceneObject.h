@@ -5,6 +5,8 @@
 
 class CSceneObject {
 
+public:
+
 	Vector3f getPosition() const {
 		return mPosition;
 	}

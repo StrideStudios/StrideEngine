@@ -27,7 +27,6 @@ struct SStaticMesh {
 	std::string name;
 
 	SBounds bounds;
-	Matrix4f transform;
 	std::vector<Surface> surfaces;
 	SMeshBuffers meshBuffers;
 };

@@ -7,10 +7,12 @@
 #include "DescriptorManager.h"
 #include "Engine.h"
 #include "EngineSettings.h"
+#include "EngineTextures.h"
 #include "MeshLoader.h"
 #include "MeshPass.h"
 #include "ResourceManager.h"
 #include "ShaderCompiler.h"
+#include "SpritePass.h"
 #include "VulkanDevice.h"
 #include "VulkanRenderer.h"
 #include "tracy/Tracy.hpp"
@@ -90,12 +92,16 @@ void CGPUScene::init() {
 	renderer.mGlobalResourceManager.push(m_GPUSceneDataDescriptorLayout);
 
 	renderer.mGlobalResourceManager.createDestroyable(basePass, EMeshPass::BASE_PASS);
+
+	renderer.mGlobalResourceManager.createDestroyable(spritePass);
 }
 
 void CGPUScene::render(VkCommandBuffer cmd) {
 	update();
 
 	basePass->render(cmd);
+
+	spritePass->render(cmd);
 }
 
 void CGPUScene::update() {
@@ -107,9 +113,10 @@ void CGPUScene::update() {
 
 	// Update Scene Data Buffer
 	{
-		m_GPUSceneData.view = CEngine::get().mMainCamera.mViewMatrix;
-		// camera projection
-		m_GPUSceneData.proj = CEngine::get().mMainCamera.mProjectionMatrix;
+
+		const auto [x, y, z] = CEngine::renderer().mEngineTextures->mDrawImage->mImageExtent;
+		m_GPUSceneData.ScreenSize = Vector2f((float)x, (float)y);
+		m_GPUSceneData.InvScreenSize = Vector2f(1.f / (float)x, 1.f / (float)y);
 
 		m_GPUSceneData.viewProj = CEngine::get().mMainCamera.mViewProjectionMatrix;
 

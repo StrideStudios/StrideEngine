@@ -19,7 +19,7 @@ public:
 
 	void init(EMeshPass inPassType) override;
 
-	void render(VkCommandBuffer cmd);
+	void render(VkCommandBuffer cmd) override;
 
 	void push(const std::set<std::shared_ptr<SStaticMesh>>& inObjects) {
 		objects.insert_range(inObjects);
@@ -27,7 +27,7 @@ public:
 
 	EMeshPass passType;
 
-	// Surfaces used to render this pass
+	// Meshes used to render this pass
 	std::set<std::shared_ptr<SStaticMesh>> objects;
 
 	//

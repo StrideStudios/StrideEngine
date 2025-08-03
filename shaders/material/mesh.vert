@@ -16,7 +16,7 @@ layout (location = 2) out vec2 outUV;
 void main() {
     vec4 position = vec4(inPos, 1.f);
 
-    gl_Position =  sceneData.viewproj * position;
+    gl_Position = sceneData.viewproj * position;
 
     outNormal = inNormal;
     outColor = inColor;

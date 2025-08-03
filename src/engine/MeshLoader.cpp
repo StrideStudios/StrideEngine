@@ -136,7 +136,6 @@ void CMeshLoader::loadGLTF(CVulkanRenderer* renderer, std::filesystem::path file
 
 		auto outMesh = std::make_shared<SStaticMesh>();
 		outMesh->name = mesh.name;
-		outMesh->transform = Matrix4f(1.f);
 
 		// Add the object
 		mLoadedModels.insert(outMesh);
