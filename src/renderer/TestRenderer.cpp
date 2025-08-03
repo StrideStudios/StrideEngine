@@ -49,14 +49,26 @@ void CTestRenderer::init() {
 
 	constexpr int32 numSprites = 10000;
 
-	std::vector<Vector4f> spriteData;
+	struct InputData {
+		Vector4f pos;
+		uint32 textureID;
+		Vector3f padding;
+	};
+
+	std::vector<InputData> spriteData;
 	spriteData.resize(numSprites);
+
+	std::random_device rd;
+	std::mt19937 gen(rd());
+
+	std::uniform_int_distribution<> distribx(1, 1920);
+	std::uniform_int_distribution<> distriby(1, 1080);
 
 	//TODO: x value seems to not like being anything other than 0
 	for (int32 i = 0; i < numSprites; ++i) {
-		spriteData[i] = Vector4f(0.f, (float)i / 10.f, 100.f, 100.f);
+		spriteData[i] = InputData({(float)distribx(gen), (float)distriby(gen), 20.f, 20.f}, i % 16);
 	}
-	size_t size = spriteData.size() * sizeof(Vector4f);
+	size_t size = spriteData.size() * sizeof(InputData);
 
 	SBuffer buffer = mGlobalResourceManager.allocateBuffer(size, VMA_MEMORY_USAGE_GPU_ONLY, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
 
