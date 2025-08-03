@@ -52,7 +52,7 @@ void CVulkanRenderer::immediateSubmit(std::function<void(VkCommandBuffer cmd)>&&
 	// _uploadFence will now block until the graphic commands finish execution
 	VK_CHECK(vkQueueSubmit(CEngine::renderer().mGraphicsQueue, 1, &submit, renderer.mUploadContext._uploadFence));
 
-	vkWaitForFences(device, 1, &renderer.mUploadContext._uploadFence, true, 1000000000);
+	VK_CHECK(vkWaitForFences(device, 1, &renderer.mUploadContext._uploadFence, true, 1000000000));
 
 	// reset the command buffers inside the command pool
 	VK_CHECK(vkResetCommandPool(device, renderer.mUploadContext._commandPool, 0));

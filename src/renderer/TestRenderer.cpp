@@ -52,29 +52,31 @@ void CTestRenderer::init() {
 	std::vector<Vector4f> spriteData;
 	spriteData.resize(numSprites);
 
+	//TODO: x value seems to not like being anything other than 0
 	for (int32 i = 0; i < numSprites; ++i) {
-		spriteData[i] = Vector4f(i, i, 500.f, 500.f);
+		spriteData[i] = Vector4f(0.f, (float)i / 10.f, 100.f, 100.f);
 	}
+	size_t size = spriteData.size() * sizeof(Vector4f);
 
-	SBuffer buffer = mGlobalResourceManager.allocateBuffer(spriteData.size(), VMA_MEMORY_USAGE_GPU_ONLY, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
+	SBuffer buffer = mGlobalResourceManager.allocateBuffer(size, VMA_MEMORY_USAGE_GPU_ONLY, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
 
-	VkBufferDeviceAddressInfo deviceAdressInfo{ .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,.buffer = buffer->buffer };
-	VkDeviceAddress vertexBufferAddress = vkGetBufferDeviceAddress(CEngine::device(), &deviceAdressInfo);
+	VkBufferDeviceAddressInfo deviceAddressInfo{ .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,.buffer = buffer->buffer };
+	VkDeviceAddress vertexBufferAddress = vkGetBufferDeviceAddress(CEngine::device(), &deviceAddressInfo);
 
 	// Staging is not needed outside of this function
 	CResourceManager manager;
-	const SBuffer staging = manager.allocateBuffer(spriteData.size(), VMA_MEMORY_USAGE_CPU_ONLY, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+	const SBuffer staging = manager.allocateBuffer(size, VMA_MEMORY_USAGE_CPU_ONLY, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
 
 	void* data = staging->GetMappedData();
 
 	// copy vertex buffer
-	memcpy(data, spriteData.data(), spriteData.size());
+	memcpy(data, spriteData.data(), size);
 
 	immediateSubmit([&](VkCommandBuffer cmd) {
 		VkBufferCopy copy{};
 		copy.dstOffset = 0;
 		copy.srcOffset = 0;
-		copy.size = spriteData.size();
+		copy.size = size;
 
 		vkCmdCopyBuffer(cmd, staging->buffer, buffer->buffer, 1, &copy);
 	});

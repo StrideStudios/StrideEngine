@@ -61,7 +61,7 @@ public:
 
 	// TODO: Needed if Maintenence1 is not available, should union
 	// TODO: this means i probably need some sort of platform info or something
-	//std::vector<VkSemaphore> mSwapchainImageViews;
+	std::vector<VkSemaphore> mSwapchainRenderSemaphores;
 
 	VkFormat mFormat;
 

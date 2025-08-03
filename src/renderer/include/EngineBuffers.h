@@ -4,7 +4,6 @@
 
 #include "ResourceManager.h"
 #include "Swapchain.h"
-#include "vk_mem_alloc.h"
 
 struct SStaticMesh;
 

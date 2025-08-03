@@ -105,7 +105,6 @@ target_link_libraries(StrideEngine PUBLIC
         SDL3::SDL3
         Vulkan::Vulkan
         vk-bootstrap::vk-bootstrap
-        GPUOpen::VulkanMemoryAllocator
         glslang::glslang-default-resource-limits
         glslang::glslang
         fastgltf::fastgltf

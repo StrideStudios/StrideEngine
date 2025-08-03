@@ -1,7 +1,6 @@
 ﻿add_subdirectory(fmt)
 add_subdirectory(sdl)
 add_subdirectory(vk-bootstrap)
-add_subdirectory(vma)
 add_subdirectory(glslang)
 add_subdirectory(fastgltf)
 add_subdirectory(meshoptimizer)
