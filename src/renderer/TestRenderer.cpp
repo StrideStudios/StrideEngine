@@ -16,6 +16,7 @@
 #include "Sprite.h"
 #include "SpritePass.h"
 #include "encoder/basisu_enc.h"
+#include "SDL3/SDL_dialog.h"
 
 constexpr static bool gUseOpenCL = true;
 
@@ -271,6 +272,16 @@ void CTestRenderer::render(VkCommandBuffer cmd) {
 	ImGui::End();
 
 	if (ImGui::Begin("Meshes")) {
+		if (ImGui::Button("Import Mesh")) {
+
+			const static std::vector<std::pair<const char*, const char*>> filters = {
+				{ "glTF 2.0 (*.gltf; *.glb)", "gltf;glb" }
+			};
+
+			SEngineWindow::queryForFile(filters, [](const char* inFileName) {
+				msgs("{}", inFileName);
+			});
+		}
 		for (const auto& mesh : mMeshLoader->mLoadedModels) {
 			if (ImGui::BeginTabBar("Mesh")) {
 				if (ImGui::BeginTabItem(mesh->name.c_str())) {

@@ -20,6 +20,9 @@ struct SDL_Window;
 constexpr static auto gEngineName = text("Stride Engine");
 
 struct SEngineWindow {
+
+	typedef void cb(const char* fileName);
+
 	// The extent of the window
 	Extent32u mExtent = {1920, 1080};
 
@@ -28,6 +31,8 @@ struct SEngineWindow {
 
 	// Vulkan window surface
 	VkSurfaceKHR mVkSurface;
+
+	static void queryForFile(const std::vector<std::pair<const char*, const char*>>& inFilters, cb callback);
 };
 
 class CEngine {

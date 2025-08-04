@@ -11,6 +11,7 @@
 #include "TestRenderer.h"
 #include "VulkanDevice.h"
 #include "VulkanRenderer.h"
+#include "SDL3/SDL_dialog.h"
 #include "SDL3/SDL_init.h"
 #include "SDL3/SDL_timer.h"
 #include "SDL3/SDL_vulkan.h"
@@ -33,6 +34,19 @@ int main() {
 
 	CEngine::get().end();
 	return 0;
+}
+
+// Some ugly code that prevents the user from having to deal with it
+void sdlCallback(void* callback, const char* const* inFileName, int inFilter) {
+	(*reinterpret_cast<SEngineWindow::cb*>(callback))(*inFileName);
+}
+
+void SEngineWindow::queryForFile(const std::vector<std::pair<const char*, const char*>>& inFilters, cb callback) {
+	std::vector<SDL_DialogFileFilter> filters;
+	for (auto [fst, snd] : inFilters) {
+		filters.push_back({fst, snd});
+	}
+	SDL_ShowOpenFileDialog(sdlCallback, callback, CEngine::get().getWindow().mWindow, filters.data(), (int32)filters.size(), CEngine::get().mEnginePath.c_str(), false);
 }
 
 CEngine::CEngine() = default;
