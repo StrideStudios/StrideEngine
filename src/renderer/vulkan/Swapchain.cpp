@@ -51,10 +51,12 @@ CSwapchain::operator VkSwapchainKHR() const  {
 void CSwapchain::init(const VkSwapchainKHR oldSwapchain, const bool inUseVSync) {
 	mFormat = VK_FORMAT_R8G8B8A8_UNORM;
 
+	m_VSync = inUseVSync;
+
 	const auto& vkbSwapchain = vkb::SwapchainBuilder{CEngine::device()}
 		.set_old_swapchain(oldSwapchain)
 		.set_desired_format(VkSurfaceFormatKHR{ .format = mFormat, .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR })
-		.set_desired_present_mode(inUseVSync ? VK_PRESENT_MODE_FIFO_KHR : VK_PRESENT_MODE_IMMEDIATE_KHR)
+		.set_desired_present_mode(m_VSync ? VK_PRESENT_MODE_FIFO_KHR : VK_PRESENT_MODE_IMMEDIATE_KHR)
 		.set_desired_extent(CEngine::get().getWindow().mExtent.x, CEngine::get().getWindow().mExtent.y)
 		.add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT)
 		.build();
@@ -101,6 +103,11 @@ void CSwapchain::cleanup() {
 }
 
 std::tuple<VkImage, VkImageView, uint32> CSwapchain::getSwapchainImage(const uint32 inCurrentFrameIndex) {
+	ZoneScoped;
+	std::string zoneName("Swapchain Image Acquire");
+	if (m_VSync) zoneName.append(" (VSync)");
+	ZoneName(zoneName.c_str(), zoneName.size());
+
 	uint32 swapchainImageIndex = 0;
 	SWAPCHAIN_CHECK(vkAcquireNextImageKHR(CEngine::device(), *mSwapchain, 1000000000, m_Frames[inCurrentFrameIndex].mSwapchainSemaphore, nullptr, &swapchainImageIndex), setDirty());
 
@@ -108,7 +115,10 @@ std::tuple<VkImage, VkImageView, uint32> CSwapchain::getSwapchainImage(const uin
 }
 
 bool CSwapchain::wait(const uint32 inCurrentFrameIndex) const {
-	ZoneScopedN("Swapchain Wait");
+	ZoneScoped;
+	std::string zoneName("Swapchain Wait");
+	if (m_VSync) zoneName.append(" (VSync)");
+	ZoneName(zoneName.c_str(), zoneName.size());
 
 	auto& frame = m_Frames[inCurrentFrameIndex];
 	VK_CHECK(vkWaitForFences(CEngine::device(), 1, &frame.mRenderFence, true, 1000000000));
@@ -118,6 +128,11 @@ bool CSwapchain::wait(const uint32 inCurrentFrameIndex) const {
 }
 
 void CSwapchain::reset(const uint32 inCurrentFrameIndex) const {
+	ZoneScoped;
+	std::string zoneName("Swapchain Reset");
+	if (m_VSync) zoneName.append(" (VSync)");
+	ZoneName(zoneName.c_str(), zoneName.size());
+
 	auto& frame = m_Frames[inCurrentFrameIndex];
 	VK_CHECK(vkResetFences(CEngine::device(), 1, &frame.mRenderFence));
 	//VK_CHECK(vkResetFences(CEngine::device(), 1, &frame.mPresentFence));

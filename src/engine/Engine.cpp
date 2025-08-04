@@ -16,6 +16,7 @@
 #include "SDL3/SDL_init.h"
 #include "SDL3/SDL_timer.h"
 #include "SDL3/SDL_vulkan.h"
+#include "tracy/TracyC.h"
 
 #define COMMAND_CATEGORY "Engine"
 ADD_COMMAND(int32, UseFrameCap, 180, 0, 500);
@@ -218,7 +219,6 @@ void CEngine::run() {
 		}
 
 		CThreading::getRenderingThread().run([] {
-			ZoneScopedN("Render Thread");
 			renderer().draw();
 		});
 		CThreading::getRenderingThread().wait();
@@ -226,6 +226,8 @@ void CEngine::run() {
 		// If we go over the target framerate, delay
 		// Ensure no divide by 0
 		if (UseFrameCap.get() > 0) {
+			ZoneScopedN("Frame Cap Wait");
+
 			const double TargetDeltaTime = 1.0 / UseFrameCap.get();
 			if (const auto frameTime = std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - previousTime).count(); TargetDeltaTime > frameTime) {
 				SDL_Delay(static_cast<uint32>((TargetDeltaTime - frameTime) * 1000.0));

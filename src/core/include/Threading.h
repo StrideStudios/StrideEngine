@@ -5,6 +5,8 @@
 #include <queue>
 
 #include "Common.h"
+#include "tracy/Tracy.hpp"
+#include "tracy/TracyC.h"
 
 class CThread {
 
@@ -20,8 +22,12 @@ class CThread {
 
 public:
 
-	CThread(): m_Thread([this] {
+	CThread(const std::string& threadName): m_Thread([this, threadName] {
+		TracyCSetThreadName(threadName.c_str())
 		while (true) {
+			ZoneScopedC(0xff0000, 1);// Red
+			ZoneName(threadName.c_str(), threadName.size());
+
 			std::function<void()> task;
 			std::unique_lock lock(m_Mutex);
 
@@ -84,7 +90,7 @@ public:
 
 	explicit CThreadPool(const uint32 inNumThreads = std::thread::hardware_concurrency()) {
 		for (uint32 i = 0; i < inNumThreads; ++i)
-			m_Threads.push_back(std::make_shared<CThread>());
+			m_Threads.push_back(std::make_shared<CThread>(fmts("Background Thread {}", i)));
 	}
 
 	// Run on least busy thread
@@ -112,15 +118,15 @@ public:
 
 	static CThread& getRenderingThread() { return get().mRenderingThread; }
 
-	static CThread& getGameThread() { return get().mRenderingThread; }
+	static CThread& getGameThread() { return get().mGameThread; }
 
 	static void runOnBackgroundThread(const std::function<void()>& inFunc) {
 		get().mThreadPool.run(inFunc);
 	}
 
-	CThread mRenderingThread;
+	CThread mRenderingThread{"Render Thread"};
 
-	CThread mGameThread;
+	CThread mGameThread{"Game Thread"};
 
 	// Modern computers can reliably have > 4 cores ( 8 threads)
 	CThreadPool mThreadPool{6};

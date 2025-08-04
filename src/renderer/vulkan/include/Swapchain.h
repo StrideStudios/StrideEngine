@@ -71,5 +71,7 @@ private:
 
 	FrameData m_Frames[gFrameOverlap];
 
+	bool m_VSync = true;
+
 	bool m_Dirty = false;
 };

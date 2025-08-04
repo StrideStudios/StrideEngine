@@ -152,9 +152,6 @@ void CVulkanRenderer::destroy() {
 }
 
 void CVulkanRenderer::draw() {
-
-	ZoneScopedN("render");
-
 	if (mVSync != UseVsync.get()) {
 		mVSync = UseVsync.get();
 		msgs("Reallocating Swapchain to {}", UseVsync.get() ? "enable VSync." : "disable VSync.");
