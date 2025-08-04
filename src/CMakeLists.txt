@@ -17,6 +17,7 @@ add_executable(StrideEngine
         core/include/BasicTypes.h
         core/include/Common.h
         core/include/Archive.h
+        core/include/Threading.h
 
         # Engine
 
@@ -33,6 +34,7 @@ add_executable(StrideEngine
         engine/Camera.cpp
         engine/include/SceneObject.h
         engine/SceneObject.cpp
+        engine/include/Sprite.h
 
         # Renderer
 
@@ -96,7 +98,6 @@ add_executable(StrideEngine
 
         # stb
         stb/include/stb_image.h
-        engine/include/Sprite.h
 )
 
 find_package(Vulkan REQUIRED)

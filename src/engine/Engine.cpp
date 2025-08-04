@@ -9,6 +9,7 @@
 #include "imgui_impl_sdl3.h"
 #include "ResourceManager.h"
 #include "TestRenderer.h"
+#include "Threading.h"
 #include "VulkanDevice.h"
 #include "VulkanRenderer.h"
 #include "SDL3/SDL_dialog.h"
@@ -28,6 +29,7 @@ ADD_TEXT(DeltaTime);
 #undef COMMAND_CATEGORY
 
 int main() {
+
 	CEngine::get().init();
 
 	CEngine::get().run();
@@ -38,6 +40,7 @@ int main() {
 
 // Some ugly code that prevents the user from having to deal with it
 void sdlCallback(void* callback, const char* const* inFileName, int inFilter) {
+	if (inFileName == nullptr || *inFileName == nullptr) return;
 	(*reinterpret_cast<SEngineWindow::cb*>(callback))(*inFileName);
 }
 
@@ -123,12 +126,19 @@ void CEngine::init() {
 }
 
 void CEngine::end() {
-	// Wait for the gpu to finish instructions
-	if (!m_Renderer->waitForGpu()) {
-		errs("Engine did not stop properly!");
-	}
 
-	m_Renderer->destroy();
+	// Tell the renderer to destroy
+	CThreading::getRenderingThread().run([this] {
+		// Wait for the gpu to finish instructions
+		if (!m_Renderer->waitForGpu()) {
+			errs("Engine did not stop properly!");
+		}
+
+		m_Renderer->destroy();
+	});
+
+	// Wait for the rendering thread to stop execution
+	CThreading::getRenderingThread().wait();
 
 	CResourceManager::destroyAllocator();
 
@@ -207,7 +217,10 @@ void CEngine::run() {
 			continue;
 		}
 
-		renderer().draw();
+		CThreading::getRenderingThread().run([] {
+			renderer().draw();
+		});
+		CThreading::getRenderingThread().wait();
 
 		// If we go over the target framerate, delay
 		// Ensure no divide by 0

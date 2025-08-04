@@ -90,20 +90,31 @@ void optimizeMesh(std::vector<uint32>& indices, std::vector<SVertex>& vertices) 
 	vertices = optimizedVertices;
 }
 
+void CMeshLoader::loadGLTF(CVulkanRenderer *renderer, std::filesystem::path filePath) {
+	std::filesystem::path path = CEngine::get().mAssetPath + filePath.string();
+
+	loadGLTF_Internal(renderer, path);
+}
+
+void CMeshLoader::loadGLTFExternal(CVulkanRenderer* renderer, std::filesystem::path filePath) {
+	loadGLTF_Internal(renderer, filePath);
+}
+
 //TODO: each glb/gltf mesh will be combined into one with different surfaces, this should lower draw calls to ONLY be the number of surfaces
 // and give flexibility to creators of meshes
-void CMeshLoader::loadGLTF(CVulkanRenderer* renderer, std::filesystem::path filePath) {
+void CMeshLoader::loadGLTF_Internal(CVulkanRenderer* renderer, std::filesystem::path path) {
+
+	std::string fileName = path.filename().string();
+
 	ZoneScoped;
-	std::string string = "Loading: " + filePath.string();
+	std::string string = "Loading: " + fileName;
 	ZoneName(string.c_str(), string.size());
 
-	msgs("Loading GLTF: {}", filePath.string().c_str());
-
-	std::filesystem::path path = CEngine::get().mAssetPath + filePath.string();
+	msgs("Loading GLTF: {}", fileName.c_str());
 
 	constexpr auto gltfOptions = fastgltf::Options::DontRequireValidAssetMember | fastgltf::Options::AllowDouble;
 
-	fastgltf::GltfFileStream data{path};
+	fastgltf::GltfFileStream data{path.string()};
 
 	fastgltf::Asset gltf;
 	fastgltf::Parser parser {};
@@ -124,7 +135,7 @@ void CMeshLoader::loadGLTF(CVulkanRenderer* renderer, std::filesystem::path file
 			return;
 		}
 	} else {
-		msgs("Invalid GLTF file : {}", filePath.string().c_str());
+		msgs("Invalid GLTF file : {}", path.string().c_str());
 		return;
 	}
 
@@ -286,7 +297,7 @@ void CMeshLoader::loadGLTF(CVulkanRenderer* renderer, std::filesystem::path file
 	}
 
 	std::filesystem::path savedPath(CEngine::get().mAssetCachePath);
-	savedPath.append(filePath.string());
+	savedPath.append(fileName);
 
 	savedPath.replace_extension(".mesh");
 
@@ -320,5 +331,5 @@ void CMeshLoader::loadGLTF(CVulkanRenderer* renderer, std::filesystem::path file
 		loadMesh->meshBuffers = renderer->mEngineBuffers->uploadMesh(renderer->mGlobalResourceManager, mesh->indices, mesh->vertices);
 	}
 
-	msgs("GLTF {} Loaded.", filePath.string().c_str());
+	msgs("GLTF {} Loaded.", path.string().c_str());
 }

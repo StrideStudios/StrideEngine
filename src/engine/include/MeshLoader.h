@@ -142,7 +142,13 @@ public:
 
 	CMeshLoader() = default;
 
-	void loadGLTF(class CVulkanRenderer* renderer, std::filesystem::path filePath);
+	void loadGLTF(CVulkanRenderer* renderer, std::filesystem::path filePath);
+
+	void loadGLTFExternal(CVulkanRenderer* renderer, std::filesystem::path filePath);
 
 	std::vector<std::shared_ptr<SStaticMesh>> mLoadedModels{};
+
+private:
+
+	void loadGLTF_Internal(CVulkanRenderer* renderer, std::filesystem::path path);
 };

@@ -15,6 +15,7 @@
 #include "MeshPass.h"
 #include "Sprite.h"
 #include "SpritePass.h"
+#include "Threading.h"
 #include "encoder/basisu_enc.h"
 #include "SDL3/SDL_dialog.h"
 
@@ -279,7 +280,12 @@ void CTestRenderer::render(VkCommandBuffer cmd) {
 			};
 
 			SEngineWindow::queryForFile(filters, [](const char* inFileName) {
-				msgs("{}", inFileName);
+				std::string fileName = inFileName;
+				CThreading::getRenderingThread().run([fileName] {
+					if (!fileName.empty()) {
+						CEngine::renderer().mMeshLoader->loadGLTFExternal(&CEngine::renderer(), fileName.c_str());
+					}
+				});
 			});
 		}
 		for (const auto& mesh : mMeshLoader->mLoadedModels) {
