@@ -42,8 +42,8 @@ void CTestRenderer::init() {
 	mMeshLoader->loadGLTF(this, "structure2.glb");
 
 	auto meshObject = std::make_shared<CStaticMeshObject>();
-	meshObject->mesh = *mMeshLoader->mLoadedModels.begin();
-	meshObject->setPosition(Vector3d(1000.0, 0.0, 0.0));
+	meshObject->mesh = mMeshLoader->mLoadedModels[0];
+	meshObject->setPosition(Vector3d(0.0, 0.0, 0.0));
 	mGPUScene->renderables.push_back(meshObject);
 
 	auto material = std::make_shared<CMaterial>();

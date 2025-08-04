@@ -212,8 +212,8 @@ void CMeshLoader::loadGLTF(CVulkanRenderer* renderer, std::filesystem::path file
 				fastgltf::Accessor& posAccessor = gltf.accessors[p.findAttribute("POSITION")->accessorIndex];
 				vertices.resize(vertices.size() + posAccessor.count);
 
-				Vector3f minpos;
-				Vector3f maxpos;
+				Vector3f minpos(0.f);
+				Vector3f maxpos(0.f);
 
 				fastgltf::iterateAccessorWithIndex<glm::vec3>(gltf, posAccessor,
 					[&](glm::vec3 v, size_t index) {
@@ -222,9 +222,10 @@ void CMeshLoader::loadGLTF(CVulkanRenderer* renderer, std::filesystem::path file
 						Vector3f normal = { 1, 0, 0 };
 						minpos = glm::min(minpos, pos);
 						maxpos = glm::max(maxpos, pos);
-						newvtx.setPosAndNorm(pos, normal);
+						newvtx.position = pos;
+						newvtx.normal = normal;
 						newvtx.setColor(Color4(255));
-						newvtx.posNormUV.w = 0;
+						newvtx.uv = 0;
 						vertices[initial_vtx + index] = newvtx;
 					});
 
@@ -239,7 +240,7 @@ void CMeshLoader::loadGLTF(CVulkanRenderer* renderer, std::filesystem::path file
 			if (normals < p.attributes.end()) {
 				fastgltf::iterateAccessorWithIndex<glm::vec3>(gltf, gltf.accessors[normals->accessorIndex],
 					[&](glm::vec3 v, size_t index) {
-						vertices[initial_vtx + index].setNormal(v);
+						vertices[initial_vtx + index].normal = v;
 					});
 			}
 
@@ -305,7 +306,7 @@ void CMeshLoader::loadGLTF(CVulkanRenderer* renderer, std::filesystem::path file
 
 	for (const auto& mesh : outSaveData) {
 		auto loadMesh = std::make_shared<SStaticMesh>();
-		mLoadedModels.insert(loadMesh);
+		mLoadedModels.push_back(loadMesh);
 		loadMesh->name = mesh->name;
 		loadMesh->bounds = mesh->bounds;
 		for (auto& surface : mesh->surfaces) {

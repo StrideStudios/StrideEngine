@@ -84,7 +84,9 @@ struct SMeshData {
 
 		// Since vertex colors are optional, they are not always serialized
 		for (const auto& value : inData.vertices) {
-			inArchive << value.posNormUV;
+			inArchive << value.position;
+			inArchive << value.uv;
+			inArchive << value.normal;
 			if (inData.mHasVertexColor)
 				inArchive << value.color;
 		}
@@ -120,7 +122,9 @@ struct SMeshData {
 		inArchive >> size;
 		inData.vertices.resize(size);
 		for (size_t i = 0; i < size; ++i) {
-			inArchive >> inData.vertices[i].posNormUV;
+			inArchive >> inData.vertices[i].position;
+			inArchive >> inData.vertices[i].uv;
+			inArchive >> inData.vertices[i].normal;
 			if (inData.mHasVertexColor) {
 				inArchive >> inData.vertices[i].color;
 			}
@@ -140,5 +144,5 @@ public:
 
 	void loadGLTF(class CVulkanRenderer* renderer, std::filesystem::path filePath);
 
-	std::set<std::shared_ptr<SStaticMesh>> mLoadedModels{};
+	std::vector<std::shared_ptr<SStaticMesh>> mLoadedModels{};
 };

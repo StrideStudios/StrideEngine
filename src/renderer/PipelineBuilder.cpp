@@ -51,38 +51,50 @@ VkPipeline CPipelineBuilder::buildPipeline(VkDevice inDevice) const {
 	};
 
 	auto attributes = {
-		VkVertexInputAttributeDescription{ // uvec4 posNormUV
+		VkVertexInputAttributeDescription{ // vec3 position
 			0,
 			bindings[0].binding,
-			VK_FORMAT_R32G32B32A32_UINT,
+			VK_FORMAT_R32G32B32_SFLOAT,
 			0
 		},
-		VkVertexInputAttributeDescription{ // uint color
+		VkVertexInputAttributeDescription{ // uint UV
 			1,
 			bindings[0].binding,
 			VK_FORMAT_R32_UINT,
-			sizeof(uVector4i)
+			sizeof(Vector3f)
+		},
+		VkVertexInputAttributeDescription{ // vec3 normal
+			2,
+			bindings[0].binding,
+			VK_FORMAT_R32G32B32_SFLOAT,
+			sizeof(Vector3f) + sizeof(uint32)
+		},
+		VkVertexInputAttributeDescription{ // uint color
+			3,
+			bindings[0].binding,
+			VK_FORMAT_R32_UINT,
+			2 * sizeof(Vector3f) + sizeof(uint32)
 		},
 		VkVertexInputAttributeDescription{ // mat4 Transform
-			2,
+			4,
 			bindings[1].binding,
 			VK_FORMAT_R32G32B32A32_SFLOAT,
 			0
 		},
 		VkVertexInputAttributeDescription{
-			3,
+			5,
 			bindings[1].binding,
 			VK_FORMAT_R32G32B32A32_SFLOAT,
 			sizeof(Vector4f)
 		},
 		VkVertexInputAttributeDescription{
-			4,
+			6,
 			bindings[1].binding,
 			VK_FORMAT_R32G32B32A32_SFLOAT,
 			2 * sizeof(Vector4f)
 		},
 		VkVertexInputAttributeDescription{
-			5,
+			7,
 			bindings[1].binding,
 			VK_FORMAT_R32G32B32A32_SFLOAT,
 			3 * sizeof(Vector4f)
