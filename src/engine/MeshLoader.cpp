@@ -101,7 +101,7 @@ void CMeshLoader::loadGLTF(CVulkanRenderer* renderer, std::filesystem::path file
 
 	std::filesystem::path path = CEngine::get().mAssetPath + filePath.string();
 
-	constexpr auto gltfOptions = fastgltf::Options::DontRequireValidAssetMember | fastgltf::Options::AllowDouble | fastgltf::Options::LoadExternalBuffers | fastgltf::Options::LoadExternalImages;
+	constexpr auto gltfOptions = fastgltf::Options::DontRequireValidAssetMember | fastgltf::Options::AllowDouble;
 
 	fastgltf::GltfFileStream data{path};
 
@@ -128,17 +128,21 @@ void CMeshLoader::loadGLTF(CVulkanRenderer* renderer, std::filesystem::path file
 		return;
 	}
 
-	// use the same vectors for all meshes so that the memory doesnt reallocate as
+	// The meshes to save to a custom format
+	std::vector<std::shared_ptr<SMeshData>> savedMeshes;
+
+	// use the same vectors for all meshes so that the memory doesn't reallocate as
 	// often
 	for (fastgltf::Node& node : gltf.nodes) {
 		if (!node.meshIndex.has_value()) continue;
 		fastgltf::Mesh& mesh = gltf.meshes[*node.meshIndex];
 
-		auto outMesh = std::make_shared<SStaticMesh>();
+		auto outMesh = std::make_shared<SMeshData>();
 		outMesh->name = mesh.name;
+		savedMeshes.push_back(outMesh);
 
 		// Add the object
-		mLoadedModels.insert(outMesh);
+		//mLoadedModels.insert(outMesh);
 
 		auto localMatrix = Matrix4f(1.f);
 
@@ -177,12 +181,18 @@ void CMeshLoader::loadGLTF(CVulkanRenderer* renderer, std::filesystem::path file
 			newSurface.startIndex = (uint32)indices.size();
 			newSurface.count = (uint32)gltf.accessors[p.indicesAccessor.value()].count;
 
+			SMeshData::Surface newSurface2;
+			newSurface2.startIndex = (uint32)indices.size();
+			newSurface2.count = (uint32)gltf.accessors[p.indicesAccessor.value()].count;
+
 			if (p.materialIndex.has_value()) {
 				newSurface.name = gltf.materials[p.materialIndex.value()].name;
 			} else {
 				newSurface.name = fmts("Surface {}", unnamedSurfaceIndex);
 				unnamedSurfaceIndex++;
 			}
+
+			newSurface2.name = newSurface.name;
 
 			size_t initial_vtx = vertices.size();
 
@@ -197,63 +207,70 @@ void CMeshLoader::loadGLTF(CVulkanRenderer* renderer, std::filesystem::path file
 					});
 			}
 
-			// load vertex positions
+			// load vertex positions and bounds
 			{
 				fastgltf::Accessor& posAccessor = gltf.accessors[p.findAttribute("POSITION")->accessorIndex];
 				vertices.resize(vertices.size() + posAccessor.count);
 
+				Vector3f minpos;
+				Vector3f maxpos;
+
 				fastgltf::iterateAccessorWithIndex<glm::vec3>(gltf, posAccessor,
 					[&](glm::vec3 v, size_t index) {
 						SVertex newvtx;
-						newvtx.position = localMatrix * Vector4f{v, 1.f};
-						newvtx.normal = { 1, 0, 0 };
-						newvtx.color = glm::vec4 { 1.f };
-						newvtx.uv_x = 0;
-						newvtx.uv_y = 0;
+						Vector3f pos = localMatrix * Vector4f{v, 1.f};
+						Vector3f normal = { 1, 0, 0 };
+						minpos = glm::min(minpos, pos);
+						maxpos = glm::max(maxpos, pos);
+						newvtx.setPosAndNorm(pos, normal);
+						newvtx.setColor(Color4(255));
+						newvtx.posNormUV.w = 0;
 						vertices[initial_vtx + index] = newvtx;
 					});
+
+				// Calculate origin and extents from the min/max, use extent length for radius
+				outMesh->bounds.origin = (maxpos + minpos) / 2.f;
+				outMesh->bounds.extents = (maxpos - minpos) / 2.f;
+				outMesh->bounds.sphereRadius = glm::length(outMesh->bounds.extents);
 			}
 
 			// load vertex normals
 			auto normals = p.findAttribute("NORMAL");
-			if (normals != p.attributes.end()) {
-
+			if (normals < p.attributes.end()) {
 				fastgltf::iterateAccessorWithIndex<glm::vec3>(gltf, gltf.accessors[normals->accessorIndex],
 					[&](glm::vec3 v, size_t index) {
-						vertices[initial_vtx + index].normal = v;
+						vertices[initial_vtx + index].setNormal(v);
 					});
 			}
 
 			// load UVs
 			auto uv = p.findAttribute("TEXCOORD_0");
-			if (uv != p.attributes.end()) {
-
+			if (uv < p.attributes.end()) {
 				fastgltf::iterateAccessorWithIndex<glm::vec2>(gltf, gltf.accessors[uv->accessorIndex],
 					[&](glm::vec2 v, size_t index) {
-						vertices[initial_vtx + index].uv_x = v.x;
-						vertices[initial_vtx + index].uv_y = v.y;
+						vertices[initial_vtx + index].setUV(v.x, v.y);
 					});
 			}
 
 			// load vertex colors
 			auto colors = p.findAttribute("COLOR_0");
-			if (colors != p.attributes.end()) {
-
+			outMesh->mHasVertexColor = colors < p.attributes.end();
+			if (outMesh->mHasVertexColor) {
 				// Sometimes the color will not have an alpha, in such a case, the alpha can be set to 1.f
 				if (gltf.accessors[colors->accessorIndex].type == fastgltf::AccessorType::Vec3) {
 					fastgltf::iterateAccessorWithIndex<Vector3f>(gltf, gltf.accessors[colors->accessorIndex],
 						[&](Vector3f v, size_t index) {
-							vertices[initial_vtx + index].color = {v, 1.f};
+							vertices[initial_vtx + index].setColor(Color4(v * 255.f, 255));
 						});
 				} else {
 					fastgltf::iterateAccessorWithIndex<Vector4f>(gltf, gltf.accessors[colors->accessorIndex],
 						[&](Vector4f v, size_t index) {
-							vertices[initial_vtx + index].color = v;
+							vertices[initial_vtx + index].setColor(Color4(v * 255.f));
 						});
 				}
 			}
 
-			outMesh->surfaces.push_back(newSurface);
+			outMesh->surfaces.push_back(newSurface2);
 		}
 
 		// If no meshes are loaded, do not upload or add to mesh list
@@ -263,23 +280,43 @@ void CMeshLoader::loadGLTF(CVulkanRenderer* renderer, std::filesystem::path file
 
 		optimizeMesh(indices, vertices);
 
-		// Calculate Mesh bounds
-		{
-			// Loop the vertices of this surface, find min/max bounds
-			Vector3f minpos = vertices[0].position;
-			Vector3f maxpos = vertices[0].position;
-			for (int i = 0; i < vertices.size(); i++) {
-				minpos = glm::min(minpos, vertices[i].position);
-				maxpos = glm::max(maxpos, vertices[i].position);
-			}
-			// Calculate origin and extents from the min/max, use extent length for radius
-			outMesh->bounds.origin = (maxpos + minpos) / 2.f;
-			outMesh->bounds.extents = (maxpos - minpos) / 2.f;
-			outMesh->bounds.sphereRadius = glm::length(outMesh->bounds.extents);
+		outMesh->indices = indices;
+		outMesh->vertices = vertices;
+	}
+
+	std::filesystem::path savedPath(CEngine::get().mAssetCachePath);
+	savedPath.append(filePath.string());
+
+	savedPath.replace_extension(".mesh");
+
+	CFileArchive file(savedPath.string(), "wb");
+
+	file << savedMeshes;
+
+	file.close();
+
+	CFileArchive inFile(savedPath.string(), "rb");
+
+	std::vector<std::shared_ptr<SMeshData>> outSaveData;
+
+	inFile >> outSaveData;
+
+	inFile.close();
+
+	for (const auto& mesh : outSaveData) {
+		auto loadMesh = std::make_shared<SStaticMesh>();
+		mLoadedModels.insert(loadMesh);
+		loadMesh->name = mesh->name;
+		loadMesh->bounds = mesh->bounds;
+		for (auto& surface : mesh->surfaces) {
+			loadMesh->surfaces.push_back({
+				.name = surface.name,
+				.material = renderer->mGPUScene->mErrorMaterial,
+				.startIndex = surface.startIndex,
+				.count = surface.count
+			});
 		}
-
-		outMesh->meshBuffers = renderer->mEngineBuffers->uploadMesh(renderer->mGlobalResourceManager, indices, vertices);
-
+		loadMesh->meshBuffers = renderer->mEngineBuffers->uploadMesh(renderer->mGlobalResourceManager, mesh->indices, mesh->vertices);
 	}
 
 	msgs("GLTF {} Loaded.", filePath.string().c_str());

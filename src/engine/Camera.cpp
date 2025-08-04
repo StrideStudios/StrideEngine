@@ -80,8 +80,6 @@ void CCamera::update() {
 		Vector2f size = {x, y};
 		//const Matrix4f orthogonalProjection = glm::ortho(-size.x / 2.f, size.x / 2.f, size.y / 2.f, -size.y / 2.f, 0.f, 1.f);
 		const Matrix4f orthogonalProjection = glm::ortho(0.f, size.x, 0.f, size.y, 0.f, 1.f);
-		Matrix4f view = glm::translate(glm::mat4{1.f}, Vector3f(100.f, 50.f, 0.f));
-		view = glm::scale(view, Vector3f(x, y, 1.f)); //TODO: 2d camera pos
 		mOrthogonalViewProjectionMatrix = orthogonalProjection;
 	}
 

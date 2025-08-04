@@ -106,7 +106,7 @@ void CMeshPass::init(const EMeshPass inPassType) {
 }
 
 //TODO: probably faster with gpu
-bool isVisible(const std::shared_ptr<SStaticMesh>& obj, const Matrix4f& viewproj) {
+bool isVisible(const std::shared_ptr<IRenderable>& renderable, const Matrix4f& viewproj) {
 	constexpr static std::array corners {
 		Vector3f { 1, 1, 1 },
 		Vector3f { 1, 1, -1 },
@@ -118,14 +118,14 @@ bool isVisible(const std::shared_ptr<SStaticMesh>& obj, const Matrix4f& viewproj
 		Vector3f { -1, -1, -1 },
 	};
 
-	const Matrix4f matrix = viewproj;// * obj.transform;
+	const Matrix4f matrix = viewproj * renderable->getTransformMatrix();
 
 	Vector3f min = { 1.5, 1.5, 1.5 };
 	Vector3f max = { -1.5, -1.5, -1.5 };
 
 	for (int c = 0; c < 8; c++) {
 		// project each corner into clip space
-		Vector4f v = matrix * Vector4f(obj->bounds.origin + (corners[c] * obj->bounds.extents), 1.f);
+		Vector4f v = matrix * Vector4f(renderable->getMesh()->bounds.origin + (corners[c] * renderable->getMesh()->bounds.extents), 1.f);
 
 		// perspective correction
 		v.x = v.x / v.w;
@@ -147,13 +147,13 @@ void CMeshPass::render(const VkCommandBuffer cmd) {
 	const CVulkanRenderer& renderer = CEngine::renderer();
 	const CGPUScene* scene = renderer.mGPUScene;
 
-	std::vector<std::shared_ptr<SStaticMesh>> renderObjects;
+	std::vector<std::shared_ptr<IRenderable>> renderObjects;
 
 	{
 		ZoneScopedN("Frustum Culling");
-		for (auto obj : objects) {
-			if (isVisible(obj, scene->m_GPUSceneData.viewProj)) {
-				renderObjects.push_back(obj);
+		for (const auto& renderable : scene->renderables) {
+			if (isVisible(renderable, scene->m_GPUSceneData.viewProj)) {
+				renderObjects.push_back(renderable);
 			}
 		}
 	}
@@ -164,8 +164,8 @@ void CMeshPass::render(const VkCommandBuffer cmd) {
 	// sort the opaque surfaces by material and mesh
 	{
 		ZoneScopedN("Sort Draws");
-		std::ranges::sort(renderObjects, [&](const std::shared_ptr<SStaticMesh>& lhs, const std::shared_ptr<SStaticMesh>& rhs) {
-			return lhs->meshBuffers->indexBuffer->buffer < rhs->meshBuffers->indexBuffer->buffer;
+		std::ranges::sort(renderObjects, [&](const std::shared_ptr<IRenderable>& lhs, const std::shared_ptr<IRenderable>& rhs) {
+			return lhs->getMesh()->meshBuffers->indexBuffer->buffer < rhs->getMesh()->meshBuffers->indexBuffer->buffer;
 		});
 	}
 
@@ -182,7 +182,9 @@ void CMeshPass::render(const VkCommandBuffer cmd) {
 		renderer.mEngineTextures->mDrawImage->mImageExtent.height
 	};
 
-	auto render = [&](const std::shared_ptr<SStaticMesh>& obj) {
+	auto render = [&](const std::shared_ptr<IRenderable>& renderable) {
+		const auto obj = renderable->getMesh();
+
 		ZoneScoped;
 		ZoneName(obj->name.c_str(), obj->name.size());
 
@@ -190,8 +192,22 @@ void CMeshPass::render(const VkCommandBuffer cmd) {
 		if (lastIndexBuffer != obj->meshBuffers->indexBuffer->buffer) {
 			lastIndexBuffer = obj->meshBuffers->indexBuffer->buffer;
 			vkCmdBindIndexBuffer(cmd, obj->meshBuffers->indexBuffer->buffer, 0, VK_INDEX_TYPE_UINT32);
-			constexpr VkDeviceSize offset = 0;
-			vkCmdBindVertexBuffers(cmd, 0, 1, &obj->meshBuffers->vertexBuffer->buffer, &offset);
+			const auto offset = {
+				VkDeviceSize { 0 },
+				VkDeviceSize { 0 }
+			};
+
+			const SInstance instance = { renderable->getTransformMatrix() };
+			void* data;
+			obj->meshBuffers->instanceBuffer->mapData(&data);
+			memcpy(data, &instance, sizeof(SInstance));
+			obj->meshBuffers->instanceBuffer->unMapData();
+
+			const auto buffers = {
+				obj->meshBuffers->vertexBuffer->buffer,
+				obj->meshBuffers->instanceBuffer->buffer
+			};
+			vkCmdBindVertexBuffers(cmd, 0, (uint32)buffers.size(), buffers.begin(), offset.begin());
 		}
 
 		// Loop through surfaces and render

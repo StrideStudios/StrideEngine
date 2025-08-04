@@ -101,7 +101,7 @@ void CGPUScene::render(VkCommandBuffer cmd) {
 
 	basePass->render(cmd);
 
-	spritePass->render(cmd);
+	//spritePass->render(cmd);
 }
 
 void CGPUScene::update() {

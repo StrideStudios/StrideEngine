@@ -27,14 +27,15 @@ ENUM_TO_STRING(MaterialPass, uint8,
 ENUM_OPERATORS(MaterialPass, uint8)
 
 // Push constants allow for a max of 128 bytes (modern hardware can do 256, but is not guaranteed)
-// This means you can push 32 floating point values
-// Since these are used to access the bindless textures, that means a max of 32 textures, or 64 if double packed
+// This means you can push 16 floating point values
+// Since these are used to access the bindless textures, that means a max of 16 textures, or 32 if double packed
 // If i wish to double pack i need to make sure max textures is uint16
 
-//TODO: ensure this, for now 32 works but having more textures would be more better
+//TODO: ensure this, for now 16 works but having more textures would be more better
 static uint16 gMaxTextures = std::numeric_limits<uint16>::max();
 
 // Safe array for push constants that is always filled by default
+// Also contains the transform matrix
 struct SPushConstants : std::array<Vector4f, 8> {
 	SPushConstants() : array() {
 		fill(Vector4f(0.f));

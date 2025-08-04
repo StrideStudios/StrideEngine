@@ -43,6 +43,14 @@ public:
 	SBuffer m_GPUSceneDataBuffer;
 
 	//
+	// Objects
+	//
+
+	std::vector<std::shared_ptr<class CSceneObject>> objects;
+
+	std::vector<std::shared_ptr<class IRenderable>> renderables;
+
+	//
 	// Passes
 	//
 

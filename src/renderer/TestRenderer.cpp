@@ -40,7 +40,11 @@ void CTestRenderer::init() {
 	mGlobalResourceManager.loadImage("trim_misc_1_albedo.png");
 	mGlobalResourceManager.loadImage("trim_misc_2_albedo.png");
 	mMeshLoader->loadGLTF(this, "structure2.glb");
-	mGPUScene->basePass->push(mMeshLoader->mLoadedModels);
+
+	auto meshObject = std::make_shared<CStaticMeshObject>();
+	meshObject->mesh = *mMeshLoader->mLoadedModels.begin();
+	meshObject->setPosition(Vector3d(1000.0, 0.0, 0.0));
+	mGPUScene->renderables.push_back(meshObject);
 
 	auto material = std::make_shared<CMaterial>();
 	material->mShouldSave = false;
@@ -199,7 +203,7 @@ void CTestRenderer::render(VkCommandBuffer cmd) {
 				}
 
 				if (ImGui::TreeNode("Inputs")) {
-					for (uint8 i = 0; i < 8; ++i) {
+					for (uint8 i = 0; i < material->mConstants.size(); ++i) {
 						ImGui::InputFloat4(fmts("Input {}", i).c_str(), (float*)&material->mConstants[i]);
 					}
 					ImGui::TreePop();

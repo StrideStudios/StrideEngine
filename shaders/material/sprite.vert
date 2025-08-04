@@ -35,8 +35,8 @@ void main() {
         -1, -1, 0, 1
     );
 
-    uint u1 = uint(PushConstants.constant[0].x);
-    uint u2 = uint(PushConstants.constant[0].y);
+    uint u1 = uint(PushConstants[0].x);
+    uint u2 = uint(PushConstants[0].y);
 
     uint64_t unsignedKey = (uint64_t(u1) << 32) | uint64_t(u2);
     SpriteBuffer buf = SpriteBuffer(unsignedKey);

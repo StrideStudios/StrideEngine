@@ -29,6 +29,10 @@ struct SBuffer_T {
 	VmaAllocationInfo info = {};
 
 	no_discard void* GetMappedData() const;
+
+	no_discard void mapData(void** data) const;
+
+	no_discard void unMapData() const;
 };
 typedef std::shared_ptr<SBuffer_T> SBuffer;
 
@@ -36,7 +40,7 @@ typedef std::shared_ptr<SBuffer_T> SBuffer;
 struct SMeshBuffers_T {
 	SBuffer indexBuffer = nullptr;
 	SBuffer vertexBuffer = nullptr;
-	VkDeviceAddress vertexBufferAddress;
+	SBuffer instanceBuffer = nullptr;
 };
 typedef std::shared_ptr<SMeshBuffers_T> SMeshBuffers;
 
@@ -68,6 +72,8 @@ static uint32 gTextureBinding = 0;
 static uint32 gSamplerBinding = 1;
 
 class CResourceManager {
+
+	friend SBuffer_T;
 
 	enum class Type : uint8 {
 		BUFFER,

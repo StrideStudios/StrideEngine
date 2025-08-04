@@ -37,49 +37,62 @@ VkPipeline CPipelineBuilder::buildPipeline(VkDevice inDevice) const {
 	colorBlending.attachmentCount = 1;
 	colorBlending.pAttachments = &m_ColorBlendAttachment;
 
-	constexpr VkVertexInputBindingDescription binding = {
-		.binding = 0,
-		.stride = sizeof(SVertex),
-		.inputRate = VK_VERTEX_INPUT_RATE_VERTEX
+	constexpr std::array bindings = {
+		VkVertexInputBindingDescription {
+			.binding = 0,
+			.stride = sizeof(SVertex),
+			.inputRate = VK_VERTEX_INPUT_RATE_VERTEX
+		},
+		VkVertexInputBindingDescription {
+			.binding = 1,
+			.stride = sizeof(SInstance),
+			.inputRate = VK_VERTEX_INPUT_RATE_INSTANCE
+		}
 	};
 
 	auto attributes = {
-		{ // Vector3f position
+		VkVertexInputAttributeDescription{ // uvec4 posNormUV
 			0,
-			binding.binding,
-			VK_FORMAT_R32G32B32_SFLOAT,
+			bindings[0].binding,
+			VK_FORMAT_R32G32B32A32_UINT,
 			0
 		},
-		VkVertexInputAttributeDescription{ // float uv_x
+		VkVertexInputAttributeDescription{ // uint color
 			1,
-			binding.binding,
-			VK_FORMAT_R32_SFLOAT,
-			3 * sizeof(float)
+			bindings[0].binding,
+			VK_FORMAT_R32_UINT,
+			sizeof(uVector4i)
 		},
-		VkVertexInputAttributeDescription{ // Vector3f normal
+		VkVertexInputAttributeDescription{ // mat4 Transform
 			2,
-			binding.binding,
-			VK_FORMAT_R32G32B32_SFLOAT,
-			4 * sizeof(float)
-		},
-		VkVertexInputAttributeDescription{ // float uv_y
-			3,
-			binding.binding,
-			VK_FORMAT_R32_SFLOAT,
-			7 * sizeof(float)
-		},
-		VkVertexInputAttributeDescription{ // Vector4f color
-			4,
-			binding.binding,
+			bindings[1].binding,
 			VK_FORMAT_R32G32B32A32_SFLOAT,
-			8 * sizeof(float)
+			0
+		},
+		VkVertexInputAttributeDescription{
+			3,
+			bindings[1].binding,
+			VK_FORMAT_R32G32B32A32_SFLOAT,
+			sizeof(Vector4f)
+		},
+		VkVertexInputAttributeDescription{
+			4,
+			bindings[1].binding,
+			VK_FORMAT_R32G32B32A32_SFLOAT,
+			2 * sizeof(Vector4f)
+		},
+		VkVertexInputAttributeDescription{
+			5,
+			bindings[1].binding,
+			VK_FORMAT_R32G32B32A32_SFLOAT,
+			3 * sizeof(Vector4f)
 		}
 	};
 
 	const VkPipelineVertexInputStateCreateInfo _vertexInputInfo = {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-		.vertexBindingDescriptionCount = 1,
-		.pVertexBindingDescriptions = &binding,
+		.vertexBindingDescriptionCount = (uint32)bindings.size(),
+		.pVertexBindingDescriptions = bindings.data(),
 		.vertexAttributeDescriptionCount = (uint32)attributes.size(),
 		.pVertexAttributeDescriptions = attributes.begin()
 	};

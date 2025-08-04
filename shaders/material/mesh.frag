@@ -15,7 +15,7 @@ layout (location = 0) out vec4 outColor;
 void main() {
     float lightValue = max(dot(vertexNormal, sceneData.sunlightDirection.xyz), 0.1f);
 
-    vec3 color = vertexColor.xyz * sampleTexture2DLinear(uint(PushConstants.constant[0].x),uv0).xyz;
+    vec3 color = vertexColor.xyz * sampleTexture2DLinear(uint(PushConstants[0].x),uv0).xyz;
     vec3 ambient = color *  sceneData.ambientColor.xyz;
 
     outColor = vec4(color * lightValue *  sceneData.sunlightColor.w + ambient, 1.f);

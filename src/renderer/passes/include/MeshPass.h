@@ -21,14 +21,7 @@ public:
 
 	void render(VkCommandBuffer cmd) override;
 
-	void push(const std::set<std::shared_ptr<SStaticMesh>>& inObjects) {
-		objects.insert_range(inObjects);
-	}
-
 	EMeshPass passType;
-
-	// Meshes used to render this pass
-	std::set<std::shared_ptr<SStaticMesh>> objects;
 
 	//
 	// Pipelines

@@ -16,6 +16,7 @@
 #include "encoder/basisu_gpu_texture.h"
 
 #include "Engine.h"
+#include "EngineBuffers.h"
 #include "Hashing.h"
 #include "PipelineBuilder.h"
 #include "VulkanDevice.h"
@@ -25,6 +26,14 @@
 
 void* SBuffer_T::GetMappedData() const {
 	return allocation->GetMappedData();
+}
+
+void SBuffer_T::mapData(void** data) const {
+	vmaMapMemory(CResourceManager::getAllocator(), allocation, data);
+}
+
+void SBuffer_T::unMapData() const {
+	vmaUnmapMemory(CResourceManager::getAllocator(), allocation);
 }
 
 #define CREATE_SWITCH(inType, inName, inEnum) \
@@ -243,14 +252,8 @@ SMeshBuffers CResourceManager::allocateMeshBuffer(size_t indicesSize, size_t ver
 
 	meshBuffers->vertexBuffer = allocateBuffer(verticesSize, VMA_MEMORY_USAGE_GPU_ONLY, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
 
-	//find the address of the vertex buffer
-	// TODO: pointer math for large buffers
-	VkBufferDeviceAddressInfo deviceAddressInfo {
-		.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
-		.buffer = meshBuffers->vertexBuffer->buffer
-	};
-
-	meshBuffers->vertexBufferAddress = vkGetBufferDeviceAddress(device, &deviceAddressInfo);
+	//TODO: for now instance buffer only needs one
+	meshBuffers->instanceBuffer = allocateBuffer(sizeof(SInstance), VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
 
 	return meshBuffers;
 }
