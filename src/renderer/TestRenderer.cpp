@@ -281,7 +281,7 @@ void CTestRenderer::render(VkCommandBuffer cmd) {
 
 			SEngineWindow::queryForFile(filters, [](const char* inFileName) {
 				std::string fileName = inFileName;
-				CThreading::getRenderingThread().run([fileName] {
+				CThreading::runOnBackgroundThread([fileName] {
 					if (!fileName.empty()) {
 						CEngine::renderer().mMeshLoader->loadGLTFExternal(&CEngine::renderer(), fileName.c_str());
 					}

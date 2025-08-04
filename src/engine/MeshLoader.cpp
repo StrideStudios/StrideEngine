@@ -14,6 +14,7 @@
 #include "VulkanRenderer.h"
 #include "EngineBuffers.h"
 #include "GpuScene.h"
+#include "Threading.h"
 #include "fastgltf/core.hpp"
 #include "tracy/Tracy.hpp"
 
@@ -315,9 +316,11 @@ void CMeshLoader::loadGLTF_Internal(CVulkanRenderer* renderer, std::filesystem::
 
 	inFile.close();
 
+	std::vector<std::shared_ptr<SStaticMesh>> meshes;
+
 	for (const auto& mesh : outSaveData) {
 		auto loadMesh = std::make_shared<SStaticMesh>();
-		mLoadedModels.push_back(loadMesh);
+		meshes.push_back(loadMesh);
 		loadMesh->name = mesh->name;
 		loadMesh->bounds = mesh->bounds;
 		for (auto& surface : mesh->surfaces) {
@@ -328,8 +331,16 @@ void CMeshLoader::loadGLTF_Internal(CVulkanRenderer* renderer, std::filesystem::
 				.count = surface.count
 			});
 		}
-		loadMesh->meshBuffers = renderer->mEngineBuffers->uploadMesh(renderer->mGlobalResourceManager, mesh->indices, mesh->vertices);
+		CThreading::getRenderingThread().run([&] {
+			loadMesh->meshBuffers = renderer->mEngineBuffers->uploadMesh(renderer->mGlobalResourceManager, mesh->indices, mesh->vertices);
+		});
 	}
+
+	//TODO: not a smart way to do this, but since rendering thread relies on this we want to avoid race condition
+	CThreading::getRenderingThread().run([this, meshes] {
+		mLoadedModels.append_range(meshes);
+	});
+	CThreading::getRenderingThread().wait();
 
 	msgs("GLTF {} Loaded.", path.string().c_str());
 }

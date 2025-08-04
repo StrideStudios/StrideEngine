@@ -218,6 +218,7 @@ void CEngine::run() {
 		}
 
 		CThreading::getRenderingThread().run([] {
+			ZoneScopedN("Render Thread");
 			renderer().draw();
 		});
 		CThreading::getRenderingThread().wait();
