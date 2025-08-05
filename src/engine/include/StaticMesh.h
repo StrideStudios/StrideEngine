@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-#include "BasicTypes.h"
+#include "Common.h"
 #include "Material.h"
 #include "SceneObject.h"
 

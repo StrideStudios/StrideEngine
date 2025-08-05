@@ -5,7 +5,6 @@
 
 #include "DescriptorManager.h"
 #include "ResourceManager.h"
-#include "SceneViewport.h"
 
 namespace tracy {
 	class VkCtx;
@@ -72,8 +71,6 @@ public:
 
 	force_inline const FrameData& getCurrentFrame() const { return mFrames[getFrameIndex()]; }
 
-	no_discard const SSceneViewport& getViewport() const { return mViewport; }
-
 	// Draw to the screen
 	void draw();
 
@@ -93,8 +90,6 @@ public:
 
 	// Stores buffers used internally by the engine
 	CEngineBuffers* mEngineBuffers = nullptr;
-
-	SSceneViewport mViewport;
 
 	class CGPUScene* mGPUScene;
 

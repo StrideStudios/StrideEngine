@@ -54,6 +54,8 @@ void CVulkanUtils::copyImageToImage(VkCommandBuffer inCmd, VkImage inSource, VkI
 }
 
 void CVulkanUtils::transitionImage(VkCommandBuffer inCmd, VkImage inImage, VkImageLayout inCurrentLayout, VkImageLayout inNewLayout) {
+	ZoneScopedN("Transition Image");
+
 	VkImageMemoryBarrier2 imageBarrier {.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2};
 	imageBarrier.pNext = nullptr;
 

@@ -18,6 +18,7 @@
 #include "Engine.h"
 #include "EngineBuffers.h"
 #include "Hashing.h"
+#include "Paths.h"
 #include "PipelineBuilder.h"
 #include "VulkanDevice.h"
 #include "VulkanRenderer.h"
@@ -741,8 +742,8 @@ void CResourceManager::loadImage(const char* inFileName) {
 
 	msgs("Loading image: {}", inFileName);
 
-	const std::string path = CEngine::get().mAssetPath + inFileName;
-	std::filesystem::path cachedPath = CEngine::get().mAssetCachePath + inFileName;
+	const std::string path = SPaths::get().mAssetPath.string() + inFileName;
+	std::filesystem::path cachedPath = SPaths::get().mAssetCachePath.string() + inFileName;
 	cachedPath.replace_extension(".dds");
 
 	basisu::image image = readImage(path);

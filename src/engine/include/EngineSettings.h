@@ -375,8 +375,8 @@ private:
 
 #define ADD_COMMAND(type, command, ...) \
 	TCommand<type> command ( \
-		COMMAND_CATEGORY, #command, __VA_ARGS__ \
+		SETTINGS_CATEGORY, #command, __VA_ARGS__ \
 	)
 
 #define ADD_TEXT(type, ...) \
-	CGuiText type(COMMAND_CATEGORY, __VA_ARGS__)
+	CGuiText type(SETTINGS_CATEGORY, __VA_ARGS__)

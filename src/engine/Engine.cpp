@@ -5,8 +5,10 @@
 #include <tracy/Tracy.hpp>
 
 #include "EngineSettings.h"
-#include "PipelineBuilder.h"
+#include "EngineTextures.h"
 #include "imgui_impl_sdl3.h"
+#include "Input.h"
+#include "Paths.h"
 #include "ResourceManager.h"
 #include "TestRenderer.h"
 #include "Threading.h"
@@ -18,39 +20,24 @@
 #include "SDL3/SDL_vulkan.h"
 #include "tracy/TracyC.h"
 
-#define COMMAND_CATEGORY "Engine"
+#define SETTINGS_CATEGORY "Engine"
 ADD_COMMAND(int32, UseFrameCap, 180, 0, 500);
-#undef COMMAND_CATEGORY
-
-#define COMMAND_CATEGORY "Engine"
 ADD_TEXT(FrameRate);
 ADD_TEXT(AverageFrameRate);
 ADD_TEXT(GameTime);
 ADD_TEXT(DeltaTime);
-#undef COMMAND_CATEGORY
+#undef SETTINGS_CATEGORY
 
 int main() {
-
 	CEngine::get().init();
 
 	CEngine::get().run();
 
 	CEngine::get().end();
+
+	CThreading::getMainThread().stop();
+
 	return 0;
-}
-
-// Some ugly code that prevents the user from having to deal with it
-void sdlCallback(void* callback, const char* const* inFileName, int inFilter) {
-	if (inFileName == nullptr || *inFileName == nullptr) return;
-	(*reinterpret_cast<SEngineWindow::cb*>(callback))(*inFileName);
-}
-
-void SEngineWindow::queryForFile(const std::vector<std::pair<const char*, const char*>>& inFilters, cb callback) {
-	std::vector<SDL_DialogFileFilter> filters;
-	for (auto [fst, snd] : inFilters) {
-		filters.push_back({fst, snd});
-	}
-	SDL_ShowOpenFileDialog(sdlCallback, callback, CEngine::get().getWindow().mWindow, filters.data(), (int32)filters.size(), CEngine::get().mEnginePath.c_str(), false);
 }
 
 CEngine::CEngine() = default;
@@ -70,54 +57,32 @@ const vkb::PhysicalDevice& CEngine::physicalDevice() {
 }
 
 void CEngine::init() {
-	ZoneScopedN("Engine Initialize");
+	ZoneScopedN("Engine Initialization");
 
 	astsOnce(CEngine)
-
-	const std::filesystem::path cwd = std::filesystem::current_path();
-	mEnginePath = cwd.parent_path().string() + "\\";
-	mSourcePath = mEnginePath + "src\\";
-	mShaderPath = mEnginePath + "shaders\\";
-	mAssetPath = mEnginePath + "assets\\";
-
-	mCachePath = mEnginePath + "cache\\";
-	mAssetCachePath = mCachePath + "assets\\";
-
-	// Cached directory does not exist in git, make sure they are created
-	//TODO: some struct for paths that does this automatically
-	std::filesystem::create_directory(mCachePath);
-	std::filesystem::create_directory(mAssetCachePath);
 
 	// Initialize SDL3
 	SDL_Init(SDL_INIT_VIDEO);
 
-	m_EngineWindow.mWindow = SDL_CreateWindow(
+	// Create the SDL window, let it know it should be with vulkan and resizable
+	m_EngineViewport.mWindow = SDL_CreateWindow(
 		gEngineName,
-		static_cast<int32>(m_EngineWindow.mExtent.x),
-		static_cast<int32>(m_EngineWindow.mExtent.y),
+		static_cast<int32>(m_EngineViewport.mExtent.x),
+		static_cast<int32>(m_EngineViewport.mExtent.y),
 		SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE
 	);
-
-	SDL_SetWindowRelativeMouseMode(m_EngineWindow.mWindow, true);
-
-	//SDL_SetWindowMouseGrab(m_EngineWindow.mWindow, true)
-
-	asts(m_EngineWindow.mWindow, "No window found.");
-
-	SDL_SetWindowResizable(m_EngineWindow.mWindow, true);
 
 	// Create the vulkan device, which also initializes the vkb instance
 	m_Device = std::make_unique<CVulkanDevice>();
 
 	// Create a surface for Device to reference
-	SDL_Vulkan_CreateSurface(m_EngineWindow.mWindow, instance(), nullptr, &m_EngineWindow.mVkSurface);
-	asts(m_EngineWindow.mVkSurface, "No surface found.");
+	SDL_Vulkan_CreateSurface(m_EngineViewport.mWindow, instance(), nullptr, &m_EngineViewport.mVkSurface);
 
 	// Initialize the device and physical device
 	m_Device->initDevice();
 
-	m_Renderer = std::make_unique<CTestRenderer>();
 	// Create the renderer
+	m_Renderer = std::make_unique<CTestRenderer>();
 
 	// Initialize the allocator
 	CResourceManager::init();
@@ -128,25 +93,21 @@ void CEngine::init() {
 
 void CEngine::end() {
 
+	// Wait for the gpu to finish instructions
+	if (!m_Renderer->waitForGpu()) {
+		errs("Engine did not stop properly!");
+	}
+
 	// Tell the renderer to destroy
-	CThreading::getRenderingThread().run([this] {
-		// Wait for the gpu to finish instructions
-		if (!m_Renderer->waitForGpu()) {
-			errs("Engine did not stop properly!");
-		}
+	m_Renderer->destroy();
 
-		m_Renderer->destroy();
-	});
-
-	// Wait for the rendering thread to stop execution
-	CThreading::getRenderingThread().wait();
-
+	// Destroy allocator, if not all allocations have been destroyed, it will throw an error
 	CResourceManager::destroyAllocator();
 
-	vkb::destroy_surface(instance(), m_EngineWindow.mVkSurface);
+	// Destroy surface, device, and viewport
+	vkb::destroy_surface(instance(), m_EngineViewport.mVkSurface);
 	m_Device->destroy();
-
-	SDL_DestroyWindow(m_EngineWindow.mWindow);
+	SDL_DestroyWindow(m_EngineViewport.mWindow);
 }
 
 void CEngine::run() {
@@ -161,7 +122,7 @@ void CEngine::run() {
 
 		ZoneScopedN("Update");
 
-		// Time utils
+		// Update time
 		{
 			auto currentTime = std::chrono::high_resolution_clock::now();
 			m_Time.mDeltaTime = std::chrono::duration<double>(currentTime - previousTime).count();
@@ -183,6 +144,9 @@ void CEngine::run() {
 			GameTime.setText(fmts("Game Time: {}", std::to_string(m_Time.mGameTime)));
 		}
 
+		// Tick input
+		CInput::tick();
+
 		// Handle events on queue
 		while (SDL_PollEvent(&e)) {
 			switch (e.type) {
@@ -197,31 +161,49 @@ void CEngine::run() {
 					break;
 				case SDL_EVENT_WINDOW_RESIZED:
 				case SDL_EVENT_WINDOW_MAXIMIZED:
-					m_EngineWindow.mExtent = {static_cast<uint32>(e.window.data1), static_cast<uint32>(e.window.data2)};
-					break;
-				case SDL_EVENT_KEY_DOWN:
-					if (e.key.key == SDLK_ESCAPE || e.key.key == SDLK_END)
-						bRunning = false;
+					m_EngineViewport.update({static_cast<uint32>(e.window.data1), static_cast<uint32>(e.window.data2)});
+					m_Renderer->mEngineTextures->getSwapchain().setDirty();
 					break;
 				default: break;
 			}
 
-			mMainCamera.processSDLEvent(e);
-			SDL_SetWindowRelativeMouseMode(m_EngineWindow.mWindow, !mMainCamera.mShowMouse);
 			ImGui_ImplSDL3_ProcessEvent(&e);
+
+			// ImGui will consume input
+			if (!ImGui::IsAnyItemActive()) {
+				CInput::process(e);
+			}
+
+			// If Escape or End pressed, end the program
+			if (CInput::getKeyPressed(EKey::ESCAPE) || CInput::getKeyPressed(EKey::END)) {
+				bRunning = false;
+			}
+
+			// If we shouldn't show the mouse, make it impossible to leave the viewport
+			SDL_SetWindowRelativeMouseMode(m_EngineViewport.mWindow, !mMainCamera.mShowMouse);
 		}
 
-		// do not draw if we are minimized
+		// Do not draw if we are minimized
 		if (pauseRendering) {
-			// throttle the speed to avoid the endless spinning
+			// Throttle the speed to avoid the endless spinning
 			std::this_thread::sleep_for(std::chrono::milliseconds(100));
 			continue;
 		}
 
-		CThreading::getRenderingThread().run([] {
-			renderer().draw();
+		// Update the camera
+		mMainCamera.update();
+
+		// Run the game loop
+		CThreading::getGameThread().run([this] {
+			update();
 		});
-		CThreading::getRenderingThread().wait();
+
+		// Draw to the screen
+		renderer().draw();
+
+		// Execute any tasks that are on the 'main thread'
+		// Done here because they might be done during the frame cap wait
+		CThreading::getMainThread().executeAll();
 
 		// If we go over the target framerate, delay
 		// Ensure no divide by 0
@@ -234,4 +216,10 @@ void CEngine::run() {
 			}
 		}
 	}
+}
+
+void CEngine::update() {
+	ZoneScopedN("Game Loop");
+	// Game logic
+	std::this_thread::sleep_for(std::chrono::milliseconds(20));
 }

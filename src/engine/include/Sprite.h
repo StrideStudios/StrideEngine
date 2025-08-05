@@ -3,7 +3,7 @@
 #include <memory>
 #include <string>
 
-#include "BasicTypes.h"
+#include "Common.h"
 
 struct SSprite {
 

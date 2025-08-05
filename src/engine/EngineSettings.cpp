@@ -97,7 +97,7 @@ void CEngineSettings::init(VkQueue inQueue, VkFormat format) {
 	initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 
 	ImGui_ImplVulkan_Init(&initInfo);
-	ImGui_ImplSDL3_InitForVulkan(CEngine::get().getWindow().mWindow);
+	ImGui_ImplSDL3_InitForVulkan(CEngine::get().getViewport().mWindow);
 }
 
 void CEngineSettings::destroy() {

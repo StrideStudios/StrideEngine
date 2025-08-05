@@ -13,6 +13,7 @@
 
 #define BASISU_FORCE_DEVEL_MESSAGES 1
 #include "MeshPass.h"
+#include "Paths.h"
 #include "Sprite.h"
 #include "SpritePass.h"
 #include "Threading.h"
@@ -42,6 +43,7 @@ void CTestRenderer::init() {
 	mGlobalResourceManager.loadImage("trim_misc_1_albedo.png");
 	mGlobalResourceManager.loadImage("trim_misc_2_albedo.png");
 	mMeshLoader->loadGLTF(this, "structure2.glb");
+	CThreading::getMainThread().executeAll(); //TODO: temp
 
 	auto meshObject = std::make_shared<CStaticMeshObject>();
 	meshObject->mesh = mMeshLoader->mLoadedModels[0];
@@ -113,7 +115,7 @@ void CTestRenderer::init() {
 	mGPUScene->spritePass->push(sprite);
 
 
-	const std::string path = CEngine::get().mAssetPath + "materials.txt";
+	const std::string path = SPaths::get().mAssetPath.string() + "materials.txt";
 	if (CFileArchive inFile(path, "rb"); inFile.isOpen())
 		inFile >> CMaterial::getMaterials();
 
@@ -122,7 +124,7 @@ void CTestRenderer::init() {
 
 void CTestRenderer::destroy() {
 	CVulkanRenderer::destroy();
-	const std::string path = CEngine::get().mAssetPath + "materials.txt";
+	const std::string path = SPaths::get().mAssetPath.string() + "materials.txt";
 	CFileArchive outFile(path, "wb");
 	outFile << CMaterial::getMaterials();
 }
@@ -279,7 +281,8 @@ void CTestRenderer::render(VkCommandBuffer cmd) {
 				{ "glTF 2.0 (*.gltf; *.glb)", "gltf;glb" }
 			};
 
-			SEngineWindow::queryForFile(filters, [](const char* inFileName) {
+			//TODO: file query shouldnt be in viewport
+			SEngineViewport::queryForFile(filters, [](const char* inFileName) {
 				std::string fileName = inFileName;
 				CThreading::runOnBackgroundThread([fileName] {
 					if (!fileName.empty()) {

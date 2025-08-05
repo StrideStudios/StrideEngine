@@ -70,7 +70,7 @@ void CVulkanDevice::initDevice() {
             .set_required_features_12(features12)
             .set_required_features_13(features13)
             .add_required_extension_features(swapchainMaintenance1Features)
-            .set_surface(CEngine::get().getWindow().mVkSurface)
+            .set_surface(CEngine::get().getViewport().mVkSurface)
             .select();
 
     m_PhysicalDevice = std::make_unique<vkb::PhysicalDevice>(physicalDevice.value());

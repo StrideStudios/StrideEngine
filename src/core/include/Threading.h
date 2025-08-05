@@ -2,85 +2,148 @@
 
 #include <thread>
 #include <mutex>
-#include <queue>
+#include <deque>
 
 #include "Common.h"
 #include "tracy/Tracy.hpp"
 #include "tracy/TracyC.h"
 
-class CThread {
+class CWorker {
+public:
+	std::mutex m_QueueMutex;
 
-	std::thread m_Thread;
+	std::condition_variable m_QueueCV;
 
-	std::mutex m_Mutex;
+	std::condition_variable m_FinishedCV;
 
-	std::condition_variable m_Cv;
-
-	std::queue<std::function<void()>> m_Tasks;
+	std::deque<std::function<void()>> m_Tasks;
 
 	bool m_Stop = false;
 
 public:
 
-	CThread(const std::string& threadName): m_Thread([this, threadName] {
-		TracyCSetThreadName(threadName.c_str())
-		while (true) {
-			ZoneScopedC(0xff0000, 1);// Red
-			ZoneName(threadName.c_str(), threadName.size());
+	CWorker() = default;
 
-			std::function<void()> task;
-			std::unique_lock lock(m_Mutex);
-
-			m_Cv.wait(lock, [this] {
+	bool execute() {
+		std::function<void()> task;
+		{
+			std::unique_lock lock(m_QueueMutex);
+			m_QueueCV.wait(lock, [this] {
 				return !m_Tasks.empty() || m_Stop;
 			});
 
-			if (m_Stop && m_Tasks.empty()) return;
+			if (m_Stop && m_Tasks.empty()) return true;
 
+			// Get task and remove from tasks
 			task = std::move(m_Tasks.front());
+			m_Tasks.pop_front();
+		}
+
+		task();
+
+		if (m_Tasks.empty()) {
+			m_FinishedCV.notify_all();
+		}
+
+		return false;
+	}
+
+	void executeAll() {
+		while (getNumberOfTasks() > 0) {
+			std::function<void()> task;
+			{
+				std::unique_lock lock(m_QueueMutex);
+				/*m_QueueCV.wait(lock, [this] {
+					return !m_Tasks.empty() || m_Stop;
+				});*/
+
+				// Get task and remove from tasks
+				task = std::move(m_Tasks.front());
+				m_Tasks.pop_front();
+			}
+
 			task();
 
-			// Remove the task, also tells the main thread that execution has finished
-			m_Tasks.pop();
+			if (m_Tasks.empty()) {
+				m_FinishedCV.notify_all();
+			}
 		}
-	}) {}
-
-	// no copying
-	//CThread(const CThread&) = delete;
-
-	~CThread() {
-		{
-			std::unique_lock lock(m_Mutex);
-			m_Stop = true;
-		}
-
-		m_Cv.notify_all();
-
-		m_Thread.join();
 	}
 
 	no_discard int32 getNumberOfTasks() const {
 		return m_Tasks.size();
 	}
 
-	no_discard bool isThreadRunning() const {
+	no_discard bool isWorkerRunning() const {
 		return !m_Tasks.empty();
 	}
 
-	void run(const std::function<void()>& inFunc) {
+	void stop() {
 		{
-			std::unique_lock lock(m_Mutex);
-			m_Tasks.emplace(inFunc);
+			std::lock_guard lock(m_QueueMutex);
+			m_Tasks.clear();
+			m_Stop = true;
 		}
-		m_Cv.notify_one();
+		m_QueueCV.notify_all();
+	}
+
+	void add(const std::function<void()>& inFunc) {
+		{
+			std::lock_guard lock(m_QueueMutex);
+			m_Tasks.push_back(std::move(inFunc));
+		}
+		m_QueueCV.notify_all();
 	}
 
 	void wait() {
-		while (isThreadRunning()) {
-			std::unique_lock lock(m_Mutex);
-		}
+		std::unique_lock lock(m_QueueMutex);
+		m_FinishedCV.wait(lock, [this] {return m_Tasks.empty();});
 	}
 };
+
+class CThread {
+
+	std::thread m_Thread;
+
+	CWorker m_Worker;
+
+public:
+
+	explicit CThread(const std::function<void(std::function<bool()>)>& inFunc): m_Thread([this, inFunc] {
+		const std::function<bool()> loop = [this] {
+			return m_Worker.execute();
+		};
+		inFunc(loop);
+	}) {}
+
+	~CThread() {
+		m_Worker.stop();
+		m_Thread.join();
+	}
+
+	no_discard const CWorker& getWorker() const {
+		return m_Worker;
+	}
+
+	void run(const std::function<void()>& inFunc) {
+		m_Worker.add(inFunc);
+	}
+
+	void wait() {
+		m_Worker.wait();
+	}
+};
+
+#define THREAD_LOOP(name, color) \
+	TracyCSetThreadName(name.c_str()) \
+	while (true) { \
+		TracyCZone(ctx, 1); \
+		std::string threadName = name; \
+		TracyCZoneName(ctx, threadName.c_str(), threadName.size()); \
+		TracyCZoneColor(ctx, color); \
+		if (loop()) return; \
+		TracyCZoneEnd(ctx); \
+	}
 
 class CThreadPool {
 
@@ -89,15 +152,19 @@ class CThreadPool {
 public:
 
 	explicit CThreadPool(const uint32 inNumThreads = std::thread::hardware_concurrency()) {
-		for (uint32 i = 0; i < inNumThreads; ++i)
-			m_Threads.push_back(std::make_shared<CThread>(fmts("Background Thread {}", i)));
+		for (uint32 i = 0; i < inNumThreads; ++i) {
+			uint32 currentColor = i * (255u / inNumThreads);
+			m_Threads.push_back(std::make_shared<CThread>([i, currentColor](const std::function<bool()>& loop) {
+				THREAD_LOOP(fmts("Background Thread {}", i), currentColor)
+			}));
+		}
 	}
 
 	// Run on least busy thread
 	void run(const std::function<void()>& inFunc) const {
 		std::shared_ptr<CThread> lowestThread = nullptr;
 		for (const auto& thread : m_Threads) {
-			if (!lowestThread || thread->getNumberOfTasks() < lowestThread->getNumberOfTasks()) {
+			if (!lowestThread || thread->getWorker().getNumberOfTasks() < lowestThread->getWorker().getNumberOfTasks()) {
 				lowestThread = thread;
 			}
 		}
@@ -116,6 +183,8 @@ class CThreading {
 
 public:
 
+	static CWorker& getMainThread() { return get().mMainThread; }
+
 	static CThread& getRenderingThread() { return get().mRenderingThread; }
 
 	static CThread& getGameThread() { return get().mGameThread; }
@@ -124,9 +193,15 @@ public:
 		get().mThreadPool.run(inFunc);
 	}
 
-	CThread mRenderingThread{"Render Thread"};
+	CWorker mMainThread;
 
-	CThread mGameThread{"Game Thread"};
+	CThread mRenderingThread{[](const std::function<bool()>& loop) {
+		THREAD_LOOP(std::string("Render Thread"), 0xff0000)
+	}};
+
+	CThread mGameThread{[](const std::function<bool()>& loop) {
+		THREAD_LOOP(std::string("Game Thread"), 0x00ff00)
+	}};
 
 	// Modern computers can reliably have > 4 cores ( 8 threads)
 	CThreadPool mThreadPool{6};

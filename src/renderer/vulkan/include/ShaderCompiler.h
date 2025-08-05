@@ -3,7 +3,7 @@
 #include <vector>
 #include <string>
 #include <vulkan/vulkan_core.h>
-#include "BasicTypes.h"
+#include "Common.h"
 
 enum class EShaderStage : uint8 {
 	VERTEX,

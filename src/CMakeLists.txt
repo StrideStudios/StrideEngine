@@ -14,10 +14,10 @@ add_executable(StrideEngine
         # Core
 
         core/include/Hashing.h
-        core/include/BasicTypes.h
         core/include/Common.h
         core/include/Archive.h
         core/include/Threading.h
+        core/include/Paths.h
 
         # Engine
 
@@ -26,6 +26,7 @@ add_executable(StrideEngine
         engine/include/StaticMesh.h
         engine/include/MeshLoader.h
         engine/MeshLoader.cpp
+        engine/include/Viewport.h
         engine/include/Engine.h
         engine/Engine.cpp
         engine/include/Material.h
@@ -35,6 +36,8 @@ add_executable(StrideEngine
         engine/include/SceneObject.h
         engine/SceneObject.cpp
         engine/include/Sprite.h
+        engine/include/Input.h
+        engine/Input.cpp
 
         # Renderer
 
@@ -48,7 +51,6 @@ add_executable(StrideEngine
         renderer/EngineBuffers.cpp
         renderer/include/GpuScene.h
         renderer/GpuScene.cpp
-        renderer/include/SceneViewport.h
         renderer/include/DescriptorManager.h
         renderer/DescriptorManager.cpp
         renderer/include/TestRenderer.h
@@ -98,6 +100,7 @@ add_executable(StrideEngine
 
         # stb
         stb/include/stb_image.h
+        engine/Viewport.cpp
 )
 
 find_package(Vulkan REQUIRED)

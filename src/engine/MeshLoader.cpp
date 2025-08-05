@@ -14,6 +14,7 @@
 #include "VulkanRenderer.h"
 #include "EngineBuffers.h"
 #include "GpuScene.h"
+#include "Paths.h"
 #include "Threading.h"
 #include "fastgltf/core.hpp"
 #include "tracy/Tracy.hpp"
@@ -92,7 +93,7 @@ void optimizeMesh(std::vector<uint32>& indices, std::vector<SVertex>& vertices) 
 }
 
 void CMeshLoader::loadGLTF(CVulkanRenderer *renderer, std::filesystem::path filePath) {
-	std::filesystem::path path = CEngine::get().mAssetPath + filePath.string();
+	std::filesystem::path path = SPaths::get().mAssetPath.string() + filePath.string();
 
 	loadGLTF_Internal(renderer, path);
 }
@@ -297,7 +298,7 @@ void CMeshLoader::loadGLTF_Internal(CVulkanRenderer* renderer, std::filesystem::
 		outMesh->vertices = vertices;
 	}
 
-	std::filesystem::path savedPath(CEngine::get().mAssetCachePath);
+	std::filesystem::path savedPath = SPaths::get().mAssetCachePath;
 	savedPath.append(fileName);
 
 	savedPath.replace_extension(".mesh");
@@ -331,16 +332,15 @@ void CMeshLoader::loadGLTF_Internal(CVulkanRenderer* renderer, std::filesystem::
 				.count = surface.count
 			});
 		}
-		CThreading::getRenderingThread().run([&] {
+		CThreading::getMainThread().add([loadMesh, mesh, renderer] {
 			loadMesh->meshBuffers = renderer->mEngineBuffers->uploadMesh(renderer->mGlobalResourceManager, mesh->indices, mesh->vertices);
 		});
 	}
 
 	//TODO: not a smart way to do this, but since rendering thread relies on this we want to avoid race condition
-	CThreading::getRenderingThread().run([this, meshes] {
+	CThreading::getMainThread().add([this, meshes] {
 		mLoadedModels.append_range(meshes);
 	});
-	CThreading::getRenderingThread().wait();
 
 	msgs("GLTF {} Loaded.", path.string().c_str());
 }

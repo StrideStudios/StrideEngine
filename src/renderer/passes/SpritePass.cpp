@@ -9,6 +9,7 @@
 #include "VulkanUtils.h"
 #include "VulkanDevice.h"
 #include "tracy/Tracy.hpp"
+#include "Viewport.h"
 
 void CSpritePass::init() {
 
@@ -96,11 +97,6 @@ void CSpritePass::render(VkCommandBuffer cmd) {
 	uint32 drawCallCount = 0;
 	uint64 vertexCount = 0;
 
-	VkExtent2D extent {
-		renderer.mEngineTextures->mDrawImage->mImageExtent.width,
-		renderer.mEngineTextures->mDrawImage->mImageExtent.height
-	};
-
 	auto render = [&](const std::shared_ptr<SSprite>& obj) {
 		ZoneScoped;
 		ZoneName(obj->name.c_str(), obj->name.size());
@@ -116,8 +112,7 @@ void CSpritePass::render(VkCommandBuffer cmd) {
 				CResourceManager::bindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.layout, 0, 1, renderer.mGPUScene->m_Frames[renderer.getFrameIndex()].sceneDescriptor);
 				CResourceManager::bindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.layout, 1, 1, CResourceManager::getBindlessDescriptorSet());
 
-				CEngine::renderer().mViewport.update({extent.width, extent.height});
-				CEngine::renderer().mViewport.set(cmd);
+				CEngine::get().getViewport().set(cmd);
 			}
 		}
 

@@ -1,10 +1,10 @@
 ﻿#pragma once
 
 #include <memory>
-#include <vulkan/vulkan_core.h>
 
 #include "Camera.h"
 #include "Common.h"
+#include "Viewport.h"
 
 // Forward declare vkb types
 namespace vkb {
@@ -15,25 +15,8 @@ namespace vkb {
 
 class CVulkanDevice;
 class CVulkanRenderer;
-struct SDL_Window;
 
 constexpr static auto gEngineName = text("Stride Engine");
-
-struct SEngineWindow {
-
-	typedef void cb(const char* fileName);
-
-	// The extent of the window
-	Extent32u mExtent = {1920, 1080};
-
-	// The SDL window
-	SDL_Window* mWindow = nullptr;
-
-	// Vulkan window surface
-	VkSurfaceKHR mVkSurface;
-
-	static void queryForFile(const std::vector<std::pair<const char*, const char*>>& inFilters, cb callback);
-};
 
 class CEngine {
 
@@ -65,16 +48,9 @@ public:
 		return *get().m_Renderer;
 	}
 
-	no_discard Time getTime() const { return m_Time; }
+	no_discard Time& getTime() { return m_Time; }
 
-	no_discard const SEngineWindow& getWindow() const { return m_EngineWindow; }
-
-	std::string mEnginePath;
-	std::string mSourcePath;
-	std::string mShaderPath;
-	std::string mAssetPath;
-	std::string mCachePath;
-	std::string mAssetCachePath;
+	no_discard const SEngineViewport& getViewport() const { return m_EngineViewport; }
 
 	CCamera mMainCamera;
 
@@ -89,14 +65,16 @@ private:
 
 	void run();
 
+	void update();
+
 	//
 	// Frame Time
 	//
 
-	Time m_Time;
+	Time m_Time{};
 
 	// SDL Window
-	SEngineWindow m_EngineWindow;
+	SEngineViewport m_EngineViewport{};
 
 	//
 	// Vulkan

@@ -21,9 +21,9 @@
 #include "MeshLoader.h"
 #include "ResourceManager.h"
 
-#define COMMAND_CATEGORY "Engine"
+#define SETTINGS_CATEGORY "Engine"
 ADD_COMMAND(bool, UseVsync, true);
-#undef COMMAND_CATEGORY
+#undef SETTINGS_CATEGORY
 
 CVulkanRenderer::CVulkanRenderer(): mVSync(UseVsync.get()) {}
 
@@ -158,20 +158,16 @@ void CVulkanRenderer::draw() {
 		mEngineTextures->getSwapchain().setDirty();
 	}
 
-	// Make sure that the swapchain is not dirty before recreating it
-	while (mEngineTextures->getSwapchain().isDirty()) {
-		// Wait for gpu before recreating swapchain
-		if (!waitForGpu()) continue;
+	auto swapchainDirtyCheck = [&] {
+		// Make sure that the swapchain is not dirty before recreating it
+		while (mEngineTextures->getSwapchain().isDirty()) {
+			// Wait for gpu before recreating swapchain
+			if (!waitForGpu()) continue;
 
-		mEngineTextures->reallocate(UseVsync.get());
-	}
-
-	CEngineSettings::begin();
-
-	// Wait for the previous render to stop
-	if (!mEngineTextures->getSwapchain().wait(getFrameIndex())) {
-		return;
-	}
+			mEngineTextures->reallocate(UseVsync.get());
+		}
+	};
+	swapchainDirtyCheck();
 
 	// Get command buffer from current frame
 	VkCommandBuffer cmd = getCurrentFrame().mMainCommandBuffer;
@@ -181,13 +177,24 @@ void CVulkanRenderer::draw() {
 	uint32 swapchainImageIndex;
 
 	{
-		ZoneScopedN("Initialize Frame");
+		ZoneScopedN("Begin Frame");
 
-		VK_CHECK(vkResetCommandBuffer(cmd, 0));
+		CEngineSettings::begin();
 
-		// Tell Vulkan the buffer will only be used once
-		VkCommandBufferBeginInfo cmdBeginInfo = CVulkanInfo::createCommandBufferBeginInfo(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
-		VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
+		// Wait for the previous render to stop
+		if (!mEngineTextures->getSwapchain().wait(getFrameIndex())) {
+			return;
+		}
+
+		{
+			ZoneScopedN("Begin Command Buffer");
+
+			VK_CHECK(vkResetCommandBuffer(cmd, 0));
+
+			// Tell Vulkan the buffer will only be used once
+			VkCommandBufferBeginInfo cmdBeginInfo = CVulkanInfo::createCommandBufferBeginInfo(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+			VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
+		}
 
 		// Get the current swapchain image
 		const auto [outSwapchainImage, outSwapchainImageView, outSwapchainImageIndex] = mEngineTextures->getSwapchain().getSwapchainImage(getFrameIndex());
@@ -204,81 +211,78 @@ void CVulkanRenderer::draw() {
 		constexpr VkClearColorValue color = { .float32 = {0.0, 0.0, 0.0} };
 		constexpr VkImageSubresourceRange imageSubresourceRange { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
 		vkCmdClearColorImage(cmd, mEngineTextures->mDrawImage->mImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &color, 1, &imageSubresourceRange);
-	}
 
-	// Make the swapchain image into writeable mode before rendering
-	CVulkanUtils::transitionImage(cmd, mEngineTextures->mDrawImage->mImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
+		// Make the swapchain image into writeable mode before rendering
+		CVulkanUtils::transitionImage(cmd, mEngineTextures->mDrawImage->mImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
 
-	{
-		ZoneScopedN("Flush Frame Data");
 		// Flush temporary frame data before it is used
 		getCurrentFrame().mDescriptorAllocator.clear();
 		getCurrentFrame().mFrameResourceManager.flush();
 	}
 
 	{
-		ZoneScopedN("Child Render");
-		render(cmd);
+		ZoneScopedN("Render Frame");
+		{
+			ZoneScopedN("Child Render");
+			render(cmd);
+		}
+
+		CVulkanUtils::transitionImage(cmd, mEngineTextures->mDrawImage->mImage, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+		CVulkanUtils::transitionImage(cmd, mEngineTextures->mDepthImage->mImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+
+		//begin a render pass  connected to our draw image
+		VkRenderingAttachmentInfo colorAttachment = CVulkanUtils::createAttachmentInfo(mEngineTextures->mDrawImage->mImageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+		VkRenderingAttachmentInfo depthAttachment = CVulkanUtils::createDepthAttachmentInfo(mEngineTextures->mDepthImage->mImageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+
+		VkExtent2D extent {
+			CEngine::get().getViewport().mExtent.x,
+			CEngine::get().getViewport().mExtent.y
+		};
+
+		{
+			ZoneScopedN("Run GPU Scene");
+
+			VkRenderingInfo renderInfo = CVulkanUtils::createRenderingInfo(extent, &colorAttachment, &depthAttachment);
+			vkCmdBeginRendering(cmd, &renderInfo);
+
+			mGPUScene->render(cmd);
+
+			vkCmdEndRendering(cmd);
+		}
 	}
-
-	CVulkanUtils::transitionImage(cmd, mEngineTextures->mDrawImage->mImage, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-	CVulkanUtils::transitionImage(cmd, mEngineTextures->mDepthImage->mImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
-
-	//begin a render pass  connected to our draw image
-	VkRenderingAttachmentInfo colorAttachment = CVulkanUtils::createAttachmentInfo(mEngineTextures->mDrawImage->mImageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-	VkRenderingAttachmentInfo depthAttachment = CVulkanUtils::createDepthAttachmentInfo(mEngineTextures->mDepthImage->mImageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
-
-	VkExtent2D extent {
-		mEngineTextures->mDrawImage->mImageExtent.width,
-		mEngineTextures->mDrawImage->mImageExtent.height
-	};
 
 	{
-		ZoneScopedN("Run GPU Scene");
+		ZoneScopedN("End Frame");
 
-		VkRenderingInfo renderInfo = CVulkanUtils::createRenderingInfo(extent, &colorAttachment, &depthAttachment);
-		vkCmdBeginRendering(cmd, &renderInfo);
+		CVulkanUtils::transitionImage(cmd, mEngineTextures->mDrawImage->mImage,VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 
-		mGPUScene->render(cmd);
+		// Make the swapchain image into presentable mode
+		CVulkanUtils::transitionImage(cmd, swapchainImage,VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
-		vkCmdEndRendering(cmd);
+		// Execute a copy from the draw image into the swapchain
+		auto [width, height, depth] = mEngineTextures->mDrawImage->mImageExtent;
+		CVulkanUtils::copyImageToImage(cmd, mEngineTextures->mDrawImage->mImage, swapchainImage, {width, height}, mEngineTextures->getSwapchain().mSwapchain->extent);
+
+		// Set swapchain layout so it can be used by ImGui
+		CVulkanUtils::transitionImage(cmd, swapchainImage,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+
+		// Render Engine settings
+		CEngineSettings::render(cmd, mEngineTextures->getSwapchain().mSwapchain->extent, swapchainImageView);
+
+		// Set swapchain image layout to Present so we can show it on the screen
+		CVulkanUtils::transitionImage(cmd, swapchainImage,VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+
+		//finalize the command buffer (we can no longer add commands, but it can now be executed)
+		VK_CHECK(vkEndCommandBuffer(cmd));
+
+		mEngineTextures->getSwapchain().submit(cmd, mGraphicsQueue, getFrameIndex(), swapchainImageIndex);
+
+		//increase the number of frames drawn
+		mFrameNumber++;
+
+		// Tell tracy we just rendered a frame
+		FrameMark;
 	}
-
-	CVulkanUtils::transitionImage(cmd, mEngineTextures->mDrawImage->mImage,VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-
-	/*CVulkanUtils::transitionImage(cmd, mEngineTextures->mDrawImage->mImage,VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-	CVulkanUtils::transitionImage(cmd, mEngineTextures->mDepthImage->mImage,VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-
-	auto [width, height, depth] = mEngineTextures->mDrawImage->mImageExtent;
-	CVulkanUtils::copyImageToImage(cmd, mEngineTextures->mDepthImage->mImage, mEngineTextures->mDrawImage->mImage, {width, height}, {mEngineTextures->mDepthImage->mImageExtent.width, mEngineTextures->mDepthImage->mImageExtent.height});
-	CVulkanUtils::transitionImage(cmd, mEngineTextures->mDrawImage->mImage,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-*/
-	// Make the swapchain image into presentable mode
-	CVulkanUtils::transitionImage(cmd, swapchainImage,VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-
-	// Execute a copy from the draw image into the swapchain
-	auto [width, height, depth] = mEngineTextures->mDrawImage->mImageExtent;
-	CVulkanUtils::copyImageToImage(cmd, mEngineTextures->mDrawImage->mImage, swapchainImage, {width, height}, mEngineTextures->getSwapchain().mSwapchain->extent);
-
-	// Set swapchain layout so it can be used by ImGui
-	CVulkanUtils::transitionImage(cmd, swapchainImage,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-
-	// Render Engine settings
-	CEngineSettings::render(cmd, mEngineTextures->getSwapchain().mSwapchain->extent, swapchainImageView);
-
-	// Set swapchain image layout to Present so we can show it on the screen
-	CVulkanUtils::transitionImage(cmd, swapchainImage,VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
-
-	//finalize the command buffer (we can no longer add commands, but it can now be executed)
-	VK_CHECK(vkEndCommandBuffer(cmd));
-
-	mEngineTextures->getSwapchain().submit(cmd, mGraphicsQueue, getFrameIndex(), swapchainImageIndex);
-
-	//increase the number of frames drawn
-	mFrameNumber++;
-
-	// Tell tracy we just rendered a frame
-	FrameMark;
 }
 
 bool CVulkanRenderer::waitForGpu() const {

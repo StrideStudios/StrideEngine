@@ -6,6 +6,7 @@
 
 namespace CHashing {
 
+	// Simple hashing, could potentially have repeats, but it is unlikely
 	// djb2 http://www.cse.yorku.ca/~oz/hash.html
 	static uint32 getHash(const std::string& string) {
 		uint32 Hash = 0;
@@ -19,26 +20,14 @@ namespace CHashing {
 	}
 
 	static uint32 getFileHash(const std::string& filePath){
-		std::ifstream file(filePath, std::ios::ate | std::ios::binary);
+		CFileArchive file(filePath, "rb");
 
-		if (!file.is_open()){
+		if (!file.isOpen()){
 			errs("File Hashing could not find file {}", filePath.c_str());
 		}
 
-		// Get file size
-		const auto fileSize = file.tellg();
-
-		// Allocate memory to hold the entire file
-		std::string memBlock;
-		memBlock.resize(fileSize);
-
-		// Read the file into memory
-		file.seekg(0, std::ios::beg);
-		file.read(memBlock.data(), static_cast<uint32>(memBlock.size()));
-		file.close();
-
 		// Get hash for the file
-		const uint32 Hash = getHash(memBlock);
+		const uint32 Hash = getHash(file.readFile());
 
 		return Hash;
 	}

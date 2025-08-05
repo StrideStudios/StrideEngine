@@ -57,7 +57,7 @@ void CSwapchain::init(const VkSwapchainKHR oldSwapchain, const bool inUseVSync) 
 		.set_old_swapchain(oldSwapchain)
 		.set_desired_format(VkSurfaceFormatKHR{ .format = mFormat, .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR })
 		.set_desired_present_mode(m_VSync ? VK_PRESENT_MODE_FIFO_KHR : VK_PRESENT_MODE_IMMEDIATE_KHR)
-		.set_desired_extent(CEngine::get().getWindow().mExtent.x, CEngine::get().getWindow().mExtent.y)
+		.set_desired_extent(CEngine::get().getViewport().mExtent.x, CEngine::get().getViewport().mExtent.y)
 		.add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT)
 		.build();
 

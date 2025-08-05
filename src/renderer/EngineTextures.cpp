@@ -20,7 +20,7 @@ void CEngineTextures::init() {
 	drawImageUsages |= VK_IMAGE_USAGE_STORAGE_BIT;
 	drawImageUsages |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-	auto extent = CEngine::get().getWindow().mExtent;
+	auto extent = CEngine::get().getViewport().mExtent;
 
 	mDrawImage = m_ResourceManager.allocateImage("Draw Image", {extent.x, extent.y, 1}, VK_FORMAT_R16G16B16A16_SFLOAT, drawImageUsages, VK_IMAGE_ASPECT_COLOR_BIT, false);
 
@@ -29,7 +29,7 @@ void CEngineTextures::init() {
 
 void CEngineTextures::reallocate(const bool inUseVSync) {
 
-	auto extent = CEngine::get().getWindow().mExtent;
+	auto extent = CEngine::get().getViewport().mExtent;
 	msgs("Reallocating Engine Textures to ({}, {})", extent.x, extent.y);
 
 	m_Swapchain.recreate(inUseVSync);

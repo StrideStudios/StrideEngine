@@ -4,10 +4,10 @@
 #include <fstream>
 
 #include "Archive.h"
-#include "BasicTypes.h"
 #include "Common.h"
 #include "Engine.h"
 #include "Hashing.h"
+#include "Paths.h"
 #include "glslang/Include/glslang_c_interface.h"
 #include "glslang/Public/resource_limits_c.h"
 #include "glslang/Public/ShaderLang.h"
@@ -107,7 +107,7 @@ std::string readShaderFile(const char* inFileName) {
 			return std::string();
 		}
 		const std::string name = code.substr(p1 + 1, p2 - p1 - 1);
-		const std::string include = readShaderFile((CEngine::get().mShaderPath + name.c_str()).c_str());
+		const std::string include = readShaderFile((SPaths::get().mShaderPath.string() + name.c_str()).c_str());
 		code.replace(pos, p2-pos+1, include.c_str());
 	}
 
@@ -172,7 +172,7 @@ bool saveShader(const char* inFileName, uint32 Hash, const SShader& inShader) {
 
 VkResult CShaderCompiler::getShader(VkDevice inDevice, const char* inFileName, SShader& inoutShader) {
 
-	const std::string path = CEngine::get().mShaderPath + inFileName;
+	const std::string path = SPaths::get().mShaderPath.string() + inFileName;
 	const std::string SPIRVpath = path + ".spv";
 
 	// Get the hash of the original source file so we know if it changed

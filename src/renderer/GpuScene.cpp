@@ -109,16 +109,14 @@ void CGPUScene::update() {
 
 	CVulkanRenderer& renderer = CEngine::renderer();
 
-	CEngine::get().mMainCamera.update();
-
 	// Update Scene Data Buffer
 	{
 
-		const auto [x, y, z] = CEngine::renderer().mEngineTextures->mDrawImage->mImageExtent;
-		m_GPUSceneData.ScreenSize = Vector2f((float)x, (float)y);
-		m_GPUSceneData.InvScreenSize = Vector2f(1.f / (float)x, 1.f / (float)y);
+		const Extent32u extent = CEngine::get().getViewport().mExtent;
+		m_GPUSceneData.ScreenSize = Vector2f((float)extent.x, (float)extent.y);
+		m_GPUSceneData.InvScreenSize = Vector2f(1.f / (float)extent.x, 1.f / (float)extent.y);
 
-		m_GPUSceneData.viewProj = CEngine::get().mMainCamera.mViewProjectionMatrix;
+		m_GPUSceneData.viewProj = CEngine::get().mMainCamera.getViewProjectionMatrix();
 
 		//some default lighting parameters
 		m_GPUSceneData.ambientColor = glm::vec4(.1f);

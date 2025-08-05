@@ -11,13 +11,14 @@
 #include "VulkanUtils.h"
 #include "tracy/Tracy.hpp"
 #include "EngineSettings.h"
+#include "Viewport.h"
 
-#define COMMAND_CATEGORY "Rendering"
+#define SETTINGS_CATEGORY "Rendering"
 ADD_TEXT(Meshes, "Meshes: ");
 ADD_TEXT(Drawcalls, "Draw Calls: ");
 ADD_TEXT(Vertices, "Vertices: ");
 ADD_TEXT(Triangles, "Triangles: ");
-#undef COMMAND_CATEGORY
+#undef SETTINGS_CATEGORY
 
 //TODO: for now this is hard coded base pass, dont need anything else for now
 void CMeshPass::init(const EMeshPass inPassType) {
@@ -177,11 +178,6 @@ void CMeshPass::render(const VkCommandBuffer cmd) {
 	uint32 drawCallCount = 0;
 	uint64 vertexCount = 0;
 
-	VkExtent2D extent {
-		renderer.mEngineTextures->mDrawImage->mImageExtent.width,
-		renderer.mEngineTextures->mDrawImage->mImageExtent.height
-	};
-
 	auto render = [&](const std::shared_ptr<IRenderable>& renderable) {
 		const auto obj = renderable->getMesh();
 
@@ -224,8 +220,8 @@ void CMeshPass::render(const VkCommandBuffer cmd) {
 					CResourceManager::bindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.layout, 0, 1, renderer.mGPUScene->m_Frames[renderer.getFrameIndex()].sceneDescriptor);
 					CResourceManager::bindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.layout, 1, 1, CResourceManager::getBindlessDescriptorSet());
 
-					CEngine::renderer().mViewport.update({extent.width, extent.height});
-					CEngine::renderer().mViewport.set(cmd);
+					//TODO: shouldnt do this here...
+					CEngine::get().getViewport().set(cmd);
 				}
 			}
 

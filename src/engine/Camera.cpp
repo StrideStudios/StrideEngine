@@ -7,90 +7,65 @@
 #include "Engine.h"
 #include "EngineSettings.h"
 #include "EngineTextures.h"
+#include "Input.h"
 #include "VulkanRenderer.h"
 
-#define COMMAND_CATEGORY "Camera"
+#define SETTINGS_CATEGORY "Camera"
 ADD_COMMAND(float, FieldOfView, 70.f, 0.f, 180.f);
-#undef COMMAND_CATEGORY
+ADD_COMMAND(float, Sensitivity, 1.0f, 0.f, 2.f);
+ADD_COMMAND(float, CameraSpeed, 200.f, 0.f, 1000.f);
+#undef SETTINGS_CATEGORY
 
-CCamera::CCamera(): mFOV(FieldOfView.get()) {
-	mouseArray.fill(false);
+CCamera::CCamera(): mFOV(FieldOfView.get()) {}
+
+Matrix4f CCamera::getRotationMatrix() {
+	glm::quat pitchRotation = glm::angleAxis(mRotation.y, Vector3f{ 1.f, 0.f, 0.f });
+	glm::quat yawRotation = glm::angleAxis(mRotation.x, Vector3f{ 0.f, -1.f, 0.f });
+
+	return glm::toMat4(yawRotation) * glm::toMat4(pitchRotation);
 }
 
-void CCamera::processSDLEvent(const SDL_Event &e) {
+Matrix4f CCamera::getViewProjectionMatrix() {
+	const Matrix4f cameraTranslation = glm::translate(Matrix4f(1.f), glm::vec3(mPosition));
+	Matrix4f viewMatrix = glm::inverse(cameraTranslation * getRotationMatrix());
 
-	switch (e.type) {
-		case SDL_EVENT_KEY_DOWN:
-			keyMap[static_cast<EKey>(e.key.key)] = true;
-			break;
-		case SDL_EVENT_KEY_UP:
-			keyMap[static_cast<EKey>(e.key.key)] = false;
-			break;
-		case SDL_EVENT_MOUSE_BUTTON_DOWN:
-			mouseArray[e.button.button] = true;
-			break;
-		case SDL_EVENT_MOUSE_BUTTON_UP:
-			mouseArray[e.button.button] = false;
-			break;
-		case SDL_EVENT_MOUSE_MOTION:
-			if (!mShowMouse) {
-				mRotation.x += e.motion.xrel / 250.f;
-				mRotation.y -= e.motion.yrel / 250.f;
-			}
-			break;
-		default:
-			break;
-	}
+	// camera projection
+	const auto [x, y, z] = CEngine::renderer().mEngineTextures->mDrawImage->mImageExtent;
+	const float tanHalfFov = tan(glm::radians(mFOV) / 2.f);
+	const float aspect = (float)x / (float)y;
 
-	mShowMouse = !mouseArray[3]; //RightClick
+	Matrix4f projection(0.f);
+	projection[0][0] = 1.f / (aspect * tanHalfFov);
+	projection[1][1] = 1.f / tanHalfFov;
+	projection[2][3] = - 1.f;
+	projection[3][2] = 0.1f;
+
+	// invert the Y direction on projection matrix so that we are more similar
+	// to opengl and gltf axis
+	projection[1][1] *= -1;
+
+	return projection * viewMatrix;
 }
 
 void CCamera::update() {
+	// Set FOV
+	mFOV = FieldOfView.get();
 
-	// Update View matrices
-	{
-		glm::quat pitchRotation = glm::angleAxis(mRotation.y, Vector3f{ 1.f, 0.f, 0.f });
-		glm::quat yawRotation = glm::angleAxis(mRotation.x, Vector3f{ 0.f, -1.f, 0.f });
+	// Engine camera moves only when right clicking
+	mShowMouse = !CInput::getMousePressed(3); //RightClick
 
-		mRotationMatrix = glm::toMat4(yawRotation) * glm::toMat4(pitchRotation);
-
-		const Matrix4f cameraTranslation = glm::translate(Matrix4f(1.f), glm::vec3(mPosition));
-		const Matrix4f cameraRotation = mRotationMatrix;
-		mViewMatrix = glm::inverse(cameraTranslation * cameraRotation);
-
-		// camera projection
-		const auto [x, y, z] = CEngine::renderer().mEngineTextures->mDrawImage->mImageExtent;
-		const float tanHalfFov = tan(glm::radians(mFOV) / 2.f);
-		const float aspect = (float)x / (float)y;
-
-		Matrix4f projection(0.f);
-		projection[0][0] = 1.f / (aspect * tanHalfFov);
-		projection[1][1] = 1.f / tanHalfFov;
-		projection[2][3] = - 1.f;
-		projection[3][2] = 0.1f;
-
-		// invert the Y direction on projection matrix so that we are more similar
-		// to opengl and gltf axis
-		projection[1][1] *= -1;
-
-		mProjectionMatrix = projection;
-
-		mViewProjectionMatrix = mProjectionMatrix * mViewMatrix;
-
-		Vector2f size = {x, y};
-		//const Matrix4f orthogonalProjection = glm::ortho(-size.x / 2.f, size.x / 2.f, size.y / 2.f, -size.y / 2.f, 0.f, 1.f);
-		const Matrix4f orthogonalProjection = glm::ortho(0.f, size.x, 0.f, size.y, 0.f, 1.f);
-		mOrthogonalViewProjectionMatrix = orthogonalProjection;
+	if (!mShowMouse) {
+		mRotation.x += Sensitivity.get() * (CInput::getMouseVelocity().x / 360.f);// * (float)CEngine::get().getTime().mDeltaTime;
+		mRotation.y -= Sensitivity.get() * (CInput::getMouseVelocity().y / 360.f);// * (float)CEngine::get().getTime().mDeltaTime;
 	}
 
-	float forwardAxis = keyMap[S] ? 0.25f : keyMap[W] ? -0.25f : 0.f;
-	float rightAxis = keyMap[D] ? 0.25f : keyMap[A] ? -0.25f : 0.f;
-	float upAxis = keyMap[E] ? 0.25f : keyMap[Q] ? -0.25f : 0.f;
+	float forwardAxis = CInput::getKeyPressed(EKey::S) ? 0.25f : CInput::getKeyPressed(EKey::W) ? -0.25f : 0.f;
+	float rightAxis = CInput::getKeyPressed(EKey::D) ? 0.25f : CInput::getKeyPressed(EKey::A) ? -0.25f : 0.f;
+	float upAxis = CInput::getKeyPressed(EKey::E) ? 0.25f : CInput::getKeyPressed(EKey::Q) ? -0.25f : 0.f;
 
 	mVelocity = {rightAxis, upAxis, forwardAxis};
 
-	mFOV = FieldOfView.get();
 	Vector2f movement{mVelocity.x * 0.5f, mVelocity.z * 0.5f};
-	mPosition += Vector3f(mRotationMatrix * Vector4f(movement.x, 0.f, movement.y, 0.f));
-	mPosition += Vector3f(0.f, mVelocity.y * 0.5f, 0.f);
+	mPosition += Vector3f(getRotationMatrix() * Vector4f(movement.x, 0.f, movement.y, 0.f)) * (float)CEngine::get().getTime().mDeltaTime * CameraSpeed.get();
+	mPosition += Vector3f(0.f, mVelocity.y * 0.5f, 0.f) * (float)CEngine::get().getTime().mDeltaTime * CameraSpeed.get();
 }
