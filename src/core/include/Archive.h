@@ -2,9 +2,18 @@
 
 #include <vector>
 #include <string>
-#include <sstream>
 
 #include "Common.h"
+
+class CArchive;
+
+// A serializable function that can be passed down
+class ISerializable {
+public:
+	virtual CArchive& save(CArchive& archive) = 0;
+
+	virtual CArchive& load(CArchive& archive) = 0;
+};
 
 class CArchive {
 
@@ -121,18 +130,6 @@ public:
 	// Pointers need to be dereferenced on write and constructed on read
 	//
 
-	/*template <typename TType> //TODO; unable to distinguish from heap or stack allocated pointers
-	friend CArchive& operator<<(CArchive& inArchive, const TType*& inValue) {
-		inArchive << *inValue;
-		return inArchive;
-	}
-
-	template <typename TType>
-	friend CArchive& operator>>(CArchive& inArchive, TType*& inValue) {
-		inArchive >> *inValue;
-		return inArchive;
-	}*/
-
 	template <typename TType>
 	friend CArchive& operator<<(CArchive& inArchive, const std::shared_ptr<TType>& inValue) {
 		inArchive << *inValue;
@@ -140,6 +137,7 @@ public:
 	}
 
 	template <typename TType>
+	requires std::is_default_constructible_v<TType>
 	friend CArchive& operator>>(CArchive& inArchive, std::shared_ptr<TType>& inValue) {
 		inValue = std::make_shared<TType>();
 		inArchive >> *inValue;
@@ -153,6 +151,7 @@ public:
 	}
 
 	template <typename TType>
+	requires std::is_default_constructible_v<TType>
 	friend CArchive& operator>>(CArchive& inArchive, std::unique_ptr<TType>& inValue) {
 		inValue = std::make_unique<TType>();
 		inArchive >> *inValue;
@@ -160,16 +159,32 @@ public:
 	}
 
 	//
-	// Templated (works for basic types)
+	// Serializable Types
+	// Useful because save and load are virtual
+	//
+
+	friend CArchive& operator<<(CArchive& inArchive, ISerializable& inValue) {
+		return inValue.save(inArchive);
+	}
+
+	friend CArchive& operator>>(CArchive& inArchive, ISerializable& inValue) {
+		return inValue.load(inArchive);
+	}
+
+	//
+	// Templated (for basic types)
+	// Makes sure they are trivial
 	//
 
 	template <typename TType>
+	requires std::is_trivial_v<TType>
 	friend CArchive& operator<<(CArchive& inArchive, const TType& inValue) {
 		inArchive.write(&inValue, sizeof(TType), 1);
 		return inArchive;
 	}
 
 	template <typename TType>
+	requires std::is_trivial_v<TType>
 	friend CArchive& operator>>(CArchive& inArchive, TType& inValue) {
 		inArchive.read(&inValue, sizeof(TType), 1);
 		return inArchive;
@@ -201,7 +216,7 @@ public:
 	CFileArchive(const std::string& inFilePath, const char* inMode)
 		: CFileArchive(inFilePath.c_str(), inMode) {}
 
-	bool isOpen() const { return mIsOpen; }
+	no_discard bool isOpen() const { return mIsOpen; }
 
 	// Function to read from entire file with any type
 	template <typename TType, class TAlloc = std::allocator<TType>>

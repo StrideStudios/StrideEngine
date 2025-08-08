@@ -1,23 +1,113 @@
-﻿#include "MeshLoader.h"
+﻿#include "EngineLoader.h"
 
 #include <fastgltf/glm_element_traits.hpp>
 #include <fastgltf/tools.hpp>
+#include <fastgltf/core.hpp>
 #include <glm/ext/matrix_transform.hpp>
+#include <tracy/Tracy.hpp>
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/quaternion.hpp>
 
 #include <meshoptimizer.h>
 
-#include "Common.h"
 #include "Engine.h"
-#include "VulkanRenderer.h"
-#include "EngineBuffers.h"
 #include "GpuScene.h"
-#include "Paths.h"
-#include "Threading.h"
-#include "fastgltf/core.hpp"
-#include "tracy/Tracy.hpp"
+#include "MeshLoader.h"
+#include "encoder/basisu_comp.h"
+#include "transcoder/basisu_transcoder.h"
+#include "encoder/basisu_gpu_texture.h"
+
+#include "ResourceManager.h"
+#include "StaticMesh.h"
+#include "VulkanRenderer.h"
+#include "VulkanUtils.h"
+
+constexpr static bool gUseOpenCL = false;
+
+SImage loadImage(CResourceManager& allocator, const std::filesystem::path& path) {
+	const std::string& fileName = path.filename().string();
+
+	basisu::uint8_vec fileData;
+	basisu::read_file_to_vec(path.string().c_str(), fileData);
+
+	// Create and Initialize the KTX2 transcoder object.
+	basist::ktx2_transcoder transcoder;
+	if (!transcoder.init(fileData.data(), fileData.size_u32())) {
+		errs("Transcoder failed to initialize for file {}.", fileName.c_str());
+	}
+
+	const uint32 width = transcoder.get_width();
+	const uint32 height = transcoder.get_height();
+	const uint32 numMips = transcoder.get_levels();
+
+	VkExtent3D imageSize;
+	imageSize.width = width;
+	imageSize.height = height;
+	imageSize.depth = 1;
+
+	msgs("Texture dimensions: ({}x{}), levels: {}", width, height, numMips);
+
+	// Allocate image and transition to dst
+	SImage image = allocator.allocateImage(fileName, imageSize, VK_FORMAT_BC7_SRGB_BLOCK, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_IMAGE_ASPECT_COLOR_BIT, numMips);
+
+	CVulkanRenderer::immediateSubmit([&](VkCommandBuffer cmd) {
+		CVulkanUtils::transitionImage(cmd, image->mImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+	});
+
+	transcoder.start_transcoding();
+
+	// Transcode each mipmap and add to vector
+	for (uint32 mipmap = 0; mipmap < numMips; ++mipmap) {
+		const auto level_width = basisu::maximum<uint32>(width >> mipmap, 1);
+		const auto level_height = basisu::maximum<uint32>(height >> mipmap, 1);
+		basisu::gpu_image tex(basisu::texture_format::cBC7, level_width, level_height); //cDecodeFlagsTranscodeAlphaDataToOpaqueFormats
+
+		if (const bool status = transcoder.transcode_image_level(mipmap, 0, 0, tex.get_ptr(), tex.get_total_blocks(), basist::transcoder_texture_format::cTFBC7_RGBA, 0); !status) {
+			errs("Image Transcode for file {} failed.", fileName.c_str());
+		}
+
+		const void* pImage = tex.get_ptr();
+		const uint32 image_size = tex.get_size_in_bytes();
+
+		VkExtent3D levelSize;
+		levelSize.width = level_width;
+		levelSize.height = level_height;
+		levelSize.depth = 1;
+
+		// Upload buffer is not needed outside of this function
+		CResourceManager manager;
+		const SBuffer uploadBuffer = manager.allocateBuffer(image_size, VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+
+		memcpy(uploadBuffer->GetMappedData(), pImage, image_size);
+
+		CVulkanRenderer::immediateSubmit([&](VkCommandBuffer cmd) {
+			//ZoneScopedAllocation(std::string("Copy Image from Upload Buffer"));
+
+			VkBufferImageCopy copyRegion = {};
+			copyRegion.bufferOffset = 0;
+			copyRegion.bufferRowLength = 0;
+			copyRegion.bufferImageHeight = 0;
+
+			copyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			copyRegion.imageSubresource.mipLevel = mipmap;
+			copyRegion.imageSubresource.baseArrayLayer = 0;
+			copyRegion.imageSubresource.layerCount = 1;
+			copyRegion.imageExtent = levelSize;
+
+			// copy the buffer into the image
+			vkCmdCopyBufferToImage(cmd, uploadBuffer->buffer, image->mImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+		});
+
+		manager.flush();
+	}
+
+	CVulkanRenderer::immediateSubmit([&](VkCommandBuffer cmd) {
+		CVulkanUtils::transitionImage(cmd, image->mImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	});
+
+	return image;
+}
 
 using MeshData = std::vector<std::pair<std::string, std::shared_ptr<SMeshData>>>;
 
@@ -277,46 +367,11 @@ std::shared_ptr<SMeshData> readMeshData(const std::filesystem::path& path) {
 	return outSaveData;
 }
 
-void saveMeshData(const MeshData& meshData) {
-
-	for (const auto& [string, data] : meshData) {
-
-		// Create an asset path with the appropriate name
-		std::filesystem::path savePath = SPaths::get().mAssetCachePath;
-		savePath.append(string + ".msh");
-
-		// Ensure .msh doesn't already exist
-		if (std::filesystem::exists(savePath)) {
-			msgs("File {} already exists!", savePath.filename().string());
-			return;
-		}
-
-		CFileArchive file(savePath.string(), "wb");
-
-		file << data;
-
-		file.close();
-
-		CMeshLoader::getMesh(string);//TODO:
-	}
-}
-
-// Loads from msh file
-std::shared_ptr<SStaticMesh> CMeshLoader::getMesh(const std::string& inFileName) {
+std::shared_ptr<SStaticMesh> toStaticMesh(const std::shared_ptr<SMeshData>& mesh, const std::string& fileName) {
 	CVulkanRenderer& renderer = CEngine::renderer();
 
-	// If the model has already been loaded, don't load it
-	if (!inFileName.empty() && get().mLoadedModels.contains(inFileName)) {
-		return get().mLoadedModels[inFileName];
-	}
-
-	std::filesystem::path cachedPath = SPaths::get().mAssetCachePath;
-	cachedPath.append(inFileName + ".msh");
-
-	// Read from the msh file and convert to a static mesh
-	const auto mesh = readMeshData(cachedPath);
 	auto loadMesh = std::make_shared<SStaticMesh>();
-	loadMesh->name = inFileName;
+	loadMesh->name = fileName;
 	loadMesh->bounds = mesh->bounds;
 	for (auto&[name, startIndex, count] : mesh->surfaces) {
 		loadMesh->surfaces.push_back({
@@ -326,28 +381,163 @@ std::shared_ptr<SStaticMesh> CMeshLoader::getMesh(const std::string& inFileName)
 			.count = count
 		});
 	}
+
 	loadMesh->meshBuffers = renderer.mEngineBuffers->uploadMesh(renderer.mGlobalResourceManager, mesh->indices, mesh->vertices);
-	get().mLoadedModels[inFileName] = loadMesh;
 	return loadMesh;
 }
-//TODO: ensure real MSH, and other sorts of files with a custom BOM
 
-// Load an external .glb or .gltf file and convert to a msh file
-// This does not load the mesh into memory!
-void CMeshLoader::loadExternalMesh(const std::filesystem::path& inPath) {
+void CEngineLoader::save() {
+	// Only materials need to be saved (as they are the only thing created at runtime)
+	for (const auto& [name, material] : get().mMaterials) {
+		save(name, material);
+	}
+}
 
+void CEngineLoader::load() {
+
+	basisu::basisu_encoder_init(gUseOpenCL, false);
+
+	std::vector<std::filesystem::path> textures;
+	std::vector<std::filesystem::path> materials;
+	std::vector<std::filesystem::path> meshes;
+
+	// Add each type to their respective vector
+	for (std::filesystem::recursive_directory_iterator i(SPaths::get().mAssetCachePath), end; i != end; ++i) {
+		if (!std::filesystem::is_directory(i->path())) {
+			if (i->path().extension() == ".ktx2") {
+				textures.push_back(i->path());
+			} else if (i->path().extension() == ".mat") {
+				materials.push_back(i->path());
+			} else if (i->path().extension() == ".msh") {
+				meshes.push_back(i->path());
+			}
+		}
+	}
+
+	auto pathToName = [](const std::filesystem::path& path) {
+		std::filesystem::path fileName = path.filename();
+		fileName.replace_extension();
+		return fileName.string();
+	};
+
+	// Specific load order, since meshes reference materials, and materials reference textures
+
+	// Load textures
+	for (const auto& path : textures) {
+		SImage image = loadImage(CEngine::renderer().mGlobalResourceManager, path);
+		get().mImages.emplace(pathToName(path), image);
+	}
+
+	// Load materials
+	for (const auto& path : materials) {
+		auto material = load<std::shared_ptr<CMaterial>>(path);
+		get().mMaterials.emplace(pathToName(path), material);
+	}
+
+	// Load meshes
+	for (const auto& path : meshes) {
+		auto mesh = load<std::shared_ptr<SMeshData>>(path);
+		get().mMeshes.emplace(pathToName(path), toStaticMesh(mesh, pathToName(path)));
+	}
+}
+
+void CEngineLoader::importTexture(const std::filesystem::path& inPath) {
+	const std::string fileName = inPath.filename().string();
+
+	basisu::image image;
+	basisu::load_png(inPath.string().c_str(), image);
+
+	basisu::vector<basisu::image> images;
+	images.push_back(image);
+
+	size_t file_size = 0;
+	constexpr uint32 quality = 255;
+
+	// TODO cETC1S is supremely smaller, but takes significantly longer to compress. cETC1S should be the main format.
+	void* pKTX2_data = basisu::basis_compress(
+		basist::basis_tex_format::cUASTC4x4,
+		images,
+		basisu::cFlagGenMipsClamp | basisu::cFlagKTX2 | basisu::cFlagSRGB | basisu::cFlagThreaded | basisu::cFlagUseOpenCL | basisu::cFlagDebug | basisu::cFlagPrintStats | basisu::cFlagPrintStatus, 0.0f,
+		&file_size,
+		nullptr);//quality |
+
+	if (!pKTX2_data) {
+		errs("Compress for file {} failed.", fileName.c_str());
+	}
+
+	std::filesystem::path cachedPath = SPaths::get().mAssetCachePath.string() + fileName;
+	cachedPath.replace_extension(".ktx2");
+
+	// Write to ktx2 file
+	if (!basisu::write_data_to_file(cachedPath.string().c_str(), pKTX2_data, file_size)) {
+		errs("Ktx2 file {} could not be written.", fileName.c_str());
+	}
+
+	basisu::basis_free_data(pKTX2_data);
+
+	SImage loadedImage = loadImage(CEngine::renderer().mGlobalResourceManager, cachedPath);
+
+	get().mImages.emplace(loadedImage->name, loadedImage);
+}
+
+void CEngineLoader::createMaterial(const std::string& inMaterialName) {
+	// Get a name that isn't taken
+	int32 materialNumber = 0;
+	std::string name;
+	bool contains = true;
+	while (contains) {
+		name = fmts("material {}", materialNumber);
+		contains = false;
+		for (const auto& material : CMaterial::getMaterials()) {
+			if (material->mName == name) {
+				contains = true;
+				break;
+			}
+		}
+		materialNumber++;
+	}
+
+	const auto material = std::make_shared<CMaterial>();
+	material->mName = name;
+	CMaterial::getMaterials().push_back(material);
+
+	get().mMaterials.emplace(name, material);
+}
+
+void CEngineLoader::importMesh(const std::filesystem::path& inPath) {
 	CVulkanRenderer& renderer = CEngine::renderer();
 
 	const std::string fileName = inPath.filename().string();
 
 	// Load the GLTF into Mesh Data
-	const auto outSaveData = loadGLTF_Internal(&renderer, inPath);
+	const auto meshData = loadGLTF_Internal(&renderer, inPath);
 
 	// If failed, do not write data
-	if (outSaveData.empty()) {
+	if (meshData.empty()) {
 		return;
 	}
 
 	// Save the mesh data
-	saveMeshData(outSaveData);
+	for (const auto& [fileName, data] : meshData) {
+
+		// Create an asset path with the appropriate name
+		std::filesystem::path path = SPaths::get().mAssetCachePath;
+		path.append(fileName + ".msh");
+
+		// Ensure .msh doesn't already exist
+		if (std::filesystem::exists(path)) {
+			msgs("File {} already exists!", fileName);
+			return;
+		}
+
+		CFileArchive file(path.string(), "wb");
+
+		file << data;
+
+		file.close();
+
+		const auto mesh = readMeshData(path);
+
+		get().mMeshes.emplace(fileName, toStaticMesh(mesh, fileName));
+	}
 }

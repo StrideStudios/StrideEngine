@@ -48,6 +48,7 @@ public:
 		return false;
 	}
 
+	//TODO: shouldnt be necessary, but 'main thread' needs it for now
 	void executeAll() {
 		while (getNumberOfTasks() > 0) {
 			std::function<void()> task;
@@ -117,8 +118,7 @@ public:
 	}) {}
 
 	~CThread() {
-		m_Worker.stop();
-		m_Thread.join();
+		stop();
 	}
 
 	no_discard const CWorker& getWorker() const {
@@ -127,6 +127,12 @@ public:
 
 	void run(const std::function<void()>& inFunc) {
 		m_Worker.add(inFunc);
+	}
+
+	void stop() {
+		m_Worker.stop();
+		wait();
+		if (m_Thread.joinable()) m_Thread.join();
 	}
 
 	void wait() {
@@ -147,29 +153,48 @@ public:
 
 class CThreadPool {
 
-	std::vector<std::shared_ptr<CThread>> m_Threads;
+	std::vector<std::thread> m_Threads{};
+
+	CWorker m_Worker;
 
 public:
 
 	explicit CThreadPool(const uint32 inNumThreads = std::thread::hardware_concurrency()) {
 		for (uint32 i = 0; i < inNumThreads; ++i) {
-			uint32 currentColor = i * (255u / inNumThreads);
-			m_Threads.push_back(std::make_shared<CThread>([i, currentColor](const std::function<bool()>& loop) {
-				THREAD_LOOP(fmts("Background Thread {}", i), currentColor)
-			}));
+			const std::string name = fmts("Background Thread {}", i);
+			uint32 color = i * (255u / inNumThreads);
+			m_Threads.emplace_back([this, name, color] {
+				TracyCSetThreadName(name.c_str())
+				while (true) {
+					TracyCZone(ctx, 1);
+					TracyCZoneName(ctx, name.c_str(), name.size());
+					TracyCZoneColor(ctx, color);
+					if (m_Worker.execute()) return;
+					TracyCZoneEnd(ctx);
+				}
+			});
 		}
 	}
 
-	// Run on least busy thread
-	void run(const std::function<void()>& inFunc) const {
-		std::shared_ptr<CThread> lowestThread = nullptr;
-		for (const auto& thread : m_Threads) {
-			if (!lowestThread || thread->getWorker().getNumberOfTasks() < lowestThread->getWorker().getNumberOfTasks()) {
-				lowestThread = thread;
-			}
+	~CThreadPool() {
+		stop();
+	}
+
+	// Whichever thread gets to the task first will run it
+	void run(const std::function<void()>& inFunc) {
+		m_Worker.add(inFunc);
+	}
+
+	void wait() {
+		m_Worker.wait();
+	}
+
+	void stop() {
+		m_Worker.stop();
+		wait();
+		for (auto& thread : m_Threads) {
+			if (thread.joinable()) thread.join();
 		}
-		asts(lowestThread, "Could not find thread to run task on!");
-		lowestThread->run(inFunc);
 	}
 
 };
@@ -193,6 +218,20 @@ public:
 		get().mThreadPool.run(inFunc);
 	}
 
+	// Wait for threads to finish operations
+	static void wait() {
+		get().mRenderingThread.wait();
+		get().mGameThread.wait();
+		get().mThreadPool.wait();
+	}
+
+	// Wait for threads to finish operations
+	static void stop() {
+		get().mRenderingThread.stop();
+		get().mGameThread.stop();
+		get().mThreadPool.stop();
+	}
+
 	CWorker mMainThread;
 
 	CThread mRenderingThread{[](const std::function<bool()>& loop) {
@@ -204,5 +243,5 @@ public:
 	}};
 
 	// Modern computers can reliably have > 4 cores ( 8 threads)
-	CThreadPool mThreadPool{6};
+	CThreadPool mThreadPool{std::thread::hardware_concurrency()};
 };

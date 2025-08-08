@@ -33,14 +33,7 @@ public:
 		return outCommand;
 	}
 
-	// Render the commands on ImGui
-	static void begin();
-
-	static void render(VkCommandBuffer cmd, VkExtent2D inExtent, VkImageView inTargetImageView);
-
-	static void init(VkQueue inQueue, VkFormat format);
-
-	static void destroy();
+	static void render();
 
 private:
 

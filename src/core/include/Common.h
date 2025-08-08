@@ -24,7 +24,6 @@
  * Local variable: variable
  *
  * Classes and Structs should not include more than one private: protected: and public: identifier
- * Variables should always be below Functions
  * The order of Functions and Variables should be as follows:
  * constexpr/static
  * const
@@ -135,16 +134,6 @@ typedef const char* SChar;
 	inline inType valueOf(const E##EnumName& inValue) { return static_cast<inType>(inValue); } \
 	inline bool operator==(const E##EnumName& lhs, const inType& rhs) { \
 		return static_cast<inType>(lhs) == rhs; \
-	} \
-	inline std::ostream& operator<<(std::ostream& outStream, const E##EnumName& inEnumClass) { \
-		outStream << static_cast<inType>(inEnumClass); \
-		return outStream; \
-	} \
-	inline std::istream& operator>>(std::istream& inStream, E##EnumName& inEnumClass) { \
-		inType value; \
-		inStream >> value; \
-		inEnumClass = static_cast<E##EnumName>(value); \
-		return inStream; \
 	}
 
 #define ENUM_TO_STRING(EnumName, inType, ...) \

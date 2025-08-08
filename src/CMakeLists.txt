@@ -8,6 +8,8 @@ include_directories("engine/include")
 include_directories("imgui/include")
 include_directories("stb/include")
 include_directories("../third_party/basis_universal")
+include_directories("tinyDDS/include")
+
 
 add_executable(StrideEngine
 
@@ -21,11 +23,10 @@ add_executable(StrideEngine
 
         # Engine
 
+        engine/include/Scene.h
         engine/include/EngineSettings.h
         engine/EngineSettings.cpp
         engine/include/StaticMesh.h
-        engine/include/MeshLoader.h
-        engine/MeshLoader.cpp
         engine/include/Viewport.h
         engine/include/Engine.h
         engine/Engine.cpp
@@ -38,6 +39,10 @@ add_executable(StrideEngine
         engine/include/Sprite.h
         engine/include/Input.h
         engine/Input.cpp
+        engine/Viewport.cpp
+        engine/include/EngineUI.h
+        engine/include/EngineLoader.h
+        engine/EngineLoader.cpp
 
         # Renderer
 
@@ -100,7 +105,6 @@ add_executable(StrideEngine
 
         # stb
         stb/include/stb_image.h
-        engine/Viewport.cpp
 )
 
 find_package(Vulkan REQUIRED)

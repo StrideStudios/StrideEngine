@@ -182,7 +182,7 @@ VkResult CShaderCompiler::getShader(VkDevice inDevice, const char* inFileName, S
 		errs("Nothing found in Shader file {}!", inFileName);
 	}
 
-	const uint32 Hash = CHashing::getHash(shaderSource);
+	const uint32 Hash = getHash(shaderSource);
 	if (Hash == 0) {
 		errs("Hash from file {} is not valid.", inFileName);
 	}

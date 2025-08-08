@@ -4,6 +4,7 @@
 #include <thread>
 #include <tracy/Tracy.hpp>
 
+#include "EngineLoader.h"
 #include "EngineSettings.h"
 #include "EngineTextures.h"
 #include "imgui_impl_sdl3.h"
@@ -89,6 +90,8 @@ void CEngine::init() {
 
 	// Initialize the renderer
 	m_Renderer->init();
+
+	CEngineLoader::load();
 }
 
 void CEngine::end() {
@@ -152,6 +155,9 @@ void CEngine::run() {
 			switch (e.type) {
 				case SDL_EVENT_QUIT:
 					bRunning = false;
+					// Stop all processes
+					//TODO: keep rendering and have icon to tell user it's stopping
+					CThreading::stop();
 					break;
 				case SDL_EVENT_WINDOW_MINIMIZED:
 					pauseRendering = true;

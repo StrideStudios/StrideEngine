@@ -20,6 +20,8 @@ constexpr static auto gEngineName = text("Stride Engine");
 
 class CEngine {
 
+	friend CVulkanDevice;//TODO: rmv
+
 	struct Time {
 		int32 mAverageFrameRate = 0;
 		int32 mFrameRate = 0;

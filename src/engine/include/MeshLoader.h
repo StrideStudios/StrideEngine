@@ -1,12 +1,31 @@
 ﻿#pragma once
 
 #include <filesystem>
-#include <set>
+#include <map>
 
 #include "Archive.h"
 #include "EngineBuffers.h"
 #include "ResourceManager.h"
-#include "StaticMesh.h"
+
+struct SBounds {
+	Vector3f origin;
+	float sphereRadius;
+	Vector3f extents;
+
+	friend CArchive& operator<<(CArchive& inArchive, const SBounds& inBounds) {
+		inArchive << inBounds.origin;
+		inArchive << inBounds.sphereRadius;
+		inArchive << inBounds.extents;
+		return inArchive;
+	}
+
+	friend CArchive& operator>>(CArchive& inArchive, SBounds& inBounds) {
+		inArchive >> inBounds.origin;
+		inArchive >> inBounds.sphereRadius;
+		inArchive >> inBounds.extents;
+		return inArchive;
+	}
+};
 
 struct SMeshData {
 
@@ -34,8 +53,6 @@ struct SMeshData {
 		}
 	};
 
-	std::string name;
-
 	// We are storing indices as an 'uint24' to reduce storage size
 	struct storedIndex {
 		uint8 i1, i2, i3;
@@ -48,7 +65,6 @@ struct SMeshData {
 	SBounds bounds;
 
 	friend CArchive& operator<<(CArchive& inArchive, const SMeshData& inData) {
-		inArchive << inData.name;
 		inArchive << inData.mHasVertexColor;
 
 		std::vector<uint8> indices0;
@@ -97,7 +113,6 @@ struct SMeshData {
 	}
 
 	friend CArchive& operator>>(CArchive& inArchive, SMeshData& inData) {
-		inArchive >> inData.name;
 		inArchive >> inData.mHasVertexColor;
 
 		std::vector<uint8> indices0;
@@ -136,19 +151,25 @@ struct SMeshData {
 	}
 };
 
-// TODO: automatically load meshes, and have some members for that
-class CMeshLoader : public IDestroyable {
+class CMeshLoader {
+
+	static CMeshLoader& get() {
+		static CMeshLoader meshLoader;
+		return meshLoader;
+	}
+
 public:
 
 	CMeshLoader() = default;
 
-	void loadGLTF(CVulkanRenderer* renderer, std::filesystem::path filePath);
+	static std::map<std::string, std::shared_ptr<SStaticMesh>> getMeshes() {
+		return get().mLoadedModels;
+	}
 
-	void loadGLTFExternal(CVulkanRenderer* renderer, std::filesystem::path filePath);
+	static std::shared_ptr<SStaticMesh> getMesh(const std::string& inFileName);
 
-	std::vector<std::shared_ptr<SStaticMesh>> mLoadedModels{};
+	static void loadExternalMesh(const std::filesystem::path& inPath);
 
-private:
+	std::map<std::string, std::shared_ptr<SStaticMesh>> mLoadedModels{};
 
-	void loadGLTF_Internal(CVulkanRenderer* renderer, std::filesystem::path path);
 };

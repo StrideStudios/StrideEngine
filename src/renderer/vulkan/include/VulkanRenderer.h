@@ -2,6 +2,7 @@
 
 #include <functional>
 #include <memory>
+#include <mutex>
 
 #include "DescriptorManager.h"
 #include "ResourceManager.h"
@@ -31,6 +32,7 @@ struct SComputeEffect {
 };
 
 struct SUploadContext {
+	std::mutex mMutex;
 	VkFence _uploadFence;
 	VkCommandPool _commandPool;
 	VkCommandBuffer _commandBuffer;
@@ -105,16 +107,11 @@ public:
 
 	SUploadContext mUploadContext;
 
-	VkQueue mGraphicsQueue;
-	uint32 mGraphicsQueueFamily;
-
 	//
 	// Descriptor Resources
 	//
 
 	SDescriptorAllocator mGlobalDescriptorAllocator;
-
-	class CMeshLoader* mMeshLoader;
 
 };
 

@@ -1,11 +1,11 @@
 ﻿#pragma once
 
 #include <vulkan/vulkan_core.h>
-#include <map>
 #include <array>
 
 #include "Archive.h"
 #include "Common.h"
+#include "Hashing.h"
 
 struct SMaterialPipeline {
 	VkPipeline pipeline;
@@ -74,6 +74,7 @@ public:
 
 	friend CArchive& operator<<(CArchive& inArchive, const CMaterial& inMaterial) {
 		if (inMaterial.mShouldSave) {
+			inArchive << getHash(inMaterial.mName);
 			inArchive << inMaterial.mName;
 			inArchive << inMaterial.mPassType;
 			inArchive << inMaterial.mCode;
@@ -84,6 +85,8 @@ public:
 
 	friend CArchive& operator>>(CArchive& inArchive, CMaterial& inMaterial) {
 		if (inMaterial.mShouldSave) {
+			int32 hash;
+			inArchive >> hash;
 			inArchive >> inMaterial.mName;
 			inArchive >> inMaterial.mPassType;
 			inArchive >> inMaterial.mCode;

@@ -13,9 +13,10 @@ public:
 	virtual Matrix4f getTransformMatrix() = 0;
 };
 
-class CSceneObject {
+class CSceneObject : public ISerializable {
 
 public:
+	virtual ~CSceneObject() = default;
 
 	no_discard Vector3d getPosition() const {
 		return mPosition;
@@ -41,6 +42,20 @@ public:
 		mScale = inScale;
 	}
 
+	CArchive& save(CArchive& inArchive) override {
+		inArchive << mPosition;
+		inArchive << mRotation;
+		inArchive << mScale;
+		return inArchive;
+	}
+
+	CArchive& load(CArchive& inArchive) override {
+		inArchive >> mPosition;
+		inArchive >> mRotation;
+		inArchive >> mScale;
+		return inArchive;
+	}
+
 protected:
 
 	Vector3d mPosition{0, 0, 0};
@@ -50,21 +65,6 @@ protected:
 
 	Vector3f mScale{1,1, 1};
 
-private:
-
-	friend CArchive& operator<<(CArchive& inArchive, const CSceneObject& inObject) {
-		inArchive << inObject.mPosition;
-		inArchive << inObject.mRotation;
-		inArchive << inObject.mScale;
-		return inArchive;
-	}
-
-	friend CArchive& operator>>(CArchive& inArchive, CSceneObject& inObject) {
-		inArchive >> inObject.mPosition;
-		inArchive >> inObject.mRotation;
-		inArchive >> inObject.mScale;
-		return inArchive;
-	}
 };
 
 class CRenderableObject : public CSceneObject, public IRenderable {

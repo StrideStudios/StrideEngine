@@ -17,6 +17,7 @@
 #include "EngineSettings.h"
 #include "EngineTextures.h"
 #include "EngineBuffers.h"
+#include "EngineUI.h"
 #include "GpuScene.h"
 #include "MeshLoader.h"
 #include "ResourceManager.h"
@@ -28,9 +29,11 @@ ADD_COMMAND(bool, UseVsync, true);
 CVulkanRenderer::CVulkanRenderer(): mVSync(UseVsync.get()) {}
 
 void CVulkanRenderer::immediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function) {
-	VkDevice device = CEngine::device();
 
-	const CVulkanRenderer& renderer = CEngine::renderer();
+	CVulkanRenderer& renderer = CEngine::renderer();
+	const VkDevice device = CEngine::device();
+
+	std::unique_lock lock(renderer.mUploadContext.mMutex);
 
 	VkCommandBuffer cmd = renderer.mUploadContext._commandBuffer;
 
@@ -50,7 +53,7 @@ void CVulkanRenderer::immediateSubmit(std::function<void(VkCommandBuffer cmd)>&&
 
 	//submit command buffer to the queue and execute it.
 	// _uploadFence will now block until the graphic commands finish execution
-	VK_CHECK(vkQueueSubmit(CEngine::renderer().mGraphicsQueue, 1, &submit, renderer.mUploadContext._uploadFence));
+	VK_CHECK(vkQueueSubmit(CVulkanDevice::getQueue(EQueueType::UPLOAD).mQueue, 1, &submit, renderer.mUploadContext._uploadFence));
 
 	VK_CHECK(vkWaitForFences(device, 1, &renderer.mUploadContext._uploadFence, true, 1000000000));
 
@@ -62,11 +65,7 @@ void CVulkanRenderer::init() {
 	// Ensure the renderer is only created once
 	astsOnce(CVulkanRenderer);
 
-	// Use vkb to get a Graphics queue
-	mGraphicsQueue = CEngine::device().get_queue(vkb::QueueType::graphics).value();
-	mGraphicsQueueFamily = CEngine::device().get_queue_index(vkb::QueueType::graphics).value();
-
-	VkCommandPoolCreateInfo uploadCommandPoolInfo = CVulkanInfo::createCommandPoolInfo(CEngine::renderer().mGraphicsQueueFamily);
+	VkCommandPoolCreateInfo uploadCommandPoolInfo = CVulkanInfo::createCommandPoolInfo(CVulkanDevice::getQueue(EQueueType::UPLOAD).mFamily);
 	//create pool for upload context
 	mUploadContext._commandPool = mGlobalResourceManager.allocateCommandPool(uploadCommandPoolInfo);
 
@@ -81,7 +80,7 @@ void CVulkanRenderer::init() {
 		// Create a command pool for commands submitted to the graphics queue.
 		// We also want the pool to allow for resetting of individual command buffers
 		const VkCommandPoolCreateInfo commandPoolInfo = CVulkanInfo::createCommandPoolInfo(
-			mGraphicsQueueFamily, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+			CVulkanDevice::getQueue(EQueueType::GRAPHICS).mFamily, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
 		for (auto &frame: mFrames) {
 			frame.mCommandPool = mGlobalResourceManager.allocateCommandPool(commandPoolInfo);
@@ -106,7 +105,7 @@ void CVulkanRenderer::init() {
 				frame.mDescriptorAllocator.destroy();
 			});
 
-			frame.mTracyContext = TracyVkContext(CEngine::physicalDevice(), CEngine::device(), mGraphicsQueue, frame.mMainCommandBuffer);
+			frame.mTracyContext = TracyVkContext(CEngine::physicalDevice(), CEngine::device(), CVulkanDevice::getQueue(EQueueType::GRAPHICS).mQueue, frame.mMainCommandBuffer);
 		}
 	}
 
@@ -120,24 +119,21 @@ void CVulkanRenderer::init() {
 
 	mGlobalDescriptorAllocator.init(10, sizes);
 
-	mGlobalResourceManager.createDestroyable(mMeshLoader);
-
 	mGlobalResourceManager.createDestroyable(mEngineTextures);
 
 	mGlobalResourceManager.createDestroyable(mEngineBuffers);
 
 	mGlobalResourceManager.createDestroyable(mGPUScene);
 
-	// Setup Dear ImGui
-	CEngineSettings::init(mGraphicsQueue, mEngineTextures->getSwapchain().mFormat);
+	// Setup Engine UI
+	EngineUI::init(CVulkanDevice::getQueue(EQueueType::GRAPHICS).mQueue, mEngineTextures->getSwapchain().mFormat);
 }
 
 void CVulkanRenderer::destroy() {
 
 	//mGPUScene->m_LoadedScenes.clear();
-	mMeshLoader->mLoadedModels.clear();
 
-	CEngineSettings::destroy();
+	EngineUI::destroy();
 
 	for (auto& frame : mFrames) {
 		TracyVkDestroy(frame.mTracyContext);
@@ -169,6 +165,8 @@ void CVulkanRenderer::draw() {
 	};
 	swapchainDirtyCheck();
 
+	//std::unique_lock lock(mUploadContext.mMutex);
+
 	// Get command buffer from current frame
 	VkCommandBuffer cmd = getCurrentFrame().mMainCommandBuffer;
 
@@ -179,7 +177,7 @@ void CVulkanRenderer::draw() {
 	{
 		ZoneScopedN("Begin Frame");
 
-		CEngineSettings::begin();
+		EngineUI::begin();
 
 		// Wait for the previous render to stop
 		if (!mEngineTextures->getSwapchain().wait(getFrameIndex())) {
@@ -266,8 +264,11 @@ void CVulkanRenderer::draw() {
 		// Set swapchain layout so it can be used by ImGui
 		CVulkanUtils::transitionImage(cmd, swapchainImage,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
-		// Render Engine settings
-		CEngineSettings::render(cmd, mEngineTextures->getSwapchain().mSwapchain->extent, swapchainImageView);
+		// Render other UI
+		EngineUI::runEngineUI();
+
+		// Add the UI to the swapchain
+		EngineUI::render(cmd, mEngineTextures->getSwapchain().mSwapchain->extent, swapchainImageView);
 
 		// Set swapchain image layout to Present so we can show it on the screen
 		CVulkanUtils::transitionImage(cmd, swapchainImage,VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
@@ -275,7 +276,7 @@ void CVulkanRenderer::draw() {
 		//finalize the command buffer (we can no longer add commands, but it can now be executed)
 		VK_CHECK(vkEndCommandBuffer(cmd));
 
-		mEngineTextures->getSwapchain().submit(cmd, mGraphicsQueue, getFrameIndex(), swapchainImageIndex);
+		mEngineTextures->getSwapchain().submit(cmd, CVulkanDevice::getQueue(EQueueType::GRAPHICS).mQueue, getFrameIndex(), swapchainImageIndex);
 
 		//increase the number of frames drawn
 		mFrameNumber++;

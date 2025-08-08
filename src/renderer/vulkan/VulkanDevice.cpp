@@ -16,6 +16,10 @@ CVulkanDevice::CVulkanDevice() {
     m_Instance = std::make_unique<vkb::Instance>(instance.value());
 }
 
+SQueue CVulkanDevice::getQueue(const EQueueType inType) {
+    return CEngine::get().m_Device->mQueues[inType];
+}
+
 void CVulkanDevice::initDevice() {
     // Swapchain Maintenence features
     VkPhysicalDeviceSwapchainMaintenance1FeaturesEXT swapchainMaintenance1Features{
@@ -75,8 +79,46 @@ void CVulkanDevice::initDevice() {
 
     m_PhysicalDevice = std::make_unique<vkb::PhysicalDevice>(physicalDevice.value());
 
+    std::map<vkb::QueueType, size_t> queueBits;
+
+    //TODO: present queue
+    queueBits.emplace(vkb::QueueType::graphics, VK_QUEUE_GRAPHICS_BIT);
+    queueBits.emplace(vkb::QueueType::compute, VK_QUEUE_COMPUTE_BIT | ~VK_QUEUE_TRANSFER_BIT);
+    queueBits.emplace(vkb::QueueType::transfer, VK_QUEUE_TRANSFER_BIT | ~VK_QUEUE_COMPUTE_BIT);
+
+    // Create queueDescriptions based off queueFamilies input
+    std::vector<vkb::CustomQueueDescription> queueDescriptions;
+    auto families = getPhysicalDevice().get_queue_families();
+    for (size_t i = 0; i < families.size(); i++) {
+        for (const auto& [queueType, map] : queueFamilies) {
+            if (families[i].queueFlags & queueBits[queueType]) {
+                std::vector<float> vector;
+                for (const auto& values : map) {
+                    vector.push_back(values.second);
+                }
+                queueDescriptions.emplace_back(static_cast<uint32>(i), vector);
+            }
+        }
+    }
+
     vkb::DeviceBuilder deviceBuilder{getPhysicalDevice()};
+    deviceBuilder.custom_queue_setup(queueDescriptions);
     m_Device = std::make_unique<vkb::Device>(deviceBuilder.build().value());
+
+    // Get queues from the device
+    for (const auto&[type, map] : queueFamilies) {
+        uint32 family = m_Device->get_queue_index(type).value();
+        int32 index = 0;
+        for (const auto& queueType : map) {
+            VkQueue queue; vkGetDeviceQueue(*m_Device, family, index, &queue);
+            index++;
+            SQueue inQueue {
+                .mQueue = queue,
+                .mFamily = family
+            };
+            mQueues.emplace(queueType.first, inQueue);
+        }
+    }
 }
 
 void CVulkanDevice::destroy() const {

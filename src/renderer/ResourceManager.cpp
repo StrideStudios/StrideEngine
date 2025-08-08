@@ -516,7 +516,7 @@ bool saveImage(const std::string& cachedPath, const basisu::gpu_image_vec& image
 	}
 
 	std::filesystem::path hashPath(cachedPath);
-	hashPath.replace_extension(".hash");
+	hashPath.replace_extension(".hsh");
 
 	CFileArchive file(hashPath.string(), "wb");
 
@@ -719,7 +719,7 @@ bool CResourceManager::loadLDRImage(const std::string& cachedPath, const char* i
 	}
 
 	std::filesystem::path hashPath(cachedPath);
-	hashPath.replace_extension(".hash");
+	hashPath.replace_extension(".hsh");
 
 	if (!std::filesystem::exists(hashPath)) {
 		msgs("Hash for file {} could not be found, recompiling.", inFileName);
@@ -761,7 +761,7 @@ void CResourceManager::loadImage(const char* inFileName) {
 	str.resize(image.get_pixels().size_in_bytes());
 	memcpy(str.data(), image.get_pixels().get_ptr(), image.get_pixels().size_in_bytes());
 
-	const uint32 Hash = CHashing::getHash(str);
+	const uint32 Hash = getHash(str);
 	if (Hash == 0) {
 		errs("Hash from file {} is not valid.", inFileName);
 	}
