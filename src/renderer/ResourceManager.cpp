@@ -241,20 +241,16 @@ SBuffer CResourceManager::allocateBuffer(size_t allocSize, VmaMemoryUsage memory
 	return buffer;
 }
 
-SMeshBuffers CResourceManager::allocateMeshBuffer(size_t indicesSize, size_t verticesSize) {
-	const VkDevice device = CEngine::device();
+SMeshBuffers CResourceManager::allocateMeshBuffer(const size_t indicesSize, const size_t verticesSize) {
 
-	// Although it would normally be bad practice to return a heap allocated pointer
-	// CAllocator (so long as inShouldDeallocate is true) will automatically destroy the pointer
-	// if not, then the user can call CAllocator::deallocate
 	auto meshBuffers = std::make_shared<SMeshBuffers_T>();
 
 	meshBuffers->indexBuffer = allocateBuffer(indicesSize, VMA_MEMORY_USAGE_GPU_ONLY, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
 
-	meshBuffers->vertexBuffer = allocateBuffer(verticesSize, VMA_MEMORY_USAGE_GPU_ONLY, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
+	meshBuffers->vertexBuffer = allocateBuffer(verticesSize, VMA_MEMORY_USAGE_GPU_ONLY, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
 
-	//TODO: for now instance buffer only needs one
-	meshBuffers->instanceBuffer = allocateBuffer(sizeof(SInstance), VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
+	//TODO: for now instance buffer only needs two
+	meshBuffers->instanceBuffer = allocateBuffer(2 * sizeof(SInstance), VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
 
 	return meshBuffers;
 }

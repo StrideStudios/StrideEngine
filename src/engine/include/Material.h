@@ -35,7 +35,6 @@ ENUM_OPERATORS(MaterialPass, uint8)
 static uint16 gMaxTextures = std::numeric_limits<uint16>::max();
 
 // Safe array for push constants that is always filled by default
-// Also contains the transform matrix
 struct SPushConstants : std::array<Vector4f, 8> {
 	SPushConstants() : array() {
 		fill(Vector4f(0.f));

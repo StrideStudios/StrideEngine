@@ -106,7 +106,16 @@ namespace EngineUI {
 			uint32 objectNum = 0;
 			for (auto& object : scene.data.objects) {
 				if (!object) continue;
-				if (ImGui::CollapsingHeader(fmts("obj {}", objectNum).c_str())) {
+				ImGui::PushID(fmts("{}", objectNum).c_str());
+
+				if (ImGui::TreeNode("##xx")) {
+					ImGui::SameLine();
+					ImGui::InputText("Name", &object->mName);
+
+					ImGui::InputFloat3("Position", reinterpret_cast<float*>(&object->mPosition));
+					ImGui::InputFloat3("Rotation", reinterpret_cast<float*>(&object->mRotation));
+					ImGui::InputFloat3("Scale", reinterpret_cast<float*>(&object->mScale));
+
 					auto& sobject = dynamic_cast<CStaticMeshObject&>(*object);
 
 					const char* combo_preview_value = sobject.getMesh() ? sobject.getMesh()->name.c_str() : "None";
@@ -127,8 +136,13 @@ namespace EngineUI {
 						}
 						ImGui::EndCombo();
 					}
+					ImGui::TreePop();
+				} else {
+					ImGui::SameLine();
+					ImGui::InputText("Name", &object->mName);
 				}
 				objectNum++;
+				ImGui::PopID();
 			}
 		}
 		ImGui::End();

@@ -149,14 +149,18 @@ void CMeshPass::render(const VkCommandBuffer cmd) {
 	const CVulkanRenderer& renderer = CEngine::renderer();
 	const CGPUScene* scene = renderer.mGPUScene;
 
-	std::vector<std::shared_ptr<IRenderable>> renderObjects;
+	std::map<std::shared_ptr<SStaticMesh>, std::vector<SInstance>> renderObjects;
 
 	{
 		ZoneScopedN("Frustum Culling");
 		for (const auto& renderable : CScene::get().data.objects) {
 			if (renderable) {
 				if (auto renderableObject = std::dynamic_pointer_cast<IRenderable>(renderable); renderableObject && renderableObject->getMesh() && isVisible(renderableObject, scene->m_GPUSceneData.viewProj)) {
-					renderObjects.push_back(renderableObject);
+					if (renderObjects.contains(renderableObject->getMesh())) {
+						renderObjects[renderableObject->getMesh()].push_back(SInstance{renderableObject->getTransformMatrix()});
+					} else {
+						renderObjects.emplace(renderableObject->getMesh(), std::vector{SInstance{renderableObject->getTransformMatrix()}});
+					}
 				}
 			}
 		}
@@ -166,12 +170,12 @@ void CMeshPass::render(const VkCommandBuffer cmd) {
 	Meshes.setText(fmts("Meshes: {}", renderObjects.size()));
 
 	// sort the opaque surfaces by material and mesh
-	{
+	/*{
 		ZoneScopedN("Sort Draws");
-		std::ranges::sort(renderObjects, [&](const std::shared_ptr<IRenderable>& lhs, const std::shared_ptr<IRenderable>& rhs) {
-			return lhs->getMesh()->meshBuffers->indexBuffer->buffer < rhs->getMesh()->meshBuffers->indexBuffer->buffer;
+		std::ranges::sort(renderObjects, [&](const std::pair<std::shared_ptr<SStaticMesh>, std::vector<SInstance>>& lhs, const std::pair<std::shared_ptr<SStaticMesh>, std::vector<SInstance>>& rhs) {
+			return lhs.first->meshBuffers->indexBuffer->buffer < rhs.first->meshBuffers->indexBuffer->buffer;
 		});
-	}
+	}*/
 
 	//defined outside of the draw function, this is the state we will try to skip
 	SMaterialPipeline* lastPipeline = nullptr;
@@ -181,8 +185,9 @@ void CMeshPass::render(const VkCommandBuffer cmd) {
 	uint32 drawCallCount = 0;
 	uint64 vertexCount = 0;
 
-	auto render = [&](const std::shared_ptr<IRenderable>& renderable) {
-		const auto obj = renderable->getMesh();
+	auto render = [&](const std::pair<const std::shared_ptr<SStaticMesh>, std::vector<SInstance>>& renderable) {
+		const auto obj = renderable.first;
+		const size_t NumInstances = renderable.second.size();
 
 		ZoneScoped;
 		ZoneName(obj->name.c_str(), obj->name.size());
@@ -196,10 +201,9 @@ void CMeshPass::render(const VkCommandBuffer cmd) {
 				VkDeviceSize { 0 }
 			};
 
-			const SInstance instance = { renderable->getTransformMatrix() };
 			void* data;
 			obj->meshBuffers->instanceBuffer->mapData(&data);
-			memcpy(data, &instance, sizeof(SInstance));
+			memcpy(data, renderable.second.data(), NumInstances * sizeof(SInstance));
 			obj->meshBuffers->instanceBuffer->unMapData();
 
 			const auto buffers = {
@@ -216,6 +220,7 @@ void CMeshPass::render(const VkCommandBuffer cmd) {
 			// If the materials arent the same, rebind material data
 			SMaterialPipeline& pipeline = surface.material->getPipeline(renderer);
 			if (surface.material != lastMaterial) {
+				lastMaterial = surface.material;
 				// If the pipeline has changed, rebind pipeline data
 				if (&pipeline != lastPipeline) {
 					lastPipeline = &pipeline;
@@ -230,10 +235,10 @@ void CMeshPass::render(const VkCommandBuffer cmd) {
 
 			vkCmdPushConstants(cmd, pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(SPushConstants), surface.material->mConstants.data());
 
-			vkCmdDrawIndexed(cmd, surface.count, 1, surface.startIndex, 0, 0);
+			vkCmdDrawIndexed(cmd, surface.count, (uint32)NumInstances, surface.startIndex, 0, 0);
 
 			drawCallCount++;
-			vertexCount += surface.count;
+			vertexCount += surface.count * NumInstances;
 		}
 	};
 

@@ -22,7 +22,7 @@ struct SStaticMesh {
 		uint32 count;
 	};
 
-	std::string name;
+	std::string name{"None"};
 
 	SBounds bounds;
 	std::vector<Surface> surfaces;
@@ -64,16 +64,24 @@ public:
 	CArchive& save(CArchive& inArchive) override {
 		CRenderableObject::save(inArchive);
 		// Save the mesh's name
-		inArchive << mesh->name;
+		inArchive << static_cast<bool>(mesh);
+		if (mesh) {
+			inArchive << mesh->name;
+		}
 		return inArchive;
 	}
 
 	CArchive& load(CArchive& inArchive) override {
 		CRenderableObject::load(inArchive);
 		// Load the mesh's name and ask mesh loader for it
-		std::string name;
-		inArchive >> name;
-		mesh = CEngineLoader::getMeshes()[name];
+		bool hasMesh;
+		inArchive >> hasMesh;
+		if (hasMesh) {
+			std::string name;
+			inArchive >> name;
+			mesh = CEngineLoader::getMeshes()[name];
+		}
+
 		return inArchive;
 	}
 };
