@@ -146,7 +146,7 @@ bool isVisible(const std::shared_ptr<IRenderable>& renderable, const Matrix4f& v
 }
 
 void CMeshPass::render(const VkCommandBuffer cmd) {
-	const CVulkanRenderer& renderer = CEngine::renderer();
+	CVulkanRenderer& renderer = CEngine::renderer();
 	const CGPUScene* scene = renderer.mGPUScene;
 
 	std::map<std::shared_ptr<SStaticMesh>, std::vector<SInstance>> renderObjects;
@@ -194,6 +194,8 @@ void CMeshPass::render(const VkCommandBuffer cmd) {
 
 		// Rebind index buffer if starting a new mesh
 		if (lastIndexBuffer != obj->meshBuffers->indexBuffer->buffer) {
+			ZoneScopedN("Bind Buffers");
+
 			lastIndexBuffer = obj->meshBuffers->indexBuffer->buffer;
 			vkCmdBindIndexBuffer(cmd, obj->meshBuffers->indexBuffer->buffer, 0, VK_INDEX_TYPE_UINT32);
 			const auto offset = {
@@ -201,14 +203,16 @@ void CMeshPass::render(const VkCommandBuffer cmd) {
 				VkDeviceSize { 0 }
 			};
 
+			const SBuffer instanceBuffer = renderer.getCurrentFrame().mFrameResourceManager.allocateBuffer(NumInstances * sizeof(SInstance), VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+
 			void* data;
-			obj->meshBuffers->instanceBuffer->mapData(&data);
+			instanceBuffer->mapData(&data);
 			memcpy(data, renderable.second.data(), NumInstances * sizeof(SInstance));
-			obj->meshBuffers->instanceBuffer->unMapData();
+			instanceBuffer->unMapData();
 
 			const auto buffers = {
 				obj->meshBuffers->vertexBuffer->buffer,
-				obj->meshBuffers->instanceBuffer->buffer
+				instanceBuffer->buffer
 			};
 			vkCmdBindVertexBuffers(cmd, 0, (uint32)buffers.size(), buffers.begin(), offset.begin());
 		}
