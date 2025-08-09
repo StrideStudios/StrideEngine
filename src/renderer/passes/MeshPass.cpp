@@ -11,6 +11,7 @@
 #include "VulkanUtils.h"
 #include "tracy/Tracy.hpp"
 #include "EngineSettings.h"
+#include "Scene.h"
 #include "Viewport.h"
 
 #define SETTINGS_CATEGORY "Rendering"
@@ -152,9 +153,11 @@ void CMeshPass::render(const VkCommandBuffer cmd) {
 
 	{
 		ZoneScopedN("Frustum Culling");
-		for (const auto& renderable : scene->renderables) {
-			if (isVisible(renderable, scene->m_GPUSceneData.viewProj)) {
-				renderObjects.push_back(renderable);
+		for (const auto& renderable : CScene::get().data.objects) {
+			if (renderable) {
+				if (auto renderableObject = std::dynamic_pointer_cast<IRenderable>(renderable); renderableObject && renderableObject->getMesh() && isVisible(renderableObject, scene->m_GPUSceneData.viewProj)) {
+					renderObjects.push_back(renderableObject);
+				}
 			}
 		}
 	}

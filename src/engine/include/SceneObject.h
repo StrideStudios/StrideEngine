@@ -8,12 +8,14 @@
 
 class IRenderable {
 public:
-	virtual std::shared_ptr<struct SStaticMesh> getMesh() = 0;
+	no_discard virtual const std::shared_ptr<struct SStaticMesh>& getMesh() const = 0;
 
-	virtual Matrix4f getTransformMatrix() = 0;
+	no_discard virtual Matrix4f getTransformMatrix() const = 0;
 };
 
 class CSceneObject : public ISerializable {
+
+	REGISTER_CLASS(CSceneObject)
 
 public:
 	virtual ~CSceneObject() = default;
@@ -69,7 +71,7 @@ protected:
 
 class CRenderableObject : public CSceneObject, public IRenderable {
 
-	Matrix4f getTransformMatrix() override {
+	no_discard Matrix4f getTransformMatrix() const override {
 		Matrix4f mat = glm::translate(Matrix4f(1.0), (Vector3f)getPosition());
 		mat *= glm::mat4_cast(glm::qua(mRotation));
 		mat = glm::scale(mat, mScale);

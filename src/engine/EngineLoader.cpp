@@ -13,7 +13,6 @@
 
 #include "Engine.h"
 #include "GpuScene.h"
-#include "MeshLoader.h"
 #include "encoder/basisu_comp.h"
 #include "transcoder/basisu_transcoder.h"
 #include "encoder/basisu_gpu_texture.h"
@@ -445,7 +444,7 @@ void CEngineLoader::importTexture(const std::filesystem::path& inPath) {
 	const std::string fileName = inPath.filename().string();
 
 	basisu::image image;
-	basisu::load_png(inPath.string().c_str(), image);
+	basisu::load_image(inPath.string().c_str(), image);
 
 	basisu::vector<basisu::image> images;
 	images.push_back(image);

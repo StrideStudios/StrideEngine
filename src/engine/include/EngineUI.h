@@ -9,9 +9,11 @@
 #include "EngineLoader.h"
 #include "GpuScene.h"
 #include "Material.h"
+#include "Scene.h"
 #include "SpritePass.h"
 #include "Threading.h"
 #include "VulkanRenderer.h"
+#include "Viewport.h"
 
 namespace EngineUI {
 
@@ -95,23 +97,62 @@ namespace EngineUI {
 		vkCmdEndRendering(cmd);
 	}
 
+	static void renderSceneUI() {
+		if (ImGui::Begin("Scene")) {
+			CScene& scene = CScene::get();
+			if (ImGui::Button("Add Mesh Object")) {
+				scene.data.objects.push_back(std::make_shared<CStaticMeshObject>());
+			}
+			uint32 objectNum = 0;
+			for (auto& object : scene.data.objects) {
+				if (!object) continue;
+				if (ImGui::CollapsingHeader(fmts("obj {}", objectNum).c_str())) {
+					auto& sobject = dynamic_cast<CStaticMeshObject&>(*object);
+
+					const char* combo_preview_value = sobject.getMesh() ? sobject.getMesh()->name.c_str() : "None";
+					if (ImGui::BeginCombo("Meshes", combo_preview_value, ImGuiComboFlags_HeightRegular)) {
+						for (auto& mesh : CEngineLoader::getMeshes()) {
+							if (mesh.second->name.empty()) continue;
+
+							const bool is_selected = ((sobject.getMesh() ? sobject.getMesh()->name : "None") == mesh.second->name);
+							if (ImGui::Selectable(CEngineLoader::getMeshes()[mesh.first]->name.c_str(), is_selected)) {
+								sobject.mesh = mesh.second;
+								msgs("attempted to set {} to {}", sobject.mesh ? sobject.mesh->name.c_str() : "None", mesh.second->name.c_str());
+							}
+
+
+							// Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
+							if (is_selected)
+								ImGui::SetItemDefaultFocus();
+						}
+						ImGui::EndCombo();
+					}
+				}
+				objectNum++;
+			}
+		}
+		ImGui::End();
+	}
+
 	static void renderTextureUI() {
 		if (ImGui::Begin("Textures")) {
 			if (ImGui::Button("Import Texture")) {
 
 				// Supported textures?
 				const static std::vector<std::pair<const char*, const char*>> filters = {
-					{ "PNG (*.png)", "png" }
+					{ "Supported Formats (*.png; *.tga; *.jpg; *.jpeg)", "png;tga;jpg;jpeg" },
+					{ "PNG (*.png)", "png" },
+					{ "TGA (*.tga)", "tga" },
+					{ "JPEG (*.jpg; *.jpeg)", "jpg;jpeg" }
 				};
 
 				//TODO: file query shouldnt be in viewport
-				SEngineViewport::queryForFile(filters, [](const char* inFileName) {
-					std::string fileName = inFileName;
-					CThreading::runOnBackgroundThread([fileName] {
-						if (!fileName.empty()) {
-							CEngineLoader::importTexture(fileName);
-						}
-					});
+				SEngineViewport::queryForFile(filters, [](std::vector<std::string> inFiles) {
+					for (const auto& file : inFiles) {
+						CThreading::runOnBackgroundThread([file] {
+							CEngineLoader::importTexture(file);
+						});
+					}
 				});
 			}
 		}
@@ -119,7 +160,7 @@ namespace EngineUI {
 	}
 
 	static void renderMaterialUI() {
-		static int32 selected = 0;
+		static uint32 selected = 0;
 		if (ImGui::Begin("Materials")) {
 			ImGui::Text("Add Material");
 			ImGui::SameLine();
@@ -153,12 +194,12 @@ namespace EngineUI {
 				ImGui::SameLine();
 				if (ImGui::SmallButton("-")) {
 					CMaterial::getMaterials().erase(CMaterial::getMaterials().begin() + selected);
-					selected = std::min(static_cast<int32>(CMaterial::getMaterials().size() - 1), selected);
+					selected = std::min(static_cast<uint32>(CMaterial::getMaterials().size() - 1), selected);
 				}
 			}
 
 			if (!CMaterial::getMaterials().empty()) {
-				std::shared_ptr<CMaterial> material = CMaterial::getMaterials()[selected];
+				const std::shared_ptr<CMaterial> material = CMaterial::getMaterials()[selected];
 
 				if (material) {
 					if (ImGui::BeginCombo("Material", material->mName.c_str(), ImGuiComboFlags_HeightRegular)) {
@@ -271,14 +312,13 @@ namespace EngineUI {
 					{ "glTF 2.0 (*.gltf; *.glb)", "gltf;glb" }
 				};
 
-				//TODO: file query shouldnt be in viewport
-				SEngineViewport::queryForFile(filters, [](const char* inFileName) {
-					std::string fileName = inFileName;
-					CThreading::runOnBackgroundThread([fileName] {
-						if (!fileName.empty()) {
-							CEngineLoader::importMesh(fileName);
-						}
-					});
+				//TODO: file query shouldn't be in viewport
+				SEngineViewport::queryForFile(filters, [](std::vector<std::string> inFiles) {
+					for (const auto& file : inFiles) {
+						CThreading::runOnBackgroundThread([file] {
+							CEngineLoader::importMesh(file);
+						});
+					}
 				});
 			}
 			for (const auto& [fst, snd] : CEngineLoader::getMeshes()) {
@@ -328,5 +368,6 @@ namespace EngineUI {
 		renderMaterialUI();
 		renderSpriteUI();
 		renderMeshUI();
+		renderSceneUI();
 	}
 }

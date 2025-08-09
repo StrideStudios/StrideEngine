@@ -5,9 +5,9 @@
 #include <vector>
 
 #include "Common.h"
+#include "EngineLoader.h"
 #include "Hashing.h"
 #include "Material.h"
-#include "MeshLoader.h"
 #include "SceneObject.h"
 
 struct SStaticMesh {
@@ -47,13 +47,15 @@ struct SStaticMesh {
 // This is also where static meshes are loaded
 class CStaticMeshObject : public CRenderableObject {
 
+	REGISTER_CLASS(CStaticMeshObject)
+
 public:
 
 	CStaticMeshObject() = default;
 
 	CStaticMeshObject(const std::shared_ptr<SStaticMesh>& inMesh): mesh(inMesh) {}
 
-	std::shared_ptr<SStaticMesh> getMesh() override {
+	no_discard const std::shared_ptr<SStaticMesh>& getMesh() const override {
 		return mesh;
 	}
 
@@ -71,7 +73,7 @@ public:
 		// Load the mesh's name and ask mesh loader for it
 		std::string name;
 		inArchive >> name;
-		mesh = CMeshLoader::getMesh(name);
+		mesh = CEngineLoader::getMeshes()[name];
 		return inArchive;
 	}
 };

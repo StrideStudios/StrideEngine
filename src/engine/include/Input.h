@@ -267,7 +267,7 @@ enum class EKey : uint32{
 
 class CInput {
 
-	static CInput& get() {
+	constexpr static CInput& get() {
 		static CInput input;
 		return input;
 	}

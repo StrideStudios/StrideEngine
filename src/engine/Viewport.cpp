@@ -8,11 +8,12 @@
 void sdlCallback(void* callback, const char* const* inFileName, int inFilter) {
 	if (inFileName == nullptr || *inFileName == nullptr) return;
 
+	std::vector<std::string> fileNames;
 	while (*inFileName != nullptr) {
-		msgs("{}", *inFileName);
-		(*reinterpret_cast<SEngineViewport::cb*>(callback))(*inFileName);
+		fileNames.push_back(*inFileName);
 		++inFileName;
 	}
+	(*reinterpret_cast<SEngineViewport::cb*>(callback))(fileNames);
 }
 
 void SEngineViewport::queryForFile(const std::vector<std::pair<const char*, const char*>>& inFilters, cb callback) {

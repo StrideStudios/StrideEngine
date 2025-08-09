@@ -201,7 +201,7 @@ public:
 
 class CThreading {
 
-	static CThreading& get() {
+	constexpr static CThreading& get() {
 		static CThreading threading;
 		return threading;
 	}

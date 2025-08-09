@@ -7,7 +7,7 @@
 #include "EngineBuffers.h"
 #include "ResourceManager.h"
 
-struct SBounds {
+/*struct SBounds {
 	Vector3f origin;
 	float sphereRadius;
 	Vector3f extents;
@@ -149,7 +149,7 @@ struct SMeshData {
 		inArchive >> inData.bounds;
 		return inArchive;
 	}
-};
+};*/
 
 class CMeshLoader {
 

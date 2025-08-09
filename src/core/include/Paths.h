@@ -40,7 +40,7 @@ public:
 		mAssetCachePath = mCachePath.string() + "assets\\";
 	}
 
-	static SPaths& get() {
+	constexpr static SPaths& get() {
 		static SPaths paths;
 		return paths;
 	}

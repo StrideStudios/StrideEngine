@@ -1,11 +1,22 @@
 ﻿#pragma once
 
+#include <utility>
 #include <vector>
 #include <string>
+#include <map>
 
 #include "Common.h"
 
 class CArchive;
+
+// Use a local class to get around the inability to call functions from a static context
+#define REGISTER_CLASS(n) \
+	private: \
+	struct Registry { Registry() { CArchiveFactory::registerClass<n>(#n); } }; \
+	inline static Registry reg{}; \
+	public: \
+	virtual std::string getTypeId() const { return #n; } \
+	private:
 
 // A serializable function that can be passed down
 class ISerializable {
@@ -13,6 +24,34 @@ public:
 	virtual CArchive& save(CArchive& archive) = 0;
 
 	virtual CArchive& load(CArchive& archive) = 0;
+};
+
+template <class TType> std::shared_ptr<void> constructor() { return std::make_shared<TType>(); }
+
+class CArchiveFactory final {
+
+	typedef std::shared_ptr<void>(*constructor_t)();
+	std::map<std::string, constructor_t> m_Classes;
+
+	constexpr static CArchiveFactory& get() {
+		static CArchiveFactory archiveFactory;
+		return archiveFactory;
+	}
+
+public:
+
+	template <typename TType>
+	constexpr static bool registerClass(const std::string& typeName) {
+		get().m_Classes.insert(std::make_pair(typeName, &constructor<TType>));
+		return true;
+	}
+
+	static std::shared_ptr<void> construct(const std::string& inTypeName) {
+		if (!get().m_Classes.contains(inTypeName)) {
+			errs("Could not construct class {}", inTypeName.c_str());
+		}
+		return get().m_Classes[inTypeName]();
+	}
 };
 
 class CArchive {
@@ -83,7 +122,7 @@ public:
 	//
 	// Vectors
 	//
-
+	//TODO: inherited classes DO NOT work
 	template <typename TType, class TAlloc = std::allocator<TType>>
 	friend CArchive& operator<<(CArchive& inArchive, const std::vector<TType, TAlloc>& inValue) {
 		inArchive << inValue.size();
@@ -128,18 +167,29 @@ public:
 
 	//
 	// Pointers need to be dereferenced on write and constructed on read
+	// Polymorphic types for shared_ptr must use REGISTER_CLASS so the type can be created
 	//
 
 	template <typename TType>
+	requires not std::is_polymorphic_v<TType> or std::is_default_constructible_v<typename TType::Registry>
 	friend CArchive& operator<<(CArchive& inArchive, const std::shared_ptr<TType>& inValue) {
+		if constexpr (std::is_polymorphic_v<TType>) {
+			inArchive << inValue->getTypeId();
+		}
 		inArchive << *inValue;
 		return inArchive;
 	}
 
 	template <typename TType>
-	requires std::is_default_constructible_v<TType>
+	requires std::is_default_constructible_v<TType> and (not std::is_polymorphic_v<TType> or std::is_default_constructible_v<typename TType::Registry>)
 	friend CArchive& operator>>(CArchive& inArchive, std::shared_ptr<TType>& inValue) {
-		inValue = std::make_shared<TType>();
+		if constexpr (std::is_polymorphic_v<TType>) {
+			std::string typeName;
+			inArchive >> typeName;
+			inValue = std::static_pointer_cast<TType>(CArchiveFactory::construct(typeName));
+		} else {
+			inValue = std::make_shared<TType>();
+		}
 		inArchive >> *inValue;
 		return inArchive;
 	}

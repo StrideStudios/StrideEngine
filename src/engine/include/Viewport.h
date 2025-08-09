@@ -9,7 +9,7 @@ struct SEngineViewport {
 
 	SEngineViewport() = default;
 
-	typedef void cb(const char* fileName);
+	typedef void cb(std::vector<std::string> inFiles);
 
 	static void queryForFile(const std::vector<std::pair<const char*, const char*>>& inFilters, cb callback);
 

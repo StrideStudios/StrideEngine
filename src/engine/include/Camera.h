@@ -4,6 +4,9 @@
 #include "SceneObject.h"
 
 class CCamera : public CSceneObject {
+
+	REGISTER_CLASS(CCamera)
+
 public:
 
 	CCamera();
