@@ -4,16 +4,9 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/packing.hpp>
 
-#include "Engine.h"
 #include "ShaderCompiler.h"
-#include "EngineBuffers.h"
 #include "EngineSettings.h"
-#include "EngineTextures.h"
-#include "GpuScene.h"
-#include "ResourceManager.h"
 #include "StaticMesh.h"
-#include "VkBootstrap.h"
-#include "VulkanUtils.h"
 
 VkPipeline CPipelineBuilder::buildPipeline(VkDevice inDevice) const {
 	// Make viewport state from our stored viewport and scissor.

@@ -17,9 +17,9 @@ class CMeshPass : public CPass, public IInitializable<EMeshPass> {
 
 public:
 
-	void init(EMeshPass inPassType) override;
+	virtual void init(EMeshPass inPassType) override;
 
-	void render(VkCommandBuffer cmd) override;
+	virtual void render(VkCommandBuffer cmd) override;
 
 	EMeshPass passType;
 

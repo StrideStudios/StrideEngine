@@ -3,35 +3,17 @@
 #include <thread>
 
 #include "Engine.h"
-
-CVulkanDevice::CVulkanDevice() {
-    vkb::InstanceBuilder builder;
-
-    auto instance = builder.set_app_name(gEngineName)
-            .request_validation_layers(true)
-            .use_default_debug_messenger()
-            .require_api_version(1, 3, 0)
-            .build();
-
-    m_Instance = std::make_unique<vkb::Instance>(instance.value());
-}
+#include "Viewport.h"
 
 SQueue CVulkanDevice::getQueue(const EQueueType inType) {
     return CEngine::get().m_Device->mQueues[inType];
 }
 
-void CVulkanDevice::initDevice() {
-    // Swapchain Maintenence features
+void CVulkanDevice::init() {
+    // Swapchain Maintenance features
     VkPhysicalDeviceSwapchainMaintenance1FeaturesEXT swapchainMaintenance1Features{
         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SWAPCHAIN_MAINTENANCE_1_FEATURES_EXT,
         .swapchainMaintenance1 = true
-    };
-
-    VkFormatProperties2 formatFeatures{
-        .sType = VK_STRUCTURE_TYPE_FORMAT_PROPERTIES_2,
-        .formatProperties = {
-            .bufferFeatures = VK_FORMAT_FEATURE_BLIT_DST_BIT
-        }
     };
 
     //TODO: some better way of defining what features are required and what is not
@@ -67,7 +49,7 @@ void CVulkanDevice::initDevice() {
     };
 
     //TODO: send out a simple error window telling the user why vulkan crashed (SimpleErrorReporter or something)
-    vkb::PhysicalDeviceSelector selector{getInstance()};
+    vkb::PhysicalDeviceSelector selector{CEngine::instance()};
     auto physicalDevice = selector
             .set_minimum_version(1, 3)
             .set_required_features(features)
@@ -121,7 +103,6 @@ void CVulkanDevice::initDevice() {
     }
 }
 
-void CVulkanDevice::destroy() const {
+void CVulkanDevice::destroy() {
     vkb::destroy_device(getDevice());
-    vkb::destroy_instance(getInstance());
 }

@@ -4,14 +4,23 @@
 #include <vulkan/vulkan_core.h>
 
 #include "Common.h"
+#include "ResourceManager.h"
 
-struct SEngineViewport {
+class CEngineViewport : public IInitializable<>, public IDestroyable {
 
-	SEngineViewport() = default;
+public:
+
+	CEngineViewport() = default;
 
 	typedef void cb(std::vector<std::string> inFiles);
 
 	static void queryForFile(const std::vector<std::pair<const char*, const char*>>& inFilters, cb callback);
+
+	virtual void init() override;
+
+	virtual void destroy() override;
+
+	void pollEvents(bool& outRunning, bool& outPauseRendering);
 
 	void set(const VkCommandBuffer cmd) const {
 		VkViewport viewport = {};

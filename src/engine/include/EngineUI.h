@@ -7,10 +7,10 @@
 
 #include "Common.h"
 #include "EngineLoader.h"
-#include "GpuScene.h"
 #include "Material.h"
 #include "Scene.h"
 #include "SpritePass.h"
+#include "StaticMesh.h"
 #include "Threading.h"
 #include "VulkanRenderer.h"
 #include "Viewport.h"
@@ -53,7 +53,8 @@ namespace EngineUI {
 			.pPoolSizes = poolSizes
 		};
 
-		const VkDescriptorPool descriptorPool = renderer.mGlobalResourceManager.allocateDescriptorPool(poolCreateInfo);
+		CDescriptorPool* descriptorPool;
+		renderer.mGlobalResourceManager.createDestroyable(descriptorPool, poolCreateInfo);
 
 		// this initializes imgui for Vulkan
 		ImGui_ImplVulkan_InitInfo initInfo {
@@ -61,7 +62,7 @@ namespace EngineUI {
 			.PhysicalDevice = CEngine::physicalDevice(),
 			.Device = CEngine::device(),
 			.Queue = inQueue,
-			.DescriptorPool = descriptorPool,
+			.DescriptorPool = *descriptorPool,
 			.MinImageCount = 3,
 			.ImageCount = 3,
 			.UseDynamicRendering = true
@@ -161,7 +162,7 @@ namespace EngineUI {
 				};
 
 				//TODO: file query shouldnt be in viewport
-				SEngineViewport::queryForFile(filters, [](std::vector<std::string> inFiles) {
+				CEngineViewport::queryForFile(filters, [](std::vector<std::string> inFiles) {
 					for (const auto& file : inFiles) {
 						CThreading::runOnBackgroundThread([file] {
 							CEngineLoader::importTexture(file);
@@ -266,7 +267,7 @@ namespace EngineUI {
 	static void renderSpriteUI() {
 		return;
 		if (ImGui::Begin("Sprites")) {
-			for (const auto& sprite : CEngine::renderer().mGPUScene->spritePass->objects) {
+			for (const auto& sprite : CEngine::renderer().mSpritePass->objects) {
 				if (ImGui::BeginTabBar("Sprite")) {
 					if (ImGui::BeginTabItem(sprite->name.c_str())) {
 						//ImGui::Checkbox("Highlight", &material.material->mHighlight);
@@ -327,7 +328,7 @@ namespace EngineUI {
 				};
 
 				//TODO: file query shouldn't be in viewport
-				SEngineViewport::queryForFile(filters, [](std::vector<std::string> inFiles) {
+				CEngineViewport::queryForFile(filters, [](std::vector<std::string> inFiles) {
 					for (const auto& file : inFiles) {
 						CThreading::runOnBackgroundThread([file] {
 							CEngineLoader::importMesh(file);

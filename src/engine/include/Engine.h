@@ -2,9 +2,7 @@
 
 #include <memory>
 
-#include "Camera.h"
 #include "Common.h"
-#include "Viewport.h"
 
 // Forward declare vkb types
 namespace vkb {
@@ -13,8 +11,11 @@ namespace vkb {
 	struct PhysicalDevice;
 }
 
+class CCamera;
+struct SVulkanInstance;
 class CVulkanDevice;
 class CVulkanRenderer;
+class CEngineViewport;
 
 constexpr static auto gEngineName = text("Stride Engine");
 
@@ -52,9 +53,9 @@ public:
 
 	no_discard Time& getTime() { return m_Time; }
 
-	no_discard const SEngineViewport& getViewport() const { return m_EngineViewport; }
+	no_discard const CEngineViewport& getViewport() const { return *m_EngineViewport; }
 
-	CCamera mMainCamera;
+	CCamera* mMainCamera = nullptr;
 
 private:
 
@@ -76,14 +77,16 @@ private:
 	Time m_Time{};
 
 	// SDL Window
-	SEngineViewport m_EngineViewport{};
+	CEngineViewport* m_EngineViewport = nullptr;
 
 	//
 	// Vulkan
 	//
 
-    std::unique_ptr<CVulkanDevice> m_Device = nullptr;
+	SVulkanInstance* m_Instance = nullptr;
 
-    std::unique_ptr<CVulkanRenderer> m_Renderer = nullptr;
+    CVulkanDevice* m_Device = nullptr;
+
+	CVulkanRenderer* m_Renderer = nullptr;
 
 };

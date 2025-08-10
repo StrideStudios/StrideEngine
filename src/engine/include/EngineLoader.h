@@ -5,11 +5,52 @@
 #include <string>
 #include <memory>
 
-#include "EngineBuffers.h"
 #include "Material.h"
 #include "Paths.h"
+#include "VulkanResourceManager.h"
 
 struct SStaticMesh;
+
+// Represents a vertex
+struct SVertex {
+	Vector3f position{0.f};
+	uint32 uv = 0u;
+	Vector3f normal{0.f};
+	uint32 color = 0xffffffff;
+
+	void setUV(const half inUVx, const half inUVy) {
+		const uint32 x = inUVx.data & 0xffff;
+		const uint32 y = inUVy.data << 16;
+		uv = x | y;
+	}
+
+	void setColor(const Color4 inColor) {
+		color = (inColor.x & 0xff) |
+			((inColor.y & 0xff) << 8) |
+			((inColor.z & 0xff) << 16) |
+			((inColor.w & 0xff) << 24);
+	}
+
+	friend CArchive& operator<<(CArchive& inArchive, const SVertex& inVertex) {
+		inArchive << inVertex.position;
+		inArchive << inVertex.uv;
+		inArchive << inVertex.normal;
+		inArchive << inVertex.color;
+		return inArchive;
+	}
+
+	friend CArchive& operator>>(CArchive& inArchive, SVertex& inVertex) {
+		inArchive >> inVertex.position;
+		inArchive >> inVertex.uv;
+		inArchive >> inVertex.normal;
+		inArchive >> inVertex.color;
+		return inArchive;
+	}
+};
+
+struct SInstance {
+	Matrix4f Transform;
+};
 
 struct SBounds {
 	Vector3f origin;
@@ -37,10 +78,10 @@ struct SMeshData {
 
 	struct Surface {
 
-		std::string name;
+		std::string name{};
 
-		uint32 startIndex;
-		uint32 count;
+		uint32 startIndex = 0;
+		uint32 count = 0;
 
 		friend CArchive& operator<<(CArchive& inArchive, const Surface& inSurface) {
 			inArchive << inSurface.name;
@@ -62,11 +103,11 @@ struct SMeshData {
 		uint8 i1, i2, i3;
 	};
 
-	bool mHasVertexColor;
-	std::vector<uint32> indices;
-	std::vector<SVertex> vertices;
-	std::vector<Surface> surfaces;
-	SBounds bounds;
+	bool mHasVertexColor = false;
+	std::vector<uint32> indices{};
+	std::vector<SVertex> vertices{};
+	std::vector<Surface> surfaces{};
+	SBounds bounds{};
 
 	friend CArchive& operator<<(CArchive& inArchive, const SMeshData& inData) {
 		inArchive << inData.mHasVertexColor;
@@ -168,9 +209,7 @@ class CEngineLoader {
 		path.append(inFileName);
 
 		CFileArchive file(path.string(), "wb");
-
 		file << inValue;
-
 		file.close();
 	}
 
@@ -179,9 +218,7 @@ class CEngineLoader {
 		CFileArchive file(inPath.string(), "rb");
 
 		TType value;
-
 		file >> value;
-
 		file.close();
 
 		return value;
@@ -201,9 +238,9 @@ public:
 
 	static void importTexture(const std::filesystem::path& inPath);
 
-	static std::map<std::string, SImage> getImages() { return get().mImages; }
+	static std::map<std::string, SImage_T*> getImages() { return get().mImages; }
 
-	std::map<std::string, SImage> mImages{};
+	std::map<std::string, SImage_T*> mImages{};
 
 	//
 	// Materials

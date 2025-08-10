@@ -8,31 +8,26 @@
 #include "Hashing.h"
 
 struct SMaterialPipeline {
-	VkPipeline pipeline;
-	VkPipelineLayout layout;
+	class CPipeline* pipeline;
+	class CPipelineLayout* layout;
 };
 
 enum class EMaterialPass : uint8 {
 	OPAQUE,
 	TRANSLUCENT,
-	HIGHLIGHT,
 	ERROR,
 	MAX
 };
 ENUM_TO_STRING(MaterialPass, uint8,
 	"Opaque",
 	"Translucent",
-	"Highlight",
 	"Error");
 ENUM_OPERATORS(MaterialPass, uint8)
 
 // Push constants allow for a max of 128 bytes (modern hardware can do 256, but is not guaranteed)
-// This means you can push 16 floating point values
-// Since these are used to access the bindless textures, that means a max of 16 textures, or 32 if double packed
+// This means you can push 32 floating point values
+// Since these are used to access the bindless textures, that means a max of 32 textures, or 64 if double packed
 // If i wish to double pack i need to make sure max textures is uint16
-
-//TODO: ensure this, for now 16 works but having more textures would be more better
-static uint16 gMaxTextures = std::numeric_limits<uint16>::max();
 
 // Safe array for push constants that is always filled by default
 struct SPushConstants : std::array<Vector4f, 8> {
@@ -85,7 +80,7 @@ public:
 	friend CArchive& operator>>(CArchive& inArchive, CMaterial& inMaterial) {
 		if (inMaterial.mShouldSave) {
 			int32 hash;
-			inArchive >> hash;
+			inArchive >> hash;//TODO: hash
 			inArchive >> inMaterial.mName;
 			inArchive >> inMaterial.mPassType;
 			inArchive >> inMaterial.mCode;

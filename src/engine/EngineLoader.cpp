@@ -12,19 +12,18 @@
 #include <meshoptimizer.h>
 
 #include "Engine.h"
-#include "GpuScene.h"
+#include "EngineTextures.h"
 #include "encoder/basisu_comp.h"
 #include "transcoder/basisu_transcoder.h"
 #include "encoder/basisu_gpu_texture.h"
 
-#include "ResourceManager.h"
 #include "StaticMesh.h"
 #include "VulkanRenderer.h"
 #include "VulkanUtils.h"
 
 constexpr static bool gUseOpenCL = false;
 
-SImage loadImage(CResourceManager& allocator, const std::filesystem::path& path) {
+SImage_T* loadImage(CVulkanResourceManager& allocator, const std::filesystem::path& path) {
 	const std::string& fileName = path.filename().string();
 
 	basisu::uint8_vec fileData;
@@ -48,7 +47,7 @@ SImage loadImage(CResourceManager& allocator, const std::filesystem::path& path)
 	msgs("Texture dimensions: ({}x{}), levels: {}", width, height, numMips);
 
 	// Allocate image and transition to dst
-	SImage image = allocator.allocateImage(fileName, imageSize, VK_FORMAT_BC7_SRGB_BLOCK, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_IMAGE_ASPECT_COLOR_BIT, numMips);
+	SImage_T* image = allocator.allocateImage(fileName, imageSize, VK_FORMAT_BC7_SRGB_BLOCK, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_IMAGE_ASPECT_COLOR_BIT, numMips);
 
 	CVulkanRenderer::immediateSubmit([&](VkCommandBuffer cmd) {
 		CVulkanUtils::transitionImage(cmd, image->mImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
@@ -75,8 +74,8 @@ SImage loadImage(CResourceManager& allocator, const std::filesystem::path& path)
 		levelSize.depth = 1;
 
 		// Upload buffer is not needed outside of this function
-		CResourceManager manager;
-		const SBuffer uploadBuffer = manager.allocateBuffer(image_size, VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+		CVulkanResourceManager manager;
+		const SBuffer_T* uploadBuffer = manager.allocateBuffer(image_size, VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
 
 		memcpy(uploadBuffer->GetMappedData(), pImage, image_size);
 
@@ -236,7 +235,7 @@ MeshData loadGLTF_Internal(CVulkanRenderer* renderer, std::filesystem::path path
 			if (gltf.accessors[p.indicesAccessor.value()].count <= 0) continue;
 
 			SStaticMesh::Surface newSurface;
-			newSurface.material = renderer->mGPUScene->mErrorMaterial;
+			newSurface.material = renderer->mEngineTextures->mErrorMaterial;
 			newSurface.startIndex = (uint32)indices.size();
 			newSurface.count = (uint32)gltf.accessors[p.indicesAccessor.value()].count;
 
@@ -366,22 +365,63 @@ std::shared_ptr<SMeshData> readMeshData(const std::filesystem::path& path) {
 	return outSaveData;
 }
 
+SMeshBuffers_T uploadMesh(CVulkanResourceManager& inManager, std::span<uint32> indices, std::span<SVertex> vertices) {
+	const size_t vertexBufferSize = vertices.size() * sizeof(SVertex);
+	const size_t indexBufferSize = indices.size() * sizeof(uint32);
+
+	// Create buffers
+	SMeshBuffers_T meshBuffers = inManager.allocateMeshBuffer(indexBufferSize, vertexBufferSize);
+
+	// Staging is not needed outside of this function
+	CVulkanResourceManager manager;
+	const SBuffer_T* staging = manager.allocateBuffer(vertexBufferSize + indexBufferSize, VMA_MEMORY_USAGE_CPU_ONLY, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+
+	void* data = staging->GetMappedData();
+
+	// copy vertex buffer
+	memcpy(data, vertices.data(), vertexBufferSize);
+	// copy index buffer
+	memcpy((char*)data + vertexBufferSize, indices.data(), indexBufferSize);
+
+	//TODO: slow, render thread?
+	// also from an older version of the tutorial, doesnt use sync2
+	CVulkanRenderer::immediateSubmit([&](VkCommandBuffer cmd) {
+		VkBufferCopy vertexCopy{};
+		vertexCopy.dstOffset = 0;
+		vertexCopy.srcOffset = 0;
+		vertexCopy.size = vertexBufferSize;
+
+		vkCmdCopyBuffer(cmd, staging->buffer, meshBuffers.vertexBuffer->buffer, 1, &vertexCopy);
+
+		VkBufferCopy indexCopy{};
+		indexCopy.dstOffset = 0;
+		indexCopy.srcOffset = vertexBufferSize;
+		indexCopy.size = indexBufferSize;
+
+		vkCmdCopyBuffer(cmd, staging->buffer, meshBuffers.indexBuffer->buffer, 1, &indexCopy);
+	});
+
+	manager.flush();
+
+	return meshBuffers;
+}
+
 std::shared_ptr<SStaticMesh> toStaticMesh(const std::shared_ptr<SMeshData>& mesh, const std::string& fileName) {
 	CVulkanRenderer& renderer = CEngine::renderer();
 
 	auto loadMesh = std::make_shared<SStaticMesh>();
 	loadMesh->name = fileName;
 	loadMesh->bounds = mesh->bounds;
-	for (auto&[name, startIndex, count] : mesh->surfaces) {
+	for (auto& [name, startIndex, count] : mesh->surfaces) {
 		loadMesh->surfaces.push_back({
 			.name = name,
-			.material = renderer.mGPUScene->mErrorMaterial,
+			.material = renderer.mEngineTextures->mErrorMaterial,
 			.startIndex = startIndex,
 			.count = count
 		});
 	}
 
-	loadMesh->meshBuffers = renderer.mEngineBuffers->uploadMesh(renderer.mGlobalResourceManager, mesh->indices, mesh->vertices);
+	loadMesh->meshBuffers = uploadMesh(renderer.mGlobalResourceManager, mesh->indices, mesh->vertices);
 	return loadMesh;
 }
 
@@ -423,7 +463,7 @@ void CEngineLoader::load() {
 
 	// Load textures
 	for (const auto& path : textures) {
-		SImage image = loadImage(CEngine::renderer().mGlobalResourceManager, path);
+		SImage_T* image = loadImage(CEngine::renderer().mGlobalResourceManager, path);
 		get().mImages.emplace(pathToName(path), image);
 	}
 
@@ -474,7 +514,7 @@ void CEngineLoader::importTexture(const std::filesystem::path& inPath) {
 
 	basisu::basis_free_data(pKTX2_data);
 
-	SImage loadedImage = loadImage(CEngine::renderer().mGlobalResourceManager, cachedPath);
+	SImage_T* loadedImage = loadImage(CEngine::renderer().mGlobalResourceManager, cachedPath);
 
 	get().mImages.emplace(loadedImage->name, loadedImage);
 }

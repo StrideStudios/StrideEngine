@@ -136,11 +136,11 @@ public:
 
 private:
 
-	void render() override {
+	virtual void render() override {
 		ImGui::Text(m_Text.c_str());
 	}
 
-	uint32 getTypeOrder() const override {
+	virtual uint32 getTypeOrder() const override {
 		return 0;
 	}
 
@@ -262,7 +262,7 @@ protected:
 
 private:
 
-	uint32 getTypeOrder() const override {
+	virtual uint32 getTypeOrder() const override {
 		return (uint32)m_Type + 1;
 	}
 	
@@ -347,7 +347,7 @@ public:
 
 private:
 
-	void render() override {
+	virtual void render() override {
 		if constexpr (std::is_same_v<TType, bool>) {
 			ImGui::Checkbox(m_Command.c_str(), &m_Value.bValue);
 		} else if constexpr (std::is_same_v<TType, int32>) {

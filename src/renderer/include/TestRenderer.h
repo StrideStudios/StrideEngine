@@ -3,10 +3,11 @@
 #include "VulkanRenderer.h"
 
 class CTestRenderer : public CVulkanRenderer {
-	void init() override;
+public:
+	virtual void init() override;
 
-	void destroy() override;
+	virtual void destroy() override;
 
-	void render(VkCommandBuffer cmd) override;
+	virtual void render(VkCommandBuffer cmd) override;
 
 };

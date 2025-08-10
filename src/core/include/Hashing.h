@@ -2,6 +2,7 @@
 
 #include <fstream>
 
+#include "Archive.h"
 #include "Common.h"
 
 // Simple hashing, could potentially have repeats, but it is unlikely

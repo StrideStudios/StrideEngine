@@ -6,6 +6,7 @@
 #include <tracy/Tracy.hpp>
 #include <tracy/TracyVulkan.hpp>
 
+#include "Camera.h"
 #include "VulkanDevice.h"
 #include "VulkanUtils.h"
 #include "vulkan/vk_enum_string_helper.h"
@@ -15,11 +16,9 @@
 #include "ShaderCompiler.h"
 #include "EngineSettings.h"
 #include "EngineTextures.h"
-#include "EngineBuffers.h"
 #include "EngineUI.h"
-#include "GpuScene.h"
-#include "MeshLoader.h"
-#include "ResourceManager.h"
+#include "MeshPass.h"
+#include "Swapchain.h"
 
 #define SETTINGS_CATEGORY "Engine"
 ADD_COMMAND(bool, UseVsync, true);
@@ -34,7 +33,7 @@ void CVulkanRenderer::immediateSubmit(std::function<void(VkCommandBuffer cmd)>&&
 
 	std::unique_lock lock(renderer.mUploadContext.mMutex);
 
-	VkCommandBuffer cmd = renderer.mUploadContext._commandBuffer;
+	VkCommandBuffer cmd = renderer.mUploadContext.mCommandBuffer;
 
 	//begin the command buffer recording. We will use this command buffer exactly once before resetting, so we tell vulkan that
 	VkCommandBufferBeginInfo cmdBeginInfo = CVulkanInfo::createCommandBufferBeginInfo(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
@@ -48,32 +47,35 @@ void CVulkanRenderer::immediateSubmit(std::function<void(VkCommandBuffer cmd)>&&
 
 	VkSubmitInfo submit = CVulkanInfo::submitInfo(&cmd);
 
-	VK_CHECK(vkResetFences(device, 1, &renderer.mUploadContext._uploadFence));
+	VK_CHECK(vkResetFences(device, 1, &renderer.mUploadContext.mUploadFence->mFence));
 
 	//submit command buffer to the queue and execute it.
 	// _uploadFence will now block until the graphic commands finish execution
-	VK_CHECK(vkQueueSubmit(CVulkanDevice::getQueue(EQueueType::UPLOAD).mQueue, 1, &submit, renderer.mUploadContext._uploadFence));
+	VK_CHECK(vkQueueSubmit(CVulkanDevice::getQueue(EQueueType::UPLOAD).mQueue, 1, &submit, *renderer.mUploadContext.mUploadFence));
 
-	VK_CHECK(vkWaitForFences(device, 1, &renderer.mUploadContext._uploadFence, true, 1000000000));
+	VK_CHECK(vkWaitForFences(device, 1, &renderer.mUploadContext.mUploadFence->mFence, true, 1000000000));
 
 	// reset the command buffers inside the command pool
-	VK_CHECK(vkResetCommandPool(device, renderer.mUploadContext._commandPool, 0));
+	VK_CHECK(vkResetCommandPool(device, *renderer.mUploadContext.mCommandPool, 0));
 }
 
 void CVulkanRenderer::init() {
 	// Ensure the renderer is only created once
 	astsOnce(CVulkanRenderer);
 
+	// Initialize the allocator
+	CVulkanResourceManager::init();
+
 	VkCommandPoolCreateInfo uploadCommandPoolInfo = CVulkanInfo::createCommandPoolInfo(CVulkanDevice::getQueue(EQueueType::UPLOAD).mFamily);
 	//create pool for upload context
-	mUploadContext._commandPool = mGlobalResourceManager.allocateCommandPool(uploadCommandPoolInfo);
+	mGlobalResourceManager.createDestroyable(mUploadContext.mCommandPool, uploadCommandPoolInfo);
 
 	//allocate the default command buffer that we will use for the instant commands
-	VkCommandBufferAllocateInfo cmdAllocInfo = CVulkanInfo::createCommandAllocateInfo(mUploadContext._commandPool, 1);
-	mUploadContext._commandBuffer = CResourceManager::allocateCommandBuffer(cmdAllocInfo);
+	VkCommandBufferAllocateInfo cmdAllocInfo = CVulkanInfo::createCommandAllocateInfo(*mUploadContext.mCommandPool, 1);
+	mUploadContext.mCommandBuffer = CVulkanResourceManager::allocateCommandBuffer(cmdAllocInfo);
 
 	VkFenceCreateInfo fenceCreateInfo = CVulkanInfo::createFenceInfo(VK_FENCE_CREATE_SIGNALED_BIT);
-	mUploadContext._uploadFence = mGlobalResourceManager.allocateFence(fenceCreateInfo);
+	mGlobalResourceManager.createDestroyable(mUploadContext.mUploadFence, fenceCreateInfo);
 
 	{
 		// Create a command pool for commands submitted to the graphics queue.
@@ -82,12 +84,12 @@ void CVulkanRenderer::init() {
 			CVulkanDevice::getQueue(EQueueType::GRAPHICS).mFamily, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
 		for (auto &frame: mFrames) {
-			frame.mCommandPool = mGlobalResourceManager.allocateCommandPool(commandPoolInfo);
+			mGlobalResourceManager.createDestroyable(frame.mCommandPool, commandPoolInfo);
 
 			// Allocate the default command buffer that we will use for rendering
-			VkCommandBufferAllocateInfo cmdAllocInfo = CVulkanInfo::createCommandAllocateInfo(frame.mCommandPool, 1);
+			VkCommandBufferAllocateInfo frameCmdAllocInfo = CVulkanInfo::createCommandAllocateInfo(*frame.mCommandPool, 1);
 
-			frame.mMainCommandBuffer = CResourceManager::allocateCommandBuffer(cmdAllocInfo);
+			frame.mMainCommandBuffer = CVulkanResourceManager::allocateCommandBuffer(frameCmdAllocInfo);
 
 			frame.mTracyContext = TracyVkContext(CEngine::physicalDevice(), CEngine::device(), CVulkanDevice::getQueue(EQueueType::GRAPHICS).mQueue, frame.mMainCommandBuffer);
 		}
@@ -95,18 +97,17 @@ void CVulkanRenderer::init() {
 
 	mGlobalResourceManager.createDestroyable(mEngineTextures);
 
-	mGlobalResourceManager.createDestroyable(mEngineBuffers);
+	mSceneDataBuffer = mGlobalResourceManager.allocateGlobalBuffer(sizeof(SceneData), VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
 
-	mGlobalResourceManager.createDestroyable(mGPUScene);
+	mGlobalResourceManager.createDestroyable(mBasePass, EMeshPass::BASE_PASS);
+
+	mGlobalResourceManager.createDestroyable(mSpritePass);
 
 	// Setup Engine UI
 	EngineUI::init(CVulkanDevice::getQueue(EQueueType::GRAPHICS).mQueue, mEngineTextures->getSwapchain().mFormat);
 }
 
 void CVulkanRenderer::destroy() {
-
-	//mGPUScene->m_LoadedScenes.clear();
-
 	EngineUI::destroy();
 
 	for (auto& frame : mFrames) {
@@ -116,6 +117,9 @@ void CVulkanRenderer::destroy() {
 	}
 
 	mGlobalResourceManager.flush();
+
+	// Destroy allocator, if not all allocations have been destroyed, it will throw an error
+	CVulkanResourceManager::destroyAllocator();
 }
 
 void CVulkanRenderer::draw() {
@@ -135,8 +139,6 @@ void CVulkanRenderer::draw() {
 		}
 	};
 	swapchainDirtyCheck();
-
-	//std::unique_lock lock(mUploadContext.mMutex);
 
 	// Get command buffer from current frame
 	VkCommandBuffer cmd = getCurrentFrame().mMainCommandBuffer;
@@ -208,12 +210,41 @@ void CVulkanRenderer::draw() {
 		};
 
 		{
-			ZoneScopedN("Run GPU Scene");
+			ZoneScopedN("Update Scene Data");
+
+			// Update Scene Data Buffer
+			{
+
+				mSceneData.mScreenSize = Vector2f((float)extent.width, (float)extent.height);
+				mSceneData.mInvScreenSize = Vector2f(1.f / (float)extent.width, 1.f / (float)extent.height);
+
+				mSceneData.mViewProj = CEngine::get().mMainCamera->getViewProjectionMatrix();
+
+				//some default lighting parameters
+				mSceneData.mAmbientColor = glm::vec4(.1f);
+				mSceneData.mSunlightColor = glm::vec4(1.f);
+				mSceneData.mSunlightDirection = glm::vec4(0,1,0.5,1.f);
+
+				//allocate a new uniform buffer for the scene data
+				//m_GPUSceneDataBuffer = renderer.getCurrentFrame().mFrameResourceManager.allocateBuffer(sizeof(Data), VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
+			}
+
+			//write the buffer
+			auto* sceneUniformData = static_cast<SceneData*>(mSceneDataBuffer->GetMappedData());
+			*sceneUniformData = mSceneData;
+
+			CVulkanResourceManager::updateGlobalBuffer(mSceneDataBuffer);
+		}
+
+		{
+			ZoneScopedN("Render");
 
 			VkRenderingInfo renderInfo = CVulkanUtils::createRenderingInfo(extent, &colorAttachment, &depthAttachment);
 			vkCmdBeginRendering(cmd, &renderInfo);
 
-			mGPUScene->render(cmd);
+			mBasePass->render(cmd);
+
+			//spritePass->render(cmd);
 
 			vkCmdEndRendering(cmd);
 		}
@@ -229,7 +260,7 @@ void CVulkanRenderer::draw() {
 
 		// Execute a copy from the draw image into the swapchain
 		auto [width, height, depth] = mEngineTextures->mDrawImage->mImageExtent;
-		CVulkanUtils::copyImageToImage(cmd, mEngineTextures->mDrawImage->mImage, swapchainImage, {width, height}, mEngineTextures->getSwapchain().mSwapchain->extent);
+		CVulkanUtils::copyImageToImage(cmd, mEngineTextures->mDrawImage->mImage, swapchainImage, {width, height}, mEngineTextures->getSwapchain().mSwapchain->mSwapchain.extent);
 
 		// Set swapchain layout so it can be used by ImGui
 		CVulkanUtils::transitionImage(cmd, swapchainImage,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
@@ -238,7 +269,7 @@ void CVulkanRenderer::draw() {
 		EngineUI::runEngineUI();
 
 		// Add the UI to the swapchain
-		EngineUI::render(cmd, mEngineTextures->getSwapchain().mSwapchain->extent, swapchainImageView);
+		EngineUI::render(cmd, mEngineTextures->getSwapchain().mSwapchain->mSwapchain.extent, swapchainImageView);
 
 		// Set swapchain image layout to Present so we can show it on the screen
 		CVulkanUtils::transitionImage(cmd, swapchainImage,VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);

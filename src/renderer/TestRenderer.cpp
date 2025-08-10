@@ -3,7 +3,6 @@
 #include "Archive.h"
 #include "Engine.h"
 #include "VulkanDevice.h"
-#include "GpuScene.h"
 #include "imgui.h"
 
 #define BASISU_FORCE_DEVEL_MESSAGES 1
@@ -105,14 +104,14 @@ void CTestRenderer::init() {
 	}
 	size_t size = spriteData.size() * sizeof(InputData);
 
-	SBuffer buffer = mGlobalResourceManager.allocateBuffer(size, VMA_MEMORY_USAGE_GPU_ONLY, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
+	SBuffer_T* buffer = mGlobalResourceManager.allocateBuffer(size, VMA_MEMORY_USAGE_GPU_ONLY, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
 
 	VkBufferDeviceAddressInfo deviceAddressInfo{ .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,.buffer = buffer->buffer };
 	VkDeviceAddress vertexBufferAddress = vkGetBufferDeviceAddress(CEngine::device(), &deviceAddressInfo);
 
 	// Staging is not needed outside of this function
-	CResourceManager manager;
-	const SBuffer staging = manager.allocateBuffer(size, VMA_MEMORY_USAGE_CPU_ONLY, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+	CVulkanResourceManager manager;
+	const SBuffer_T* staging = manager.allocateBuffer(size, VMA_MEMORY_USAGE_CPU_ONLY, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
 
 	void* data = staging->GetMappedData();
 
@@ -139,10 +138,10 @@ void CTestRenderer::init() {
 	sprite->name = "Test Sprite";
 	sprite->material = material;
 	sprite->mInstances = numSprites;
-	mGPUScene->spritePass->push(sprite);
+	mSpritePass->push(sprite);
 
 
-	const std::string path = SPaths::get().mAssetPath.string() + "materials.txt";
+	const std::string path = SPaths::get().mAssetCachePath.string() + "materials.txt";
 	if (CFileArchive inFile(path, "rb"); inFile.isOpen())
 		inFile >> CMaterial::getMaterials();
 
@@ -151,7 +150,7 @@ void CTestRenderer::init() {
 
 void CTestRenderer::destroy() {
 	CVulkanRenderer::destroy();
-	const std::string path = SPaths::get().mAssetPath.string() + "materials.txt";
+	const std::string path = SPaths::get().mAssetCachePath.string() + "materials.txt";
 	CFileArchive outFile(path, "wb");
 	outFile << CMaterial::getMaterials();
 }

@@ -20,7 +20,7 @@ class CSceneObject : public ISerializable {
 public:
 	virtual ~CSceneObject() = default;
 
-	CArchive& save(CArchive& inArchive) override {
+	virtual CArchive& save(CArchive& inArchive) override {
 		inArchive << mName;
 		inArchive << mPosition;
 		inArchive << mRotation;
@@ -28,7 +28,7 @@ public:
 		return inArchive;
 	}
 
-	CArchive& load(CArchive& inArchive) override {
+	virtual CArchive& load(CArchive& inArchive) override {
 		inArchive >> mName;
 		inArchive >> mPosition;
 		inArchive >> mRotation;
@@ -49,7 +49,7 @@ public:
 
 class CRenderableObject : public CSceneObject, public IRenderable {
 
-	no_discard Matrix4f getTransformMatrix() const override {
+	no_discard virtual Matrix4f getTransformMatrix() const override {
 		Matrix4f mat = glm::translate(Matrix4f(1.0), mPosition);
 		mat *= glm::mat4_cast(glm::qua(mRotation));
 		mat = glm::scale(mat, mScale);

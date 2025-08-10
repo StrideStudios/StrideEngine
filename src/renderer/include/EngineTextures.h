@@ -1,7 +1,11 @@
 ﻿#pragma once
 
+#include "Common.h"
 #include "ResourceManager.h"
-#include "Swapchain.h"
+#include "VulkanResourceManager.h"
+
+class CMaterial;
+class CSwapchain;
 
 // Class used to house textures for the engine, easily resizable when necessary
 class CEngineTextures : public IDestroyable, public IInitializable<> {
@@ -12,29 +16,37 @@ public:
 
 	CEngineTextures() = default;
 
-	void init() override;
+	virtual void init() override;
+
+	void initializeTextures();
 
 	void reallocate(bool inUseVSync = true);
 
-	void destroy() override;
+	virtual void destroy() override;
 
-	CSwapchain& getSwapchain() { return m_Swapchain; }
+	no_discard CSwapchain& getSwapchain() const { return *m_Swapchain; }
 
 	//
 	// Textures
 	//
 
-	SImage mDrawImage;
-	SImage mDepthImage;
+	SImage_T* mDrawImage;
+	SImage_T* mDepthImage;
+
+	//
+	// Default Data
+	//
+
+	SImage_T* mErrorCheckerboardImage;
+
+	std::shared_ptr<CMaterial> mErrorMaterial = nullptr;
 
 private:
-
-	CResourceManager m_ResourceManager;
 
 	//
 	// SwapChain
 	//
 
-	CSwapchain m_Swapchain;
+	CSwapchain* m_Swapchain;
 
 };

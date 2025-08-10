@@ -10,9 +10,9 @@ class CSpritePass : public CPass, public IInitializable<> {
 
 public:
 
-	void init() override;
+	virtual void init() override;
 
-	void render(VkCommandBuffer cmd) override;
+	virtual void render(VkCommandBuffer cmd) override;
 
 	void push(const std::set<std::shared_ptr<SSprite>>& inObjects) {
 		objects.insert_range(inObjects);

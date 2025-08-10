@@ -254,7 +254,7 @@ class CFileArchive final : public CArchive {
 public:
 
 	// If archive goes out of scope, close the file
-	~CFileArchive() override {
+	virtual ~CFileArchive() override {
 		close();
 	}
 
@@ -329,12 +329,12 @@ public:
 
 protected:
 
-	void write(const void* inValue, const size_t inElementSize, const size_t inCount) override {
+	virtual void write(const void* inValue, const size_t inElementSize, const size_t inCount) override {
 		assert(isOpen());
 		fwrite(inValue, inElementSize, inCount, mFile);
 	}
 
-	void read(void* inValue, size_t const inElementSize, const size_t inCount) override {
+	virtual void read(void* inValue, size_t const inElementSize, const size_t inCount) override {
 		assert(isOpen());
 		fread(inValue, inElementSize, inCount, mFile);
 	}

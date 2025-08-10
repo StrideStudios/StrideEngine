@@ -6,15 +6,13 @@ include_directories("renderer/vulkan/include")
 include_directories("renderer/passes/include")
 include_directories("engine/include")
 include_directories("imgui/include")
-include_directories("stb/include")
 include_directories("../third_party/basis_universal")
-include_directories("tinyDDS/include")
-
 
 add_executable(StrideEngine
 
         # Core
 
+        core/include/ResourceManager.h
         core/include/Hashing.h
         core/include/Common.h
         core/include/Archive.h
@@ -35,7 +33,6 @@ add_executable(StrideEngine
         engine/include/Camera.h
         engine/Camera.cpp
         engine/include/SceneObject.h
-        engine/SceneObject.cpp
         engine/include/Sprite.h
         engine/include/Input.h
         engine/Input.cpp
@@ -46,16 +43,12 @@ add_executable(StrideEngine
 
         # Renderer
 
-        renderer/include/ResourceManager.h
-        renderer/ResourceManager.cpp
+        renderer/include/VulkanResourceManager.h
+        renderer/VulkanResourceManager.cpp
         renderer/include/EngineTextures.h
         renderer/EngineTextures.cpp
         renderer/include/PipelineBuilder.h
         renderer/PipelineBuilder.cpp
-        renderer/include/EngineBuffers.h
-        renderer/EngineBuffers.cpp
-        renderer/include/GpuScene.h
-        renderer/GpuScene.cpp
         renderer/include/TestRenderer.h
         renderer/TestRenderer.cpp
 
@@ -65,6 +58,7 @@ add_executable(StrideEngine
         renderer/vulkan/VulkanUtils.cpp
         renderer/vulkan/include/Swapchain.h
         renderer/vulkan/Swapchain.cpp
+        renderer/vulkan/include/VulkanInstance.h
         renderer/vulkan/include/VulkanDevice.h
         renderer/vulkan/VulkanDevice.cpp
         renderer/vulkan/include/ShaderCompiler.h
@@ -100,9 +94,6 @@ add_executable(StrideEngine
         imgui/imgui_impl_sdl3.cpp
         imgui/include/imgui_stdlib.h
         imgui/imgui_stdlib.cpp
-
-        # stb
-        stb/include/stb_image.h
 )
 
 find_package(Vulkan REQUIRED)

@@ -1,11 +1,6 @@
 ﻿#include "ShaderCompiler.h"
 
-#include <filesystem>
-#include <fstream>
-
 #include "Archive.h"
-#include "Common.h"
-#include "Engine.h"
 #include "Hashing.h"
 #include "Paths.h"
 #include "glslang/Include/glslang_c_interface.h"

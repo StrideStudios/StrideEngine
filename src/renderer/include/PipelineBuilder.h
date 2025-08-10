@@ -3,18 +3,19 @@
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
+//TODO: removal of this class (because its ugly and i dont like it)
 class CPipelineBuilder {
 public:
-	std::vector<VkPipelineShaderStageCreateInfo> m_ShaderStages;
+	std::vector<VkPipelineShaderStageCreateInfo> m_ShaderStages{};
 
-	VkPipelineInputAssemblyStateCreateInfo m_InputAssembly;
-	VkPipelineRasterizationStateCreateInfo m_Rasterizer;
-	VkPipelineColorBlendAttachmentState m_ColorBlendAttachment;
-	VkPipelineMultisampleStateCreateInfo m_Multisampling;
-	VkPipelineLayout m_PipelineLayout;
-	VkPipelineDepthStencilStateCreateInfo m_DepthStencil;
-	VkPipelineRenderingCreateInfo m_RenderInfo;
-	VkFormat m_ColorAttachmentformat;
+	VkPipelineInputAssemblyStateCreateInfo m_InputAssembly{};
+	VkPipelineRasterizationStateCreateInfo m_Rasterizer{};
+	VkPipelineColorBlendAttachmentState m_ColorBlendAttachment{};
+	VkPipelineMultisampleStateCreateInfo m_Multisampling{};
+	VkPipelineLayout m_PipelineLayout{};
+	VkPipelineDepthStencilStateCreateInfo m_DepthStencil{};
+	VkPipelineRenderingCreateInfo m_RenderInfo{};
+	VkFormat m_ColorAttachmentFormat = VK_FORMAT_UNDEFINED;
 
 	CPipelineBuilder(){ clear(); }
 
@@ -59,10 +60,10 @@ public:
 	}
 
 	void setColorAttachementFormat(VkFormat format) {
-		m_ColorAttachmentformat = format;
+		m_ColorAttachmentFormat = format;
 		// Connect the format to the renderInfo  structure
 		m_RenderInfo.colorAttachmentCount = 1; // For deferred, probably wont be used then
-		m_RenderInfo.pColorAttachmentFormats = &m_ColorAttachmentformat;
+		m_RenderInfo.pColorAttachmentFormats = &m_ColorAttachmentFormat;
 	}
 
 	void setDepthFormat(VkFormat format) {

@@ -26,7 +26,7 @@ struct SStaticMesh {
 
 	SBounds bounds;
 	std::vector<Surface> surfaces;
-	SMeshBuffers meshBuffers;
+	SMeshBuffers_T meshBuffers;
 
 	friend uint32 getHash(const SStaticMesh& inMesh) {
 		return getHash(inMesh.name);
@@ -55,13 +55,13 @@ public:
 
 	CStaticMeshObject(const std::shared_ptr<SStaticMesh>& inMesh): mesh(inMesh) {}
 
-	no_discard const std::shared_ptr<SStaticMesh>& getMesh() const override {
+	no_discard virtual const std::shared_ptr<SStaticMesh>& getMesh() const override {
 		return mesh;
 	}
 
 	std::shared_ptr<SStaticMesh> mesh;
 
-	CArchive& save(CArchive& inArchive) override {
+	virtual CArchive& save(CArchive& inArchive) override {
 		CRenderableObject::save(inArchive);
 		// Save the mesh's name
 		inArchive << static_cast<bool>(mesh);
@@ -71,7 +71,7 @@ public:
 		return inArchive;
 	}
 
-	CArchive& load(CArchive& inArchive) override {
+	virtual CArchive& load(CArchive& inArchive) override {
 		CRenderableObject::load(inArchive);
 		// Load the mesh's name and ask mesh loader for it
 		bool hasMesh;

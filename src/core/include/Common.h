@@ -145,14 +145,6 @@ typedef const char* SChar;
 constexpr static uint8 gFrameOverlap = 2;
 
 //
-// Common but hard to write forward includes
-//
-
-typedef std::shared_ptr<struct SImage_T> SImage;
-typedef std::shared_ptr<struct SBuffer_T> SBuffer;
-typedef std::shared_ptr<struct SMeshBuffers_T> SMeshBuffers;
-
-//
 // Ugly c++ replacement Macros
 //
 

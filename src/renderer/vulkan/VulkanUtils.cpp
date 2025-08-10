@@ -8,6 +8,10 @@
 #include "VulkanDevice.h"
 #include "tracy/Tracy.hpp"
 
+VkDevice getDevice() {
+	return CEngine::device();
+}
+
 VkImageSubresourceRange CVulkanUtils::imageSubresourceRange(VkImageAspectFlags inAspectMask) {
 	return {
 		.aspectMask = inAspectMask,

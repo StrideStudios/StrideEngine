@@ -1,0 +1,226 @@
+﻿#pragma once
+
+#include <functional>
+#include <memory>
+#include <vma/vk_mem_alloc.h>
+#include <vulkan/vulkan_core.h>
+#include <vector>
+#include <deque>
+#include <span>
+
+#include "Common.h"
+#include "VulkanUtils.h"
+#include "ResourceManager.h"
+
+class CVulkanDevice;
+
+struct SImage_T : IDestroyable {
+	std::string name;
+	VkImage mImage;
+	VkImageView mImageView;
+	VmaAllocation mAllocation;
+	VkExtent3D mImageExtent;
+	VkFormat mImageFormat;
+	uint32 mBindlessAddress;
+
+	virtual void destroy() override;
+};
+
+struct SBuffer_T : IDestroyable {
+	VkBuffer buffer = nullptr;
+	VmaAllocation allocation = nullptr;
+	VmaAllocationInfo info = {};
+	uint32 mBindlessAddress;
+
+	virtual void destroy() override;
+
+	no_discard void* GetMappedData() const;
+
+	no_discard void mapData(void** data) const;
+
+	no_discard void unMapData() const;
+};
+
+// Holds the resources needed for mesh rendering
+struct SMeshBuffers_T : IDestroyable {
+	SBuffer_T* indexBuffer = nullptr;
+	SBuffer_T* vertexBuffer = nullptr;
+	SBuffer_T* instanceBuffer = nullptr;
+};
+
+// More than 65535 textures should not be needed, but more than 255 might be.
+constexpr static uint32 gMaxTextures = std::numeric_limits<uint16>::max();
+// There are very few types of samplers, so only 32 are needed
+constexpr static uint32 gMaxSamplers = 32;
+// Uniform buffers tend to be fast to access but very small, max of 255
+// OpenGL spec states that uniform buffers guarantee up to 16 KB
+// (Subtracted by gMaxSamplers to keep alignment)
+constexpr static uint32 gMaxUniformBuffers = std::numeric_limits<uint8>::max() - gMaxSamplers;
+// Shader Storage Buffers tend to be slower but larger
+// OpenGL spec states that SSBOs guarantee up to 128 MB, but can be larger
+constexpr static uint32 gMaxStorageBuffers = std::numeric_limits<uint16>::max();
+
+static uint32 gTextureBinding = 0;
+static uint32 gSamplerBinding = 1;
+static uint32 gUBOBinding = 2;
+static uint32 gSSBOBinding = 3;
+
+/*
+ * Specific version of CResourceManager for vulkan resources
+ */
+class CVulkanResourceManager : public CResourceManager {
+
+	static VkDevice getDevice();
+
+	friend SBuffer_T;
+	friend SImage_T;
+
+	/*template <typename TVkType>
+	struct Resource : IDestroyable {
+
+#define CREATE_CONSTRUCTOR(inName) \
+		Resource(const Vk##inName##CreateInfo& inCreateInfo) { \
+			VK_CHECK(vkCreate##inName(getDevice(), &inCreateInfo, nullptr, &mResource)); \
+		}
+
+		CREATE_CONSTRUCTOR(CommandPool)
+		CREATE_CONSTRUCTOR(DescriptorPool)
+		CREATE_CONSTRUCTOR(DescriptorSetLayout)
+		CREATE_CONSTRUCTOR(Fence)
+		CREATE_CONSTRUCTOR(ImageView)
+
+		Resource(const CPipelineBuilder& inPipelineBuilder) {
+			mResource = inPipelineBuilder.buildPipeline(getDevice());;
+		}
+
+		CREATE_CONSTRUCTOR(PipelineLayout)
+		CREATE_CONSTRUCTOR(RenderPass)
+		CREATE_CONSTRUCTOR(Sampler)
+		CREATE_CONSTRUCTOR(Semaphore)
+		CREATE_CONSTRUCTOR(ShaderModule)
+
+		Resource(const TVkType& inVkType) {
+			mResource = inVkType;
+		}
+
+#undef CREATE_CONSTRUCTOR
+
+#define CREATE_SWITCH(inName) \
+	if constexpr (std::is_same_v<TVkType, Vk##inName##>) { \
+		vkDestroy##inName(getDevice(), mResource, nullptr); \
+		return; \
+	}
+
+		virtual void destroy() override {
+
+			if constexpr (std::is_same_v<TVkType, SImage>) {
+				deallocateImage(mResource.get());
+				return;
+			}
+
+			if constexpr (std::is_same_v<TVkType, SBuffer>) {
+				deallocateBuffer(mResource.get());
+				return;
+			}
+
+			CREATE_SWITCH(CommandPool)
+			CREATE_SWITCH(DescriptorPool)
+			CREATE_SWITCH(DescriptorSetLayout)
+			CREATE_SWITCH(Fence)
+			CREATE_SWITCH(ImageView)
+			CREATE_SWITCH(Pipeline)
+			CREATE_SWITCH(PipelineLayout)
+			CREATE_SWITCH(RenderPass)
+			CREATE_SWITCH(Sampler)
+			CREATE_SWITCH(Semaphore)
+			CREATE_SWITCH(ShaderModule)
+		}
+
+#undef CREATE_SWITCH
+
+		TVkType mResource = nullptr;
+
+	};*/
+
+	constexpr static VmaAllocator& getAllocator() {
+		static VmaAllocator allocator;
+		return allocator;
+	}
+
+	constexpr static VkDescriptorPool& getBindlessDescriptorPool() {
+		static VkDescriptorPool pool;
+		return pool;
+	}
+
+public:
+
+	constexpr static VkDescriptorSetLayout& getBindlessDescriptorSetLayout() {
+		static VkDescriptorSetLayout layout;
+		return layout;
+	}
+
+	constexpr static VkDescriptorSet& getBindlessDescriptorSet() {
+		static VkDescriptorSet set;
+		return set;
+	}
+
+	CVulkanResourceManager() = default;
+
+	static void init();
+
+	static void destroyAllocator();
+
+	/*template <typename TType, typename TCreator>
+	requires std::constructible_from<Resource<TType>, TCreator>
+	TType push(const TCreator& object) {
+		Resource<TType>* outType = new Resource<TType>(object);
+		m_Destroyables.push_back(outType);
+		return outType->mResource;
+	}*/
+
+	//
+	// Command Buffer
+	//
+
+	// Command Buffer does not need to be deallocated
+	no_discard static VkCommandBuffer allocateCommandBuffer(const VkCommandBufferAllocateInfo& pCreateInfo);
+
+	//
+	// Descriptors
+	//
+
+	//TODO: descriptors here
+	static void bindDescriptorSets(VkCommandBuffer cmd, VkPipelineBindPoint inBindPoint, VkPipelineLayout inPipelineLayout, uint32 inFirstSet, uint32 inDescriptorSetCount, const VkDescriptorSet& inDescriptorSets);
+
+	//
+	// Pipelines
+	//
+
+	static void bindPipeline(VkCommandBuffer cmd, VkPipelineBindPoint inBindPoint, VkPipeline inPipeline);
+
+	//
+	// Buffers
+	//
+
+	// VkBufferUsageFlags is VERY important (VMA_MEMORY_USAGE_GPU_ONLY, VMA_MEMORY_USAGE_CPU_ONLY, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_MEMORY_USAGE_GPU_TO_CPU)
+	// VMA_MEMORY_USAGE_CPU_TO_GPU can be used for the small fast-access buffer on GPU that CPU can still write to (something important)
+	no_discard SBuffer_T* allocateBuffer(size_t allocSize, VmaMemoryUsage memoryUsage, VkBufferUsageFlags usage = 0);
+
+	no_discard SBuffer_T* allocateGlobalBuffer(size_t allocSize, VmaMemoryUsage memoryUsage, VkBufferUsageFlags usage = 0);
+
+	static void updateGlobalBuffer(const SBuffer_T* buffer);
+
+	no_discard SMeshBuffers_T allocateMeshBuffer(size_t indicesSize, size_t verticesSize);
+
+	//
+	// Images
+	// Since bindless images are used, it is unnecessary to keep the result
+	//
+
+	SImage_T* allocateImage(const std::string& inDebugName, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags = 0, VkImageAspectFlags inViewFlags = 0, bool inMipmapped = false);
+
+	SImage_T* allocateImage(const std::string& inDebugName, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags = 0, VkImageAspectFlags inViewFlags = 0, uint32 NumMips = 1);
+
+	SImage_T* allocateImage(void* inData, const uint32& size, const std::string& inDebugName, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags = 0, VkImageAspectFlags inViewFlags = 0, bool inMipmapped = false);
+
+};

@@ -2,8 +2,9 @@
 
 #include "Common.h"
 #include "SceneObject.h"
+#include "ResourceManager.h"
 
-class CCamera : public CSceneObject {
+class CCamera : public CSceneObject, public IDestroyable {
 
 	REGISTER_CLASS(CCamera)
 

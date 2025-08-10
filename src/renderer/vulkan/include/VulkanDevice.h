@@ -6,6 +6,7 @@
 
 #include "Common.h"
 #include "VkBootstrap.h"
+#include "ResourceManager.h"
 
 enum class EQueueType : uint8 {
     GRAPHICS,
@@ -30,19 +31,15 @@ static std::map<vkb::QueueType, std::map<EQueueType, float>> queueFamilies {
     },
 };
 
-class CVulkanDevice {
+class CVulkanDevice : public IInitializable<>, public IDestroyable {
 
 public:
 
-    CVulkanDevice();
-
     static SQueue getQueue(EQueueType inType);
 
-    void initDevice();
+    virtual void init() override;
 
-    void destroy() const;
-
-    no_discard constexpr const vkb::Instance& getInstance() const { return *m_Instance; }
+    virtual void destroy() override;
 
     no_discard constexpr const vkb::PhysicalDevice& getPhysicalDevice() const { return *m_PhysicalDevice; }
 
@@ -53,10 +50,6 @@ private:
     //
     // Vulkan Rendering
     //
-
-
-    // Vulkan library handle
-    std::unique_ptr<vkb::Instance> m_Instance;
 
     // GPU chosen as the default device
     std::unique_ptr<vkb::PhysicalDevice> m_PhysicalDevice;

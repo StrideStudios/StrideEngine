@@ -1,16 +1,15 @@
 ﻿#include "Material.h"
 
-#include "GpuScene.h"
 #include "MeshPass.h"
 #include "VulkanRenderer.h"
 
 SMaterialPipeline& CMaterial::getPipeline(const CVulkanRenderer& renderer) const {
 	switch (mPassType) {
 		case EMaterialPass::OPAQUE:
-			return renderer.mGPUScene->basePass->opaquePipeline;
+			return renderer.mBasePass->opaquePipeline;
 		case EMaterialPass::TRANSLUCENT:
-			return renderer.mGPUScene->basePass->transparentPipeline;
+			return renderer.mBasePass->transparentPipeline;
 		default:
-			return renderer.mGPUScene->basePass->errorPipeline;
+			return renderer.mBasePass->errorPipeline;
 	}
 }

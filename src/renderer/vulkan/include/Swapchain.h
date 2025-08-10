@@ -2,9 +2,11 @@
 
 #include <vector>
 #include <vulkan/vulkan_core.h>
+#include <VkBootstrap.h>
 
 #include "Common.h"
 #include "ResourceManager.h"
+#include "VulkanUtils.h"
 
 // Forward declare vkb types
 namespace vkb {
@@ -13,21 +15,38 @@ namespace vkb {
 
 class CVulkanDevice;
 
-class CSwapchain {
+struct SSwapchain final : IDestroyable {
+
+	SSwapchain(const vkb::Result<vkb::Swapchain>& inSwapchainBuilder);
+
+	virtual void destroy() override {
+		vkb::destroy_swapchain(mSwapchain);
+	}
+
+	vkb::Swapchain mSwapchain;
+
+	std::vector<VkImage> mSwapchainImages{};
+
+	std::vector<CImageView*> mSwapchainImageViews{};
+
+	// TODO: Needed if Maintenence1 is not available, should union
+	// TODO: this means i probably need some sort of platform info or something
+	std::vector<CSemaphore*> mSwapchainRenderSemaphores{};
+};
+
+class CSwapchain : public IInitializable<VkSwapchainKHR, bool>, public IDestroyable {
 
 public:
 
 	struct FrameData {
-		VkSemaphore mSwapchainSemaphore = nullptr;
-		VkSemaphore mRenderSemaphore = nullptr;
+		CSemaphore* mSwapchainSemaphore = nullptr;
+		CSemaphore* mRenderSemaphore = nullptr;
 
-		VkFence mRenderFence = nullptr;
-		VkFence mPresentFence = nullptr;
+		CFence* mRenderFence = nullptr;
+		CFence* mPresentFence = nullptr;
 	};
 
 	CSwapchain();
-
-	~CSwapchain();
 
 	no_discard bool isDirty() const {
 		return m_Dirty;
@@ -37,13 +56,11 @@ public:
 		m_Dirty = true;
 	}
 
-	operator VkSwapchainKHR() const;
-
-	void init(VkSwapchainKHR oldSwapchain = VK_NULL_HANDLE, bool inUseVSync = true);
+	virtual void init(VkSwapchainKHR oldSwapchain = VK_NULL_HANDLE, bool inUseVSync = true) override;
 
 	void recreate(bool inUseVSync = true);
 
-	void cleanup();
+	virtual void destroy() override;
 
 	std::tuple<VkImage, VkImageView, uint32> getSwapchainImage(uint32 inCurrentFrameIndex);
 
@@ -53,21 +70,11 @@ public:
 
 	void submit(VkCommandBuffer inCmd, VkQueue inGraphicsQueue, uint32 inCurrentFrameIndex, uint32 inSwapchainImageIndex);
 
-	std::unique_ptr<vkb::Swapchain> mSwapchain;
+	SSwapchain* mSwapchain = nullptr;
 
-	std::vector<VkImage> mSwapchainImages;
-
-	std::vector<VkImageView> mSwapchainImageViews;
-
-	// TODO: Needed if Maintenence1 is not available, should union
-	// TODO: this means i probably need some sort of platform info or something
-	std::vector<VkSemaphore> mSwapchainRenderSemaphores;
-
-	VkFormat mFormat;
+	VkFormat mFormat = VK_FORMAT_UNDEFINED;
 
 private:
-
-	CResourceManager m_ResourceManager;
 
 	FrameData m_Frames[gFrameOverlap];
 
