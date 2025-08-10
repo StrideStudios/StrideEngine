@@ -4,7 +4,6 @@
 #include <memory>
 #include <mutex>
 
-#include "DescriptorManager.h"
 #include "ResourceManager.h"
 
 namespace tracy {
@@ -14,22 +13,6 @@ namespace tracy {
 class CEngineTextures;
 class CEngineBuffers;
 class CVulkanDevice;
-
-struct SComputePushConstants {
-	Vector4f data1;
-	Vector4f data2;
-	Vector4f data3;
-	Vector4f data4;
-};
-
-struct SComputeEffect {
-	const char* name;
-
-	VkPipeline pipeline;
-	VkPipelineLayout layout;
-
-	SComputePushConstants data;
-};
 
 struct SUploadContext {
 	std::mutex mMutex;
@@ -51,8 +34,6 @@ public:
 		 * Good for data that only needs to exist for a single frame
 		 */
 		CResourceManager mFrameResourceManager;
-
-		SDescriptorAllocator mDescriptorAllocator;
 
 		tracy::VkCtx* mTracyContext;
 	};
@@ -106,12 +87,6 @@ public:
 	FrameData mFrames[gFrameOverlap];
 
 	SUploadContext mUploadContext;
-
-	//
-	// Descriptor Resources
-	//
-
-	SDescriptorAllocator mGlobalDescriptorAllocator;
 
 };
 

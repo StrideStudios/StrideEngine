@@ -27,6 +27,7 @@ struct SBuffer_T {
 	VkBuffer buffer = nullptr;
 	VmaAllocation allocation = nullptr;
 	VmaAllocationInfo info = {};
+	uint32 mBindlessAddress;
 
 	no_discard void* GetMappedData() const;
 
@@ -60,17 +61,28 @@ public:
 	virtual void init(TArgs... args) {}
 };
 
+// More than 65535 textures should not be needed, but more than 255 might be.
+constexpr static uint32 gMaxBindlessResources = std::numeric_limits<uint16>::max();
+// There are very few types of samplers, so only 32 are needed
+constexpr static uint32 gMaxSamplers = 32;
+// Uniform buffers tend to be fast to access but very small, max of 255
+// OpenGL spec states that uniform buffers guarantee up to 16 KB
+// (Subtracted by gMaxSamplers to keep alignment)
+constexpr static uint32 gMaxUniformBuffers = std::numeric_limits<uint8>::max() - gMaxSamplers;
+// Shader Storage Buffers tend to be slower but larger
+// OpenGL spec states that SSBOs guarantee up to 128 MB, but can be larger
+constexpr static uint32 gMaxStorageBuffers = std::numeric_limits<uint16>::max();
+
+static uint32 gTextureBinding = 0;
+static uint32 gSamplerBinding = 1;
+static uint32 gUBOBinding = 2;
+static uint32 gSSBOBinding = 3;
+
 /*
  * Stores pointers to vulkan resources so they can be automatically deallocated when flush is called
  * Can also store IDestroyable pointers in which delete does not need to be called
  * This means initialization can be done in a local context to remove clutter
  */
-constexpr static uint32 gMaxBindlessResources = 16536;
-constexpr static uint32 gMaxSamplers = 32;
-
-static uint32 gTextureBinding = 0;
-static uint32 gSamplerBinding = 1;
-
 class CResourceManager {
 
 	friend SBuffer_T;
@@ -263,6 +275,10 @@ public:
 	// VkBufferUsageFlags is VERY important (VMA_MEMORY_USAGE_GPU_ONLY, VMA_MEMORY_USAGE_CPU_ONLY, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_MEMORY_USAGE_GPU_TO_CPU)
 	// VMA_MEMORY_USAGE_CPU_TO_GPU can be used for the small fast-access buffer on GPU that CPU can still write to (something important)
 	no_discard SBuffer allocateBuffer(size_t allocSize, VmaMemoryUsage memoryUsage, VkBufferUsageFlags usage = 0);
+
+	no_discard SBuffer allocateGlobalBuffer(size_t allocSize, VmaMemoryUsage memoryUsage, VkBufferUsageFlags usage = 0);
+
+	static void updateGlobalBuffer(SBuffer buffer);
 
 	no_discard SMeshBuffers allocateMeshBuffer(size_t indicesSize, size_t verticesSize);
 

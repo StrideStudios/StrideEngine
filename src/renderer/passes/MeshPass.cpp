@@ -51,17 +51,11 @@ void CMeshPass::init(const EMeshPass inPassType) {
 		}
 	};
 
-	//TODO: global scene data? (avoid gpuscene input)
-    VkDescriptorSetLayout layouts[] = {
-		gpuScene->m_GPUSceneDataDescriptorLayout,
-		CResourceManager::getBindlessDescriptorSetLayout()
-	};
-
 	VkPipelineLayoutCreateInfo layoutCreateInfo {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
 		.pNext = nullptr,
-		.setLayoutCount = 2,
-		.pSetLayouts = layouts,
+		.setLayoutCount = 1,
+		.pSetLayouts = &CResourceManager::getBindlessDescriptorSetLayout(),
 		.pushConstantRangeCount = (uint32)pushConstants.size(),
 		.pPushConstantRanges = pushConstants.begin()
 	};
@@ -229,8 +223,7 @@ void CMeshPass::render(const VkCommandBuffer cmd) {
 				if (&pipeline != lastPipeline) {
 					lastPipeline = &pipeline;
 					CResourceManager::bindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline);
-					CResourceManager::bindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.layout, 0, 1, renderer.mGPUScene->m_Frames[renderer.getFrameIndex()].sceneDescriptor);
-					CResourceManager::bindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.layout, 1, 1, CResourceManager::getBindlessDescriptorSet());
+					CResourceManager::bindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.layout, 0, 1, CResourceManager::getBindlessDescriptorSet());
 
 					//TODO: shouldnt do this here...
 					CEngine::get().getViewport().set(cmd);

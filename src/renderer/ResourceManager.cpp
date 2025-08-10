@@ -79,13 +79,15 @@ void CResourceManager::init() {
 	{
 		auto poolSizes = {
 			VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, gMaxBindlessResources},
-			VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_SAMPLER, gMaxSamplers}
+			VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_SAMPLER, gMaxSamplers},
+			VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, gMaxUniformBuffers},
+			VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, gMaxStorageBuffers},
 		};
 
 		VkDescriptorPoolCreateInfo poolCreateInfo {
 			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
 			.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT_EXT,
-			.maxSets = gMaxBindlessResources + gMaxSamplers,
+			.maxSets = gMaxBindlessResources + gMaxSamplers + gMaxUniformBuffers + gMaxStorageBuffers,
 			.poolSizeCount = (uint32)poolSizes.size(),
 			.pPoolSizes = poolSizes.begin()
 		};
@@ -97,7 +99,7 @@ void CResourceManager::init() {
 	{
 		constexpr VkDescriptorBindingFlags flags = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT; //VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT
 
-		const auto inputFlags = {flags, flags};
+		const auto inputFlags = {flags, flags, flags, flags};
 
         auto binding = {
         	VkDescriptorSetLayoutBinding {
@@ -110,6 +112,18 @@ void CResourceManager::init() {
 				.binding = gSamplerBinding,
 				.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER,
 				.descriptorCount = gMaxSamplers,
+				.stageFlags = VK_SHADER_STAGE_ALL,
+			},
+			VkDescriptorSetLayoutBinding {
+				.binding = gUBOBinding,
+				.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+				.descriptorCount = gMaxUniformBuffers,
+				.stageFlags = VK_SHADER_STAGE_ALL,
+			},
+			VkDescriptorSetLayoutBinding {
+				.binding = gSSBOBinding,
+				.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+				.descriptorCount = gMaxStorageBuffers,
 				.stageFlags = VK_SHADER_STAGE_ALL,
 			}
         };
@@ -132,7 +146,7 @@ void CResourceManager::init() {
 	}
 
 	{
-		constexpr uint32 maxBinding = gMaxBindlessResources - 1;
+		constexpr uint32 maxBinding = gMaxStorageBuffers - 1;
 		VkDescriptorSetVariableDescriptorCountAllocateInfoEXT countInfo {
 			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO_EXT,
 			.descriptorSetCount = 1,
@@ -241,6 +255,37 @@ SBuffer CResourceManager::allocateBuffer(size_t allocSize, VmaMemoryUsage memory
 	return buffer;
 }
 
+SBuffer CResourceManager::allocateGlobalBuffer(size_t allocSize, VmaMemoryUsage memoryUsage, VkBufferUsageFlags usage) {
+	auto buffer = allocateBuffer(allocSize, memoryUsage, usage);
+
+	// Update descriptors with new buffer
+	{
+		//TODO: need some way of guaranteeing Buffer addresses so they don't have to be passed in push constants
+		static uint32 gCurrentBufferAddress = 0;
+		buffer->mBindlessAddress = gCurrentBufferAddress;
+		gCurrentBufferAddress++;
+
+		const auto bufferDescriptorInfo = VkDescriptorBufferInfo {
+			.buffer = buffer->buffer,
+			.offset = 0u, //TODO: for now leave as 0 for simplicity
+			.range = allocSize
+		};
+
+		const auto writeSet = VkWriteDescriptorSet {
+			.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+			.dstSet = getBindlessDescriptorSet(),
+			.dstBinding = gUBOBinding, //TODO: for now UBO bindings
+			.dstArrayElement = buffer->mBindlessAddress,
+			.descriptorCount = 1,
+			.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+			.pBufferInfo = &bufferDescriptorInfo,
+		};
+		vkUpdateDescriptorSets(CEngine::device(), 1, &writeSet, 0, nullptr);
+	}
+
+	return buffer;
+}
+
 SMeshBuffers CResourceManager::allocateMeshBuffer(const size_t indicesSize, const size_t verticesSize) {
 
 	auto meshBuffers = std::make_shared<SMeshBuffers_T>();
@@ -319,6 +364,30 @@ SImage CResourceManager::allocateImage(const std::string& inDebugName, VkExtent3
 	m_Images.push_back(image);
 
 	return image;
+}
+
+void CResourceManager::updateGlobalBuffer(SBuffer buffer) {
+
+	// Update descriptors
+	{
+		//TODO: need some way of guaranteeing Buffer addresses so they don't have to be passed in push constants
+		const auto bufferDescriptorInfo = VkDescriptorBufferInfo{
+			.buffer = buffer->buffer,
+			.offset = buffer->info.offset,
+			.range = buffer->info.size
+		};
+
+		const auto writeSet = VkWriteDescriptorSet{
+			.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+			.dstSet = getBindlessDescriptorSet(),
+			.dstBinding = gUBOBinding, //TODO: for now UBO bindings
+			.dstArrayElement = buffer->mBindlessAddress,
+			.descriptorCount = 1,
+			.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+			.pBufferInfo = &bufferDescriptorInfo,
+		};
+		vkUpdateDescriptorSets(CEngine::device(), 1, &writeSet, 0, nullptr);
+	}
 }
 
 void generateMipmaps(VkCommandBuffer cmd, VkImage image, VkExtent2D extent) {

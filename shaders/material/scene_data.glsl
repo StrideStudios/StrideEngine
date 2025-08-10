@@ -1,4 +1,4 @@
-﻿layout(set = 0, binding = 0) uniform SceneData {
+﻿layout(set = 0, binding = 2) uniform SceneData {
     mat4 viewproj;
     vec2 screenSize;
     vec2 invScreenSize;

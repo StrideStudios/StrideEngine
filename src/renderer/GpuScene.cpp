@@ -4,10 +4,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/glm.hpp>
 
-#include "DescriptorManager.h"
 #include "Engine.h"
 #include "EngineSettings.h"
-#include "EngineTextures.h"
 #include "MeshLoader.h"
 #include "MeshPass.h"
 #include "ResourceManager.h"
@@ -63,6 +61,7 @@ void CGPUScene::init() {
 
 	vkUpdateDescriptorSets(CEngine::device(), (uint32)sets.size(), sets.begin(), 0, nullptr);
 
+	m_GPUSceneDataBuffer = renderer.mGlobalResourceManager.allocateGlobalBuffer(sizeof(Data), VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
 
 	//checkerboard image
 	uint32 red = glm::packUnorm4x8(glm::vec4(1, 0, 0, 1));
@@ -84,12 +83,6 @@ void CGPUScene::init() {
 		mErrorMaterial->mName = "Error";
 		mErrorMaterial->mPassType = EMaterialPass::ERROR;
 	}
-
-	SDescriptorLayoutBuilder builder;
-	builder.addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-	m_GPUSceneDataDescriptorLayout = builder.build(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
-
-	renderer.mGlobalResourceManager.push(m_GPUSceneDataDescriptorLayout);
 
 	renderer.mGlobalResourceManager.createDestroyable(basePass, EMeshPass::BASE_PASS);
 
@@ -124,17 +117,12 @@ void CGPUScene::update() {
 		m_GPUSceneData.sunlightDirection = glm::vec4(0,1,0.5,1.f);
 
 		//allocate a new uniform buffer for the scene data
-		m_GPUSceneDataBuffer = renderer.getCurrentFrame().mFrameResourceManager.allocateBuffer(sizeof(Data), VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
+		//m_GPUSceneDataBuffer = renderer.getCurrentFrame().mFrameResourceManager.allocateBuffer(sizeof(Data), VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
 	}
 
 	//write the buffer
 	auto* sceneUniformData = static_cast<Data*>(m_GPUSceneDataBuffer->GetMappedData());
 	*sceneUniformData = m_GPUSceneData;
 
-	//create a descriptor set that binds that buffer and update it
-	m_Frames[renderer.getFrameIndex()].sceneDescriptor = renderer.getCurrentFrame().mDescriptorAllocator.allocate(m_GPUSceneDataDescriptorLayout);
-
-	SDescriptorWriter writer;
-	writer.writeBuffer(0, m_GPUSceneDataBuffer->buffer, sizeof(Data), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-	writer.updateSet(m_Frames[renderer.getFrameIndex()].sceneDescriptor);
+	CResourceManager::updateGlobalBuffer(m_GPUSceneDataBuffer);
 }

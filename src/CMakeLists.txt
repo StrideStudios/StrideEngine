@@ -56,8 +56,6 @@ add_executable(StrideEngine
         renderer/EngineBuffers.cpp
         renderer/include/GpuScene.h
         renderer/GpuScene.cpp
-        renderer/include/DescriptorManager.h
-        renderer/DescriptorManager.cpp
         renderer/include/TestRenderer.h
         renderer/TestRenderer.cpp
 

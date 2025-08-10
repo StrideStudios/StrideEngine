@@ -1,5 +1,5 @@
-﻿layout (set = 1, binding = 0) uniform texture2D textures[];
-layout (set = 1, binding = 1) uniform sampler samplers[];
+﻿layout (set = 0, binding = 0) uniform texture2D textures[];
+layout (set = 0, binding = 1) uniform sampler samplers[];
 
 vec4 sampleTexture2DNearest(uint texID, vec2 uv) {
     return texture(nonuniformEXT(sampler2D(textures[texID], samplers[0])), uv);

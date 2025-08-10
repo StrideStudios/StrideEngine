@@ -2,7 +2,6 @@
 
 #include <array>
 
-#include "DescriptorManager.h"
 #include "Engine.h"
 #include "VulkanDevice.h"
 #include "VulkanRenderer.h"

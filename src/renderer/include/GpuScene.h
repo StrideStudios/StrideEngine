@@ -38,8 +38,6 @@ public:
 
 	Data m_GPUSceneData;
 
-	VkDescriptorSetLayout m_GPUSceneDataDescriptorLayout;
-
 	SBuffer m_GPUSceneDataBuffer;
 
 	//

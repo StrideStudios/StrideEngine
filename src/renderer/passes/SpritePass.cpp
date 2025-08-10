@@ -34,16 +34,11 @@ void CSpritePass::init() {
 		}
 	};
 
-	VkDescriptorSetLayout layouts[] = {
-		gpuScene->m_GPUSceneDataDescriptorLayout,
-		CResourceManager::getBindlessDescriptorSetLayout()
-	};
-
 	VkPipelineLayoutCreateInfo layoutCreateInfo {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
 		.pNext = nullptr,
-		.setLayoutCount = 2,
-		.pSetLayouts = layouts,
+		.setLayoutCount = 1,
+		.pSetLayouts = &CResourceManager::getBindlessDescriptorSetLayout(),
 		.pushConstantRangeCount = (uint32)pushConstants.size(),
 		.pPushConstantRanges = pushConstants.begin()
 	};

@@ -6,7 +6,6 @@
 #include <tracy/Tracy.hpp>
 #include <tracy/TracyVulkan.hpp>
 
-#include "DescriptorManager.h"
 #include "VulkanDevice.h"
 #include "VulkanUtils.h"
 #include "vulkan/vk_enum_string_helper.h"
@@ -90,34 +89,9 @@ void CVulkanRenderer::init() {
 
 			frame.mMainCommandBuffer = CResourceManager::allocateCommandBuffer(cmdAllocInfo);
 
-			std::vector<SDescriptorAllocator::PoolSizeRatio> frameSizes = {
-				{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 3 },
-				{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3 },
-				{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3 },
-				{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4 },
-			};
-
-			// TODO: DescriptorAllocator as part of ResourceManager
-			frame.mDescriptorAllocator = SDescriptorAllocator();
-			frame.mDescriptorAllocator.init(1000, frameSizes);
-
-			mGlobalResourceManager.pushF([&] {
-				frame.mDescriptorAllocator.destroy();
-			});
-
 			frame.mTracyContext = TracyVkContext(CEngine::physicalDevice(), CEngine::device(), CVulkanDevice::getQueue(EQueueType::GRAPHICS).mQueue, frame.mMainCommandBuffer);
 		}
 	}
-
-	//create a descriptor pool that will hold 10 sets with 1 image each
-	std::vector<SDescriptorAllocator::PoolSizeRatio> sizes =
-	{
-		{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1 },
-		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1},
-		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1}
-	};
-
-	mGlobalDescriptorAllocator.init(10, sizes);
 
 	mGlobalResourceManager.createDestroyable(mEngineTextures);
 
@@ -138,11 +112,8 @@ void CVulkanRenderer::destroy() {
 	for (auto& frame : mFrames) {
 		TracyVkDestroy(frame.mTracyContext);
 
-		frame.mDescriptorAllocator.clear();
 		frame.mFrameResourceManager.flush();
 	}
-
-	mGlobalDescriptorAllocator.destroy();
 
 	mGlobalResourceManager.flush();
 }
@@ -214,7 +185,6 @@ void CVulkanRenderer::draw() {
 		CVulkanUtils::transitionImage(cmd, mEngineTextures->mDrawImage->mImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
 
 		// Flush temporary frame data before it is used
-		getCurrentFrame().mDescriptorAllocator.clear();
 		getCurrentFrame().mFrameResourceManager.flush();
 	}
 
