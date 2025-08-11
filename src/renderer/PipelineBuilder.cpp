@@ -162,8 +162,48 @@ VkPipeline CPipelineBuilder::buildSpritePipeline(VkDevice inDevice) const {
 	colorBlending.attachmentCount = 1;
 	colorBlending.pAttachments = &m_ColorBlendAttachment;
 
-	// Completely clear VertexInputStateCreateInfo, as we have no need for it
-	VkPipelineVertexInputStateCreateInfo _vertexInputInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
+	constexpr std::array bindings = {
+		VkVertexInputBindingDescription {
+			.binding = 0,
+			.stride = sizeof(SInstance),
+			.inputRate = VK_VERTEX_INPUT_RATE_INSTANCE
+		}
+	};
+
+	auto attributes = {
+		VkVertexInputAttributeDescription{ // mat4 Transform
+			0,
+			bindings[0].binding,
+			VK_FORMAT_R32G32B32A32_SFLOAT,
+			0
+		},
+		VkVertexInputAttributeDescription{
+			1,
+			bindings[0].binding,
+			VK_FORMAT_R32G32B32A32_SFLOAT,
+			sizeof(Vector4f)
+		},
+		VkVertexInputAttributeDescription{
+			2,
+			bindings[0].binding,
+			VK_FORMAT_R32G32B32A32_SFLOAT,
+			2 * sizeof(Vector4f)
+		},
+		VkVertexInputAttributeDescription{
+			3,
+			bindings[0].binding,
+			VK_FORMAT_R32G32B32A32_SFLOAT,
+			3 * sizeof(Vector4f)
+		}
+	};
+
+	const VkPipelineVertexInputStateCreateInfo _vertexInputInfo = {
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+		.vertexBindingDescriptionCount = (uint32)bindings.size(),
+		.pVertexBindingDescriptions = bindings.data(),
+		.vertexAttributeDescriptionCount = (uint32)attributes.size(),
+		.pVertexAttributeDescriptions = attributes.begin()
+	};
 
 	VkDynamicState state[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
 

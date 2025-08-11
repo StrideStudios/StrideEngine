@@ -9,6 +9,7 @@
 #include "EngineLoader.h"
 #include "Material.h"
 #include "Scene.h"
+#include "Sprite.h"
 #include "SpritePass.h"
 #include "StaticMesh.h"
 #include "Threading.h"
@@ -269,7 +270,7 @@ namespace EngineUI {
 		if (ImGui::Begin("Sprites")) {
 			for (const auto& sprite : CEngine::renderer().mSpritePass->objects) {
 				if (ImGui::BeginTabBar("Sprite")) {
-					if (ImGui::BeginTabItem(sprite->name.c_str())) {
+					if (ImGui::BeginTabItem(sprite->mName.c_str())) {
 						//ImGui::Checkbox("Highlight", &material.material->mHighlight);
 						//ImGui::InputInt("Color Texture ID", &material.second->data.colorTextureId);
 						/*const char* combo_preview_value = mGlobalResourceManager.m_Images[surface.material->colorTextureId]->name.c_str();

@@ -57,11 +57,11 @@ public:
 
 	virtual void destroy() override;
 
-	force_inline FrameData& getCurrentFrame() { return mFrames[getFrameIndex()]; }
-
 	force_inline uint32 getFrameNumber() const { return mFrameNumber; }
 
 	force_inline uint32 getFrameIndex() const { return mFrameNumber % gFrameOverlap; }
+
+	force_inline FrameData& getCurrentFrame() { return mFrames[getFrameIndex()]; }
 
 	force_inline const FrameData& getCurrentFrame() const { return mFrames[getFrameIndex()]; }
 

@@ -4,7 +4,8 @@
 
 #include "Material.h"
 #include "Pass.h"
-#include "Sprite.h"
+
+class CSprite;
 
 class CSpritePass : public CPass, public IInitializable<> {
 
@@ -14,16 +15,16 @@ public:
 
 	virtual void render(VkCommandBuffer cmd) override;
 
-	void push(const std::set<std::shared_ptr<SSprite>>& inObjects) {
+	void push(const std::set<std::shared_ptr<CSprite>>& inObjects) {
 		objects.insert_range(inObjects);
 	}
 
-	void push(const std::shared_ptr<SSprite>& inObject) {
+	void push(const std::shared_ptr<CSprite>& inObject) {
 		objects.insert(inObject);
 	}
 
 	// Sprited used to render this pass
-	std::set<std::shared_ptr<SSprite>> objects;
+	std::set<std::shared_ptr<CSprite>> objects;
 
 	//
 	// Pipelines

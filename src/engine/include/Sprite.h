@@ -1,11 +1,13 @@
 ﻿#pragma once
 
 #include <memory>
-#include <string>
 
 #include "Common.h"
+#include "Widget.h"
 
-struct SSprite {
+class CSprite : public CWidget {
+
+public:
 
 	struct Data {
 		Vector2f mUV0;
@@ -13,10 +15,6 @@ struct SSprite {
 		Vector4f mColor;
 	};
 
-	std::string name;
-
 	// Surface Data
 	std::shared_ptr<CMaterial> material;
-
-	int32 mInstances = 1;
 };

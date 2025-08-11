@@ -197,7 +197,7 @@ SBuffer_T* CVulkanResourceManager::allocateBuffer(size_t allocSize, VmaMemoryUsa
 }
 
 SBuffer_T* CVulkanResourceManager::allocateGlobalBuffer(size_t allocSize, VmaMemoryUsage memoryUsage, VkBufferUsageFlags usage) {
-	auto buffer = allocateBuffer(allocSize, memoryUsage, usage);
+	const auto buffer = allocateBuffer(allocSize, memoryUsage, usage);
 
 	// Update descriptors with new buffer
 	{

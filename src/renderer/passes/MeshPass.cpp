@@ -141,7 +141,6 @@ void CMeshPass::render(const VkCommandBuffer cmd) {
 	CVulkanRenderer& renderer = CEngine::renderer();
 
 	std::map<std::shared_ptr<SStaticMesh>, std::vector<SInstance>> renderObjects;
-
 	{
 		ZoneScopedN("Frustum Culling");
 		for (const auto& renderable : CScene::get().data.objects) {
@@ -176,19 +175,24 @@ void CMeshPass::render(const VkCommandBuffer cmd) {
 	uint32 drawCallCount = 0;
 	uint64 vertexCount = 0;
 
-	auto render = [&](const std::pair<const std::shared_ptr<SStaticMesh>, std::vector<SInstance>>& renderable) {
-		const auto obj = renderable.first;
-		const size_t NumInstances = renderable.second.size();
+	ZoneScopedN("Base Pass");
+
+	/*for (const SStaticMesh& draw : m_MainRenderContext.opaqueSurfaces) {
+		render(draw);
+	}*/
+
+	for (const auto& [mesh, instance] : renderObjects) {
+		const size_t NumInstances = instance.size();
 
 		ZoneScoped;
-		ZoneName(obj->name.c_str(), obj->name.size());
+		ZoneName(mesh->name.c_str(), mesh->name.size());
 
 		// Rebind index buffer if starting a new mesh
-		if (lastIndexBuffer != obj->meshBuffers.indexBuffer->buffer) {
+		if (lastIndexBuffer != mesh->meshBuffers.indexBuffer->buffer) {
 			ZoneScopedN("Bind Buffers");
 
-			lastIndexBuffer = obj->meshBuffers.indexBuffer->buffer;
-			vkCmdBindIndexBuffer(cmd, obj->meshBuffers.indexBuffer->buffer, 0, VK_INDEX_TYPE_UINT32);
+			lastIndexBuffer = mesh->meshBuffers.indexBuffer->buffer;
+			vkCmdBindIndexBuffer(cmd, mesh->meshBuffers.indexBuffer->buffer, 0, VK_INDEX_TYPE_UINT32);
 			const auto offset = {
 				VkDeviceSize { 0 },
 				VkDeviceSize { 0 }
@@ -198,18 +202,18 @@ void CMeshPass::render(const VkCommandBuffer cmd) {
 
 			void* data;
 			instanceBuffer->mapData(&data);
-			memcpy(data, renderable.second.data(), NumInstances * sizeof(SInstance));
+			memcpy(data, instance.data(), NumInstances * sizeof(SInstance));
 			instanceBuffer->unMapData();
 
 			const auto buffers = {
-				obj->meshBuffers.vertexBuffer->buffer,
+				mesh->meshBuffers.vertexBuffer->buffer,
 				instanceBuffer->buffer
 			};
-			vkCmdBindVertexBuffers(cmd, 0, (uint32)buffers.size(), buffers.begin(), offset.begin());
+			vkCmdBindVertexBuffers(cmd, 0, static_cast<uint32>(buffers.size()), buffers.begin(), offset.begin());
 		}
 
 		// Loop through surfaces and render
-		for (const auto& surface : obj->surfaces) {
+		for (const auto& surface : mesh->surfaces) {
 
 			//TODO: auto pipeline rebind (or something)
 			// If the materials arent the same, rebind material data
@@ -234,16 +238,6 @@ void CMeshPass::render(const VkCommandBuffer cmd) {
 			drawCallCount++;
 			vertexCount += surface.count * NumInstances;
 		}
-	};
-
-	ZoneScopedN("Base Pass");
-
-	/*for (const SStaticMesh& draw : m_MainRenderContext.opaqueSurfaces) {
-		render(draw);
-	}*/
-
-	for (const auto& obj : renderObjects) {
-		render(obj);
 	}
 
 	// Set number of drawcalls, vertices, and triangles

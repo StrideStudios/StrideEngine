@@ -7,6 +7,7 @@ include_directories("renderer/passes/include")
 include_directories("engine/include")
 include_directories("imgui/include")
 include_directories("../third_party/basis_universal")
+include_directories("gui/include")
 
 add_executable(StrideEngine
 
@@ -94,6 +95,11 @@ add_executable(StrideEngine
         imgui/imgui_impl_sdl3.cpp
         imgui/include/imgui_stdlib.h
         imgui/imgui_stdlib.cpp
+
+        # Gui
+
+        gui/include/Widget.h
+        gui/Widget.cpp
 )
 
 find_package(Vulkan REQUIRED)

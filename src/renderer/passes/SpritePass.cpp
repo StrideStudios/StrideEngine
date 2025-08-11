@@ -1,14 +1,24 @@
 ﻿#include "SpritePass.h"
 
 #include "Engine.h"
+#include "EngineLoader.h"
 #include "EngineTextures.h"
 #include "PipelineBuilder.h"
 #include "ShaderCompiler.h"
+#include "Sprite.h"
 #include "VulkanRenderer.h"
 #include "VulkanUtils.h"
 #include "VulkanDevice.h"
 #include "tracy/Tracy.hpp"
 #include "Viewport.h"
+#include "EngineSettings.h"
+
+#define SETTINGS_CATEGORY "Rendering/Sprite Pass"
+ADD_TEXT(Sprites, "Sprites: ");
+ADD_TEXT(SpriteDrawcalls, "Draw Calls: ");
+ADD_TEXT(SpriteVertices, "Vertices: ");
+ADD_TEXT(SpriteTriangles, "Triangles: ");
+#undef SETTINGS_CATEGORY
 
 void CSpritePass::init() {
 
@@ -63,10 +73,7 @@ void CSpritePass::init() {
 
 	pipelineBuilder.m_PipelineLayout = *newLayout;
 
-	//opaquePipeline.pipeline = renderer.mGlobalResourceManager.allocatePipeline(pipelineBuilder);
-
-	//opaquePipeline.pipeline = pipelineBuilder.buildSpritePipeline(CEngine::device());
-	//renderer.mGlobalResourceManager.push<VkPipeline>(opaquePipeline.pipeline);
+	renderer.mGlobalResourceManager.createDestroyable(opaquePipeline.pipeline, pipelineBuilder.buildSpritePipeline(CEngine::device()));
 	//TODO: better sprite pipeline handling
 
 	vkDestroyShaderModule(CEngine::device(), frag.mModule, nullptr);
@@ -74,7 +81,7 @@ void CSpritePass::init() {
 }
 
 void CSpritePass::render(VkCommandBuffer cmd) {
-	const CVulkanRenderer& renderer = CEngine::renderer();
+	CVulkanRenderer& renderer = CEngine::renderer();
 
 	// sort the opaque surfaces by material and mesh
 	/*{ //TODO: sorting will be needed, but for z-order
@@ -84,38 +91,30 @@ void CSpritePass::render(VkCommandBuffer cmd) {
 		});
 	}*/
 
+	std::map<std::shared_ptr<CMaterial>, std::vector<SInstance>> renderObjects;
+	{
+		ZoneScopedN("Culling");
+		for (const auto& renderable : objects) {
+			if (renderable) { //Can do bounds check
+				if (renderable && renderable->material) {// && isVisible(renderableObject, renderer.mSceneData.mViewProj)) {
+					if (renderObjects.contains(renderable->material)) {
+						renderObjects[renderable->material].push_back(SInstance{renderable->getTransformMatrix()});
+					} else {
+						renderObjects.emplace(renderable->material, std::vector{SInstance{renderable->getTransformMatrix()}});
+					}
+				}
+			}
+		}
+	}
+
+	// Set number of meshes being drawn
+	Sprites.setText(fmts("Sprites: {}", renderObjects.size()));
+
 	//defined outside of the draw function, this is the state we will try to skip
 	SMaterialPipeline* lastPipeline = nullptr;
-	std::shared_ptr<CMaterial> lastMaterial = nullptr;
 
 	uint32 drawCallCount = 0;
 	uint64 vertexCount = 0;
-
-	auto render = [&](const std::shared_ptr<SSprite>& obj) {
-		ZoneScoped;
-		ZoneName(obj->name.c_str(), obj->name.size());
-
-		//TODO: auto pipeline rebind (or something)
-		// If the materials arent the same, rebind material data
-		SMaterialPipeline& pipeline = opaquePipeline;// obj->material->getPipeline(renderer);
-		if (obj->material != lastMaterial) {
-			// If the pipeline has changed, rebind pipeline data
-			if (&pipeline != lastPipeline) {
-				lastPipeline = &pipeline;
-				CVulkanResourceManager::bindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, *pipeline.pipeline);
-				CVulkanResourceManager::bindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, *pipeline.layout, 0, 1, CVulkanResourceManager::getBindlessDescriptorSet());
-
-				CEngine::get().getViewport().set(cmd);
-			}
-		}
-
-		vkCmdPushConstants(cmd, *pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(SPushConstants), obj->material->mConstants.data());
-
-		vkCmdDraw(cmd, 6, obj->mInstances, 0, 0);
-
-		drawCallCount++;
-		vertexCount += 6;
-	};
 
 	ZoneScopedN("Sprite Pass");
 
@@ -123,12 +122,49 @@ void CSpritePass::render(VkCommandBuffer cmd) {
 		render(draw);
 	}*/
 
-	for (const auto& obj : objects) {
-		render(obj);
+	for (const auto& [material, instance] : renderObjects) {
+		const size_t NumInstances = instance.size();
+
+		ZoneScoped;
+		ZoneName(material->mName.c_str(), material->mName.size());
+
+		const auto offset = {
+			VkDeviceSize { 0 }
+		};
+
+		const SBuffer_T* instanceBuffer = renderer.getCurrentFrame().mFrameResourceManager.allocateBuffer(NumInstances * sizeof(SInstance), VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+
+		void* data;
+		instanceBuffer->mapData(&data);
+		memcpy(data, instance.data(), NumInstances * sizeof(SInstance));
+		instanceBuffer->unMapData();
+
+		const auto buffers = {
+			instanceBuffer->buffer
+		};
+		vkCmdBindVertexBuffers(cmd, 0, static_cast<uint32>(buffers.size()), buffers.begin(), offset.begin());
+
+		//TODO: auto pipeline rebind (or something)
+		SMaterialPipeline* pipeline = &opaquePipeline;// obj->material->getPipeline(renderer);
+		// If the pipeline has changed, rebind pipeline data
+		if (pipeline != lastPipeline) {
+			lastPipeline = pipeline;
+			CVulkanResourceManager::bindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, *pipeline->pipeline);
+			CVulkanResourceManager::bindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, *pipeline->layout, 0, 1, CVulkanResourceManager::getBindlessDescriptorSet());
+
+			CEngine::get().getViewport().set(cmd);
+		}
+
+		vkCmdPushConstants(cmd, *pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(SPushConstants), material->mConstants.data());
+
+		vkCmdDraw(cmd, 6, NumInstances, 0, 0);
+
+		drawCallCount++;
+		vertexCount += 6 * NumInstances;
 	}
 
 	// Set number of drawcalls, vertices, and triangles
-	//Drawcalls.setText(fmts("Draw Calls: {}", drawCallCount));
-	//Vertices.setText(fmts("Vertices: {}", vertexCount));
-	//Triangles.setText(fmts("Triangles: {}", vertexCount / 3));
+	SpriteDrawcalls.setText(fmts("Draw Calls: {}", drawCallCount));
+	SpriteVertices.setText(fmts("Vertices: {}", vertexCount));
+	SpriteTriangles.setText(fmts("Triangles: {}", vertexCount / 3));
 }

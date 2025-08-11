@@ -6,6 +6,7 @@
 #include "imgui.h"
 
 #define BASISU_FORCE_DEVEL_MESSAGES 1
+#include "EngineTextures.h"
 #include "MeshPass.h"
 #include "Paths.h"
 #include "Sprite.h"
@@ -83,69 +84,32 @@ void CTestRenderer::init() {
 
 	constexpr int32 numSprites = 10000;
 
-	struct InputData {
-		Vector4f pos;
-		uint32 textureID;
-		Vector3f padding;
-	};
-
-	std::vector<InputData> spriteData;
-	spriteData.resize(numSprites);
-
 	std::random_device rd;
 	std::mt19937 gen(rd());
 
-	std::uniform_int_distribution distribx(1, 1920);
-	std::uniform_int_distribution distriby(1, 1080);
+	std::uniform_int_distribution distribx(0, 100);
+	std::uniform_int_distribution distriby(0, 100);
 
 	//TODO: x value seems to not like being anything other than 0
-	for (int32 i = 0; i < numSprites; ++i) {
-		spriteData[i] = InputData({(float)distribx(gen), (float)distriby(gen), 20.f, 20.f}, i % 16);
-	}
-	size_t size = spriteData.size() * sizeof(InputData);
+	/*for (int32 i = 0; i < numSprites; ++i) {
+		auto sprite = std::make_shared<CSprite>();
+		mSpritePass->push(sprite);
+		sprite->mName = fmts("Sprite {}", i);
+		sprite->mPosition = {(float)distribx(gen) / 100.f, (float)distriby(gen) / 100.f};
+		sprite->mScale = {0.01f, 0.02f}; //textureId = i % 16
+		sprite->material = mEngineTextures->mErrorMaterial;
+	}*/
 
-	SBuffer_T* buffer = mGlobalResourceManager.allocateBuffer(size, VMA_MEMORY_USAGE_GPU_ONLY, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
-
-	VkBufferDeviceAddressInfo deviceAddressInfo{ .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,.buffer = buffer->buffer };
-	VkDeviceAddress vertexBufferAddress = vkGetBufferDeviceAddress(CEngine::device(), &deviceAddressInfo);
-
-	// Staging is not needed outside of this function
-	CVulkanResourceManager manager;
-	const SBuffer_T* staging = manager.allocateBuffer(size, VMA_MEMORY_USAGE_CPU_ONLY, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
-
-	void* data = staging->GetMappedData();
-
-	// copy vertex buffer
-	memcpy(data, spriteData.data(), size);
-
-	immediateSubmit([&](VkCommandBuffer cmd) {
-		VkBufferCopy copy{};
-		copy.dstOffset = 0;
-		copy.srcOffset = 0;
-		copy.size = size;
-
-		vkCmdCopyBuffer(cmd, staging->buffer, buffer->buffer, 1, &copy);
-	});
-
-	manager.flush();
-
-	auto lowBits = (uint32) (vertexBufferAddress & 0xffffffffUL);
-	auto highBits = (uint32) (vertexBufferAddress >> 32);
-
-	material->mConstants[0] = {highBits, lowBits, 0.f, 0.f};
-
-	auto sprite = std::make_shared<SSprite>();
-	sprite->name = "Test Sprite";
-	sprite->material = material;
-	sprite->mInstances = numSprites;
+	auto sprite = std::make_shared<CSprite>();
 	mSpritePass->push(sprite);
-
+	sprite->mName = "Sprite";
+	sprite->mPosition = {0.0f, 0.0f};
+	sprite->mScale = {0.5f, 1.0f};
+	sprite->material = mEngineTextures->mErrorMaterial;
 
 	const std::string path = SPaths::get().mAssetCachePath.string() + "materials.txt";
 	if (CFileArchive inFile(path, "rb"); inFile.isOpen())
 		inFile >> CMaterial::getMaterials();
-
-	//CMaterial::getMaterials().push_back(mGPUScene->mErrorMaterial);
 }
 
 void CTestRenderer::destroy() {
