@@ -108,7 +108,7 @@ void CSpritePass::render(VkCommandBuffer cmd) {
 	}
 
 	// Set number of meshes being drawn
-	Sprites.setText(fmts("Sprites: {}", renderObjects.size()));
+	Sprites.setText(fmts("Sprites: {}", instancers.size()));
 
 	//defined outside of the draw function, this is the state we will try to skip
 	SMaterialPipeline* lastPipeline = nullptr;
@@ -122,27 +122,14 @@ void CSpritePass::render(VkCommandBuffer cmd) {
 		render(draw);
 	}*/
 
-	for (const auto& [material, instance] : renderObjects) {
-		const size_t NumInstances = instance.size();
+	for (auto& [material, instancer] : instancers) {
+		const size_t NumInstances = instancer.instances.size();
 
 		ZoneScoped;
 		ZoneName(material->mName.c_str(), material->mName.size());
 
-		const auto offset = {
-			VkDeviceSize { 0 }
-		};
-
-		const SBuffer_T* instanceBuffer = renderer.getCurrentFrame().mFrameResourceManager.allocateBuffer(NumInstances * sizeof(SInstance), VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
-
-		void* data;
-		instanceBuffer->mapData(&data);
-		memcpy(data, instance.data(), NumInstances * sizeof(SInstance));
-		instanceBuffer->unMapData();
-
-		const auto buffers = {
-			instanceBuffer->buffer
-		};
-		vkCmdBindVertexBuffers(cmd, 0, static_cast<uint32>(buffers.size()), buffers.begin(), offset.begin());
+		VkDeviceSize offset = 0u;
+		vkCmdBindVertexBuffers(cmd, 0, 1u, &instancer.get()->buffer, &offset);
 
 		//TODO: auto pipeline rebind (or something)
 		SMaterialPipeline* pipeline = &opaquePipeline;// obj->material->getPipeline(renderer);
@@ -167,4 +154,18 @@ void CSpritePass::render(VkCommandBuffer cmd) {
 	SpriteDrawcalls.setText(fmts("Draw Calls: {}", drawCallCount));
 	SpriteVertices.setText(fmts("Vertices: {}", vertexCount));
 	SpriteTriangles.setText(fmts("Triangles: {}", vertexCount / 3));
+}
+
+void CSpritePass::push(const std::shared_ptr<CSprite>& inObject) {
+	//objects.insert(inObject);
+	if (inObject && inObject->material) {// && isVisible(renderableObject, renderer.mSceneData.mViewProj)) {
+		const SInstance instance(inObject->getTransformMatrix());
+		if (instancers.contains(inObject->material)) {
+			instancers[inObject->material].push(instance);
+		} else {
+			SInstancer instancer;
+			instancer.push(instance);
+			instancers.emplace(inObject->material, instancer);
+		}
+	}
 }

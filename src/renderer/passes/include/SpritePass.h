@@ -2,6 +2,7 @@
 
 #include <set>
 
+#include "EngineLoader.h"
 #include "Material.h"
 #include "Pass.h"
 
@@ -16,15 +17,17 @@ public:
 	virtual void render(VkCommandBuffer cmd) override;
 
 	void push(const std::set<std::shared_ptr<CSprite>>& inObjects) {
-		objects.insert_range(inObjects);
+		for (auto& sprite : inObjects) {
+			push(sprite);
+		}
 	}
 
-	void push(const std::shared_ptr<CSprite>& inObject) {
-		objects.insert(inObject);
-	}
+	void push(const std::shared_ptr<CSprite>& inObject);
 
 	// Sprited used to render this pass
 	std::set<std::shared_ptr<CSprite>> objects;
+
+	std::map<std::shared_ptr<CMaterial>, SInstancer> instancers;
 
 	//
 	// Pipelines

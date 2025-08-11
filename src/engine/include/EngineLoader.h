@@ -7,6 +7,7 @@
 
 #include "Material.h"
 #include "Paths.h"
+#include "VulkanRenderer.h"
 #include "VulkanResourceManager.h"
 
 struct SStaticMesh;
@@ -50,6 +51,75 @@ struct SVertex {
 
 struct SInstance {
 	Matrix4f Transform;
+};
+
+struct SInstancer {
+
+	~SInstancer() {
+		instanceManager.flush();
+	}
+
+	void append(const std::vector<SInstance>& inInstances) {
+		instances.append_range(inInstances);
+	}
+
+	void push(const SInstance& inInstance) {
+		instances.push_back(inInstance);
+	}
+
+	void reallocate() {
+
+		instanceManager.flush();
+
+		const size_t bufferSize = instances.size() * sizeof(SInstance);
+
+		instanceBuffer = instanceManager.allocateBuffer(bufferSize, VMA_MEMORY_USAGE_GPU_ONLY, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+
+		// Staging is not needed outside of this function
+		CVulkanResourceManager manager;
+		const SBuffer_T* staging = manager.allocateBuffer(bufferSize, VMA_MEMORY_USAGE_CPU_ONLY, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+
+		void* data = staging->GetMappedData();
+		memcpy(data, instances.data(), bufferSize);
+
+		CVulkanRenderer::immediateSubmit([&](VkCommandBuffer cmd) {
+			VkBufferCopy vertexCopy{};
+			vertexCopy.dstOffset = 0;
+			vertexCopy.srcOffset = 0;
+			vertexCopy.size = bufferSize;
+
+			vkCmdCopyBuffer(cmd, staging->buffer, instanceBuffer->buffer, 1, &vertexCopy);
+		});
+
+		manager.flush();
+	}
+
+	SBuffer_T* get() {
+		if (isDirty()) {
+			mIsDirty = false;
+			reallocate();
+		}
+		return instanceBuffer;
+	}
+
+	bool isDirty() const {
+		return mIsDirty;
+	}
+
+	void setDirty() {
+		mIsDirty = true;
+	}
+
+	bool mIsDirty = true;
+
+	CVulkanResourceManager instanceManager;
+
+	std::vector<SInstance> instances;
+
+private:
+
+	SBuffer_T* instanceBuffer = nullptr;
+
 };
 
 struct SBounds {

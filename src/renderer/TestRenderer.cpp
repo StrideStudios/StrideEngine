@@ -91,21 +91,21 @@ void CTestRenderer::init() {
 	std::uniform_int_distribution distriby(0, 100);
 
 	//TODO: x value seems to not like being anything other than 0
-	/*for (int32 i = 0; i < numSprites; ++i) {
+	for (int32 i = 0; i < numSprites; ++i) {
 		auto sprite = std::make_shared<CSprite>();
-		mSpritePass->push(sprite);
 		sprite->mName = fmts("Sprite {}", i);
 		sprite->mPosition = {(float)distribx(gen) / 100.f, (float)distriby(gen) / 100.f};
 		sprite->mScale = {0.01f, 0.02f}; //textureId = i % 16
 		sprite->material = mEngineTextures->mErrorMaterial;
-	}*/
+		mSpritePass->push(sprite);
+	}
 
-	auto sprite = std::make_shared<CSprite>();
+	/*auto sprite = std::make_shared<CSprite>();
 	mSpritePass->push(sprite);
 	sprite->mName = "Sprite";
 	sprite->mPosition = {0.0f, 0.0f};
 	sprite->mScale = {0.5f, 1.0f};
-	sprite->material = mEngineTextures->mErrorMaterial;
+	sprite->material = mEngineTextures->mErrorMaterial;*/
 
 	const std::string path = SPaths::get().mAssetCachePath.string() + "materials.txt";
 	if (CFileArchive inFile(path, "rb"); inFile.isOpen())
