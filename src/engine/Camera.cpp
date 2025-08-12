@@ -1,7 +1,6 @@
 ﻿#include "Camera.h"
 
-//TODO: why this?
-#define GLM_ENABLE_EXPERIMENTAL
+
 #include <glm/gtx/quaternion.hpp>
 
 #include "Engine.h"

@@ -6,7 +6,6 @@
 #include <glm/ext/matrix_transform.hpp>
 #include <tracy/Tracy.hpp>
 
-#define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/quaternion.hpp>
 
 #include <meshoptimizer.h>

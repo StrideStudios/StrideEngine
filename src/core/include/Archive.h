@@ -21,9 +21,9 @@ class CArchive;
 // A serializable function that can be passed down
 class ISerializable {
 public:
-	virtual CArchive& save(CArchive& archive) = 0;
+	virtual CArchive& save(CArchive& inArchive) = 0;
 
-	virtual CArchive& load(CArchive& archive) = 0;
+	virtual CArchive& load(CArchive& inArchive) = 0;
 };
 
 template <class TType> std::shared_ptr<void> constructor() { return std::make_shared<TType>(); }

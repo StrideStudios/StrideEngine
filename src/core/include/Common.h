@@ -3,6 +3,11 @@
 #include <iostream>
 #include "fmt/format.h"
 #include <glm/glm.hpp>
+#include <glm/ext/matrix_transform.hpp>
+
+//TODO: why this?
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtc/quaternion.hpp>
 
 /*
  * To keep it simple yet readable these are some naming conventions:
@@ -121,6 +126,35 @@ typedef glm::vec<4, uint32> uVector4i;
 
 typedef glm::mat<4, 4, float> Matrix4f;
 typedef glm::mat<4, 4, double> Matrix4d;
+
+// Transforms combine position, rotation and scale.
+struct Transform3f {
+	Vector3f mPosition{0.f};
+	Vector3f mRotation{0.f};
+	Vector3f mScale{1.f};
+
+	Matrix4f toMatrix() const {
+		Matrix4f mat = glm::translate(Matrix4f(1.0), mPosition);
+		mat *= glm::mat4_cast(glm::qua(mRotation));
+		mat = glm::scale(mat, mScale);
+		return mat;
+	}
+};
+
+// 2d transform (in screen coordinates)
+struct Transform2f {
+	Vector2f mOrigin{0.f};
+	Vector2f mPosition{0.f};
+	float mRotation = 0.f;
+	Vector2f mScale{1.f};
+
+	Matrix4f toMatrix() const {
+		Matrix4f mat = glm::translate(Matrix4f(1.0), Vector3f(mPosition - mOrigin * mScale, 0.f));
+		mat *= glm::mat4_cast(glm::qua(Vector3f(mRotation, 0.f, 0.f)));
+		mat = glm::scale(mat, Vector3f(mScale, 1.f));
+		return mat;
+	}
+};
 
 // Not all platforms have wide characters as a defined length
 // To keep it consistent, these macros will change depending on the platform

@@ -2,7 +2,6 @@
 
 #include "Engine.h"
 #include "EngineTextures.h"
-#include "PipelineBuilder.h"
 #include "VulkanDevice.h"
 #include "VulkanRenderer.h"
 #include "ShaderCompiler.h"
@@ -48,6 +47,7 @@ void CMeshPass::init(const EMeshPass inPassType) {
 		}
 	};
 
+	//TODO: global pipeline layout
 	VkPipelineLayoutCreateInfo layoutCreateInfo {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
 		.pNext = nullptr,
@@ -64,35 +64,39 @@ void CMeshPass::init(const EMeshPass inPassType) {
 	errorPipeline.layout = newLayout;
     transparentPipeline.layout = newLayout;
 
-	// Set shader modules and standard pipeline
-	CPipelineBuilder pipelineBuilder;
-	pipelineBuilder.setShaders(vert.mModule, frag.mModule);
-	pipelineBuilder.setInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-	pipelineBuilder.setPolygonMode(VK_POLYGON_MODE_FILL);
-	pipelineBuilder.setCullMode(VK_CULL_MODE_FRONT_BIT, VK_FRONT_FACE_CLOCKWISE);
-	pipelineBuilder.setNoMultisampling();
-	pipelineBuilder.disableBlending();
-	pipelineBuilder.enableDepthTest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
+	SPipelineCreateInfo createInfo {
+		.vertexModule = vert.mModule,
+		.fragmentModule = frag.mModule,
+		.mColorFormat = renderer.mEngineTextures->mDrawImage->mImageFormat,
+		.mDepthFormat = renderer.mEngineTextures->mDepthImage->mImageFormat
+	};
 
-	// Set color and depth format
-	pipelineBuilder.setColorAttachementFormat(renderer.mEngineTextures->mDrawImage->mImageFormat);
-	pipelineBuilder.setDepthFormat(renderer.mEngineTextures->mDepthImage->mImageFormat);
+	//TODO: could probably read from shader and do automatically...
+	CVertexAttributeArchive attributes;
+	attributes.createBinding(VK_VERTEX_INPUT_RATE_VERTEX);
+	attributes << VK_FORMAT_R32G32B32_SFLOAT;// vec3 position
+	attributes << VK_FORMAT_R32_UINT; // uint UV
+	attributes << VK_FORMAT_R32G32B32_SFLOAT; // vec3 normal
+	attributes << VK_FORMAT_R32_UINT;// uint color
+	attributes.createBinding(VK_VERTEX_INPUT_RATE_INSTANCE);
+	attributes << VK_FORMAT_R32G32B32A32_SFLOAT;// mat4 Transform
+	attributes << VK_FORMAT_R32G32B32A32_SFLOAT;
+	attributes << VK_FORMAT_R32G32B32A32_SFLOAT;
+	attributes << VK_FORMAT_R32G32B32A32_SFLOAT;
 
-	pipelineBuilder.m_PipelineLayout = *newLayout;
-
-	renderer.mGlobalResourceManager.createDestroyable(opaquePipeline.pipeline, pipelineBuilder);
+	opaquePipeline.pipeline = renderer.mGlobalResourceManager.allocatePipeline(createInfo, attributes, newLayout);
 
 	// Transparent should be additive and always render in front
-	pipelineBuilder.enableBlendingAdditive();
-	pipelineBuilder.depthTestAlwaysInFront();
+	createInfo.mBlendMode = EBlendMode::ADDITIVE;
+	createInfo.mDepthTestMode = EDepthTestMode::FRONT;
 
-	renderer.mGlobalResourceManager.createDestroyable(transparentPipeline.pipeline, pipelineBuilder);
+	transparentPipeline.pipeline = renderer.mGlobalResourceManager.allocatePipeline(createInfo, attributes, newLayout);
 
-	pipelineBuilder.setShaders(vert.mModule, errorFrag.mModule);
-	pipelineBuilder.disableBlending();
-	pipelineBuilder.enableDepthTest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
+	createInfo.fragmentModule = errorFrag.mModule;
+	createInfo.mBlendMode = EBlendMode::NONE;
+	createInfo.mDepthTestMode = EDepthTestMode::NORMAL;
 
-	renderer.mGlobalResourceManager.createDestroyable(errorPipeline.pipeline, pipelineBuilder);
+	errorPipeline.pipeline = renderer.mGlobalResourceManager.allocatePipeline(createInfo, attributes, newLayout);
 
 	vkDestroyShaderModule(CEngine::device(), frag.mModule, nullptr);
 	vkDestroyShaderModule(CEngine::device(), errorFrag.mModule, nullptr);

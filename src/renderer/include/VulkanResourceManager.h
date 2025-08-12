@@ -48,6 +48,90 @@ struct SMeshBuffers_T : IDestroyable {
 	SBuffer_T* instanceBuffer = nullptr;
 };
 
+enum class EBlendMode : uint8 {
+	NONE,
+	ADDITIVE,
+	ALPHA_BLEND
+};
+
+enum class EDepthTestMode : uint8 {
+	NORMAL,
+	BEHIND,
+	FRONT
+};
+
+struct SPipelineCreateInfo {
+	VkShaderModule vertexModule;
+	VkShaderModule fragmentModule;
+	VkPrimitiveTopology mTopology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+	VkPolygonMode mPolygonMode = VK_POLYGON_MODE_FILL;
+	VkCullModeFlags mCullMode = VK_CULL_MODE_FRONT_BIT;
+	VkFrontFace mFrontFace = VK_FRONT_FACE_CLOCKWISE;
+	bool mUseMultisampling = false;
+	EBlendMode mBlendMode = EBlendMode::NONE;
+	EDepthTestMode mDepthTestMode = EDepthTestMode::NORMAL;
+	VkFormat mColorFormat;
+	VkFormat mDepthFormat;
+};
+
+class CVertexAttributeArchive {
+
+public:
+
+	void createBinding(VkVertexInputRate InputRate) {
+		m_Formats.emplace(InputRate, std::vector<VkFormat>());
+	}
+
+	VkPipelineVertexInputStateCreateInfo get() {
+		m_Bindings.clear();
+		m_Attributes.clear();
+
+		uint32 location = 0;
+		uint32 binding = 0;
+		for (auto& [InputRate, formats] : m_Formats) {
+			uint32 stride = 0;
+			for (uint32 current = 0; current < formats.size(); ++current, ++location) {
+				const auto& format = formats[current];
+				m_Attributes.push_back(VkVertexInputAttributeDescription{
+					location,
+					binding,
+					format,
+					stride
+				});
+				stride += getVkFormatSize(format);
+			}
+			m_Bindings.push_back({
+				.binding = binding,
+				.stride = stride,
+				.inputRate = InputRate
+			});
+			binding++;
+		}
+
+		return
+		{
+			.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+			.vertexBindingDescriptionCount = static_cast<uint32>(m_Bindings.size()),
+			.pVertexBindingDescriptions = m_Bindings.data(),
+			.vertexAttributeDescriptionCount = static_cast<uint32>(m_Attributes.size()),
+			.pVertexAttributeDescriptions = m_Attributes.data()
+		};
+	}
+
+	friend CVertexAttributeArchive& operator<<(CVertexAttributeArchive& inArchive, VkFormat inFormat) {
+		inArchive.m_Formats.rbegin()->second.push_back(inFormat);
+		return inArchive;
+	}
+
+private:
+
+	// Stored here because the data needs to last the lifetime of this object
+	std::vector<VkVertexInputBindingDescription> m_Bindings;
+	std::vector<VkVertexInputAttributeDescription> m_Attributes;
+
+	std::map<VkVertexInputRate, std::vector<VkFormat>> m_Formats;
+};
+
 // More than 65535 textures should not be needed, but more than 255 might be.
 constexpr static uint32 gMaxTextures = std::numeric_limits<uint16>::max();
 // There are very few types of samplers, so only 32 are needed
@@ -74,73 +158,6 @@ class CVulkanResourceManager : public CResourceManager {
 
 	friend SBuffer_T;
 	friend SImage_T;
-
-	/*template <typename TVkType>
-	struct Resource : IDestroyable {
-
-#define CREATE_CONSTRUCTOR(inName) \
-		Resource(const Vk##inName##CreateInfo& inCreateInfo) { \
-			VK_CHECK(vkCreate##inName(getDevice(), &inCreateInfo, nullptr, &mResource)); \
-		}
-
-		CREATE_CONSTRUCTOR(CommandPool)
-		CREATE_CONSTRUCTOR(DescriptorPool)
-		CREATE_CONSTRUCTOR(DescriptorSetLayout)
-		CREATE_CONSTRUCTOR(Fence)
-		CREATE_CONSTRUCTOR(ImageView)
-
-		Resource(const CPipelineBuilder& inPipelineBuilder) {
-			mResource = inPipelineBuilder.buildPipeline(getDevice());;
-		}
-
-		CREATE_CONSTRUCTOR(PipelineLayout)
-		CREATE_CONSTRUCTOR(RenderPass)
-		CREATE_CONSTRUCTOR(Sampler)
-		CREATE_CONSTRUCTOR(Semaphore)
-		CREATE_CONSTRUCTOR(ShaderModule)
-
-		Resource(const TVkType& inVkType) {
-			mResource = inVkType;
-		}
-
-#undef CREATE_CONSTRUCTOR
-
-#define CREATE_SWITCH(inName) \
-	if constexpr (std::is_same_v<TVkType, Vk##inName##>) { \
-		vkDestroy##inName(getDevice(), mResource, nullptr); \
-		return; \
-	}
-
-		virtual void destroy() override {
-
-			if constexpr (std::is_same_v<TVkType, SImage>) {
-				deallocateImage(mResource.get());
-				return;
-			}
-
-			if constexpr (std::is_same_v<TVkType, SBuffer>) {
-				deallocateBuffer(mResource.get());
-				return;
-			}
-
-			CREATE_SWITCH(CommandPool)
-			CREATE_SWITCH(DescriptorPool)
-			CREATE_SWITCH(DescriptorSetLayout)
-			CREATE_SWITCH(Fence)
-			CREATE_SWITCH(ImageView)
-			CREATE_SWITCH(Pipeline)
-			CREATE_SWITCH(PipelineLayout)
-			CREATE_SWITCH(RenderPass)
-			CREATE_SWITCH(Sampler)
-			CREATE_SWITCH(Semaphore)
-			CREATE_SWITCH(ShaderModule)
-		}
-
-#undef CREATE_SWITCH
-
-		TVkType mResource = nullptr;
-
-	};*/
 
 	constexpr static VmaAllocator& getAllocator() {
 		static VmaAllocator allocator;
@@ -195,6 +212,8 @@ public:
 	//
 	// Pipelines
 	//
+
+	no_discard CPipeline* allocatePipeline(const SPipelineCreateInfo& inCreateInfo, CVertexAttributeArchive& inAttributes, CPipelineLayout* inLayout);
 
 	static void bindPipeline(VkCommandBuffer cmd, VkPipelineBindPoint inBindPoint, VkPipeline inPipeline);
 

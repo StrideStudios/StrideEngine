@@ -24,10 +24,8 @@ public:
 
 	void push(const std::shared_ptr<CSprite>& inObject);
 
-	// Sprited used to render this pass
+	// Sprites used to render this pass
 	std::set<std::shared_ptr<CSprite>> objects;
-
-	std::map<std::shared_ptr<CMaterial>, SInstancer> instancers;
 
 	//
 	// Pipelines

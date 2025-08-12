@@ -3,7 +3,6 @@
 #include "Engine.h"
 #include "EngineLoader.h"
 #include "EngineTextures.h"
-#include "PipelineBuilder.h"
 #include "ShaderCompiler.h"
 #include "Sprite.h"
 #include "VulkanRenderer.h"
@@ -56,25 +55,22 @@ void CSpritePass::init() {
 
     opaquePipeline.layout = newLayout;
 
-	// Set shader modules and standard pipeline
-	CPipelineBuilder pipelineBuilder;
-	pipelineBuilder.setShaders(vert.mModule, frag.mModule);
-	pipelineBuilder.setInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-	pipelineBuilder.setPolygonMode(VK_POLYGON_MODE_FILL);
-	pipelineBuilder.setCullMode(VK_CULL_MODE_FRONT_BIT, VK_FRONT_FACE_CLOCKWISE);
-	pipelineBuilder.setNoMultisampling();
-	pipelineBuilder.disableBlending();
-	pipelineBuilder.depthTestAlwaysInFront();
+	SPipelineCreateInfo createInfo {
+		.vertexModule = vert.mModule,
+		.fragmentModule = frag.mModule,
+		.mDepthTestMode = EDepthTestMode::FRONT,
+		.mColorFormat = renderer.mEngineTextures->mDrawImage->mImageFormat,
+		.mDepthFormat = renderer.mEngineTextures->mDepthImage->mImageFormat
+	};
 
-	// Set color and depth format
-	pipelineBuilder.setColorAttachementFormat(renderer.mEngineTextures->mDrawImage->mImageFormat);
+	CVertexAttributeArchive attributes;
+	attributes.createBinding(VK_VERTEX_INPUT_RATE_INSTANCE);
+	attributes << VK_FORMAT_R32G32B32A32_SFLOAT;// mat4 Transform
+	attributes << VK_FORMAT_R32G32B32A32_SFLOAT;
+	attributes << VK_FORMAT_R32G32B32A32_SFLOAT;
+	attributes << VK_FORMAT_R32G32B32A32_SFLOAT;
 
-	pipelineBuilder.setDepthFormat(renderer.mEngineTextures->mDepthImage->mImageFormat);
-
-	pipelineBuilder.m_PipelineLayout = *newLayout;
-
-	renderer.mGlobalResourceManager.createDestroyable(opaquePipeline.pipeline, pipelineBuilder.buildSpritePipeline(CEngine::device()));
-	//TODO: better sprite pipeline handling
+	opaquePipeline.pipeline = renderer.mGlobalResourceManager.allocatePipeline(createInfo, attributes, newLayout);
 
 	vkDestroyShaderModule(CEngine::device(), frag.mModule, nullptr);
 	vkDestroyShaderModule(CEngine::device(), vert.mModule, nullptr);
@@ -91,16 +87,16 @@ void CSpritePass::render(VkCommandBuffer cmd) {
 		});
 	}*/
 
-	std::map<std::shared_ptr<CMaterial>, std::vector<SInstance>> renderObjects;
+	std::map<std::shared_ptr<CMaterial>, std::vector<std::shared_ptr<CSprite>>> renderObjects;
 	{
-		ZoneScopedN("Culling");
+		ZoneScopedN("Culling/Sorting");
 		for (const auto& renderable : objects) {
 			if (renderable) { //Can do bounds check
 				if (renderable && renderable->material) {// && isVisible(renderableObject, renderer.mSceneData.mViewProj)) {
 					if (renderObjects.contains(renderable->material)) {
-						renderObjects[renderable->material].push_back(SInstance{renderable->getTransformMatrix()});
+						renderObjects[renderable->material].push_back(renderable);
 					} else {
-						renderObjects.emplace(renderable->material, std::vector{SInstance{renderable->getTransformMatrix()}});
+						renderObjects.emplace(renderable->material, std::vector{renderable});
 					}
 				}
 			}
@@ -108,7 +104,7 @@ void CSpritePass::render(VkCommandBuffer cmd) {
 	}
 
 	// Set number of meshes being drawn
-	Sprites.setText(fmts("Sprites: {}", instancers.size()));
+	Sprites.setText(fmts("Sprites: {}", renderObjects.size()));
 
 	//defined outside of the draw function, this is the state we will try to skip
 	SMaterialPipeline* lastPipeline = nullptr;
@@ -122,14 +118,15 @@ void CSpritePass::render(VkCommandBuffer cmd) {
 		render(draw);
 	}*/
 
-	for (auto& [material, instancer] : instancers) {
+	for (auto& sprite : objects) {
+		SInstancer& instancer = sprite->getInstancer();
 		const size_t NumInstances = instancer.instances.size();
 
 		ZoneScoped;
-		ZoneName(material->mName.c_str(), material->mName.size());
+		ZoneName(sprite->mName.c_str(), sprite->mName.size());
 
 		VkDeviceSize offset = 0u;
-		vkCmdBindVertexBuffers(cmd, 0, 1u, &instancer.get()->buffer, &offset);
+		vkCmdBindVertexBuffers(cmd, 0, 1u, &instancer.get(sprite->getTransformMatrix())->buffer, &offset);
 
 		//TODO: auto pipeline rebind (or something)
 		SMaterialPipeline* pipeline = &opaquePipeline;// obj->material->getPipeline(renderer);
@@ -142,7 +139,7 @@ void CSpritePass::render(VkCommandBuffer cmd) {
 			CEngine::get().getViewport().set(cmd);
 		}
 
-		vkCmdPushConstants(cmd, *pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(SPushConstants), material->mConstants.data());
+		vkCmdPushConstants(cmd, *pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(SPushConstants), sprite->material->mConstants.data());
 
 		vkCmdDraw(cmd, 6, NumInstances, 0, 0);
 
@@ -157,8 +154,8 @@ void CSpritePass::render(VkCommandBuffer cmd) {
 }
 
 void CSpritePass::push(const std::shared_ptr<CSprite>& inObject) {
-	//objects.insert(inObject);
-	if (inObject && inObject->material) {// && isVisible(renderableObject, renderer.mSceneData.mViewProj)) {
+	objects.insert(inObject);
+	/*if (inObject && inObject->material) {// && isVisible(renderableObject, renderer.mSceneData.mViewProj)) {
 		const SInstance instance(inObject->getTransformMatrix());
 		if (instancers.contains(inObject->material)) {
 			instancers[inObject->material].push(instance);
@@ -167,5 +164,5 @@ void CSpritePass::push(const std::shared_ptr<CSprite>& inObject) {
 			instancer.push(instance);
 			instancers.emplace(inObject->material, instancer);
 		}
-	}
+	}*/
 }

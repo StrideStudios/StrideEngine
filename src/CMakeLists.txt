@@ -48,8 +48,6 @@ add_executable(StrideEngine
         renderer/VulkanResourceManager.cpp
         renderer/include/EngineTextures.h
         renderer/EngineTextures.cpp
-        renderer/include/PipelineBuilder.h
-        renderer/PipelineBuilder.cpp
         renderer/include/TestRenderer.h
         renderer/TestRenderer.cpp
 

@@ -51,9 +51,24 @@ struct SVertex {
 
 struct SInstance {
 	Matrix4f Transform;
+
+	friend CArchive& operator<<(CArchive& inArchive, const SInstance& inInstance) {
+		inArchive << inInstance.Transform;
+		return inArchive;
+	}
+
+	friend CArchive& operator>>(CArchive& inArchive, SInstance& inInstance) {
+		inArchive >> inInstance.Transform;
+		return inArchive;
+	}
 };
 
 struct SInstancer {
+
+	SInstancer(const uint32 initialSize = 0) {
+		instances.resize(initialSize);
+		setDirty();
+	}
 
 	~SInstancer() {
 		instanceManager.flush();
@@ -61,17 +76,37 @@ struct SInstancer {
 
 	void append(const std::vector<SInstance>& inInstances) {
 		instances.append_range(inInstances);
+		setDirty();
 	}
 
-	void push(const SInstance& inInstance) {
+	uint32 push(const SInstance& inInstance) {
 		instances.push_back(inInstance);
+		setDirty();
+		return static_cast<uint32>(instances.size()) - 1;
 	}
 
-	void reallocate() {
+	SInstance remove(const uint32 inInstance) {
+		const auto& instance = instances.erase(instances.begin() + inInstance);
+		setDirty();
+		return *instance;
+	}
+
+	void flush() {
+		instances.clear();
+		setDirty();
+	}
+
+	void reallocate(const Matrix4f& parentMatrix = Matrix4f(1.f)) {
+
+		std::vector<SInstance> inputData = instances;
+
+		for (auto& instance : inputData) {
+			instance.Transform = parentMatrix * instance.Transform;
+		}
 
 		instanceManager.flush();
 
-		const size_t bufferSize = instances.size() * sizeof(SInstance);
+		const size_t bufferSize = inputData.size() * sizeof(SInstance);
 
 		instanceBuffer = instanceManager.allocateBuffer(bufferSize, VMA_MEMORY_USAGE_GPU_ONLY, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
 
@@ -80,7 +115,7 @@ struct SInstancer {
 		const SBuffer_T* staging = manager.allocateBuffer(bufferSize, VMA_MEMORY_USAGE_CPU_ONLY, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
 
 		void* data = staging->GetMappedData();
-		memcpy(data, instances.data(), bufferSize);
+		memcpy(data, inputData.data(), bufferSize);
 
 		CVulkanRenderer::immediateSubmit([&](VkCommandBuffer cmd) {
 			VkBufferCopy vertexCopy{};
@@ -94,10 +129,10 @@ struct SInstancer {
 		manager.flush();
 	}
 
-	SBuffer_T* get() {
+	SBuffer_T* get(const Matrix4f& parentMatrix = Matrix4f(1.f)) {
 		if (isDirty()) {
 			mIsDirty = false;
-			reallocate();
+			reallocate(parentMatrix);
 		}
 		return instanceBuffer;
 	}
@@ -108,6 +143,16 @@ struct SInstancer {
 
 	void setDirty() {
 		mIsDirty = true;
+	}
+
+	friend CArchive& operator<<(CArchive& inArchive, const SInstancer& inInstancer) {
+		inArchive << inInstancer.instances;
+		return inArchive;
+	}
+
+	friend CArchive& operator>>(CArchive& inArchive, SInstancer& inInstancer) {
+		inArchive >> inInstancer.instances;
+		return inArchive;
 	}
 
 	bool mIsDirty = true;

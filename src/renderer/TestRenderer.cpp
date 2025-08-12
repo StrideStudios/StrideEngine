@@ -82,7 +82,7 @@ void CTestRenderer::init() {
 	material->mName = "Test";
 	material->mPassType = EMaterialPass::OPAQUE;
 
-	constexpr int32 numSprites = 10000;
+	constexpr int32 numSprites = 1000;
 
 	std::random_device rd;
 	std::mt19937 gen(rd());
@@ -90,22 +90,23 @@ void CTestRenderer::init() {
 	std::uniform_int_distribution distribx(0, 100);
 	std::uniform_int_distribution distriby(0, 100);
 
-	//TODO: x value seems to not like being anything other than 0
+	const auto sprite = std::make_shared<CInstancedSprite>();
+	sprite->mName = fmts("Instanced Sprite");
+	sprite->material = mEngineTextures->mErrorMaterial;
+	mSpritePass->push(sprite);
+
 	for (int32 i = 0; i < numSprites; ++i) {
-		auto sprite = std::make_shared<CSprite>();
-		sprite->mName = fmts("Sprite {}", i);
-		sprite->mPosition = {(float)distribx(gen) / 100.f, (float)distriby(gen) / 100.f};
-		sprite->mScale = {0.01f, 0.02f}; //textureId = i % 16
-		sprite->material = mEngineTextures->mErrorMaterial;
-		mSpritePass->push(sprite);
+		Transform2f transform;
+		transform.mPosition = {(float)distribx(gen) / 100.f, (float)distriby(gen) / 100.f};
+		transform.mScale = {0.025f, 0.05f};
+		sprite->addInstance(transform);
 	}
 
-	/*auto sprite = std::make_shared<CSprite>();
-	mSpritePass->push(sprite);
-	sprite->mName = "Sprite";
-	sprite->mPosition = {0.0f, 0.0f};
-	sprite->mScale = {0.5f, 1.0f};
-	sprite->material = mEngineTextures->mErrorMaterial;*/
+	/*Transform2f transform;
+	transform.mOrigin = {0.5f, 0.5f};
+	transform.mPosition = {0.5f, 0.5f};
+	transform.mScale = {0.5f, 1.0f};
+	sprite->addInstance(transform);*/
 
 	const std::string path = SPaths::get().mAssetCachePath.string() + "materials.txt";
 	if (CFileArchive inFile(path, "rb"); inFile.isOpen())
