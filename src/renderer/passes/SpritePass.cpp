@@ -3,7 +3,6 @@
 #include "Engine.h"
 #include "EngineLoader.h"
 #include "EngineTextures.h"
-#include "ShaderCompiler.h"
 #include "Sprite.h"
 #include "VulkanRenderer.h"
 #include "VulkanUtils.h"
@@ -23,19 +22,15 @@ void CSpritePass::init() {
 
 	CVulkanRenderer& renderer = CEngine::renderer();
 
-	SShader frag {
-		.mStage = EShaderStage::PIXEL
-	};
-	VK_CHECK(CShaderCompiler::getShader(CEngine::device(), "material\\sprite.frag", frag));
+	CVulkanResourceManager manager;
 
-	SShader vert {
-		.mStage = EShaderStage::VERTEX
-	};
-	VK_CHECK(CShaderCompiler::getShader(CEngine::device(),"material\\sprite.vert", vert))
+	const SShader frag = manager.getShader("material\\sprite.frag");
+
+	const SShader vert = manager.getShader("material\\sprite.vert");
 
 	SPipelineCreateInfo createInfo {
-		.vertexModule = vert.mModule,
-		.fragmentModule = frag.mModule,
+		.vertexModule = *vert.mModule,
+		.fragmentModule = *frag.mModule,
 		.mDepthTestMode = EDepthTestMode::FRONT,
 		.mColorFormat = renderer.mEngineTextures->mDrawImage->mImageFormat,
 		.mDepthFormat = renderer.mEngineTextures->mDepthImage->mImageFormat
@@ -50,8 +45,7 @@ void CSpritePass::init() {
 
 	opaquePipeline = renderer.mGlobalResourceManager.allocatePipeline(createInfo, attributes, CVulkanResourceManager::getBasicPipelineLayout());
 
-	vkDestroyShaderModule(CEngine::device(), frag.mModule, nullptr);
-	vkDestroyShaderModule(CEngine::device(), vert.mModule, nullptr);
+	manager.flush();
 }
 
 void CSpritePass::render(VkCommandBuffer cmd) {

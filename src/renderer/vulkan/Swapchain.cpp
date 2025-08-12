@@ -34,8 +34,8 @@ SSwapchain::SSwapchain(const  vkb::Result<vkb::Swapchain>& inSwapchainBuilder) {
 	mSwapchainRenderSemaphores.resize(mSwapchainImages.size());
 	mSwapchainImageViews.resize(mSwapchainImages.size());
 	for (int32 i = 0; i < mSwapchainImages.size(); ++i) {
-		gSwapchainResourceManager.createDestroyable(mSwapchainRenderSemaphores[i], semaphoreCreateInfo);
-		gSwapchainResourceManager.createDestroyable(mSwapchainImageViews[i], imageViews[i]);
+		gSwapchainResourceManager.push(mSwapchainRenderSemaphores[i], semaphoreCreateInfo);
+		gSwapchainResourceManager.push(mSwapchainImageViews[i], imageViews[i]);
 	}
 }
 
@@ -47,10 +47,10 @@ CSwapchain::CSwapchain() {
 
 	for (auto& [mSwapchainSemaphore, mRenderSemaphore, mRenderFence, mPresentFence] : m_Frames) {
 
-		gFrameResourceManager.createDestroyable(mRenderFence, fenceCreateInfo);
+		gFrameResourceManager.push(mRenderFence, fenceCreateInfo);
 		//gFrameResourceManager.createDestroyable(mPresentFence, fenceCreateInfo);
 
-		gFrameResourceManager.createDestroyable(mSwapchainSemaphore, semaphoreCreateInfo);
+		gFrameResourceManager.push(mSwapchainSemaphore, semaphoreCreateInfo);
 		//gFrameResourceManager.createDestroyable(mRenderSemaphore, semaphoreCreateInfo);
 	}
 }
@@ -76,7 +76,7 @@ void CSwapchain::init(const VkSwapchainKHR oldSwapchain, const bool inUseVSync) 
 	gSwapchainResourceManager.flush();
 
 	//Initialize internal swapchain
-	gSwapchainResourceManager.createDestroyable(mSwapchain, vkbSwapchain);
+	gSwapchainResourceManager.push(mSwapchain, vkbSwapchain);
 }
 
 void CSwapchain::recreate(bool inUseVSync) {

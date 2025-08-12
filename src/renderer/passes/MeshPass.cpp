@@ -4,7 +4,6 @@
 #include "EngineTextures.h"
 #include "VulkanDevice.h"
 #include "VulkanRenderer.h"
-#include "ShaderCompiler.h"
 #include "VulkanUtils.h"
 #include "tracy/Tracy.hpp"
 #include "EngineSettings.h"
@@ -24,24 +23,15 @@ void CMeshPass::init(const EMeshPass inPassType) {
 
 	CVulkanRenderer& renderer = CEngine::renderer();
 
-	SShader frag {
-		.mStage = EShaderStage::PIXEL
-	};
-	VK_CHECK(CShaderCompiler::getShader(CEngine::device(), "material\\mesh.frag", frag));
+	CVulkanResourceManager manager;
 
-	SShader errorFrag {
-		.mStage = EShaderStage::PIXEL
-	};
-	VK_CHECK(CShaderCompiler::getShader(CEngine::device(), "material\\mesh_error.frag", errorFrag));
-
-	SShader vert {
-		.mStage = EShaderStage::VERTEX
-	};
-	VK_CHECK(CShaderCompiler::getShader(CEngine::device(),"material\\mesh.vert", vert))
+	const SShader frag = manager.getShader("material\\mesh.frag");
+	const SShader errorFrag = manager.getShader("material\\mesh_error.frag");
+	const SShader vert = manager.getShader("material\\mesh.vert");
 
 	SPipelineCreateInfo createInfo {
-		.vertexModule = vert.mModule,
-		.fragmentModule = frag.mModule,
+		.vertexModule = *vert.mModule,
+		.fragmentModule = *frag.mModule,
 		.mColorFormat = renderer.mEngineTextures->mDrawImage->mImageFormat,
 		.mDepthFormat = renderer.mEngineTextures->mDepthImage->mImageFormat
 	};
@@ -67,15 +57,13 @@ void CMeshPass::init(const EMeshPass inPassType) {
 
 	transparentPipeline = renderer.mGlobalResourceManager.allocatePipeline(createInfo, attributes, CVulkanResourceManager::getBasicPipelineLayout());
 
-	createInfo.fragmentModule = errorFrag.mModule;
+	createInfo.fragmentModule = *errorFrag.mModule;
 	createInfo.mBlendMode = EBlendMode::NONE;
 	createInfo.mDepthTestMode = EDepthTestMode::NORMAL;
 
 	errorPipeline = renderer.mGlobalResourceManager.allocatePipeline(createInfo, attributes, CVulkanResourceManager::getBasicPipelineLayout());
 
-	vkDestroyShaderModule(CEngine::device(), frag.mModule, nullptr);
-	vkDestroyShaderModule(CEngine::device(), errorFrag.mModule, nullptr);
-	vkDestroyShaderModule(CEngine::device(), vert.mModule, nullptr);
+	manager.flush();
 }
 
 //TODO: probably faster with gpu

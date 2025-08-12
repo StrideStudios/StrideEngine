@@ -60,8 +60,6 @@ add_executable(StrideEngine
         renderer/vulkan/include/VulkanInstance.h
         renderer/vulkan/include/VulkanDevice.h
         renderer/vulkan/VulkanDevice.cpp
-        renderer/vulkan/include/ShaderCompiler.h
-        renderer/vulkan/ShaderCompiler.cpp
         renderer/vulkan/include/VulkanRenderer.h
         renderer/vulkan/VulkanRenderer.cpp
 

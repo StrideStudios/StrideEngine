@@ -55,19 +55,19 @@ void CEngine::init() {
 	astsOnce(CEngine)
 
 	// Initializes the vkb instance
-	gEngineResourceManager.createDestroyable(m_Instance);
+	gEngineResourceManager.push(m_Instance);
 
 	// Initialize the viewport
-	gEngineResourceManager.createDestroyable(m_EngineViewport);
+	gEngineResourceManager.push(m_EngineViewport);
 
 	// Create the vulkan device
-	gEngineResourceManager.createDestroyable(m_Device);
+	gEngineResourceManager.push(m_Device);
 
 	// Create the renderer
-	gEngineResourceManager.createDestroyable<CTestRenderer>(m_Renderer);
+	gEngineResourceManager.push<CTestRenderer>(m_Renderer);
 
 	// Create the camera
-	gEngineResourceManager.createDestroyable(mMainCamera);
+	gEngineResourceManager.push(mMainCamera);
 
 	CEngineLoader::load();
 }

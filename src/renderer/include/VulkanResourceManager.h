@@ -14,7 +14,7 @@
 
 class CVulkanDevice;
 
-struct SImage_T : IDestroyable {
+struct SImage_T final : IDestroyable {
 	std::string name;
 	VkImage mImage;
 	VkImageView mImageView;
@@ -26,7 +26,7 @@ struct SImage_T : IDestroyable {
 	virtual void destroy() override;
 };
 
-struct SBuffer_T : IDestroyable {
+struct SBuffer_T final : IDestroyable {
 	VkBuffer buffer = nullptr;
 	VmaAllocation allocation = nullptr;
 	VmaAllocationInfo info = {};
@@ -42,10 +42,23 @@ struct SBuffer_T : IDestroyable {
 };
 
 // Holds the resources needed for mesh rendering
-struct SMeshBuffers_T : IDestroyable {
+struct SMeshBuffers_T final : IDestroyable {
 	SBuffer_T* indexBuffer = nullptr;
 	SBuffer_T* vertexBuffer = nullptr;
 	SBuffer_T* instanceBuffer = nullptr;
+};
+
+enum class EShaderStage : uint8 {
+	VERTEX,
+	FRAGMENT,
+	COMPUTE
+};
+
+struct SShader {
+	CShaderModule* mModule;
+	EShaderStage mStage;
+	std::string mShaderCode;
+	std::vector<uint32> mCompiledShader;
 };
 
 enum class EBlendMode : uint8 {
@@ -213,6 +226,12 @@ public:
 
 	//TODO: descriptors here
 	static void bindDescriptorSets(VkCommandBuffer cmd, VkPipelineBindPoint inBindPoint, VkPipelineLayout inPipelineLayout, uint32 inFirstSet, uint32 inDescriptorSetCount, const VkDescriptorSet& inDescriptorSets);
+
+	//
+	// Shaders
+	//
+
+	SShader getShader(const char* inFilePath);
 
 	//
 	// Pipelines

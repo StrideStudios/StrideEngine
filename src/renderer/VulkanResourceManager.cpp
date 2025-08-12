@@ -10,6 +10,9 @@
 #include "VulkanUtils.h"
 #include "tracy/Tracy.hpp"
 
+#include "glslang/Include/glslang_c_interface.h"
+#include "glslang/Public/resource_limits_c.h"
+
 #define DEBUG_SHOW_ALLOCATIONS 1
 
 #if DEBUG_SHOW_ALLOCATIONS
@@ -78,7 +81,7 @@ void CVulkanResourceManager::init() {
 			.pPoolSizes = poolSizes.begin()
 		};
 
-		gGlobalResourceManager.createDestroyable(getBindlessDescriptorPool(), poolCreateInfo);
+		gGlobalResourceManager.push(getBindlessDescriptorPool(), poolCreateInfo);
 	}
 
 	// Create Descriptor Set layout
@@ -128,7 +131,7 @@ void CVulkanResourceManager::init() {
         	.pBindings = binding.begin(),
         };
 
-		gGlobalResourceManager.createDestroyable(getBindlessDescriptorSetLayout(), layoutCreateInfo);
+		gGlobalResourceManager.push(getBindlessDescriptorSetLayout(), layoutCreateInfo);
 	}
 
 	{
@@ -171,7 +174,7 @@ void CVulkanResourceManager::init() {
 			.pPushConstantRanges = pushConstants.begin()
 		};
 
-		gGlobalResourceManager.createDestroyable(getBasicPipelineLayout(), layoutCreateInfo);
+		gGlobalResourceManager.push(getBasicPipelineLayout(), layoutCreateInfo);
 	}
 }
 
@@ -190,6 +193,225 @@ VkCommandBuffer CVulkanResourceManager::allocateCommandBuffer(const VkCommandBuf
 void CVulkanResourceManager::bindDescriptorSets(VkCommandBuffer cmd, VkPipelineBindPoint inBindPoint, VkPipelineLayout inPipelineLayout, uint32 inFirstSet, uint32 inDescriptorSetCount, const VkDescriptorSet& inDescriptorSets) {
 	ZoneScopedAllocation(std::string("Bind Descriptor Sets"));
 	vkCmdBindDescriptorSets(cmd, inBindPoint,inPipelineLayout, inFirstSet, inDescriptorSetCount, &inDescriptorSets, 0, nullptr);
+}
+
+static uint32 compile(SShader& inoutShader) {
+
+	glslang_stage_t stage;
+	switch (inoutShader.mStage) {
+		case EShaderStage::VERTEX:
+			stage = GLSLANG_STAGE_VERTEX;
+			break;
+		case EShaderStage::FRAGMENT:
+			stage = GLSLANG_STAGE_FRAGMENT;
+			break;
+		case EShaderStage::COMPUTE:
+			stage = GLSLANG_STAGE_COMPUTE;
+			break;
+		default:
+			return 0;
+	}
+
+	const glslang_input_t input = {
+		.language = GLSLANG_SOURCE_GLSL,
+		.stage = stage,
+		.client = GLSLANG_CLIENT_VULKAN,
+		.client_version = GLSLANG_TARGET_VULKAN_1_3,
+		.target_language = GLSLANG_TARGET_SPV,
+		.target_language_version = GLSLANG_TARGET_SPV_1_6,
+		.code = inoutShader.mShaderCode.c_str(),
+		.default_version = 460,
+		.default_profile = GLSLANG_NO_PROFILE,
+		.force_default_version_and_profile = false,
+		.forward_compatible = false,
+		.messages = GLSLANG_MSG_DEFAULT_BIT,
+		.resource = glslang_default_resource(),
+	};
+
+	glslang_initialize_process();
+
+	glslang_shader_t* shader = glslang_shader_create(&input);
+
+	if (!glslang_shader_preprocess(shader, &input)) {
+		errs("Error Processing Shader. Log: {}. Debug Log: {}.",
+			glslang_shader_get_info_log(shader),
+			glslang_shader_get_info_debug_log(shader));
+	}
+
+	if (!glslang_shader_parse(shader, &input)) {
+		errs("Error Parsing Shader. Log: {}. Debug Log: {}.",
+			glslang_shader_get_info_log(shader),
+			glslang_shader_get_info_debug_log(shader));
+	}
+
+	glslang_program_t* program = glslang_program_create();
+	glslang_program_add_shader(program, shader);
+
+	if (!glslang_program_link(program, GLSLANG_MSG_SPV_RULES_BIT | GLSLANG_MSG_VULKAN_RULES_BIT)) {
+		errs("Error Linking Shader. Log: {}. Debug Log: {}.",
+			glslang_shader_get_info_log(shader),
+			glslang_shader_get_info_debug_log(shader));
+	}
+
+	glslang_program_SPIRV_generate(program, input.stage);
+
+	inoutShader.mCompiledShader.resize(glslang_program_SPIRV_get_size(program));
+	glslang_program_SPIRV_get(program, inoutShader.mCompiledShader.data());
+
+	if (glslang_program_SPIRV_get_messages(program)) {
+		msgs("{}", glslang_program_SPIRV_get_messages(program));
+	}
+
+	glslang_program_delete(program);
+	glslang_shader_delete(shader);
+
+	return inoutShader.mCompiledShader.size();
+}
+
+std::string readShaderFile(const char* inFileName) {
+	CFileArchive file(inFileName, "r");
+
+	if (!file.isOpen()) {
+		printf("I/O error. Cannot open shader file '%s'\n", inFileName);
+		return std::string();
+	}
+
+	std::string code = file.readFile(true);
+
+	// Process includes
+	while (code.find("#include ") != code.npos)
+	{
+		const auto pos = code.find("#include ");
+		const auto p1 = code.find("\"", pos);
+		const auto p2 = code.find("\"", p1 + 1);
+		if (p1 == code.npos || p2 == code.npos || p2 <= p1)
+		{
+			printf("Error while loading shader program: %s\n", code.c_str());
+			return std::string();
+		}
+		const std::string name = code.substr(p1 + 1, p2 - p1 - 1);
+		const std::string include = readShaderFile((SPaths::get().mShaderPath.string() + name.c_str()).c_str());
+		code.replace(pos, p2-pos+1, include.c_str());
+	}
+
+	return code;
+}
+
+bool loadShader(VkDevice inDevice, const char* inFileName, uint32 Hash, SShader& inoutShader) {
+	CFileArchive file(inFileName, "rb");
+
+	if (!file.isOpen()) {
+		return false;
+	}
+
+	std::vector<uint32> code = file.readFile<uint32>();
+
+	// The first uint32 value is the hash, if it does not equal the hash for the shader code, it means the shader has changed
+	if (code[0] != Hash) {
+		msgs("Shader file {} has changed, recompiling.", inFileName);
+		return false;
+	}
+
+	// Remove the hash so it doesnt mess up the SPIRV shader
+	code.erase(code.begin());
+
+	// Create a new shader module, using the buffer we loaded
+	VkShaderModuleCreateInfo createInfo {
+		.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+		.pNext = nullptr,
+		// CodeSize has to be in bytes, so multply the ints in the buffer by size of
+		.codeSize = code.size() * sizeof(uint32),
+		.pCode = code.data()
+	};
+
+	// Check that the creation goes well.
+	VkShaderModule shaderModule;
+	if (vkCreateShaderModule(inDevice, &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
+		return false;
+	}
+	inoutShader.mModule->mShaderModule = shaderModule;
+	return true;
+}
+
+bool saveShader(const char* inFileName, uint32 Hash, const SShader& inShader) {
+	CFileArchive file(inFileName, "wb");
+
+	// Make sure the file is open
+	if (!file.isOpen()) {
+		return false;
+	}
+
+	std::vector<uint32> data = inShader.mCompiledShader;
+
+	// Add the hash to the first part of the shader
+	data.insert(data.begin(), Hash);
+
+	file.writeFile(data);
+
+	msgs("Compiled Shader {}.", inFileName);
+
+	return true;
+}
+
+SShader CVulkanResourceManager::getShader(const char* inFilePath) {
+
+	auto detectedStage = EShaderStage::VERTEX;
+
+	const std::string fileExtension = std::filesystem::path(inFilePath).extension().string();
+
+	if (fileExtension == ".comp") {
+		detectedStage = EShaderStage::COMPUTE;
+	} else if (fileExtension == ".vert") {
+		detectedStage = EShaderStage::VERTEX;
+	} else if (fileExtension == ".frag") {
+		detectedStage = EShaderStage::FRAGMENT;
+	}
+
+	SShader shader {
+		.mStage = detectedStage
+	};
+
+	// Create and add the shader module
+	push(shader.mModule);
+
+	const std::string path = SPaths::get().mShaderPath.string() + inFilePath;
+	const std::string SPIRVpath = path + ".spv";
+
+	// Get the hash of the original source file so we know if it changed
+	const auto shaderSource = readShaderFile(path.c_str());
+
+	if (shaderSource.empty()) {
+		errs("Nothing found in Shader file {}!", inFilePath);
+	}
+
+	const uint32 Hash = getHash(shaderSource);
+	if (Hash == 0) {
+		errs("Hash from file {} is not valid.", inFilePath);
+	}
+
+	// Check for written SPIRV files
+	if (loadShader(CEngine::device(), SPIRVpath.c_str(), Hash, shader)) {
+		return shader;
+	}
+
+	shader.mShaderCode = shaderSource;
+	const uint32 result = compile(shader);
+	// Save compiled shader
+	if (!saveShader(SPIRVpath.c_str(), Hash, shader)) {
+		errs("Shader file {} failed to save to {}!", inFilePath, SPIRVpath.c_str());
+	}
+
+	// This means the shader didn't compile properly
+	if (!result) {
+		errs("Shader file {} failed to compile!", inFilePath);
+	}
+
+	if (loadShader(CEngine::device(), SPIRVpath.c_str(), Hash, shader)) {
+		return shader;
+	}
+
+	errs("Shader file {} could not be loaded!", inFilePath);
+	return shader;
 }
 
 CPipeline* CVulkanResourceManager::allocatePipeline(const SPipelineCreateInfo& inCreateInfo, CVertexAttributeArchive& inAttributes, CPipelineLayout* inLayout) {
@@ -354,7 +576,7 @@ CPipeline* CVulkanResourceManager::allocatePipeline(const SPipelineCreateInfo& i
 	};
 
 	CPipeline* pipeline;
-	createDestroyable(pipeline, nullptr, inLayout->mPipelineLayout);
+	push(pipeline, nullptr, inLayout->mPipelineLayout);
 	if (vkCreateGraphicsPipelines(getDevice(), VK_NULL_HANDLE, 1, &pipelineInfo,nullptr, &pipeline->mPipeline) != VK_SUCCESS) {
 		msgs("Failed to create pipeline!");
 		return nullptr;
@@ -383,7 +605,7 @@ SBuffer_T* CVulkanResourceManager::allocateBuffer(size_t allocSize, VmaMemoryUsa
 	};
 
 	SBuffer_T* buffer;
-	createDestroyable(buffer);
+	push(buffer);
 
 	// allocate the buffer
 	VK_CHECK(vmaCreateBuffer(getAllocator(), &bufferInfo, &vmaallocInfo, &buffer->buffer, &buffer->allocation, &buffer->info));
@@ -446,7 +668,7 @@ SImage_T* CVulkanResourceManager::allocateImage(const std::string& inDebugName, 
 SImage_T* CVulkanResourceManager::allocateImage(const std::string& inDebugName, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags, VkImageAspectFlags inViewFlags, uint32 inNumMips) {
 	ZoneScopedAllocation(fmts("Allocate Image {}", inDebugName.c_str()));
 	SImage_T* image;
-	createDestroyable(image);
+	push(image);
 
 	image->name = inDebugName;
 	image->mImageExtent = inExtent;

@@ -55,7 +55,7 @@ namespace EngineUI {
 		};
 
 		CDescriptorPool* descriptorPool;
-		renderer.mGlobalResourceManager.createDestroyable(descriptorPool, poolCreateInfo);
+		renderer.mGlobalResourceManager.push(descriptorPool, poolCreateInfo);
 
 		// this initializes imgui for Vulkan
 		ImGui_ImplVulkan_InitInfo initInfo {

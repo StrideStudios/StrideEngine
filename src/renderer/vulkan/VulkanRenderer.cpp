@@ -13,7 +13,6 @@
 #include "VkBootstrap.h"
 
 #include "Engine.h"
-#include "ShaderCompiler.h"
 #include "EngineSettings.h"
 #include "EngineTextures.h"
 #include "EngineUI.h"
@@ -68,14 +67,14 @@ void CVulkanRenderer::init() {
 
 	VkCommandPoolCreateInfo uploadCommandPoolInfo = CVulkanInfo::createCommandPoolInfo(CVulkanDevice::getQueue(EQueueType::UPLOAD).mFamily);
 	//create pool for upload context
-	mGlobalResourceManager.createDestroyable(mUploadContext.mCommandPool, uploadCommandPoolInfo);
+	mGlobalResourceManager.push(mUploadContext.mCommandPool, uploadCommandPoolInfo);
 
 	//allocate the default command buffer that we will use for the instant commands
 	VkCommandBufferAllocateInfo cmdAllocInfo = CVulkanInfo::createCommandAllocateInfo(*mUploadContext.mCommandPool, 1);
 	mUploadContext.mCommandBuffer = CVulkanResourceManager::allocateCommandBuffer(cmdAllocInfo);
 
 	VkFenceCreateInfo fenceCreateInfo = CVulkanInfo::createFenceInfo(VK_FENCE_CREATE_SIGNALED_BIT);
-	mGlobalResourceManager.createDestroyable(mUploadContext.mUploadFence, fenceCreateInfo);
+	mGlobalResourceManager.push(mUploadContext.mUploadFence, fenceCreateInfo);
 
 	{
 		// Create a command pool for commands submitted to the graphics queue.
@@ -84,7 +83,7 @@ void CVulkanRenderer::init() {
 			CVulkanDevice::getQueue(EQueueType::GRAPHICS).mFamily, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
 		for (auto &frame: mFrames) {
-			mGlobalResourceManager.createDestroyable(frame.mCommandPool, commandPoolInfo);
+			mGlobalResourceManager.push(frame.mCommandPool, commandPoolInfo);
 
 			// Allocate the default command buffer that we will use for rendering
 			VkCommandBufferAllocateInfo frameCmdAllocInfo = CVulkanInfo::createCommandAllocateInfo(*frame.mCommandPool, 1);
@@ -95,13 +94,13 @@ void CVulkanRenderer::init() {
 		}
 	}
 
-	mGlobalResourceManager.createDestroyable(mEngineTextures);
+	mGlobalResourceManager.push(mEngineTextures);
 
 	mSceneDataBuffer = mGlobalResourceManager.allocateGlobalBuffer(sizeof(SceneData), VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
 
-	mGlobalResourceManager.createDestroyable(mBasePass, EMeshPass::BASE_PASS);
+	mGlobalResourceManager.push(mBasePass, EMeshPass::BASE_PASS);
 
-	mGlobalResourceManager.createDestroyable(mSpritePass);
+	mGlobalResourceManager.push(mSpritePass);
 
 	// Setup Engine UI
 	EngineUI::init(CVulkanDevice::getQueue(EQueueType::GRAPHICS).mQueue, mEngineTextures->getSwapchain().mFormat);
