@@ -3,7 +3,7 @@
 #include "MeshPass.h"
 #include "VulkanRenderer.h"
 
-SMaterialPipeline& CMaterial::getPipeline(const CVulkanRenderer& renderer) const {
+CPipeline* CMaterial::getPipeline(const CVulkanRenderer& renderer) const {
 	switch (mPassType) {
 		case EMaterialPass::OPAQUE:
 			return renderer.mBasePass->opaquePipeline;

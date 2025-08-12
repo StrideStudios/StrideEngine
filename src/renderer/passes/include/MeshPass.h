@@ -27,7 +27,7 @@ public:
 	// Pipelines
 	//
 
-	SMaterialPipeline opaquePipeline;
-	SMaterialPipeline errorPipeline;
-	SMaterialPipeline transparentPipeline;
+	CPipeline* opaquePipeline;
+	CPipeline* errorPipeline;
+	CPipeline* transparentPipeline;
 };

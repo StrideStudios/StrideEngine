@@ -164,15 +164,20 @@ class CVulkanResourceManager : public CResourceManager {
 		return allocator;
 	}
 
-	constexpr static VkDescriptorPool& getBindlessDescriptorPool() {
-		static VkDescriptorPool pool;
+	constexpr static CDescriptorPool*& getBindlessDescriptorPool() {
+		static CDescriptorPool* pool;
 		return pool;
 	}
 
 public:
 
-	constexpr static VkDescriptorSetLayout& getBindlessDescriptorSetLayout() {
-		static VkDescriptorSetLayout layout;
+	constexpr static CPipelineLayout*& getBasicPipelineLayout() {
+		static CPipelineLayout* layout;
+		return layout;
+	}
+
+	constexpr static CDescriptorSetLayout*& getBindlessDescriptorSetLayout() {
+		static CDescriptorSetLayout* layout;
 		return layout;
 	}
 
@@ -185,7 +190,7 @@ public:
 
 	static void init();
 
-	static void destroyAllocator();
+	static void destroy();
 
 	/*template <typename TType, typename TCreator>
 	requires std::constructible_from<Resource<TType>, TCreator>

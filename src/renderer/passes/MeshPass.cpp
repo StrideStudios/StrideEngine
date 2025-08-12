@@ -39,31 +39,6 @@ void CMeshPass::init(const EMeshPass inPassType) {
 	};
 	VK_CHECK(CShaderCompiler::getShader(CEngine::device(),"material\\mesh.vert", vert))
 
-	auto pushConstants = {
-		VkPushConstantRange{
-			.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-			.offset = 0,
-			.size = sizeof(SPushConstants)
-		}
-	};
-
-	//TODO: global pipeline layout
-	VkPipelineLayoutCreateInfo layoutCreateInfo {
-		.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-		.pNext = nullptr,
-		.setLayoutCount = 1,
-		.pSetLayouts = &CVulkanResourceManager::getBindlessDescriptorSetLayout(),
-		.pushConstantRangeCount = (uint32)pushConstants.size(),
-		.pPushConstantRanges = pushConstants.begin()
-	};
-
-	CPipelineLayout* newLayout;
-	renderer.mGlobalResourceManager.createDestroyable(newLayout, layoutCreateInfo);
-
-    opaquePipeline.layout = newLayout;
-	errorPipeline.layout = newLayout;
-    transparentPipeline.layout = newLayout;
-
 	SPipelineCreateInfo createInfo {
 		.vertexModule = vert.mModule,
 		.fragmentModule = frag.mModule,
@@ -84,19 +59,19 @@ void CMeshPass::init(const EMeshPass inPassType) {
 	attributes << VK_FORMAT_R32G32B32A32_SFLOAT;
 	attributes << VK_FORMAT_R32G32B32A32_SFLOAT;
 
-	opaquePipeline.pipeline = renderer.mGlobalResourceManager.allocatePipeline(createInfo, attributes, newLayout);
+	opaquePipeline = renderer.mGlobalResourceManager.allocatePipeline(createInfo, attributes, CVulkanResourceManager::getBasicPipelineLayout());
 
 	// Transparent should be additive and always render in front
 	createInfo.mBlendMode = EBlendMode::ADDITIVE;
 	createInfo.mDepthTestMode = EDepthTestMode::FRONT;
 
-	transparentPipeline.pipeline = renderer.mGlobalResourceManager.allocatePipeline(createInfo, attributes, newLayout);
+	transparentPipeline = renderer.mGlobalResourceManager.allocatePipeline(createInfo, attributes, CVulkanResourceManager::getBasicPipelineLayout());
 
 	createInfo.fragmentModule = errorFrag.mModule;
 	createInfo.mBlendMode = EBlendMode::NONE;
 	createInfo.mDepthTestMode = EDepthTestMode::NORMAL;
 
-	errorPipeline.pipeline = renderer.mGlobalResourceManager.allocatePipeline(createInfo, attributes, newLayout);
+	errorPipeline = renderer.mGlobalResourceManager.allocatePipeline(createInfo, attributes, CVulkanResourceManager::getBasicPipelineLayout());
 
 	vkDestroyShaderModule(CEngine::device(), frag.mModule, nullptr);
 	vkDestroyShaderModule(CEngine::device(), errorFrag.mModule, nullptr);
@@ -142,6 +117,8 @@ bool isVisible(const std::shared_ptr<IRenderable>& renderable, const Matrix4f& v
 }
 
 void CMeshPass::render(const VkCommandBuffer cmd) {
+	ZoneScopedN("Base Pass");
+
 	CVulkanRenderer& renderer = CEngine::renderer();
 
 	std::map<std::shared_ptr<SStaticMesh>, std::vector<SInstance>> renderObjects;
@@ -163,27 +140,13 @@ void CMeshPass::render(const VkCommandBuffer cmd) {
 	// Set number of meshes being drawn
 	Meshes.setText(fmts("Meshes: {}", renderObjects.size()));
 
-	// sort the opaque surfaces by material and mesh
-	/*{
-		ZoneScopedN("Sort Draws");
-		std::ranges::sort(renderObjects, [&](const std::pair<std::shared_ptr<SStaticMesh>, std::vector<SInstance>>& lhs, const std::pair<std::shared_ptr<SStaticMesh>, std::vector<SInstance>>& rhs) {
-			return lhs.first->meshBuffers->indexBuffer->buffer < rhs.first->meshBuffers->indexBuffer->buffer;
-		});
-	}*/
-
-	//defined outside of the draw function, this is the state we will try to skip
-	SMaterialPipeline* lastPipeline = nullptr;
+	// Defined outside the draw function, this is the state we will try to skip
+	CPipeline* lastPipeline = nullptr;
 	std::shared_ptr<CMaterial> lastMaterial = nullptr;
 	VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
 
 	uint32 drawCallCount = 0;
 	uint64 vertexCount = 0;
-
-	ZoneScopedN("Base Pass");
-
-	/*for (const SStaticMesh& draw : m_MainRenderContext.opaqueSurfaces) {
-		render(draw);
-	}*/
 
 	for (const auto& [mesh, instance] : renderObjects) {
 		const size_t NumInstances = instance.size();
@@ -221,21 +184,21 @@ void CMeshPass::render(const VkCommandBuffer cmd) {
 
 			//TODO: auto pipeline rebind (or something)
 			// If the materials arent the same, rebind material data
-			SMaterialPipeline& pipeline = surface.material->getPipeline(renderer);
+			CPipeline* pipeline = surface.material->getPipeline(renderer);
 			if (surface.material != lastMaterial) {
 				lastMaterial = surface.material;
 				// If the pipeline has changed, rebind pipeline data
-				if (&pipeline != lastPipeline) {
-					lastPipeline = &pipeline;
-					CVulkanResourceManager::bindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, *pipeline.pipeline);
-					CVulkanResourceManager::bindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, *pipeline.layout, 0, 1, CVulkanResourceManager::getBindlessDescriptorSet());
+				if (pipeline != lastPipeline) {
+					lastPipeline = pipeline;
+					CVulkanResourceManager::bindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->mPipeline);
+					CVulkanResourceManager::bindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->mLayout, 0, 1, CVulkanResourceManager::getBindlessDescriptorSet());
 
 					//TODO: shouldnt do this here...
 					CEngine::get().getViewport().set(cmd);
 				}
 			}
 
-			vkCmdPushConstants(cmd, *pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(SPushConstants), surface.material->mConstants.data());
+			vkCmdPushConstants(cmd, pipeline->mLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(SPushConstants), surface.material->mConstants.data());
 
 			vkCmdDrawIndexed(cmd, surface.count, (uint32)NumInstances, surface.startIndex, 0, 0);
 

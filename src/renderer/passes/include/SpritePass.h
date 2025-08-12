@@ -31,5 +31,5 @@ public:
 	// Pipelines
 	//
 
-	SMaterialPipeline opaquePipeline;
+	CPipeline* opaquePipeline;
 };

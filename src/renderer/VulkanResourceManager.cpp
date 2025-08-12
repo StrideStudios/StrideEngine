@@ -45,6 +45,8 @@ VkDevice CVulkanResourceManager::getDevice() {
 	return CEngine::device();
 }
 
+CVulkanResourceManager gGlobalResourceManager;
+
 void CVulkanResourceManager::init() {
 
 	// initialize the memory allocator
@@ -76,7 +78,7 @@ void CVulkanResourceManager::init() {
 			.pPoolSizes = poolSizes.begin()
 		};
 
-		VK_CHECK(vkCreateDescriptorPool(CEngine::device(), &poolCreateInfo, nullptr, &getBindlessDescriptorPool()));
+		gGlobalResourceManager.createDestroyable(getBindlessDescriptorPool(), poolCreateInfo);
 	}
 
 	// Create Descriptor Set layout
@@ -126,7 +128,7 @@ void CVulkanResourceManager::init() {
         	.pBindings = binding.begin(),
         };
 
-        VK_CHECK(vkCreateDescriptorSetLayout(CEngine::device(), &layoutCreateInfo, nullptr, &getBindlessDescriptorSetLayout()));
+		gGlobalResourceManager.createDestroyable(getBindlessDescriptorSetLayout(), layoutCreateInfo);
 	}
 
 	{
@@ -140,19 +142,42 @@ void CVulkanResourceManager::init() {
 		VkDescriptorSetAllocateInfo AllocationCreateInfo {
 			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
 			.pNext = &countInfo,
-			.descriptorPool = getBindlessDescriptorPool(),
+			.descriptorPool = getBindlessDescriptorPool()->mDescriptorPool,
 			.descriptorSetCount = 1,
-			.pSetLayouts = &getBindlessDescriptorSetLayout()
+			.pSetLayouts = &getBindlessDescriptorSetLayout()->mDescriptorSetLayout
 		};
 
 		VK_CHECK( vkAllocateDescriptorSets(CEngine::device(), &AllocationCreateInfo, &getBindlessDescriptorSet()));
+
+	}
+
+	// Create Basic Pipeline Layout
+	// This includes the 8 Vector4f Push Constants (128 bytes) and the global DescriptorSetLayout
+	{
+		auto pushConstants = {
+			VkPushConstantRange{
+				.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+				.offset = 0,
+				.size = sizeof(SPushConstants)
+			}
+		};
+
+		VkPipelineLayoutCreateInfo layoutCreateInfo {
+			.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+			.pNext = nullptr,
+			.setLayoutCount = 1,
+			.pSetLayouts = &getBindlessDescriptorSetLayout()->mDescriptorSetLayout,
+			.pushConstantRangeCount = (uint32)pushConstants.size(),
+			.pPushConstantRanges = pushConstants.begin()
+		};
+
+		gGlobalResourceManager.createDestroyable(getBasicPipelineLayout(), layoutCreateInfo);
 	}
 }
 
-void CVulkanResourceManager::destroyAllocator() {
+void CVulkanResourceManager::destroy() {
 	vmaDestroyAllocator(getAllocator());
-	vkDestroyDescriptorPool(CEngine::device(), getBindlessDescriptorPool(), nullptr);
-	vkDestroyDescriptorSetLayout(CEngine::device(), getBindlessDescriptorSetLayout(), nullptr);
+	gGlobalResourceManager.flush();
 }
 
 VkCommandBuffer CVulkanResourceManager::allocateCommandBuffer(const VkCommandBufferAllocateInfo& pCreateInfo) {
@@ -329,7 +354,7 @@ CPipeline* CVulkanResourceManager::allocatePipeline(const SPipelineCreateInfo& i
 	};
 
 	CPipeline* pipeline;
-	createDestroyable(pipeline);
+	createDestroyable(pipeline, nullptr, inLayout->mPipelineLayout);
 	if (vkCreateGraphicsPipelines(getDevice(), VK_NULL_HANDLE, 1, &pipelineInfo,nullptr, &pipeline->mPipeline) != VK_SUCCESS) {
 		msgs("Failed to create pipeline!");
 		return nullptr;

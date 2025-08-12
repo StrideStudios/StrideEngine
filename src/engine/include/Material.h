@@ -7,10 +7,7 @@
 #include "Common.h"
 #include "Hashing.h"
 
-struct SMaterialPipeline {
-	class CPipeline* pipeline;
-	class CPipelineLayout* layout;
-};
+struct CPipeline;
 
 enum class EMaterialPass : uint8 {
 	OPAQUE,
@@ -46,7 +43,7 @@ public:
 
 	CMaterial() = default;
 
-	no_discard SMaterialPipeline& getPipeline(const class CVulkanRenderer& renderer) const;
+	no_discard CPipeline* getPipeline(const class CVulkanRenderer& renderer) const;
 
 	bool mShouldSave = true;
 

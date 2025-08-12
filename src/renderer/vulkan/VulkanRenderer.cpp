@@ -119,7 +119,7 @@ void CVulkanRenderer::destroy() {
 	mGlobalResourceManager.flush();
 
 	// Destroy allocator, if not all allocations have been destroyed, it will throw an error
-	CVulkanResourceManager::destroyAllocator();
+	CVulkanResourceManager::destroy();
 }
 
 void CVulkanRenderer::draw() {

@@ -37,12 +37,13 @@ CREATE_VK_TYPE(ImageView);
 
 struct CPipeline final : IDestroyable {
 	CPipeline() = default;
-	CPipeline(VkPipeline inType): mPipeline(inType) {}
-	CPipeline(const CPipeline& inPipeline): mPipeline(inPipeline.mPipeline) {} \
+	CPipeline(VkPipeline inType, VkPipelineLayout inLayout): mPipeline(inType), mLayout(inLayout) {}
+	CPipeline(const CPipeline& inPipeline): mPipeline(inPipeline.mPipeline), mLayout(inPipeline.mLayout) {} \
 	virtual void destroy() override { vkDestroyPipeline(getDevice(), mPipeline, nullptr); }
 	VkPipeline operator->() const { return mPipeline; }
 	operator VkPipeline() const { return mPipeline; }
 	VkPipeline mPipeline = nullptr;
+	VkPipelineLayout mLayout;
 };
 
 CREATE_VK_TYPE(PipelineLayout);
