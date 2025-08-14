@@ -34,6 +34,7 @@ add_executable(StrideEngine
         engine/include/Camera.h
         engine/Camera.cpp
         engine/include/SceneObject.h
+        engine/SceneObject.cpp
         engine/include/Sprite.h
         engine/include/Input.h
         engine/Input.cpp
@@ -71,7 +72,8 @@ add_executable(StrideEngine
         renderer/passes/MeshPass.cpp
         renderer/passes/include/SpritePass.h
         renderer/passes/SpritePass.cpp
-
+        renderer/passes/include/EngineUIPass.h
+        renderer/passes/EngineUIPass.cpp
         # Dear ImGui
 
         imgui/include/imconfig.h

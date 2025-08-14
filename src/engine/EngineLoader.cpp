@@ -189,14 +189,12 @@ MeshData loadGLTF_Internal(CVulkanRenderer* renderer, std::filesystem::path path
 	// The meshes to save to a custom format
 	MeshData savedMeshes;
 
-	// use the same vectors for all meshes so that the memory doesn't reallocate as
-	// often
 	for (fastgltf::Node& node : gltf.nodes) {
 		if (!node.meshIndex.has_value()) continue;
 		fastgltf::Mesh& mesh = gltf.meshes[*node.meshIndex];
 
 		auto outMesh = std::make_shared<SMeshData>();
-		savedMeshes.push_back(std::pair<std::string, std::shared_ptr<SMeshData>>{mesh.name, outMesh});
+		savedMeshes.push_back(std::pair<std::string, std::shared_ptr<SMeshData>>{node.name, outMesh});
 
 		// Add the object
 		//mLoadedModels.insert(outMesh);
@@ -269,27 +267,16 @@ MeshData loadGLTF_Internal(CVulkanRenderer* renderer, std::filesystem::path path
 				fastgltf::Accessor& posAccessor = gltf.accessors[p.findAttribute("POSITION")->accessorIndex];
 				vertices.resize(vertices.size() + posAccessor.count);
 
-				Vector3f minpos(0.f);
-				Vector3f maxpos(0.f);
-
 				fastgltf::iterateAccessorWithIndex<glm::vec3>(gltf, posAccessor,
 					[&](glm::vec3 v, size_t index) {
 						SVertex newvtx;
-						Vector3f pos = localMatrix * Vector4f{v, 1.f};
-						Vector3f normal = { 1, 0, 0 };
-						minpos = glm::min(minpos, pos);
-						maxpos = glm::max(maxpos, pos);
+						const Vector3f pos = localMatrix * Vector4f{v, 1.f};
 						newvtx.position = pos;
-						newvtx.normal = normal;
-						newvtx.setColor(Color4(255));
+						newvtx.normal = Vector3f{1, 0, 0};
+						newvtx.setColor(Color4(0));
 						newvtx.uv = 0;
 						vertices[initial_vtx + index] = newvtx;
 					});
-
-				// Calculate origin and extents from the min/max, use extent length for radius
-				outMesh->bounds.origin = (maxpos + minpos) / 2.f;
-				outMesh->bounds.extents = (maxpos - minpos) / 2.f;
-				outMesh->bounds.sphereRadius = glm::length(outMesh->bounds.extents);
 			}
 
 			// load vertex normals
@@ -337,6 +324,23 @@ MeshData loadGLTF_Internal(CVulkanRenderer* renderer, std::filesystem::path path
 		}
 
 		optimizeMesh(indices, vertices);
+
+		Vector3f minpos(std::numeric_limits<float>::max());
+		Vector3f maxpos(std::numeric_limits<float>::min());
+
+		for (auto& vertex : vertices) {
+			minpos.x = glm::min(minpos.x, vertex.position.x);
+			minpos.y = glm::min(minpos.y, vertex.position.y);
+			minpos.z = glm::min(minpos.z, vertex.position.z);
+			maxpos.x = glm::max(maxpos.x, vertex.position.x);
+			maxpos.y = glm::max(maxpos.y, vertex.position.y);
+			maxpos.z = glm::max(maxpos.z, vertex.position.z);
+		}
+
+		// Calculate origin and extents from the min/max, use extent length for radius
+		outMesh->bounds.origin = (maxpos + minpos) / 2.f;
+		outMesh->bounds.extents = (maxpos - minpos) / 2.f;
+		outMesh->bounds.sphereRadius = glm::length(outMesh->bounds.extents);
 
 		outMesh->indices = indices;
 		outMesh->vertices = vertices;
@@ -440,7 +444,7 @@ void CEngineLoader::load() {
 	std::vector<std::filesystem::path> meshes;
 
 	// Add each type to their respective vector
-	for (std::filesystem::recursive_directory_iterator i(SPaths::get().mAssetCachePath), end; i != end; ++i) {
+	for (std::filesystem::recursive_directory_iterator i(SPaths::get().mAssetPath), end; i != end; ++i) {
 		if (!std::filesystem::is_directory(i->path())) {
 			if (i->path().extension() == ".ktx2") {
 				textures.push_back(i->path());
@@ -503,7 +507,7 @@ void CEngineLoader::importTexture(const std::filesystem::path& inPath) {
 		errs("Compress for file {} failed.", fileName.c_str());
 	}
 
-	std::filesystem::path cachedPath = SPaths::get().mAssetCachePath.string() + fileName;
+	std::filesystem::path cachedPath = SPaths::get().mAssetPath.string() + fileName;
 	cachedPath.replace_extension(".ktx2");
 
 	// Write to ktx2 file
@@ -552,6 +556,7 @@ void CEngineLoader::importMesh(const std::filesystem::path& inPath) {
 
 	// If failed, do not write data
 	if (meshData.empty()) {
+		msgs("Mesh {} is empty!", fileName.c_str());
 		return;
 	}
 
@@ -559,7 +564,7 @@ void CEngineLoader::importMesh(const std::filesystem::path& inPath) {
 	for (const auto& [fileName, data] : meshData) {
 
 		// Create an asset path with the appropriate name
-		std::filesystem::path path = SPaths::get().mAssetCachePath;
+		std::filesystem::path path = SPaths::get().mAssetPath;
 		path.append(fileName + ".msh");
 
 		// Ensure .msh doesn't already exist

@@ -108,14 +108,14 @@ void CTestRenderer::init() {
 	transform.mScale = {0.5f, 1.0f};
 	sprite->addInstance(transform);*/
 
-	const std::string path = SPaths::get().mAssetCachePath.string() + "materials.txt";
+	const std::string path = SPaths::get().mAssetPath.string() + "materials.txt";
 	if (CFileArchive inFile(path, "rb"); inFile.isOpen())
 		inFile >> CMaterial::getMaterials();
 }
 
 void CTestRenderer::destroy() {
 	CVulkanRenderer::destroy();
-	const std::string path = SPaths::get().mAssetCachePath.string() + "materials.txt";
+	const std::string path = SPaths::get().mAssetPath.string() + "materials.txt";
 	CFileArchive outFile(path, "wb");
 	outFile << CMaterial::getMaterials();
 }

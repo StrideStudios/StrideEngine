@@ -13,13 +13,15 @@ void CVulkanDevice::init() {
     // Swapchain Maintenance features
     VkPhysicalDeviceSwapchainMaintenance1FeaturesEXT swapchainMaintenance1Features{
         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SWAPCHAIN_MAINTENANCE_1_FEATURES_EXT,
-        .swapchainMaintenance1 = true
+        .swapchainMaintenance1 = false
     };
 
     //TODO: some better way of defining what features are required and what is not
 
     // physical device features
     VkPhysicalDeviceFeatures features{
+        .fillModeNonSolid = true,
+        .wideLines = true,
         .textureCompressionBC = true,
         .shaderInt64 = true
     };

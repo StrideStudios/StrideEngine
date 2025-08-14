@@ -9,6 +9,8 @@ CPipeline* CMaterial::getPipeline(const CVulkanRenderer& renderer) const {
 			return renderer.mBasePass->opaquePipeline;
 		case EMaterialPass::TRANSLUCENT:
 			return renderer.mBasePass->transparentPipeline;
+		case EMaterialPass::WIREFRAME:
+			return renderer.mBasePass->wireframePipeline;
 		default:
 			return renderer.mBasePass->errorPipeline;
 	}

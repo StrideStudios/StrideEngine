@@ -101,12 +101,12 @@ namespace EngineUI {
 
 	static void renderSceneUI() {
 		if (ImGui::Begin("Scene")) {
-			CScene& scene = CScene::get();
+			CScene& scene = CEngine::scene();
 			if (ImGui::Button("Add Mesh Object")) {
 				scene.data.objects.push_back(std::make_shared<CStaticMeshObject>());
 			}
-			uint32 objectNum = 0;
-			for (auto& object : scene.data.objects) {
+			for (uint32 objectNum = 0; objectNum < scene.data.objects.size(); ++objectNum) {
+				auto& object = scene.data.objects[objectNum];
 				if (!object) continue;
 				ImGui::PushID(fmts("{}", objectNum).c_str());
 
@@ -114,36 +114,42 @@ namespace EngineUI {
 					ImGui::SameLine();
 					ImGui::InputText("Name", &object->mName);
 
-					ImGui::InputFloat3("Position", reinterpret_cast<float*>(&object->mPosition));
-					ImGui::InputFloat3("Rotation", reinterpret_cast<float*>(&object->mRotation));
-					ImGui::InputFloat3("Scale", reinterpret_cast<float*>(&object->mScale));
+					if (ImGui::Button("Remove")) {
+						scene.data.objects.erase(scene.data.objects.begin() + objectNum);
+					} else {
+						Vector3f position = object->getPosition();
+						ImGui::InputFloat3("Position", reinterpret_cast<float*>(&position));
+						Vector3f rotation = object->getRotation();
+						ImGui::InputFloat3("Rotation", reinterpret_cast<float*>(&rotation));
+						Vector3f scale = object->getScale();
+						ImGui::InputFloat3("Scale", reinterpret_cast<float*>(&scale));
 
-					auto& sobject = dynamic_cast<CStaticMeshObject&>(*object);
+						auto& sobject = dynamic_cast<CStaticMeshObject&>(*object);
 
-					const char* combo_preview_value = sobject.getMesh() ? sobject.getMesh()->name.c_str() : "None";
-					if (ImGui::BeginCombo("Meshes", combo_preview_value, ImGuiComboFlags_HeightRegular)) {
-						for (auto& mesh : CEngineLoader::getMeshes()) {
-							if (mesh.second->name.empty()) continue;
+						const char* combo_preview_value = sobject.getMesh() ? sobject.getMesh()->name.c_str() : "None";
+						if (ImGui::BeginCombo("Meshes", combo_preview_value, ImGuiComboFlags_HeightRegular)) {
+							for (auto& mesh : CEngineLoader::getMeshes()) {
+								if (mesh.second->name.empty()) continue;
 
-							const bool is_selected = ((sobject.getMesh() ? sobject.getMesh()->name : "None") == mesh.second->name);
-							if (ImGui::Selectable(CEngineLoader::getMeshes()[mesh.first]->name.c_str(), is_selected)) {
-								sobject.mesh = mesh.second;
-								msgs("attempted to set {} to {}", sobject.mesh ? sobject.mesh->name.c_str() : "None", mesh.second->name.c_str());
+								const bool is_selected = ((sobject.getMesh() ? sobject.getMesh()->name : "None") == mesh.second->name);
+								if (ImGui::Selectable(CEngineLoader::getMeshes()[mesh.first]->name.c_str(), is_selected)) {
+									sobject.mesh = mesh.second;
+									msgs("attempted to set {} to {}", sobject.mesh ? sobject.mesh->name.c_str() : "None", mesh.second->name.c_str());
+								}
+
+
+								// Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
+								if (is_selected)
+									ImGui::SetItemDefaultFocus();
 							}
-
-
-							// Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
-							if (is_selected)
-								ImGui::SetItemDefaultFocus();
+							ImGui::EndCombo();
 						}
-						ImGui::EndCombo();
 					}
 					ImGui::TreePop();
 				} else {
 					ImGui::SameLine();
 					ImGui::InputText("Name", &object->mName);
 				}
-				objectNum++;
 				ImGui::PopID();
 			}
 		}

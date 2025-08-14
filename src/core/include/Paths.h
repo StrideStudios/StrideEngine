@@ -37,7 +37,6 @@ public:
 		mAssetPath = mEnginePath.string() + "assets\\";
 
 		mCachePath = mEnginePath.string() + "cache\\";
-		mAssetCachePath = mCachePath.string() + "assets\\";
 	}
 
 	constexpr static SPaths& get() {
@@ -48,7 +47,6 @@ public:
 	Directory mEnginePath;
 	Directory mSourcePath;
 	Directory mShaderPath;
-	Directory mAssetPath;
 	Directory mCachePath;
-	Directory mAssetCachePath;
+	Directory mAssetPath;
 };

@@ -29,5 +29,6 @@ public:
 
 	CPipeline* opaquePipeline;
 	CPipeline* errorPipeline;
+	CPipeline* wireframePipeline;
 	CPipeline* transparentPipeline;
 };

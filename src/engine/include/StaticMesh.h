@@ -45,7 +45,7 @@ struct SStaticMesh {
 
 // A scene object that has the capability to render static meshes
 // This is also where static meshes are loaded
-class CStaticMeshObject : public CRenderableObject {
+class CStaticMeshObject : public CSceneObject3D {
 
 	REGISTER_CLASS(CStaticMeshObject)
 
@@ -55,14 +55,14 @@ public:
 
 	CStaticMeshObject(const std::shared_ptr<SStaticMesh>& inMesh): mesh(inMesh) {}
 
-	no_discard virtual const std::shared_ptr<SStaticMesh>& getMesh() const override {
+	no_discard virtual const std::shared_ptr<SStaticMesh>& getMesh() const {
 		return mesh;
 	}
 
 	std::shared_ptr<SStaticMesh> mesh;
 
 	virtual CArchive& save(CArchive& inArchive) override {
-		CRenderableObject::save(inArchive);
+		CSceneObject3D::save(inArchive);
 		// Save the mesh's name
 		inArchive << static_cast<bool>(mesh);
 		if (mesh) {
@@ -72,7 +72,7 @@ public:
 	}
 
 	virtual CArchive& load(CArchive& inArchive) override {
-		CRenderableObject::load(inArchive);
+		CSceneObject3D::load(inArchive);
 		// Load the mesh's name and ask mesh loader for it
 		bool hasMesh;
 		inArchive >> hasMesh;
@@ -82,6 +82,49 @@ public:
 			mesh = CEngineLoader::getMeshes()[name];
 		}
 
+		return inArchive;
+	}
+};
+
+class CInstancedStaticMeshObject : public CStaticMeshObject {
+
+public:
+
+	CInstancedStaticMeshObject() {
+		m_Instancer.flush();
+	}
+
+	virtual uint32 addInstance(const Transform3f& inPosition) {
+		return m_Instancer.push(SInstance{inPosition.toMatrix()});
+	}
+
+	virtual void setInstance(const int32 inInstanceIndex, const Transform3f& inPosition) {
+		SInstance& instance = m_Instancer.instances[inInstanceIndex];
+		instance.Transform = inPosition.toMatrix();
+		m_Instancer.setDirty();
+	}
+
+	virtual void removeInstance(const uint32 instance) {
+		m_Instancer.remove(instance);
+	}
+
+	virtual void onPositionChanged() override {
+		m_Instancer.setDirty();
+	}
+
+	virtual SInstancer& getInstancer() override {
+		return m_Instancer;
+	}
+
+	virtual CArchive& save(CArchive& inArchive) override {
+		CStaticMeshObject::save(inArchive);
+		inArchive << m_Instancer;
+		return inArchive;
+	}
+
+	virtual CArchive& load(CArchive& inArchive) override {
+		CStaticMeshObject::load(inArchive);
+		inArchive >> m_Instancer;
 		return inArchive;
 	}
 };

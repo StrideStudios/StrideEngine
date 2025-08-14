@@ -3,12 +3,9 @@
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 
-#include "Archive.h"
 #include "Common.h"
-#include "Engine.h"
-#include "EngineLoader.h"
+#include "SceneObject.h"
 #include "Viewport.h"
-#include "VulkanResourceManager.h"
 
 class CWidget : ISerializable {
 
@@ -36,7 +33,7 @@ public:
 		return inArchive;
 	}
 
-	SInstancer m_Instancer{1}; //TODO: bad
+	SInstancer m_Instancer{1}; //TODO: bad, shouldnt have an instancer in a non-instanced widget
 
 	virtual SInstancer& getInstancer() {
 		return m_Instancer;

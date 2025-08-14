@@ -5,6 +5,7 @@
 
 #include "Engine.h"
 #include "EngineLoader.h"
+#include "SceneObject.h"
 #include "VulkanDevice.h"
 #include "VulkanRenderer.h"
 #include "VulkanUtils.h"
@@ -454,8 +455,6 @@ CPipeline* CVulkanResourceManager::allocatePipeline(const SPipelineCreateInfo& i
 			break;
 	}
 
-	// Setup dummy color blending. We aren't using transparent objects yet
-	// The blending is just "no blend", but we do write to the color attachment
 	VkPipelineColorBlendStateCreateInfo colorBlending = {};
 	colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
 	colorBlending.pNext = nullptr;
@@ -467,12 +466,19 @@ CPipeline* CVulkanResourceManager::allocatePipeline(const SPipelineCreateInfo& i
 
 	const VkPipelineVertexInputStateCreateInfo vertexInputInfo = inAttributes.get();
 
-	VkDynamicState state[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+	std::vector state {
+		VK_DYNAMIC_STATE_VIEWPORT,
+		VK_DYNAMIC_STATE_SCISSOR
+	};
+
+	/*if (inCreateInfo.mLineWidth != 1.f) {
+		//state.push_back(VK_DYNAMIC_STATE_LINE_WIDTH);
+	}*/
 
 	VkPipelineDynamicStateCreateInfo dynamicInfo = {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
-		.dynamicStateCount = 2,
-		.pDynamicStates = &state[0]
+		.dynamicStateCount = (uint32)state.size(),
+		.pDynamicStates = state.data()
 	};
 
 	VkPipelineRenderingCreateInfo renderingCreateInfo {
@@ -482,22 +488,26 @@ CPipeline* CVulkanResourceManager::allocatePipeline(const SPipelineCreateInfo& i
 		.depthAttachmentFormat = inCreateInfo.mDepthFormat
 	};
 
-	auto shaderStages = {
+	std::vector shaderStages = {
 		VkPipelineShaderStageCreateInfo {
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
 			.pNext = nullptr,
 			.stage = VK_SHADER_STAGE_VERTEX_BIT,
 			.module = inCreateInfo.vertexModule,
 			.pName = "main"
-		},
-		VkPipelineShaderStageCreateInfo {
+		}
+	};
+
+	// Fragment shader isn't always necessary, but vertex is
+	if (inCreateInfo.fragmentModule) {
+		shaderStages.push_back(VkPipelineShaderStageCreateInfo {
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
 			.pNext = nullptr,
 			.stage = VK_SHADER_STAGE_FRAGMENT_BIT,
 			.module = inCreateInfo.fragmentModule,
 			.pName = "main"
-		}
-	};
+		});
+	}
 
 	VkPipelineInputAssemblyStateCreateInfo inputAssemblyCreateInfo {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
@@ -510,7 +520,7 @@ CPipeline* CVulkanResourceManager::allocatePipeline(const SPipelineCreateInfo& i
 		.polygonMode = inCreateInfo.mPolygonMode,
 		.cullMode = inCreateInfo.mCullMode,
 		.frontFace = inCreateInfo.mFrontFace,
-		.lineWidth = 1.f
+		.lineWidth = inCreateInfo.mLineWidth
 	};
 
 	VkPipelineMultisampleStateCreateInfo multisampleCreateInfo {
@@ -563,7 +573,7 @@ CPipeline* CVulkanResourceManager::allocatePipeline(const SPipelineCreateInfo& i
 		.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
 		.pNext = &renderingCreateInfo,
 		.stageCount = (uint32)shaderStages.size(),
-		.pStages = shaderStages.begin(),
+		.pStages = shaderStages.data(),
 		.pVertexInputState = &vertexInputInfo,
 		.pInputAssemblyState = &inputAssemblyCreateInfo,
 		.pViewportState = &viewportState,
@@ -651,9 +661,6 @@ SMeshBuffers_T CVulkanResourceManager::allocateMeshBuffer(const size_t indicesSi
 	meshBuffers.indexBuffer = allocateBuffer(indicesSize, VMA_MEMORY_USAGE_GPU_ONLY, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
 
 	meshBuffers.vertexBuffer = allocateBuffer(verticesSize, VMA_MEMORY_USAGE_GPU_ONLY, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
-
-	//TODO: for now instance buffer only needs two (unused for now)
-	meshBuffers.instanceBuffer = allocateBuffer(2 * sizeof(SInstance), VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
 
 	return meshBuffers;
 }

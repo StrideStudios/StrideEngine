@@ -1,8 +1,0 @@
-# this is a test for writing simple materials
-# probably editable in ImGui
-[Color]
-# Necessary inputs for this are textureId
-
-vec3 color = sampleTexture2DLinear(PushConstants.colorId,inUV).xyz;
-
-end vec4(color, 1.f);

@@ -3,7 +3,6 @@
 #include <vulkan/vulkan_core.h>
 #include <array>
 
-#include "Archive.h"
 #include "Common.h"
 #include "Hashing.h"
 
@@ -13,6 +12,7 @@ enum class EMaterialPass : uint8 {
 	OPAQUE,
 	TRANSLUCENT,
 	ERROR,
+	WIREFRAME,
 	MAX
 };
 ENUM_TO_STRING(MaterialPass, uint8,

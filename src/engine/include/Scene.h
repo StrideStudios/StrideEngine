@@ -7,12 +7,12 @@
 
 class CSceneObject;
 
-class CScene {
+class CScene : public IDestroyable {
 
 public:
 
 	CScene() {
-		std::filesystem::path path = SPaths::get().mAssetCachePath.string() + "Scene.scn";
+		std::filesystem::path path = SPaths::get().mAssetPath.string() + "Scene.scn";
 
 		if (!std::filesystem::exists(path)) return;
 
@@ -21,21 +21,18 @@ public:
 		file.close();
 	}
 
-	~CScene() {
-		std::filesystem::path path = SPaths::get().mAssetCachePath.string() + "Scene.scn";
+	virtual void destroy() override {
+		std::filesystem::path path = SPaths::get().mAssetPath.string() + "Scene.scn";
 
 		CFileArchive file(path.string(), "wb");
 		file << data.objects;
 		file.close();
-	}
 
-	constexpr static CScene& get() {
-		static CScene scene;
-		return scene;
+		data.objects.clear();
 	}
 
 	struct Data {
-		std::vector<std::shared_ptr<CSceneObject>> objects{};
+		std::vector<std::shared_ptr<CSceneObject3D>> objects{};
 	};
 
 	Data data;

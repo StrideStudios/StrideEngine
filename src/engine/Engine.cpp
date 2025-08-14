@@ -9,6 +9,7 @@
 #include "Viewport.h"
 #include "Camera.h"
 #include "Input.h"
+#include "Scene.h"
 #include "SDL3/SDL_timer.h"
 
 #define SETTINGS_CATEGORY "Engine"
@@ -49,6 +50,10 @@ const vkb::PhysicalDevice& CEngine::physicalDevice() {
 	return get().m_Device->getPhysicalDevice();
 }
 
+CScene& CEngine::scene() {
+	return *get().m_Scene;
+}
+
 void CEngine::init() {
 	ZoneScopedN("Engine Initialization");
 
@@ -66,10 +71,14 @@ void CEngine::init() {
 	// Create the renderer
 	gEngineResourceManager.push<CTestRenderer>(m_Renderer);
 
+	// Load textures and meshes
+	CEngineLoader::load();
+
+	// Create the scene
+	gEngineResourceManager.push(m_Scene);
+
 	// Create the camera
 	gEngineResourceManager.push(mMainCamera);
-
-	CEngineLoader::load();
 }
 
 void CEngine::end() {

@@ -56,9 +56,6 @@ void CSpritePass::render(VkCommandBuffer cmd) {
 	// Set number of sprites being drawn
 	Sprites.setText(fmts("Sprites: {}", objects.size()));
 
-	// Defined outside the draw function, this is the state we will try to skip
-	CPipeline* lastPipeline = nullptr;
-
 	uint32 drawCallCount = 0;
 	uint64 vertexCount = 0;
 
@@ -72,18 +69,7 @@ void CSpritePass::render(VkCommandBuffer cmd) {
 		VkDeviceSize offset = 0u;
 		vkCmdBindVertexBuffers(cmd, 0, 1u, &instancer.get(sprite->getTransformMatrix())->buffer, &offset);
 
-		//TODO: auto pipeline rebind (or something)
-		CPipeline* pipeline = opaquePipeline;// obj->material->getPipeline(renderer);
-		// If the pipeline has changed, rebind pipeline data
-		if (pipeline != lastPipeline) {
-			lastPipeline = pipeline;
-			CVulkanResourceManager::bindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->mPipeline);
-			CVulkanResourceManager::bindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->mLayout, 0, 1, CVulkanResourceManager::getBindlessDescriptorSet());
-
-			CEngine::get().getViewport().set(cmd);
-		}
-
-		vkCmdPushConstants(cmd, pipeline->mLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(SPushConstants), sprite->material->mConstants.data());
+		bindPipeline(cmd, opaquePipeline, sprite->material->mConstants);
 
 		vkCmdDraw(cmd, 6, NumInstances, 0, 0);
 
@@ -95,18 +81,4 @@ void CSpritePass::render(VkCommandBuffer cmd) {
 	SpriteDrawcalls.setText(fmts("Draw Calls: {}", drawCallCount));
 	SpriteVertices.setText(fmts("Vertices: {}", vertexCount));
 	SpriteTriangles.setText(fmts("Triangles: {}", vertexCount / 3));
-}
-
-void CSpritePass::push(const std::shared_ptr<CSprite>& inObject) {
-	objects.insert(inObject);
-	/*if (inObject && inObject->material) {// && isVisible(renderableObject, renderer.mSceneData.mViewProj)) {
-		const SInstance instance(inObject->getTransformMatrix());
-		if (instancers.contains(inObject->material)) {
-			instancers[inObject->material].push(instance);
-		} else {
-			SInstancer instancer;
-			instancer.push(instance);
-			instancers.emplace(inObject->material, instancer);
-		}
-	}*/
 }

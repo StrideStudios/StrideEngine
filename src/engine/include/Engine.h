@@ -16,6 +16,7 @@ struct SVulkanInstance;
 class CVulkanDevice;
 class CVulkanRenderer;
 class CEngineViewport;
+class CScene;
 
 constexpr static auto gEngineName = text("Stride Engine");
 
@@ -47,6 +48,8 @@ public:
 
 	static const vkb::PhysicalDevice& physicalDevice();
 
+	static CScene& scene();
+
 	constexpr static CVulkanRenderer& renderer() {
 		return *get().m_Renderer;
 	}
@@ -69,6 +72,12 @@ private:
 	void run();
 
 	void update();
+
+	//
+	// Scenes
+	//
+
+	CScene* m_Scene;
 
 	//
 	// Frame Time

@@ -18,14 +18,14 @@ ADD_COMMAND(float, CameraSpeed, 200.f, 0.f, 1000.f);
 CCamera::CCamera(): mFOV(FieldOfView.get()) {}
 
 Matrix4f CCamera::getRotationMatrix() {
-	glm::quat pitchRotation = glm::angleAxis(mRotation.y, Vector3f{ 1.f, 0.f, 0.f });
-	glm::quat yawRotation = glm::angleAxis(mRotation.x, Vector3f{ 0.f, -1.f, 0.f });
+	glm::quat pitchRotation = glm::angleAxis(getRotation().y, Vector3f{ 1.f, 0.f, 0.f });
+	glm::quat yawRotation = glm::angleAxis(getRotation().x, Vector3f{ 0.f, -1.f, 0.f });
 
 	return glm::toMat4(yawRotation) * glm::toMat4(pitchRotation);
 }
 
 Matrix4f CCamera::getViewProjectionMatrix() {
-	const Matrix4f cameraTranslation = glm::translate(Matrix4f(1.f), glm::vec3(mPosition));
+	const Matrix4f cameraTranslation = glm::translate(Matrix4f(1.f), glm::vec3(getPosition()));
 	Matrix4f viewMatrix = glm::inverse(cameraTranslation * getRotationMatrix());
 
 	// camera projection
@@ -54,8 +54,10 @@ void CCamera::update() {
 	mShowMouse = !CInput::getMousePressed(3); //RightClick
 
 	if (!mShowMouse) {
-		mRotation.x += Sensitivity.get() * (CInput::getMouseVelocity().x / 360.f);// * (float)CEngine::get().getTime().mDeltaTime;
-		mRotation.y -= Sensitivity.get() * (CInput::getMouseVelocity().y / 360.f);// * (float)CEngine::get().getTime().mDeltaTime;
+		Vector3f rotation = getRotation();
+		rotation.x += Sensitivity.get() * (CInput::getMouseVelocity().x / 360.f);// * (float)CEngine::get().getTime().mDeltaTime;
+		rotation.y -= Sensitivity.get() * (CInput::getMouseVelocity().y / 360.f);// * (float)CEngine::get().getTime().mDeltaTime;
+		setRotation(rotation);
 	}
 
 	float forwardAxis = CInput::getKeyPressed(EKey::S) ? 0.25f : CInput::getKeyPressed(EKey::W) ? -0.25f : 0.f;
@@ -65,6 +67,8 @@ void CCamera::update() {
 	mVelocity = {rightAxis, upAxis, forwardAxis};
 
 	Vector2f movement{mVelocity.x * 0.5f, mVelocity.z * 0.5f};
-	mPosition += Vector3f(getRotationMatrix() * Vector4f(movement.x, 0.f, movement.y, 0.f)) * (float)CEngine::get().getTime().mDeltaTime * CameraSpeed.get();
-	mPosition += Vector3f(0.f, mVelocity.y * 0.5f, 0.f) * (float)CEngine::get().getTime().mDeltaTime * CameraSpeed.get();
+	Vector3f position = getPosition();
+	position += Vector3f(getRotationMatrix() * Vector4f(movement.x, 0.f, movement.y, 0.f)) * (float)CEngine::get().getTime().mDeltaTime * CameraSpeed.get();
+	position += Vector3f(0.f, mVelocity.y * 0.5f, 0.f) * (float)CEngine::get().getTime().mDeltaTime * CameraSpeed.get();
+	setPosition(position);
 }

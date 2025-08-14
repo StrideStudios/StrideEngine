@@ -1,11 +1,9 @@
 ﻿#pragma once
 
 #include <functional>
-#include <memory>
 #include <vma/vk_mem_alloc.h>
 #include <vulkan/vulkan_core.h>
 #include <vector>
-#include <deque>
 #include <span>
 
 #include "Common.h"
@@ -45,7 +43,6 @@ struct SBuffer_T final : IDestroyable {
 struct SMeshBuffers_T final : IDestroyable {
 	SBuffer_T* indexBuffer = nullptr;
 	SBuffer_T* vertexBuffer = nullptr;
-	SBuffer_T* instanceBuffer = nullptr;
 };
 
 enum class EShaderStage : uint8 {
@@ -78,6 +75,7 @@ struct SPipelineCreateInfo {
 	VkShaderModule fragmentModule;
 	VkPrimitiveTopology mTopology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 	VkPolygonMode mPolygonMode = VK_POLYGON_MODE_FILL;
+	float mLineWidth = 1.f;
 	VkCullModeFlags mCullMode = VK_CULL_MODE_FRONT_BIT;
 	VkFrontFace mFrontFace = VK_FRONT_FACE_CLOCKWISE;
 	bool mUseMultisampling = false;

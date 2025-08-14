@@ -108,8 +108,6 @@ public:
 
 	std::vector<std::shared_ptr<class CSceneObject>> mObjects{};
 
-	std::vector<std::shared_ptr<class IRenderable>> mRenderables{};
-
 	//
 	// Passes
 	//

@@ -243,7 +243,7 @@ void CVulkanRenderer::draw() {
 
 			mBasePass->render(cmd);
 
-			mSpritePass->render(cmd);
+			//mSpritePass->render(cmd);
 
 			vkCmdEndRendering(cmd);
 		}
