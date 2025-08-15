@@ -5,6 +5,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include "Common.h"
+#include "Engine.h"
 #include "imgui.h"
 
 class CGuiText;
@@ -33,7 +34,7 @@ public:
 		return outCommand;
 	}
 
-	static void render();
+	ENGINE_API static void render();
 
 private:
 

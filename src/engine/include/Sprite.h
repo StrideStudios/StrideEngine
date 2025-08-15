@@ -4,7 +4,7 @@
 
 #include "Common.h"
 #include "Widget.h"
-#include "EngineLoader.h"
+#include "../../renderer/core/include/EngineLoader.h"
 
 class CSprite : public CWidget {
 

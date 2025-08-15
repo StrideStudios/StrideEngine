@@ -1,13 +1,12 @@
 ﻿#include "Camera.h"
 
-
 #include <glm/gtx/quaternion.hpp>
 
 #include "Engine.h"
 #include "EngineSettings.h"
 #include "EngineTextures.h"
 #include "Input.h"
-#include "VulkanRenderer.h"
+#include "Viewport.h"
 
 #define SETTINGS_CATEGORY "Camera"
 ADD_COMMAND(float, FieldOfView, 70.f, 0.f, 180.f);
@@ -29,9 +28,9 @@ Matrix4f CCamera::getViewProjectionMatrix() {
 	Matrix4f viewMatrix = glm::inverse(cameraTranslation * getRotationMatrix());
 
 	// camera projection
-	const auto [x, y, z] = CEngine::renderer().mEngineTextures->mDrawImage->mImageExtent;
+	const Extent32u extent = CEngine::get().getViewport().mExtent;
 	const float tanHalfFov = tan(glm::radians(mFOV) / 2.f);
-	const float aspect = (float)x / (float)y;
+	const float aspect = (float)extent.x / (float)extent.y;
 
 	Matrix4f projection(0.f);
 	projection[0][0] = 1.f / (aspect * tanHalfFov);

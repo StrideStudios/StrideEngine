@@ -4,9 +4,10 @@
 
 #include "Engine.h"
 #include "Viewport.h"
+#include "VulkanRenderer.h"
 
 SQueue CVulkanDevice::getQueue(const EQueueType inType) {
-    return CEngine::get().m_Device->mQueues[inType];
+    return CVulkanRenderer::get().m_Device->mQueues[inType];
 }
 
 void CVulkanDevice::init() {
@@ -51,14 +52,14 @@ void CVulkanDevice::init() {
     };
 
     //TODO: send out a simple error window telling the user why vulkan crashed (SimpleErrorReporter or something)
-    vkb::PhysicalDeviceSelector selector{CEngine::instance()};
+    vkb::PhysicalDeviceSelector selector{CVulkanRenderer::instance()};
     auto physicalDevice = selector
             .set_minimum_version(1, 3)
             .set_required_features(features)
             .set_required_features_12(features12)
             .set_required_features_13(features13)
             .add_required_extension_features(swapchainMaintenance1Features)
-            .set_surface(CEngine::get().getViewport().mVkSurface)
+            .set_surface(CVulkanRenderer::get().mVkSurface)
             .select();
 
     m_PhysicalDevice = std::make_unique<vkb::PhysicalDevice>(physicalDevice.value());

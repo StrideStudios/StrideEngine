@@ -2,14 +2,12 @@
 
 #include "EngineLoader.h"
 #include "EngineSettings.h"
-#include "TestRenderer.h"
 #include "Threading.h"
-#include "VulkanDevice.h"
-#include "VulkanInstance.h"
 #include "Viewport.h"
 #include "Camera.h"
 #include "Input.h"
 #include "Scene.h"
+#include "SectionManager.h"
 #include "SDL3/SDL_timer.h"
 
 #define SETTINGS_CATEGORY "Engine"
@@ -20,34 +18,11 @@ ADD_TEXT(GameTime);
 ADD_TEXT(DeltaTime);
 #undef SETTINGS_CATEGORY
 
-int main() {
-	CEngine::get().init();
-
-	CEngine::get().run();
-
-	CEngine::get().end();
-
-	CThreading::getMainThread().stop();
-
-	return 0;
-}
-
 static CResourceManager gEngineResourceManager;
 
-CEngine::CEngine() = default;
-
-CEngine::~CEngine() = default;
-
-const vkb::Instance& CEngine::instance() {
-	return get().m_Instance->mInstance;
-}
-
-const vkb::Device& CEngine::device() {
-	return get().m_Device->getDevice();
-}
-
-const vkb::PhysicalDevice& CEngine::physicalDevice() {
-	return get().m_Device->getPhysicalDevice();
+CEngine& CEngine::get() {
+	static CEngine engine;
+	return engine;
 }
 
 CScene& CEngine::scene() {
@@ -59,20 +34,14 @@ void CEngine::init() {
 
 	astsOnce(CEngine)
 
-	// Initializes the vkb instance
-	gEngineResourceManager.push(m_Instance);
-
 	// Initialize the viewport
 	gEngineResourceManager.push(m_EngineViewport);
 
-	// Create the vulkan device
-	gEngineResourceManager.push(m_Device);
-
 	// Create the renderer
-	gEngineResourceManager.push<CTestRenderer>(m_Renderer);
+	//gEngineResourceManager.push<CTestRenderer>(m_Renderer);
 
-	// Load textures and meshes
-	CEngineLoader::load();
+	m_Renderer = CSectionManager::getSection<CRendererSection>("renderer");
+	m_Renderer->init();
 
 	// Create the scene
 	gEngineResourceManager.push(m_Scene);
@@ -84,12 +53,17 @@ void CEngine::init() {
 void CEngine::end() {
 
 	// Wait for the gpu to finish instructions
-	if (!m_Renderer->waitForGpu()) {
+	if (!m_Renderer->wait()) {
 		errs("Engine did not stop properly!");
 	}
 
+	m_Renderer->destroy();
+
 	// Flush Engine Resources
 	gEngineResourceManager.flush();
+
+	// Stop 'main thread'
+	CThreading::getMainThread().stop();
 }
 
 void CEngine::run() {
@@ -113,13 +87,10 @@ void CEngine::run() {
 			previousTime = currentTime;
 		}
 
-		// It's hard to read at 180 hz, so update every tenth frame (or 18 hz)
-		if (m_Renderer->getFrameNumber() % 10 == 0) {
-			DeltaTime.setText(fmts("Delta Time: {}", std::to_string(m_Time.mDeltaTime)));
-			FrameRate.setText(fmts("Frame Rate: {}", std::to_string(m_Time.mFrameRate)));
-			AverageFrameRate.setText(fmts("Average Frame Rate: {}", std::to_string(m_Time.mAverageFrameRate)));
-			GameTime.setText(fmts("Game Time: {}", std::to_string(m_Time.mGameTime)));
-		}
+		DeltaTime.setText(fmts("Delta Time: {}", std::to_string(m_Time.mDeltaTime)));
+		FrameRate.setText(fmts("Frame Rate: {}", std::to_string(m_Time.mFrameRate)));
+		AverageFrameRate.setText(fmts("Average Frame Rate: {}", std::to_string(m_Time.mAverageFrameRate)));
+		GameTime.setText(fmts("Game Time: {}", std::to_string(m_Time.mGameTime)));
 
 		// Tick input
 		CInput::tick();
@@ -143,7 +114,7 @@ void CEngine::run() {
 		});
 
 		// Draw to the screen
-		renderer().draw();
+		renderer().render();
 
 		// Execute any tasks that are on the 'main thread'
 		// Done here because they can be done during the frame cap wait

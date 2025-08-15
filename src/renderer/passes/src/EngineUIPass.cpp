@@ -1,6 +1,5 @@
 ﻿#include "EngineUIPass.h"
 
-#include "Engine.h"
 #include "EngineLoader.h"
 #include "EngineTextures.h"
 #include "Sprite.h"
@@ -20,7 +19,7 @@ ADD_TEXT(SpriteTriangles, "Triangles: ");
 
 void CEngineUIPass::init() {
 
-	CVulkanRenderer& renderer = CEngine::renderer();
+	CVulkanRenderer& renderer = CVulkanRenderer::get();
 
 	CVulkanResourceManager manager;
 

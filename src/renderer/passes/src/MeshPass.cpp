@@ -1,4 +1,4 @@
-﻿#include "include/MeshPass.h"
+﻿#include "MeshPass.h"
 
 #include "Engine.h"
 #include "EngineTextures.h"
@@ -21,7 +21,7 @@ ADD_TEXT(Triangles, "Triangles: ");
 void CMeshPass::init(const EMeshPass inPassType) {
 	passType = inPassType;
 
-	CVulkanRenderer& renderer = CEngine::renderer();
+	CVulkanRenderer& renderer = CVulkanRenderer::get();
 
 	CVulkanResourceManager manager;
 
@@ -119,7 +119,7 @@ bool isVisible(const Matrix4f& inViewProj, const Matrix4f& inTransformMatrix, co
 void CMeshPass::render(const VkCommandBuffer cmd) {
 	ZoneScopedN("Base Pass");
 
-	CVulkanRenderer& renderer = CEngine::renderer();
+	CVulkanRenderer& renderer = CVulkanRenderer::get();
 
 	std::vector<std::shared_ptr<CStaticMeshObject>> renderObjects;
 	{

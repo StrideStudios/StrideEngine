@@ -13,7 +13,7 @@ static CVulkanResourceManager gTexturesResourceManager;
 
 void CEngineTextures::init() {
 
-	CEngine::renderer().mGlobalResourceManager.push(m_Swapchain);
+	CVulkanRenderer::get().mGlobalResourceManager.push(m_Swapchain);
 
 	// Initialize samplers
 	// Default samplers repeat and do not have anisotropy
@@ -30,14 +30,14 @@ void CEngineTextures::init() {
 		samplerCreateInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
 
 		CSampler* samplerNearest;
-		CEngine::renderer().mGlobalResourceManager.push(samplerNearest, samplerCreateInfo);
+		CVulkanRenderer::get().mGlobalResourceManager.push(samplerNearest, samplerCreateInfo);
 
 		samplerCreateInfo.magFilter = VK_FILTER_LINEAR;
 		samplerCreateInfo.minFilter = VK_FILTER_LINEAR;
 		samplerCreateInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
 
 		CSampler* samplerLinear;
-		CEngine::renderer().mGlobalResourceManager.push(samplerLinear, samplerCreateInfo);
+		CVulkanRenderer::get().mGlobalResourceManager.push(samplerLinear, samplerCreateInfo);
 
 		const auto imageDescriptorInfo = VkDescriptorImageInfo{
 			.sampler = *samplerNearest};
@@ -67,7 +67,7 @@ void CEngineTextures::init() {
 
 		const auto sets = {writeSet, writeSet2};
 
-		vkUpdateDescriptorSets(CEngine::device(), (uint32)sets.size(), sets.begin(), 0, nullptr);
+		vkUpdateDescriptorSets(CVulkanRenderer::device(), (uint32)sets.size(), sets.begin(), 0, nullptr);
 	}
 
 	// Error checkerboard image
@@ -82,7 +82,7 @@ void CEngineTextures::init() {
 
 	constexpr VkExtent3D extent(16, 16, 1);
 	constexpr int32 size = extent.width * extent.height * extent.depth * 4;
-	mErrorCheckerboardImage = CEngine::renderer().mGlobalResourceManager.allocateImage(pixels.data(), size, "Default Error", extent, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+	mErrorCheckerboardImage = CVulkanRenderer::get().mGlobalResourceManager.allocateImage(pixels.data(), size, "Default Error", extent, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
 
 	{
 		mErrorMaterial = std::make_shared<CMaterial>();

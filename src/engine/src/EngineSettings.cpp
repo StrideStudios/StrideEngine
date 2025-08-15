@@ -1,9 +1,7 @@
 ﻿#include "EngineSettings.h"
 
-#include "Engine.h"
 #include "VulkanDevice.h"
 #include "imgui.h"
-#include "VulkanRenderer.h"
 #include "tracy/Tracy.hpp"
 
 void CEngineSettings::render() {

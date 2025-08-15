@@ -4,6 +4,7 @@
 #include <glm/gtc/quaternion.hpp>
 
 #include "Common.h"
+#include "Engine.h"
 #include "SceneObject.h"
 #include "Viewport.h"
 

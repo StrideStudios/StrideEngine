@@ -12,7 +12,6 @@
 #include "SDL3/SDL_init.h"
 #include "SDL3/SDL_vulkan.h"
 #include "VkBootstrap.h"
-#include "VulkanRenderer.h"
 
 // Some ugly code that prevents the user from having to deal with it
 void sdlCallback(void* callback, const char* const* inFileName, int inFilter) {
@@ -46,13 +45,9 @@ void CEngineViewport::init() {
 		SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE
 	);
 
-	// Create a surface for Device to reference
-	SDL_Vulkan_CreateSurface(mWindow, CEngine::instance(), nullptr, &mVkSurface);
-
 }
 
 void CEngineViewport::destroy() {
-	vkb::destroy_surface(CEngine::instance(), mVkSurface);
 	SDL_DestroyWindow(mWindow);
 }
 
@@ -74,7 +69,7 @@ void CEngineViewport::pollEvents(bool& outRunning, bool& outPauseRendering) {
 			case SDL_EVENT_WINDOW_RESIZED:
 			case SDL_EVENT_WINDOW_MAXIMIZED:
 				update({static_cast<uint32>(e.window.data1), static_cast<uint32>(e.window.data2)});
-				CEngine::renderer().mEngineTextures->getSwapchain().setDirty();
+				//CVulkanRenderer::get().mEngineTextures->getSwapchain().setDirty();
 				break;
 			default: break;
 		}

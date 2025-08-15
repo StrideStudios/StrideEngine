@@ -4,6 +4,7 @@
 #include <memory>
 
 #include "Archive.h"
+#include "SceneObject.h"
 
 class CSceneObject;
 

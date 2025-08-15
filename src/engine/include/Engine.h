@@ -4,25 +4,16 @@
 
 #include "Common.h"
 
-// Forward declare vkb types
-namespace vkb {
-	struct Instance;
-	struct Device;
-	struct PhysicalDevice;
-}
-
 class CCamera;
-struct SVulkanInstance;
-class CVulkanDevice;
-class CVulkanRenderer;
+class CRendererSection;
 class CEngineViewport;
 class CScene;
 
 constexpr static auto gEngineName = text("Stride Engine");
 
-class CEngine {
+#define ENGINE_API __declspec(dllexport)
 
-	friend CVulkanDevice;//TODO: rmv
+class CEngine {
 
 	struct Time {
 		int32 mAverageFrameRate = 0;
@@ -33,24 +24,13 @@ class CEngine {
 
 public:
 
-	CEngine();
+	CEngine() = default;
 
-	~CEngine();
+	ENGINE_API static CEngine& get();
 
-	constexpr static CEngine& get() {
-		static CEngine engine;
-		return engine;
-	}
+	ENGINE_API static CScene& scene();
 
-	static const vkb::Instance& instance();
-
-	static const vkb::Device& device();
-
-	static const vkb::PhysicalDevice& physicalDevice();
-
-	static CScene& scene();
-
-	constexpr static CVulkanRenderer& renderer() {
+	static CRendererSection& renderer() {
 		return *get().m_Renderer;
 	}
 
@@ -65,11 +45,11 @@ private:
 	// Make sure only main can access init and run functions
 	friend int main();
 
-	void init();
+	ENGINE_API void init();
 
-	void end();
+	ENGINE_API void end();
 
-	void run();
+	ENGINE_API void run();
 
 	void update();
 
@@ -92,10 +72,6 @@ private:
 	// Vulkan
 	//
 
-	SVulkanInstance* m_Instance = nullptr;
-
-    CVulkanDevice* m_Device = nullptr;
-
-	CVulkanRenderer* m_Renderer = nullptr;
+	CRendererSection* m_Renderer = nullptr;
 
 };

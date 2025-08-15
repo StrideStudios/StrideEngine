@@ -42,11 +42,11 @@ void SBuffer_T::unMapData() const {
 
 void SImage_T::destroy() {
 	vmaDestroyImage(CVulkanResourceManager::getAllocator(), mImage, mAllocation);
-	vkDestroyImageView(CEngine::device(), mImageView, nullptr);
+	vkDestroyImageView(CVulkanRenderer::device(), mImageView, nullptr);
 }
 
 VkDevice CVulkanResourceManager::getDevice() {
-	return CEngine::device();
+	return CVulkanRenderer::device();
 }
 
 CVulkanResourceManager gGlobalResourceManager;
@@ -57,9 +57,9 @@ void CVulkanResourceManager::init() {
 	{
 		VmaAllocatorCreateInfo allocatorInfo {
 			.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT,
-			.physicalDevice = CEngine::physicalDevice(),
-			.device = CEngine::device(),
-			.instance = CEngine::instance()
+			.physicalDevice = CVulkanRenderer::physicalDevice(),
+			.device = CVulkanRenderer::device(),
+			.instance = CVulkanRenderer::instance()
 		};
 
 		VK_CHECK(vmaCreateAllocator(&allocatorInfo, &getAllocator()));
@@ -151,7 +151,7 @@ void CVulkanResourceManager::init() {
 			.pSetLayouts = &getBindlessDescriptorSetLayout()->mDescriptorSetLayout
 		};
 
-		VK_CHECK( vkAllocateDescriptorSets(CEngine::device(), &AllocationCreateInfo, &getBindlessDescriptorSet()));
+		VK_CHECK( vkAllocateDescriptorSets(CVulkanRenderer::device(), &AllocationCreateInfo, &getBindlessDescriptorSet()));
 
 	}
 
@@ -187,7 +187,7 @@ void CVulkanResourceManager::destroy() {
 VkCommandBuffer CVulkanResourceManager::allocateCommandBuffer(const VkCommandBufferAllocateInfo& pCreateInfo) {
 	ZoneScopedAllocation(std::string("Allocate CommandBuffer"));
 	VkCommandBuffer Buffer;
-	VK_CHECK(vkAllocateCommandBuffers(CEngine::device(), &pCreateInfo, &Buffer));
+	VK_CHECK(vkAllocateCommandBuffers(CVulkanRenderer::device(), &pCreateInfo, &Buffer));
 	return Buffer;
 }
 
@@ -391,7 +391,7 @@ SShader CVulkanResourceManager::getShader(const char* inFilePath) {
 	}
 
 	// Check for written SPIRV files
-	if (loadShader(CEngine::device(), SPIRVpath.c_str(), Hash, shader)) {
+	if (loadShader(CVulkanRenderer::device(), SPIRVpath.c_str(), Hash, shader)) {
 		return shader;
 	}
 
@@ -407,7 +407,7 @@ SShader CVulkanResourceManager::getShader(const char* inFilePath) {
 		errs("Shader file {} failed to compile!", inFilePath);
 	}
 
-	if (loadShader(CEngine::device(), SPIRVpath.c_str(), Hash, shader)) {
+	if (loadShader(CVulkanRenderer::device(), SPIRVpath.c_str(), Hash, shader)) {
 		return shader;
 	}
 
@@ -648,7 +648,7 @@ SBuffer_T* CVulkanResourceManager::allocateGlobalBuffer(size_t allocSize, VmaMem
 			.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
 			.pBufferInfo = &bufferDescriptorInfo,
 		};
-		vkUpdateDescriptorSets(CEngine::device(), 1, &writeSet, 0, nullptr);
+		vkUpdateDescriptorSets(CVulkanRenderer::device(), 1, &writeSet, 0, nullptr);
 	}
 
 	return buffer;
@@ -696,7 +696,7 @@ SImage_T* CVulkanResourceManager::allocateImage(const std::string& inDebugName, 
 	VkImageViewCreateInfo imageViewInfo = CVulkanInfo::createImageViewInfo(image->mImageFormat, image->mImage, inViewFlags);
 	imageViewInfo.subresourceRange.levelCount = imageInfo.mipLevels;
 
-	VK_CHECK(vkCreateImageView(CEngine::device(), &imageViewInfo, nullptr, &image->mImageView));
+	VK_CHECK(vkCreateImageView(CVulkanRenderer::device(), &imageViewInfo, nullptr, &image->mImageView));
 
 	// Update descriptors with new image
 	if ((inFlags & VK_IMAGE_USAGE_SAMPLED_BIT) != 0) { //TODO: VK_IMAGE_USAGE_SAMPLED_BIT is not a permanent solution
@@ -719,7 +719,7 @@ SImage_T* CVulkanResourceManager::allocateImage(const std::string& inDebugName, 
 			.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
 			.pImageInfo = &imageDescriptorInfo,
 		};
-		vkUpdateDescriptorSets(CEngine::device(), 1, &writeSet, 0, nullptr);
+		vkUpdateDescriptorSets(CVulkanRenderer::device(), 1, &writeSet, 0, nullptr);
 	}
 
 	return image;
@@ -745,7 +745,7 @@ void CVulkanResourceManager::updateGlobalBuffer(const SBuffer_T* buffer) {
 			.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
 			.pBufferInfo = &bufferDescriptorInfo,
 		};
-		vkUpdateDescriptorSets(CEngine::device(), 1, &writeSet, 0, nullptr);
+		vkUpdateDescriptorSets(CVulkanRenderer::device(), 1, &writeSet, 0, nullptr);
 	}
 }
 
@@ -834,7 +834,7 @@ SImage_T* CVulkanResourceManager::allocateImage(void* inData, const uint32& size
 
 	SImage_T* new_image = allocateImage(inDebugName, inExtent, inFormat, inFlags | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, inViewFlags, inMipmapped);
 
-	CVulkanRenderer::immediateSubmit([&](VkCommandBuffer cmd) {
+	CVulkanRenderer::get().immediateSubmit([&](VkCommandBuffer cmd) {
 		ZoneScopedAllocation(std::string("Copy Image from Upload Buffer"));
 		CVulkanUtils::transitionImage(cmd, new_image->mImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 

@@ -4,7 +4,7 @@
 #include "SceneObject.h"
 #include "ResourceManager.h"
 
-class CCamera : public CSceneObject3D, public IDestroyable {
+class ENGINE_API CCamera : public CSceneObject3D, public IDestroyable {
 
 	REGISTER_CLASS(CCamera)
 

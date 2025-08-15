@@ -12,23 +12,56 @@
 #include "vulkan/vk_enum_string_helper.h"
 #include "VkBootstrap.h"
 
-#include "Engine.h"
 #include "EngineSettings.h"
 #include "EngineTextures.h"
 #include "EngineUI.h"
 #include "MeshPass.h"
+#include "SpritePass.h"
 #include "Swapchain.h"
+#include "Viewport.h"
+#include "VulkanInstance.h"
+#include "SDL3/SDL_vulkan.h"
 
 #define SETTINGS_CATEGORY "Engine"
 ADD_COMMAND(bool, UseVsync, true);
 #undef SETTINGS_CATEGORY
 
+static CResourceManager gRendererResourceManager;
+
+void CVulkanRendererSection::init() {
+	gRendererResourceManager.push(mRenderer);
+}
+
+void CVulkanRendererSection::destroy() {
+	gRendererResourceManager.flush();
+}
+
+void CVulkanRendererSection::render() {
+	mRenderer->render();
+}
+
+bool CVulkanRendererSection::wait() {
+	return mRenderer->wait();
+}
+
+const vkb::Instance& CVulkanRenderer::instance() {
+	return get().m_Instance->mInstance;
+}
+
+const vkb::Device& CVulkanRenderer::device() {
+	return get().m_Device->getDevice();
+}
+
+const vkb::PhysicalDevice& CVulkanRenderer::physicalDevice() {
+	return get().m_Device->getPhysicalDevice();
+}
+
 CVulkanRenderer::CVulkanRenderer(): mVSync(UseVsync.get()) {}
 
 void CVulkanRenderer::immediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function) {
 
-	CVulkanRenderer& renderer = CEngine::renderer();
-	const VkDevice device = CEngine::device();
+	CVulkanRenderer& renderer = get();
+	const VkDevice device = CVulkanRenderer::device();
 
 	std::unique_lock lock(renderer.mUploadContext.mMutex);
 
@@ -62,6 +95,17 @@ void CVulkanRenderer::init() {
 	// Ensure the renderer is only created once
 	astsOnce(CVulkanRenderer);
 
+	msgs("TRIED RENDERER");
+
+	// Initializes the vkb instance
+	mGlobalResourceManager.push(m_Instance);
+
+	// Create a surface for Device to reference
+	SDL_Vulkan_CreateSurface(CEngine::get().getViewport().mWindow, instance(), nullptr, &mVkSurface);
+
+	// Create the vulkan device
+	mGlobalResourceManager.push(m_Device);
+
 	// Initialize the allocator
 	CVulkanResourceManager::init();
 
@@ -90,7 +134,7 @@ void CVulkanRenderer::init() {
 
 			frame.mMainCommandBuffer = CVulkanResourceManager::allocateCommandBuffer(frameCmdAllocInfo);
 
-			frame.mTracyContext = TracyVkContext(CEngine::physicalDevice(), CEngine::device(), CVulkanDevice::getQueue(EQueueType::GRAPHICS).mQueue, frame.mMainCommandBuffer);
+			frame.mTracyContext = TracyVkContext(physicalDevice(), device(), CVulkanDevice::getQueue(EQueueType::GRAPHICS).mQueue, frame.mMainCommandBuffer);
 		}
 	}
 
@@ -103,11 +147,14 @@ void CVulkanRenderer::init() {
 	mGlobalResourceManager.push(mSpritePass);
 
 	// Setup Engine UI
-	EngineUI::init(CVulkanDevice::getQueue(EQueueType::GRAPHICS).mQueue, mEngineTextures->getSwapchain().mFormat);
+	SEngineUI::init(CVulkanDevice::getQueue(EQueueType::GRAPHICS).mQueue, mEngineTextures->getSwapchain().mFormat);
+
+	// Load textures and meshes
+	CEngineLoader::load();
 }
 
 void CVulkanRenderer::destroy() {
-	EngineUI::destroy();
+	SEngineUI::destroy();
 
 	for (auto& frame : mFrames) {
 		TracyVkDestroy(frame.mTracyContext);
@@ -119,9 +166,11 @@ void CVulkanRenderer::destroy() {
 
 	// Destroy allocator, if not all allocations have been destroyed, it will throw an error
 	CVulkanResourceManager::destroy();
+
+	vkb::destroy_surface(instance(), mVkSurface);
 }
 
-void CVulkanRenderer::draw() {
+void CVulkanRenderer::render() {
 	if (mVSync != UseVsync.get()) {
 		mVSync = UseVsync.get();
 		msgs("Reallocating Swapchain to {}", UseVsync.get() ? "enable VSync." : "disable VSync.");
@@ -132,7 +181,7 @@ void CVulkanRenderer::draw() {
 		// Make sure that the swapchain is not dirty before recreating it
 		while (mEngineTextures->getSwapchain().isDirty()) {
 			// Wait for gpu before recreating swapchain
-			if (!waitForGpu()) continue;
+			if (!wait()) continue;
 
 			mEngineTextures->reallocate(UseVsync.get());
 		}
@@ -149,7 +198,7 @@ void CVulkanRenderer::draw() {
 	{
 		ZoneScopedN("Begin Frame");
 
-		EngineUI::begin();
+		SEngineUI::begin();
 
 		// Wait for the previous render to stop
 		if (!mEngineTextures->getSwapchain().wait(getFrameIndex())) {
@@ -265,10 +314,10 @@ void CVulkanRenderer::draw() {
 		CVulkanUtils::transitionImage(cmd, swapchainImage,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
 		// Render other UI
-		EngineUI::runEngineUI();
+		SEngineUI::runEngineUI();
 
 		// Add the UI to the swapchain
-		EngineUI::render(cmd, mEngineTextures->getSwapchain().mSwapchain->mSwapchain.extent, swapchainImageView);
+		SEngineUI::render(cmd, mEngineTextures->getSwapchain().mSwapchain->mSwapchain.extent, swapchainImageView);
 
 		// Set swapchain image layout to Present so we can show it on the screen
 		CVulkanUtils::transitionImage(cmd, swapchainImage,VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
@@ -286,9 +335,9 @@ void CVulkanRenderer::draw() {
 	}
 }
 
-bool CVulkanRenderer::waitForGpu() const {
+bool CVulkanRenderer::wait() {
 	// Make sure the gpu is not working
-	vkDeviceWaitIdle(CEngine::device());
+	vkDeviceWaitIdle(device());
 
 	return mEngineTextures->getSwapchain().wait(getFrameIndex());
 }

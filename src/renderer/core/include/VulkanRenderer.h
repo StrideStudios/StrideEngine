@@ -7,7 +7,15 @@
 
 #include "Common.h"
 #include "ResourceManager.h"
+#include "SectionManager.h"
 #include "VulkanResourceManager.h"
+
+// Forward declare vkb types
+namespace vkb {
+	struct Instance;
+	struct Device;
+	struct PhysicalDevice;
+}
 
 namespace tracy {
 	class VkCtx;
@@ -15,6 +23,7 @@ namespace tracy {
 
 class CEngineTextures;
 class CVulkanDevice;
+struct SVulkanInstance;
 
 struct SUploadContext {
 	std::mutex mMutex;
@@ -23,9 +32,35 @@ struct SUploadContext {
 	VkCommandBuffer mCommandBuffer{};
 };
 
+#define RENDERER_API __declspec(dllexport)
+//TODO: seperate class (all dll should have sections with a _API
+class RENDERER_API CVulkanRendererSection final : public CRendererSection {
+
+	ADD_SECTION(CVulkanRendererSection, "renderer")
+
+public:
+
+	virtual void init() override;
+
+	virtual void destroy() override;
+
+	virtual void render() override;
+
+	virtual bool wait() override;
+
+	class CVulkanRenderer* mRenderer = nullptr;
+
+};
+
+inline static CVulkanRendererSection::Registry test{};
+
 class CVulkanRenderer : public IInitializable<>, public IDestroyable {
 
 public:
+
+	static CVulkanRenderer& get() {
+		return *CVulkanRendererSection::get().mRenderer;
+	}
 
 	struct SceneData {
 		Matrix4f mViewProj;
@@ -51,7 +86,13 @@ public:
 
 	CVulkanRenderer();
 
-	static void immediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function);
+	static const vkb::Instance& instance();
+
+	static const vkb::Device& device();
+
+	static const vkb::PhysicalDevice& physicalDevice();
+
+	void immediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function);
 
 	virtual void init() override;
 
@@ -66,12 +107,12 @@ public:
 	force_inline const FrameData& getCurrentFrame() const { return mFrames[getFrameIndex()]; }
 
 	// Draw to the screen
-	void draw();
+	void render();
 
 	// Tell children to render
-	virtual void render(VkCommandBuffer cmd) = 0;
+	virtual void render(VkCommandBuffer cmd) {};
 
-	no_discard bool waitForGpu() const;
+	no_discard bool wait();
 
 	/*
 	 * This resource allocator is flushed when the renderer is destroyed
@@ -85,6 +126,13 @@ public:
 	//
 	// Rendering Utils
 	//
+
+	// Vulkan window surface
+	VkSurfaceKHR mVkSurface;
+
+	SVulkanInstance* m_Instance = nullptr;
+
+    CVulkanDevice* m_Device = nullptr;
 
 	bool mVSync;
 

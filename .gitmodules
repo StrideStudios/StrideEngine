@@ -22,3 +22,6 @@
 [submodule "third_party/basis_universal"]
 	path = third_party/basis_universal
 	url = https://github.com/BinomialLLC/basis_universal
+[submodule "third_party/glm"]
+	path = third_party/glm
+	url = https://github.com/g-truc/glm

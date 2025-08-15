@@ -4,6 +4,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include "Common.h"
+#include "Engine.h"
 #include "ResourceManager.h"
 
 class CEngineViewport : public IInitializable<>, public IDestroyable {
@@ -14,7 +15,7 @@ public:
 
 	typedef void cb(std::vector<std::string> inFiles);
 
-	static void queryForFile(const std::vector<std::pair<const char*, const char*>>& inFilters, cb callback);
+	ENGINE_API static void queryForFile(const std::vector<std::pair<const char*, const char*>>& inFilters, cb callback);
 
 	virtual void init() override;
 
@@ -51,8 +52,5 @@ public:
 
 	// The SDL window
 	struct SDL_Window* mWindow = nullptr;
-
-	// Vulkan window surface
-	VkSurfaceKHR mVkSurface;
 
 };

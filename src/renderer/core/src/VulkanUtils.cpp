@@ -6,10 +6,11 @@
 #include "Common.h"
 #include "Engine.h"
 #include "VulkanDevice.h"
+#include "VulkanRenderer.h"
 #include "tracy/Tracy.hpp"
 
 VkDevice getDevice() {
-	return CEngine::device();
+	return CVulkanRenderer::device();
 }
 
 VkImageSubresourceRange CVulkanUtils::imageSubresourceRange(VkImageAspectFlags inAspectMask) {

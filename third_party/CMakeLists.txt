@@ -1,4 +1,5 @@
-﻿add_subdirectory(fmt)
+﻿add_subdirectory(glm)
+add_subdirectory(fmt)
 add_subdirectory(sdl)
 add_subdirectory(vk-bootstrap)
 add_subdirectory(glslang)
