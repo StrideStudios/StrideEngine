@@ -45,7 +45,7 @@ struct SStaticMesh {
 
 // A scene object that has the capability to render static meshes
 // This is also where static meshes are loaded
-class CStaticMeshObject : public CSceneObject3D {
+class ENGINE_API CStaticMeshObject : public CSceneObject3D {
 
 	REGISTER_CLASS(CStaticMeshObject)
 
@@ -86,7 +86,7 @@ public:
 	}
 };
 
-class CInstancedStaticMeshObject : public CStaticMeshObject {
+class ENGINE_API CInstancedStaticMeshObject : public CStaticMeshObject {
 
 public:
 

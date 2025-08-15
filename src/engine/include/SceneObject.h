@@ -45,7 +45,7 @@ public:
 
 };
 
-class CSceneObject2D : public CSceneObject {
+class ENGINE_API CSceneObject2D : public CSceneObject {
 
 	REGISTER_CLASS(CSceneObject2D)
 
@@ -53,7 +53,7 @@ public:
 
 	CSceneObject2D(): CSceneObject("Widget") {}
 
-	no_discard ENGINE_API virtual Matrix4f getTransformMatrix() const override;
+	no_discard virtual Matrix4f getTransformMatrix() const override;
 
 	virtual CArchive& save(CArchive& inArchive) override {
 		CSceneObject::save(inArchive);
@@ -106,7 +106,7 @@ private:
 	Vector2f m_Scale{1.f};
 };
 
-class CSceneObject3D : public CSceneObject {
+class ENGINE_API CSceneObject3D : public CSceneObject {
 
 	REGISTER_CLASS(CSceneObject3D)
 

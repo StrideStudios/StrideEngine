@@ -41,7 +41,7 @@ void CEngine::init() {
 	//gEngineResourceManager.push<CTestRenderer>(m_Renderer);
 
 	m_Renderer = CSectionManager::getSection<CRendererSection>("renderer");
-	m_Renderer->init();
+	gEngineResourceManager.add(m_Renderer);
 
 	// Create the scene
 	gEngineResourceManager.push(m_Scene);
@@ -56,8 +56,6 @@ void CEngine::end() {
 	if (!m_Renderer->wait()) {
 		errs("Engine did not stop properly!");
 	}
-
-	m_Renderer->destroy();
 
 	// Flush Engine Resources
 	gEngineResourceManager.flush();

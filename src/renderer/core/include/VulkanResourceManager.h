@@ -182,20 +182,11 @@ class CVulkanResourceManager : public CResourceManager {
 
 public:
 
-	constexpr static CPipelineLayout*& getBasicPipelineLayout() {
-		static CPipelineLayout* layout;
-		return layout;
-	}
+	static CPipelineLayout*& getBasicPipelineLayout();
 
-	constexpr static CDescriptorSetLayout*& getBindlessDescriptorSetLayout() {
-		static CDescriptorSetLayout* layout;
-		return layout;
-	}
+	static CDescriptorSetLayout*& getBindlessDescriptorSetLayout();
 
-	constexpr static VkDescriptorSet& getBindlessDescriptorSet() {
-		static VkDescriptorSet set;
-		return set;
-	}
+	static VkDescriptorSet& getBindlessDescriptorSet();
 
 	CVulkanResourceManager() = default;
 

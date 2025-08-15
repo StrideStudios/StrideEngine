@@ -98,13 +98,15 @@ void CVulkanRenderer::init() {
 	msgs("TRIED RENDERER");
 
 	// Initializes the vkb instance
-	mGlobalResourceManager.push(m_Instance);
+	//mGlobalResourceManager.push(m_Instance);
+	m_Instance = new SVulkanInstance();
 
 	// Create a surface for Device to reference
 	SDL_Vulkan_CreateSurface(CEngine::get().getViewport().mWindow, instance(), nullptr, &mVkSurface);
 
 	// Create the vulkan device
-	mGlobalResourceManager.push(m_Device);
+	m_Device = new CVulkanDevice();
+	m_Device->init();
 
 	// Initialize the allocator
 	CVulkanResourceManager::init();
@@ -154,6 +156,9 @@ void CVulkanRenderer::init() {
 }
 
 void CVulkanRenderer::destroy() {
+
+	msgs("TRIED DESTROY RENDERER");
+
 	SEngineUI::destroy();
 
 	for (auto& frame : mFrames) {
@@ -168,6 +173,12 @@ void CVulkanRenderer::destroy() {
 	CVulkanResourceManager::destroy();
 
 	vkb::destroy_surface(instance(), mVkSurface);
+
+	m_Device->destroy();
+	delete m_Device;
+
+	m_Instance->destroy();
+	delete m_Instance;
 }
 
 void CVulkanRenderer::render() {

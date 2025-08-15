@@ -65,6 +65,15 @@ public:
 		push<TTargetType, TArgs...>(reinterpret_cast<TTargetType*&>(outType), args...);
 	}
 
+	template <typename TType>
+	requires std::is_base_of_v<IDestroyable, TType>
+	void add(TType* inType) {
+		if constexpr (std::is_base_of_v<SInitializable, TType>) {
+			inType->init();
+		}
+		m_Destroyables.push_back(inType);
+	}
+
 	// Reverse iterate and destroy
 	virtual void flush() {
 		for (auto itr = m_Destroyables.rbegin(); itr != m_Destroyables.rend(); ++itr) {

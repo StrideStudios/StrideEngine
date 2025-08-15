@@ -49,6 +49,21 @@ VkDevice CVulkanResourceManager::getDevice() {
 	return CVulkanRenderer::device();
 }
 
+CPipelineLayout*& CVulkanResourceManager::getBasicPipelineLayout() {
+	static CPipelineLayout* layout;
+	return layout;
+}
+
+CDescriptorSetLayout*& CVulkanResourceManager::getBindlessDescriptorSetLayout() {
+	static CDescriptorSetLayout* layout;
+	return layout;
+}
+
+VkDescriptorSet& CVulkanResourceManager::getBindlessDescriptorSet() {
+	static VkDescriptorSet set;
+	return set;
+}
+
 CVulkanResourceManager gGlobalResourceManager;
 
 void CVulkanResourceManager::init() {
