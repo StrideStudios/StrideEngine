@@ -59,7 +59,7 @@ void CEngineUIPass::render(VkCommandBuffer cmd) {
 	uint32 drawCallCount = 0;
 	uint64 vertexCount = 0;
 
-	for (auto& sprite : objects) {
+	/*for (auto& sprite : objects) {
 		SInstancer& instancer = sprite->getInstancer();
 		const size_t NumInstances = instancer.instances.size();
 
@@ -76,7 +76,7 @@ void CEngineUIPass::render(VkCommandBuffer cmd) {
 
 		drawCallCount++;
 		vertexCount += 6 * NumInstances;
-	}
+	}*/
 
 	// Set number of drawcalls, vertices, and triangles
 	/*SpriteDrawcalls.setText(fmts("Draw Calls: {}", drawCallCount));

@@ -1,4 +1,4 @@
-﻿add_library(imgui SHARED
+﻿add_library(StrideEngine-imgui SHARED
         # Dear ImGui
 
         include/imconfig.h
@@ -20,10 +20,14 @@
         src/imgui_stdlib.cpp
 )
 
-set_target_properties(imgui PROPERTIES LINKER_LANGUAGE CXX)
+set_target_properties(StrideEngine-imgui PROPERTIES LINKER_LANGUAGE CXX)
+
+target_include_directories(StrideEngine-imgui PRIVATE
+        "include"
+)
 
 find_package(Vulkan REQUIRED)
-target_link_libraries(imgui
+target_link_libraries(StrideEngine-imgui
     PUBLIC
         SDL3::SDL3
         Vulkan::Vulkan

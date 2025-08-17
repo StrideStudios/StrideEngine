@@ -1,7 +1,6 @@
 ﻿#pragma once
 
 #include "VkBootstrap.h"
-#include "ResourceManager.h"
 
 // Wrapper around vkb instance that can be destroyed
 struct SVulkanInstance final : IDestroyable {

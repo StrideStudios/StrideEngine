@@ -5,9 +5,7 @@
 #include <memory>
 #include <mutex>
 
-#include "Common.h"
-#include "ResourceManager.h"
-#include "SectionManager.h"
+#include "ModuleManager.h"
 #include "VulkanResourceManager.h"
 
 // Forward declare vkb types
@@ -32,11 +30,10 @@ struct SUploadContext {
 	VkCommandBuffer mCommandBuffer{};
 };
 
-#define RENDERER_API __declspec(dllexport)
 //TODO: seperate class (all dll should have sections with a _API
-class RENDERER_API CVulkanRendererSection final : public CRendererSection {
+class EXPORT CVulkanRendererModule final : public CRendererModule {
 
-	ADD_SECTION(CVulkanRendererSection, "renderer")
+	ADD_MODULE(CVulkanRendererModule, "renderer")
 
 public:
 
@@ -52,14 +49,12 @@ public:
 
 };
 
-inline static CVulkanRendererSection::Registry test{};
-
 class CVulkanRenderer : public IInitializable<>, public IDestroyable {
 
 public:
 
 	static CVulkanRenderer& get() {
-		return *CVulkanRendererSection::get().mRenderer;
+		return *CVulkanRendererModule::get().mRenderer;
 	}
 
 	struct SceneData {

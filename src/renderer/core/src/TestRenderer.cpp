@@ -1,13 +1,9 @@
 ﻿#include "TestRenderer.h"
 
-#include "Archive.h"
 #include "VulkanDevice.h"
-#include "imgui.h"
 
 #define BASISU_FORCE_DEVEL_MESSAGES 1
 #include "EngineTextures.h"
-#include "MeshPass.h"
-#include "Paths.h"
 #include "Sprite.h"
 #include "SpritePass.h"
 #include "encoder/basisu_enc.h"
@@ -94,12 +90,12 @@ void CTestRenderer::init() {
 	sprite->material = mEngineTextures->mErrorMaterial;
 	mSpritePass->push(sprite);
 
-	for (int32 i = 0; i < numSprites; ++i) {
+	/*for (int32 i = 0; i < numSprites; ++i) {
 		Transform2f transform;
 		transform.mPosition = {(float)distribx(gen) / 100.f, (float)distriby(gen) / 100.f};
 		transform.mScale = {0.025f, 0.05f};
 		sprite->addInstance(transform);
-	}
+	}*/
 
 	/*Transform2f transform;
 	transform.mOrigin = {0.5f, 0.5f};

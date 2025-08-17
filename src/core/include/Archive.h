@@ -4,8 +4,7 @@
 #include <vector>
 #include <string>
 #include <map>
-
-#include "Common.h"
+#include <memory>
 
 class CArchive;
 
@@ -28,30 +27,24 @@ public:
 
 template <class TType> std::shared_ptr<void> constructor() { return std::make_shared<TType>(); }
 
-class CArchiveFactory final {
+class EXPORT CArchiveFactory final {
 
 	typedef std::shared_ptr<void>(*constructor_t)();
 	std::map<std::string, constructor_t> m_Classes;
 
-	constexpr static CArchiveFactory& get() {
-		static CArchiveFactory archiveFactory;
-		return archiveFactory;
-	}
-
 public:
 
 	template <typename TType>
-	constexpr static bool registerClass(const std::string& typeName) {
-		get().m_Classes.insert(std::make_pair(typeName, &constructor<TType>));
-		return true;
+	static bool registerClass(const std::string& typeName) {
+		return register_Internal(std::make_pair(typeName, &constructor<TType>));
 	}
 
-	static std::shared_ptr<void> construct(const std::string& inTypeName) {
-		if (!get().m_Classes.contains(inTypeName)) {
-			errs("Could not construct class {}", inTypeName.c_str());
-		}
-		return get().m_Classes[inTypeName]();
-	}
+	static std::shared_ptr<void> construct(const std::string& inTypeName);
+
+private:
+
+	static bool register_Internal(std::pair<const std::string&, constructor_t> inPair);
+
 };
 
 class CArchive {

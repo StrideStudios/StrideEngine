@@ -9,14 +9,12 @@
 #include "VulkanRenderer.h"
 #include "VkBootstrap.h"
 
-#include "Common.h"
 #include "EngineLoader.h"
 #include "Material.h"
 #include "Scene.h"
 #include "Sprite.h"
 #include "SpritePass.h"
 #include "StaticMesh.h"
-#include "Threading.h"
 #include "Viewport.h"
 
 void SEngineUI::begin() {
@@ -27,7 +25,6 @@ void SEngineUI::begin() {
 }
 
 void SEngineUI::init(VkQueue inQueue, VkFormat format) {
-	msgs("Called init");
 	CVulkanRenderer& renderer = CVulkanRenderer::get();
 
 	// Setup Dear ImGui context
@@ -103,7 +100,7 @@ void SEngineUI::render(VkCommandBuffer cmd, VkExtent2D inExtent, VkImageView inT
 
 void SEngineUI::renderSceneUI() {
 	if (ImGui::Begin("Scene")) {
-		CScene& scene = CEngine::scene();
+		CScene& scene = CScene::get();
 		if (ImGui::Button("Add Mesh Object")) {
 			scene.data.objects.push_back(std::make_shared<CStaticMeshObject>());
 		}

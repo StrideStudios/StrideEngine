@@ -4,9 +4,7 @@
 #include <memory>
 #include <map>
 
-#include "Common.h"
 #include "VkBootstrap.h"
-#include "ResourceManager.h"
 
 enum class EQueueType : uint8 {
     GRAPHICS,

@@ -9,6 +9,9 @@
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtc/quaternion.hpp>
 
+#define EXPORT __declspec(dllexport)
+#define IMPORT __declspec(dllimport)
+
 /*
  * To keep it simple yet readable these are some naming conventions:
  *

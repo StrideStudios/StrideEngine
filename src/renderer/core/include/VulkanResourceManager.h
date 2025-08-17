@@ -6,9 +6,7 @@
 #include <vector>
 #include <span>
 
-#include "Common.h"
 #include "VulkanUtils.h"
-#include "ResourceManager.h"
 
 class CVulkanDevice;
 

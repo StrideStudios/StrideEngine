@@ -4,9 +4,7 @@
 #include <string>
 #include <vector>
 
-#include "Common.h"
 #include "EngineLoader.h"
-#include "Hashing.h"
 #include "Material.h"
 #include "SceneObject.h"
 
@@ -45,7 +43,7 @@ struct SStaticMesh {
 
 // A scene object that has the capability to render static meshes
 // This is also where static meshes are loaded
-class ENGINE_API CStaticMeshObject : public CSceneObject3D {
+class EXPORT CStaticMeshObject : public CSceneObject3D {
 
 	REGISTER_CLASS(CStaticMeshObject)
 
@@ -86,12 +84,14 @@ public:
 	}
 };
 
-class ENGINE_API CInstancedStaticMeshObject : public CStaticMeshObject {
+//TODO: mostly the same as SInstancer
+class EXPORT CInstancedStaticMeshObject : public CStaticMeshObject {
 
 public:
 
-	CInstancedStaticMeshObject() {
-		m_Instancer.flush();
+	/*CInstancedStaticMeshObject() {
+		m_Instances.clear();
+		setDirty();
 	}
 
 	virtual uint32 addInstance(const Transform3f& inPosition) {
@@ -126,5 +126,5 @@ public:
 		CStaticMeshObject::load(inArchive);
 		inArchive >> m_Instancer;
 		return inArchive;
-	}
+	}*/
 };

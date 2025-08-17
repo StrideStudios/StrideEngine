@@ -1,17 +1,10 @@
 ﻿#pragma once
 
-#include <memory>
-
-#include "Common.h"
-
-class CCamera;
-class CRendererSection;
+class CRendererModule;
 class CEngineViewport;
 class CScene;
 
 constexpr static auto gEngineName = text("Stride Engine");
-
-#define ENGINE_API __declspec(dllexport)
 
 class CEngine {
 
@@ -26,11 +19,9 @@ public:
 
 	CEngine() = default;
 
-	ENGINE_API static CEngine& get();
+	EXPORT static CEngine& get();
 
-	ENGINE_API static CScene& scene();
-
-	static CRendererSection& renderer() {
+	static CRendererModule& renderer() {
 		return *get().m_Renderer;
 	}
 
@@ -38,26 +29,18 @@ public:
 
 	no_discard const CEngineViewport& getViewport() const { return *m_EngineViewport; }
 
-	CCamera* mMainCamera = nullptr;
-
 private:
 
 	// Make sure only main can access init and run functions
 	friend int main();
 
-	ENGINE_API void init();
+	EXPORT void init();
 
-	ENGINE_API void end();
+	EXPORT void end();
 
-	ENGINE_API void run();
+	EXPORT void run();
 
 	void update();
-
-	//
-	// Scenes
-	//
-
-	CScene* m_Scene;
 
 	//
 	// Frame Time
@@ -72,6 +55,6 @@ private:
 	// Vulkan
 	//
 
-	CRendererSection* m_Renderer = nullptr;
+	CRendererModule* m_Renderer = nullptr;
 
 };

@@ -2,9 +2,8 @@
 
 #include <memory>
 
-#include "Common.h"
 #include "Widget.h"
-#include "../../renderer/core/include/EngineLoader.h"
+#include "EngineLoader.h"
 
 class CSprite : public CWidget {
 
@@ -24,7 +23,7 @@ class CInstancedSprite : public CSprite {
 
 public:
 
-	CInstancedSprite() {
+	/*CInstancedSprite() {
 		m_Instancer.flush();
 	}
 
@@ -60,6 +59,6 @@ public:
 		CSprite::load(inArchive);
 		inArchive >> m_Instancer;
 		return inArchive;
-	}
+	}*/
 
 };

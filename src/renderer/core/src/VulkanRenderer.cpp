@@ -16,6 +16,7 @@
 #include "EngineTextures.h"
 #include "EngineUI.h"
 #include "MeshPass.h"
+#include "Scene.h"
 #include "SpritePass.h"
 #include "Swapchain.h"
 #include "Viewport.h"
@@ -28,19 +29,19 @@ ADD_COMMAND(bool, UseVsync, true);
 
 static CResourceManager gRendererResourceManager;
 
-void CVulkanRendererSection::init() {
+void CVulkanRendererModule::init() {
 	gRendererResourceManager.push(mRenderer);
 }
 
-void CVulkanRendererSection::destroy() {
+void CVulkanRendererModule::destroy() {
 	gRendererResourceManager.flush();
 }
 
-void CVulkanRendererSection::render() {
+void CVulkanRendererModule::render() {
 	mRenderer->render();
 }
 
-bool CVulkanRendererSection::wait() {
+bool CVulkanRendererModule::wait() {
 	return mRenderer->wait();
 }
 
@@ -94,8 +95,6 @@ void CVulkanRenderer::immediateSubmit(std::function<void(VkCommandBuffer cmd)>&&
 void CVulkanRenderer::init() {
 	// Ensure the renderer is only created once
 	astsOnce(CVulkanRenderer);
-
-	msgs("TRIED RENDERER");
 
 	// Initializes the vkb instance
 	//mGlobalResourceManager.push(m_Instance);
@@ -156,8 +155,6 @@ void CVulkanRenderer::init() {
 }
 
 void CVulkanRenderer::destroy() {
-
-	msgs("TRIED DESTROY RENDERER");
 
 	SEngineUI::destroy();
 
@@ -277,7 +274,7 @@ void CVulkanRenderer::render() {
 				mSceneData.mScreenSize = Vector2f((float)extent.width, (float)extent.height);
 				mSceneData.mInvScreenSize = Vector2f(1.f / (float)extent.width, 1.f / (float)extent.height);
 
-				mSceneData.mViewProj = CEngine::get().mMainCamera->getViewProjectionMatrix();
+				mSceneData.mViewProj = CScene::get().mMainCamera->getViewProjectionMatrix();
 
 				//some default lighting parameters
 				mSceneData.mAmbientColor = glm::vec4(.1f);

@@ -4,8 +4,6 @@
 #include <map>
 #include <SDL3/SDL_events.h>
 
-#include "Common.h"
-
 enum class EKey : uint32{
 	UNKNOWN = SDLK_UNKNOWN,
 	RETURN = SDLK_RETURN,
@@ -265,12 +263,7 @@ enum class EKey : uint32{
 	RHYPER = SDLK_RHYPER
 };
 
-class CInput {
-
-	constexpr static CInput& get() {
-		static CInput input;
-		return input;
-	}
+class EXPORT CInput {
 
 public:
 
@@ -278,34 +271,24 @@ public:
 		mMouseArray.fill(false);
 	}
 
-	static void tick() {
-		get().mMouseVelocity = {0.f, 0.f};
-	}
+	static void tick();
 
-	static void process(const SDL_Event& inEvent) {
-		get().processSDLEvent(inEvent);
-	}
+	static void process(const SDL_Event& inEvent);
 
-	static bool getKeyPressed(const EKey inKey) {
-		return get().mKeyMap[inKey];
-	}
+	static bool shouldShowMouse();
+
+	static void setShowMouse(bool inShowMouse);
+
+	static bool getKeyPressed(const EKey inKey);
 
 	// 1 is left-click, 2 is middle-click, 3 is right-click
-	static bool getMousePressed(const int32 inMouseButton) {
-		return get().mMouseArray[inMouseButton];
-	}
+	static bool getMousePressed(const int32 inMouseButton);
 
-	static Vector2f getMousePosition() {
-		return get().mMousePosition;
-	}
+	static Vector2f getMousePosition();
 
-	static Vector2f getMouseVelocity() {
-		return get().mMouseVelocity;
-	}
+	static Vector2f getMouseVelocity();
 
 private:
-
-	void processSDLEvent(const SDL_Event& inEvent);
 
 	std::map<EKey, bool> mKeyMap{};
 
@@ -313,5 +296,7 @@ private:
 
 	Vector2f mMousePosition{0.f};
 	Vector2f mMouseVelocity{0.f};
+
+	bool mShowMouse = false;
 
 };

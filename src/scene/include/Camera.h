@@ -1,10 +1,8 @@
 ﻿#pragma once
 
-#include "Common.h"
 #include "SceneObject.h"
-#include "ResourceManager.h"
 
-class ENGINE_API CCamera : public CSceneObject3D, public IDestroyable {
+class EXPORT CCamera : public CSceneObject3D, public IDestroyable {
 
 	REGISTER_CLASS(CCamera)
 

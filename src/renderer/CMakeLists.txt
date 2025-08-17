@@ -1,6 +1,4 @@
-﻿add_library(renderer SHARED
-        # Core
-
+﻿add_library(StrideEngine-renderer SHARED
         core/include/VulkanResourceManager.h
         core/src/VulkanResourceManager.cpp
         core/include/EngineTextures.h
@@ -24,8 +22,6 @@
         core/include/EngineUI.h
         core/src/EngineUI.cpp
 
-        # Passes
-
         passes/include/Pass.h
         passes/src/Pass.cpp
         passes/include/MeshPass.h
@@ -36,11 +32,21 @@
         passes/src/EngineUIPass.cpp
 )
 
-set_target_properties(renderer PROPERTIES LINKER_LANGUAGE CXX)
+set_target_properties(StrideEngine-renderer PROPERTIES LINKER_LANGUAGE CXX)
+
+target_include_directories(StrideEngine-renderer PUBLIC
+        "core/include"
+        "passes/include"
+        "../../third_party/basis_universal"
+        "../core/include"
+        "../control/include"
+        "../engine/include"
+        "../scene/include"
+        "../imgui/include"
+)
 
 find_package(Vulkan REQUIRED)
-target_link_libraries(renderer
-    PUBLIC
+target_link_libraries(StrideEngine-renderer PUBLIC
         glm::glm
         Vulkan::Vulkan
         glslang::glslang-default-resource-limits
@@ -49,6 +55,9 @@ target_link_libraries(renderer
         meshoptimizer
         basisu_encoder
 
-        core
-        engine
+        StrideEngine-core
+        StrideEngine-control
+        StrideEngine-engine
+        StrideEngine-scene
+        StrideEngine-imgui
 )

@@ -4,9 +4,6 @@
 #include <vulkan/vulkan_core.h>
 #include <vulkan/vk_enum_string_helper.h>
 
-#include "Common.h"
-#include "ResourceManager.h"
-
 #define VK_CHECK(call) \
 	if (auto vkResult = call; vkResult != VK_SUCCESS) { \
 		errs("{} Failed. Vulkan Error {}", #call, string_VkResult(vkResult)); \

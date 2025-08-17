@@ -3,9 +3,6 @@
 #include <vulkan/vulkan_core.h>
 #include <array>
 
-#include "Common.h"
-#include "Hashing.h"
-
 struct CPipeline;
 
 enum class EMaterialPass : uint8 {

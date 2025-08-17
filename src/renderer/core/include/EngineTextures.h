@@ -1,7 +1,5 @@
 ﻿#pragma once
 
-#include "Common.h"
-#include "ResourceManager.h"
 #include "VulkanResourceManager.h"
 
 class CMaterial;

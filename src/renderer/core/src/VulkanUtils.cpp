@@ -3,7 +3,6 @@
 #include <vulkan/vulkan_core.h>
 #include <vulkan/vk_enum_string_helper.h>
 
-#include "Common.h"
 #include "Engine.h"
 #include "VulkanDevice.h"
 #include "VulkanRenderer.h"

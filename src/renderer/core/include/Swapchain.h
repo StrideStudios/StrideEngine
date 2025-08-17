@@ -4,8 +4,6 @@
 #include <vulkan/vulkan_core.h>
 #include <VkBootstrap.h>
 
-#include "Common.h"
-#include "ResourceManager.h"
 #include "VulkanUtils.h"
 
 // Forward declare vkb types

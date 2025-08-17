@@ -2,8 +2,6 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include "Archive.h"
-#include "ResourceManager.h"
 #include "VulkanResourceManager.h"
 
 struct SInstance {

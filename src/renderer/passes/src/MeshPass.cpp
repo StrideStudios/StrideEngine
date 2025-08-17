@@ -124,7 +124,7 @@ void CMeshPass::render(const VkCommandBuffer cmd) {
 	std::vector<std::shared_ptr<CStaticMeshObject>> renderObjects;
 	{
 		ZoneScopedN("Frustum Culling");
-		for (const auto& renderable : CEngine::scene().data.objects) {
+		for (const auto& renderable : CScene::get().data.objects) {
 			if (renderable) {
 				if (auto renderableObject = std::dynamic_pointer_cast<CStaticMeshObject>(renderable); renderableObject && renderableObject->getMesh() && isVisible(renderer.mSceneData.mViewProj, renderableObject->getTransformMatrix(), renderableObject->getMesh()->bounds)) {
 					renderObjects.push_back(renderableObject);
@@ -142,7 +142,7 @@ void CMeshPass::render(const VkCommandBuffer cmd) {
 	uint32 drawCallCount = 0;
 	uint64 vertexCount = 0;
 
-	for (auto& object : renderObjects) {
+	/*for (auto& object : renderObjects) {
 		SInstancer& instancer = object->getInstancer();
 		std::shared_ptr<SStaticMesh> mesh = object->getMesh();
 		const size_t NumInstances = instancer.instances.size();
@@ -270,7 +270,7 @@ void CMeshPass::render(const VkCommandBuffer cmd) {
 				}
 			}
 		}
-	}
+	}*/
 
 	// Set number of drawcalls, vertices, and triangles
 	Drawcalls.setText(fmts("Draw Calls: {}", drawCallCount));

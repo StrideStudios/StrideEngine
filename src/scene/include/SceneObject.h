@@ -3,11 +3,6 @@
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 
-#include "Archive.h"
-#include "Common.h"
-#include "Engine.h"
-#include "Pass.h"
-
 class CSceneObject : public ISerializable {
 
 	//REGISTER_CLASS(CSceneObject)
@@ -31,21 +26,21 @@ public:
 		return inArchive;
 	}
 
-	SInstancer m_Instancer{1}; //TODO: bad, shouldnt have an instancer in a non-instanced scene obj
+	bool mIsDirty = true;
 
-	virtual SInstancer& getInstancer() {
-		return m_Instancer;
+	bool isDirty() const {
+		return mIsDirty;
 	}
 
-	virtual void onPositionChanged() {
-		m_Instancer.setDirty();
+	void setDirty() {
+		mIsDirty = true;
 	}
 
 	std::string mName{"Scene Object"};
 
 };
 
-class ENGINE_API CSceneObject2D : public CSceneObject {
+class EXPORT CSceneObject2D : public CSceneObject {
 
 	REGISTER_CLASS(CSceneObject2D)
 
@@ -80,22 +75,22 @@ public:
 
 	void getOrigin(const Vector2f inOrigin) {
 		m_Origin = inOrigin;
-		onPositionChanged();
+		setDirty();
 	}
 
 	void setPosition(const Vector2f inPosition) {
 		m_Position = inPosition;
-		onPositionChanged();
+		setDirty();
 	}
 
 	void setRotation(const float inRotation) {
 		m_Rotation = inRotation;
-		onPositionChanged();
+		setDirty();
 	}
 
 	void setScale(const Vector2f inScale) {
 		m_Scale = inScale;
-		onPositionChanged();
+		setDirty();
 	}
 
 private:
@@ -106,7 +101,7 @@ private:
 	Vector2f m_Scale{1.f};
 };
 
-class ENGINE_API CSceneObject3D : public CSceneObject {
+class EXPORT CSceneObject3D : public CSceneObject {
 
 	REGISTER_CLASS(CSceneObject3D)
 
@@ -143,17 +138,17 @@ public:
 
 	void setPosition(const Vector3f inPosition) {
 		m_Position = inPosition;
-		onPositionChanged();
+		setDirty();
 	}
 
 	void setRotation(const Vector3f inRotation) {
 		m_Rotation = inRotation;
-		onPositionChanged();
+		setDirty();
 	}
 
 	void setScale(const Vector3f inScale) {
 		m_Scale = inScale;
-		onPositionChanged();
+		setDirty();
 	}
 
 private:

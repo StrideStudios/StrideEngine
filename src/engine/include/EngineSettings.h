@@ -1,40 +1,22 @@
 ﻿#pragma once
 
 #include <vector>
-#include <map>
-#include <vulkan/vulkan_core.h>
 
-#include "Common.h"
-#include "Engine.h"
 #include "imgui.h"
 
 class CGuiText;
 class CCommand;
 
-class CEngineSettings {
+class EXPORT CEngineSettings {
 
 public:
 
-	constexpr static CEngineSettings& get() {
-		static CEngineSettings sEngineSettings;
-		return sEngineSettings;
-	}
+	static CEngineSettings& get();
 
 	// Get a certain command, is O(n) but is at compile time
-	constexpr static CCommand* getCommand(const std::string& inCommand) {
+	static CCommand* getCommand(const std::string& inCommand);
 
-		CCommand* outCommand = nullptr;
-		for (const auto&[command, commandType] : get().m_Commands) {
-			if (command == inCommand) {
-				outCommand = commandType;
-				break;
-			}
-		}
-
-		return outCommand;
-	}
-
-	ENGINE_API static void render();
+	static void render();
 
 private:
 
@@ -42,10 +24,7 @@ private:
 	friend class CCommand;
 
 	// Add command to the settings
-	constexpr static void addCommand(const std::string& inCommand, CCommand* inCommandType) {
-		//ast(!get().m_Commands.contains(inCommand), "Command {} already defined.", inCommand);
-		get().m_Commands.emplace_back(inCommand, inCommandType);
-	}
+	static void addCommand(const std::string& inCommand, CCommand* inCommandType);
 
 	std::vector<std::pair<std::string, CCommand*>> m_Commands;
 
@@ -57,7 +36,7 @@ public:
 
 	virtual ~CGuiType() = default;
 
-	constexpr CGuiType(const std::string& inCategory):
+	CGuiType(const std::string& inCategory):
 	m_Category(inCategory) {}
 
 	no_discard std::string getCategory() const {
@@ -71,12 +50,9 @@ protected:
 
 	// Each category holds the creation for its individual objects
 	// Although it very likely is slow, it only is done on construction
-	constexpr static std::vector<std::pair<std::string, std::vector<CGuiType*>>>& getCategoryMap() {
-		static std::vector<std::pair<std::string, std::vector<CGuiType*>>> map;
-		return map;
-	}
+	EXPORT static std::vector<std::pair<std::string, std::vector<CGuiType*>>>& getCategoryMap();
 
-	constexpr void insertToMap() {
+	void insertToMap() {
 
 		for (auto&[command, commands] : getCategoryMap()) {
 			if (command == m_Category) {
@@ -115,13 +91,13 @@ class CGuiText : public CGuiType {
 
 public:
 
-	constexpr CGuiText(const std::string& inCategory)
+	CGuiText(const std::string& inCategory)
 	: CGuiType(inCategory),
 	m_Text("") {
 		insertToMap();
 	}
 
-	constexpr CGuiText(const std::string& inCategory, const std::string& inText)
+	CGuiText(const std::string& inCategory, const std::string& inText)
 	: CGuiType(inCategory),
 	m_Text(inText) {
 		insertToMap();
@@ -162,7 +138,7 @@ class CCommand : public CGuiType {
 	};
 
 public:
-	constexpr CCommand(const std::string& inCategory, const std::string& inCommand, bool inDefaultValue)
+	CCommand(const std::string& inCategory, const std::string& inCommand, bool inDefaultValue)
 	: CGuiType(inCategory),
 	m_Command(inCommand),
 	m_Type(Type::BOOL) {
@@ -171,7 +147,7 @@ public:
 		insertToMap();
 	}
 
-	constexpr CCommand(const std::string& inCategory, const std::string& inCommand, int32 inDefaultValue, int32 inMinValue, int32 inMaxValue)
+	CCommand(const std::string& inCategory, const std::string& inCommand, int32 inDefaultValue, int32 inMinValue, int32 inMaxValue)
 	: CGuiType(inCategory),
 	m_Command(inCommand),
 	m_Type(Type::INT) {
@@ -184,7 +160,7 @@ public:
 		insertToMap();
 	}
 
-	constexpr CCommand(const std::string& inCategory, const std::string& inCommand, float inDefaultValue, float inMinValue, float inMaxValue)
+	CCommand(const std::string& inCategory, const std::string& inCommand, float inDefaultValue, float inMinValue, float inMaxValue)
 	: CGuiType(inCategory),
 	m_Command(inCommand),
 	m_Type(Type::FLOAT) {
@@ -197,7 +173,7 @@ public:
 		insertToMap();
 	}
 
-	constexpr CCommand(const std::string& inCategory, const std::string& inCommand, Extent32 inDefaultValue)
+	CCommand(const std::string& inCategory, const std::string& inCommand, Extent32 inDefaultValue)
 	: CGuiType(inCategory),
 	m_Command(inCommand),
 	m_Type(Type::EXTENT) {
@@ -206,7 +182,7 @@ public:
 		insertToMap();
 	}
 
-	constexpr CCommand(const std::string& inCategory, const std::string& inCommand, Vector2f inDefaultValue)
+	CCommand(const std::string& inCategory, const std::string& inCommand, Vector2f inDefaultValue)
 	: CGuiType(inCategory),
 	m_Command(inCommand),
 	m_Type(Type::VECTOR2) {
@@ -215,7 +191,7 @@ public:
 		insertToMap();
 	}
 
-	constexpr CCommand(const std::string& inCategory, const std::string& inCommand, Vector3f inDefaultValue)
+	CCommand(const std::string& inCategory, const std::string& inCommand, Vector3f inDefaultValue)
 	: CGuiType(inCategory),
 	m_Command(inCommand),
 	m_Type(Type::VECTOR3) {
@@ -224,7 +200,7 @@ public:
 		insertToMap();
 	}
 
-	constexpr CCommand(const std::string& inCategory, const std::string& inCommand, Vector4f inDefaultValue)
+	CCommand(const std::string& inCategory, const std::string& inCommand, Vector4f inDefaultValue)
 	: CGuiType(inCategory),
 	m_Command(inCommand),
 	m_Type(Type::VECTOR4) {
@@ -275,11 +251,11 @@ class TCommand final : public CCommand {
 
 public:
 
-	constexpr TCommand(const std::string& inCategory, const std::string& inCommand, Type inDefaultValue)
+	TCommand(const std::string& inCategory, const std::string& inCommand, Type inDefaultValue)
 	: CCommand(inCategory, inCommand, inDefaultValue) {
 	}
 
-	constexpr TCommand(const std::string& inCategory, const std::string& inCommand, Type inDefaultValue, Type inMinValue, Type inMaxValue)
+	TCommand(const std::string& inCategory, const std::string& inCommand, Type inDefaultValue, Type inMinValue, Type inMaxValue)
 	: CCommand(inCategory, inCommand, inDefaultValue, inMinValue, inMaxValue) {
 	}
 

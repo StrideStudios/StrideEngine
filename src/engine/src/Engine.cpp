@@ -1,13 +1,10 @@
 ﻿#include "Engine.h"
 
-#include "EngineLoader.h"
 #include "EngineSettings.h"
-#include "Threading.h"
 #include "Viewport.h"
-#include "Camera.h"
 #include "Input.h"
-#include "Scene.h"
-#include "SectionManager.h"
+#include "Modules.h"
+#include "ModuleManager.h"
 #include "SDL3/SDL_timer.h"
 
 #define SETTINGS_CATEGORY "Engine"
@@ -18,15 +15,11 @@ ADD_TEXT(GameTime);
 ADD_TEXT(DeltaTime);
 #undef SETTINGS_CATEGORY
 
+static CEngine gEngine;
 static CResourceManager gEngineResourceManager;
 
 CEngine& CEngine::get() {
-	static CEngine engine;
-	return engine;
-}
-
-CScene& CEngine::scene() {
-	return *get().m_Scene;
+	return gEngine;
 }
 
 void CEngine::init() {
@@ -40,14 +33,8 @@ void CEngine::init() {
 	// Create the renderer
 	//gEngineResourceManager.push<CTestRenderer>(m_Renderer);
 
-	m_Renderer = CSectionManager::getSection<CRendererSection>("renderer");
+	m_Renderer = CModuleManager::getModule<CRendererModule>("renderer");
 	gEngineResourceManager.add(m_Renderer);
-
-	// Create the scene
-	gEngineResourceManager.push(m_Scene);
-
-	// Create the camera
-	gEngineResourceManager.push(mMainCamera);
 }
 
 void CEngine::end() {
@@ -103,8 +90,7 @@ void CEngine::run() {
 			continue;
 		}
 
-		// Update the camera
-		mMainCamera->update();
+		// TODO: Update the camera
 
 		// Run the game loop
 		CThreading::getGameThread().run([this] {

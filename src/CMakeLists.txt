@@ -1,25 +1,19 @@
-﻿
-# Make sure files can pull from include paths
-include_directories("core/include")
-include_directories("renderer/core/include")
-include_directories("renderer/passes/include")
-include_directories("engine/include")
-include_directories("imgui/include")
-include_directories("../third_party/basis_universal")
-
-add_subdirectory(core)
-add_subdirectory(engine)
+﻿add_subdirectory(core)
+add_subdirectory(control)
 add_subdirectory(imgui)
+add_subdirectory(scene)
+add_subdirectory(engine)
 add_subdirectory(renderer)
 
 add_executable(StrideEngine Application.cpp)
 
-target_link_libraries(StrideEngine
-    PUBLIC
-        core
-        engine
-        imgui
-        renderer
+target_link_libraries(StrideEngine PUBLIC
+        StrideEngine-core
+        StrideEngine-control
+        StrideEngine-imgui
+        StrideEngine-scene
+        StrideEngine-engine
+        StrideEngine-renderer
 )
 target_compile_definitions(TracyClient PRIVATE TRACY_ENABLE>)
 target_compile_definitions(StrideEngine PRIVATE TRACY_ENABLE>)

@@ -2,7 +2,7 @@
 
 #include <set>
 
-#include "../../core/include/EngineLoader.h"
+#include "EngineLoader.h"
 #include "Material.h"
 #include "Pass.h"
 

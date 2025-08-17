@@ -6,7 +6,6 @@
 #include <memory>
 
 #include "Material.h"
-#include "Paths.h"
 #include "VulkanResourceManager.h"
 
 struct SStaticMesh;
