@@ -3,7 +3,7 @@
 #include <memory>
 
 #include "Widget.h"
-#include "EngineLoader.h"
+#include "renderer/EngineLoader.h"
 
 class CSprite : public CWidget {
 

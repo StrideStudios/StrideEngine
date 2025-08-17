@@ -1,5 +1,4 @@
-﻿add_subdirectory(core)
-add_subdirectory(control)
+﻿add_subdirectory(basic)
 add_subdirectory(imgui)
 add_subdirectory(scene)
 add_subdirectory(engine)
@@ -8,8 +7,7 @@ add_subdirectory(renderer)
 add_executable(StrideEngine Application.cpp)
 
 target_link_libraries(StrideEngine PUBLIC
-        StrideEngine-core
-        StrideEngine-control
+        StrideEngine-basic
         StrideEngine-imgui
         StrideEngine-scene
         StrideEngine-engine

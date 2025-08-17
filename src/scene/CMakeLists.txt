@@ -14,13 +14,11 @@ set_target_properties(StrideEngine-scene PROPERTIES LINKER_LANGUAGE CXX)
 
 target_include_directories(StrideEngine-scene PUBLIC
         "include"
-        "../core/include"
-        "../control/include"
+        "../basic/include"
         "../engine/include"
 )
 
 target_link_libraries(StrideEngine-scene PUBLIC
-        StrideEngine-core
-        StrideEngine-control
+        StrideEngine-basic
         StrideEngine-engine
 )

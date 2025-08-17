@@ -1,10 +1,10 @@
 ﻿#include "Engine.h"
 #include "Scene.h"
-#include "VulkanRenderer.h"
+
+//TODO: required for vulkan module to operate properly (is not a good solution)
+#include "renderer/VulkanRenderer.h"
 
 int main() {
-
-	//CVulkanRendererSection::Registry reg{};
 
 	CEngine::get().init();
 

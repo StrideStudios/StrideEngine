@@ -1,45 +1,43 @@
 ﻿add_library(StrideEngine-renderer SHARED
-        core/include/VulkanResourceManager.h
-        core/src/VulkanResourceManager.cpp
-        core/include/EngineTextures.h
-        core/src/EngineTextures.cpp
-        core/include/TestRenderer.h
-        core/src/TestRenderer.cpp
-        core/include/VulkanUtils.h
-        core/src/VulkanUtils.cpp
-        core/include/Swapchain.h
-        core/src/Swapchain.cpp
-        core/include/VulkanInstance.h
-        core/include/VulkanDevice.h
-        core/src/VulkanDevice.cpp
-        core/include/VulkanRenderer.h
-        core/src/VulkanRenderer.cpp
-        core/include/Material.h
-        core/src/Material.cpp
-        core/include/StaticMesh.h
-        core/include/EngineLoader.h
-        core/src/EngineLoader.cpp
-        core/include/EngineUI.h
-        core/src/EngineUI.cpp
+        include/renderer/VulkanResourceManager.h
+        src/renderer/VulkanResourceManager.cpp
+        include/renderer/EngineTextures.h
+        src/renderer/EngineTextures.cpp
+        include/renderer/TestRenderer.h
+        src/renderer/TestRenderer.cpp
+        include/renderer/VulkanUtils.h
+        src/renderer/VulkanUtils.cpp
+        include/renderer/Swapchain.h
+        src/renderer/Swapchain.cpp
+        include/renderer/VulkanInstance.h
+        include/renderer/VulkanDevice.h
+        src/renderer/VulkanDevice.cpp
+        include/renderer/VulkanRenderer.h
+        src/renderer/VulkanRenderer.cpp
+        include/renderer/Material.h
+        src/renderer/Material.cpp
+        include/renderer/StaticMesh.h
+        include/renderer/EngineLoader.h
+        src/renderer/EngineLoader.cpp
+        include/renderer/EngineUI.h
+        src/renderer/EngineUI.cpp
 
-        passes/include/Pass.h
-        passes/src/Pass.cpp
-        passes/include/MeshPass.h
-        passes/src/MeshPass.cpp
-        passes/include/SpritePass.h
-        passes/src/SpritePass.cpp
-        passes/include/EngineUIPass.h
-        passes/src/EngineUIPass.cpp
+        include/passes/Pass.h
+        src/passes/Pass.cpp
+        include/passes/MeshPass.h
+        src/passes/MeshPass.cpp
+        include/passes/SpritePass.h
+        src/passes/SpritePass.cpp
+        include/passes/EngineUIPass.h
+        src/passes/EngineUIPass.cpp
 )
 
 set_target_properties(StrideEngine-renderer PROPERTIES LINKER_LANGUAGE CXX)
 
 target_include_directories(StrideEngine-renderer PUBLIC
-        "core/include"
-        "passes/include"
+        "include"
         "../../third_party/basis_universal"
-        "../core/include"
-        "../control/include"
+        "../basic/include"
         "../engine/include"
         "../scene/include"
         "../imgui/include"
@@ -55,8 +53,7 @@ target_link_libraries(StrideEngine-renderer PUBLIC
         meshoptimizer
         basisu_encoder
 
-        StrideEngine-core
-        StrideEngine-control
+        StrideEngine-basic
         StrideEngine-engine
         StrideEngine-scene
         StrideEngine-imgui
