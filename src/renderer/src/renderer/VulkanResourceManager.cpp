@@ -847,7 +847,7 @@ SImage_T* CVulkanResourceManager::allocateImage(void* inData, const uint32& size
 
 	SImage_T* new_image = allocateImage(inDebugName, inExtent, inFormat, inFlags | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, inViewFlags, inMipmapped);
 
-	CVulkanRenderer::get().immediateSubmit([&](VkCommandBuffer cmd) {
+	CVulkanRenderer::get()->immediateSubmit([&](VkCommandBuffer cmd) {
 		ZoneScopedAllocation(std::string("Copy Image from Upload Buffer"));
 		CVulkanUtils::transitionImage(cmd, new_image->mImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 

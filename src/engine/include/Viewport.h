@@ -1,45 +1,22 @@
 ﻿#pragma once
 
-#include <vector>
-#include <vulkan/vulkan_core.h>
-
-#include "Engine.h"
-
-class CEngineViewport : public IInitializable<>, public IDestroyable {
+class EXPORT CEngineViewport : public IInitializable<>, public IDestroyable {
 
 public:
 
 	CEngineViewport() = default;
 
+	static CEngineViewport*& get();
+
 	typedef void cb(std::vector<std::string> inFiles);
 
-	EXPORT static void queryForFile(const std::vector<std::pair<const char*, const char*>>& inFilters, cb callback);
+	static void queryForFile(const std::vector<std::pair<const char*, const char*>>& inFilters, cb callback);
 
 	virtual void init() override;
 
 	virtual void destroy() override;
 
 	void pollEvents(bool& outRunning, bool& outPauseRendering);
-
-	void set(const VkCommandBuffer cmd) const {
-		VkViewport viewport = {};
-		viewport.x = 0;
-		viewport.y = 0;
-		viewport.width = (float)mExtent.x;
-		viewport.height = (float)mExtent.y;
-		viewport.minDepth = 0.f;
-		viewport.maxDepth = 1.f;
-
-		vkCmdSetViewport(cmd, 0, 1, &viewport);
-
-		VkRect2D scissor = {};
-		scissor.offset.x = 0;
-		scissor.offset.y = 0;
-		scissor.extent.width = mExtent.x;
-		scissor.extent.height = mExtent.y;
-
-		vkCmdSetScissor(cmd, 0, 1, &scissor);
-	}
 
 	void update(const Extent32u inExtent) {
 		mExtent = inExtent;

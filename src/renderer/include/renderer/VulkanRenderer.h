@@ -29,32 +29,11 @@ struct SUploadContext {
 	VkCommandBuffer mCommandBuffer{};
 };
 
-//TODO: seperate class (all dll should have sections with a _API
-class EXPORT CVulkanRendererModule final : public CRendererModule {
-
-	ADD_MODULE(CVulkanRendererModule, "renderer")
+class EXPORT CVulkanRenderer : public IInitializable<>, public IDestroyable {
 
 public:
 
-	virtual void init() override;
-
-	virtual void destroy() override;
-
-	virtual void render() override;
-
-	virtual bool wait() override;
-
-	class CVulkanRenderer* mRenderer = nullptr;
-
-};
-
-class CVulkanRenderer : public IInitializable<>, public IDestroyable {
-
-public:
-
-	static CVulkanRenderer& get() {
-		return *CVulkanRendererModule::get().mRenderer;
-	}
+	static CVulkanRenderer*& get();
 
 	struct SceneData {
 		Matrix4f mViewProj;

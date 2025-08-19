@@ -2,7 +2,7 @@
 
 #include "VulkanRenderer.h"
 
-class CTestRenderer : public CVulkanRenderer {
+class EXPORT CTestRenderer : public CVulkanRenderer {
 public:
 	virtual void init() override;
 

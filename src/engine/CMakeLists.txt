@@ -7,6 +7,8 @@
         include/Input.h
         src/Input.cpp
         src/Viewport.cpp
+        include/EngineTime.h
+        src/EngineTime.cpp
 )
 
 set_target_properties(StrideEngine-engine PROPERTIES LINKER_LANGUAGE CXX)

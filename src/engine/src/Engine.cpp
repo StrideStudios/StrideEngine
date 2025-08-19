@@ -31,16 +31,16 @@ void CEngine::init() {
 	// Create the renderer
 	//gEngineResourceManager.push<CTestRenderer>(m_Renderer);
 
-	m_Renderer = CModuleManager::getModule<CRendererModule>("renderer");
-	gEngineResourceManager.add(m_Renderer);
+	//m_Renderer = CModuleManager::getModule<CRendererModule>("renderer");
+	//gEngineResourceManager.add(m_Renderer);
 }
 
 void CEngine::end() {
 
 	// Wait for the gpu to finish instructions
-	if (!m_Renderer->wait()) {
+	/*if (!m_Renderer->wait()) {
 		errs("Engine did not stop properly!");
-	}
+	}*/
 
 	// Flush Engine Resources
 	gEngineResourceManager.flush();
@@ -96,7 +96,7 @@ void CEngine::run() {
 		});
 
 		// Draw to the screen
-		renderer().render();
+		//renderer().render();
 
 		// Execute any tasks that are on the 'main thread'
 		// Done here because they can be done during the frame cap wait

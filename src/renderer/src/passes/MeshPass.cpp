@@ -20,7 +20,7 @@ ADD_TEXT(Triangles, "Triangles: ");
 void CMeshPass::init(const EMeshPass inPassType) {
 	passType = inPassType;
 
-	CVulkanRenderer& renderer = CVulkanRenderer::get();
+	CVulkanRenderer& renderer = *CVulkanRenderer::get();
 
 	CVulkanResourceManager manager;
 
@@ -118,7 +118,7 @@ bool isVisible(const Matrix4f& inViewProj, const Matrix4f& inTransformMatrix, co
 void CMeshPass::render(const VkCommandBuffer cmd) {
 	ZoneScopedN("Base Pass");
 
-	CVulkanRenderer& renderer = CVulkanRenderer::get();
+	CVulkanRenderer& renderer = *CVulkanRenderer::get();
 
 	std::vector<std::shared_ptr<CStaticMeshObject>> renderObjects;
 	{

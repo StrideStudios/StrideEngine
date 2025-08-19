@@ -13,7 +13,7 @@ static CVulkanResourceManager gTexturesResourceManager;
 
 void CEngineTextures::init() {
 
-	CVulkanRenderer::get().mGlobalResourceManager.push(m_Swapchain);
+	CVulkanRenderer::get()->mGlobalResourceManager.push(m_Swapchain);
 
 	// Initialize samplers
 	// Default samplers repeat and do not have anisotropy
@@ -30,14 +30,14 @@ void CEngineTextures::init() {
 		samplerCreateInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
 
 		CSampler* samplerNearest;
-		CVulkanRenderer::get().mGlobalResourceManager.push(samplerNearest, samplerCreateInfo);
+		CVulkanRenderer::get()->mGlobalResourceManager.push(samplerNearest, samplerCreateInfo);
 
 		samplerCreateInfo.magFilter = VK_FILTER_LINEAR;
 		samplerCreateInfo.minFilter = VK_FILTER_LINEAR;
 		samplerCreateInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
 
 		CSampler* samplerLinear;
-		CVulkanRenderer::get().mGlobalResourceManager.push(samplerLinear, samplerCreateInfo);
+		CVulkanRenderer::get()->mGlobalResourceManager.push(samplerLinear, samplerCreateInfo);
 
 		const auto imageDescriptorInfo = VkDescriptorImageInfo{
 			.sampler = *samplerNearest};
@@ -82,7 +82,7 @@ void CEngineTextures::init() {
 
 	constexpr VkExtent3D extent(16, 16, 1);
 	constexpr int32 size = extent.width * extent.height * extent.depth * 4;
-	mErrorCheckerboardImage = CVulkanRenderer::get().mGlobalResourceManager.allocateImage(pixels.data(), size, "Default Error", extent, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+	mErrorCheckerboardImage = CVulkanRenderer::get()->mGlobalResourceManager.allocateImage(pixels.data(), size, "Default Error", extent, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
 
 	{
 		mErrorMaterial = std::make_shared<CMaterial>();
@@ -102,7 +102,7 @@ void CEngineTextures::initializeTextures() {
 
 	constexpr VkImageUsageFlags drawImageUsages = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-	const auto extent = CEngine::get().getViewport().mExtent;
+	const auto extent = CEngineViewport::get()->mExtent;
 
 	mDrawImage = gTexturesResourceManager.allocateImage("Draw Image", {extent.x, extent.y, 1}, VK_FORMAT_R16G16B16A16_SFLOAT, drawImageUsages, VK_IMAGE_ASPECT_COLOR_BIT, false);
 
@@ -111,7 +111,7 @@ void CEngineTextures::initializeTextures() {
 
 void CEngineTextures::reallocate(const bool inUseVSync) {
 
-	auto extent = CEngine::get().getViewport().mExtent;
+	auto extent = CEngineViewport::get()->mExtent;
 	msgs("Reallocating Engine Textures to ({}, {})", extent.x, extent.y);
 
 	m_Swapchain->recreate(inUseVSync);

@@ -1,10 +1,9 @@
 ﻿#include "renderer/VulkanDevice.h"
 
-#include "Viewport.h"
 #include "renderer/VulkanRenderer.h"
 
 SQueue CVulkanDevice::getQueue(const EQueueType inType) {
-    return CVulkanRenderer::get().m_Device->mQueues[inType];
+    return CVulkanRenderer::get()->m_Device->mQueues[inType];
 }
 
 void CVulkanDevice::init() {
@@ -56,7 +55,7 @@ void CVulkanDevice::init() {
             .set_required_features_12(features12)
             .set_required_features_13(features13)
             .add_required_extension_features(swapchainMaintenance1Features)
-            .set_surface(CVulkanRenderer::get().mVkSurface)
+            .set_surface(CVulkanRenderer::get()->mVkSurface)
             .select();
 
     m_PhysicalDevice = std::make_unique<vkb::PhysicalDevice>(physicalDevice.value());

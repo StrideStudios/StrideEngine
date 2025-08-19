@@ -47,7 +47,7 @@ SImage_T* loadImage(CVulkanResourceManager& allocator, const std::filesystem::pa
 	// Allocate image and transition to dst
 	SImage_T* image = allocator.allocateImage(fileName, imageSize, VK_FORMAT_BC7_SRGB_BLOCK, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_IMAGE_ASPECT_COLOR_BIT, numMips);
 
-	CVulkanRenderer::get().immediateSubmit([&](VkCommandBuffer cmd) {
+	CVulkanRenderer::get()->immediateSubmit([&](VkCommandBuffer cmd) {
 		CVulkanUtils::transitionImage(cmd, image->mImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 	});
 
@@ -77,7 +77,7 @@ SImage_T* loadImage(CVulkanResourceManager& allocator, const std::filesystem::pa
 
 		memcpy(uploadBuffer->GetMappedData(), pImage, image_size);
 
-		CVulkanRenderer::get().immediateSubmit([&](VkCommandBuffer cmd) {
+		CVulkanRenderer::get()->immediateSubmit([&](VkCommandBuffer cmd) {
 			//ZoneScopedAllocation(std::string("Copy Image from Upload Buffer"));
 
 			VkBufferImageCopy copyRegion = {};
@@ -98,7 +98,7 @@ SImage_T* loadImage(CVulkanResourceManager& allocator, const std::filesystem::pa
 		manager.flush();
 	}
 
-	CVulkanRenderer::get().immediateSubmit([&](VkCommandBuffer cmd) {
+	CVulkanRenderer::get()->immediateSubmit([&](VkCommandBuffer cmd) {
 		CVulkanUtils::transitionImage(cmd, image->mImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	});
 
@@ -387,7 +387,7 @@ SMeshBuffers_T uploadMesh(CVulkanResourceManager& inManager, std::span<uint32> i
 
 	//TODO: slow, render thread?
 	// also from an older version of the tutorial, doesnt use sync2
-	CVulkanRenderer::get().immediateSubmit([&](VkCommandBuffer cmd) {
+	CVulkanRenderer::get()->immediateSubmit([&](VkCommandBuffer cmd) {
 		VkBufferCopy vertexCopy{};
 		vertexCopy.dstOffset = 0;
 		vertexCopy.srcOffset = 0;
@@ -409,7 +409,7 @@ SMeshBuffers_T uploadMesh(CVulkanResourceManager& inManager, std::span<uint32> i
 }
 
 std::shared_ptr<SStaticMesh> toStaticMesh(const std::shared_ptr<SMeshData>& mesh, const std::string& fileName) {
-	CVulkanRenderer& renderer = CVulkanRenderer::get();
+	CVulkanRenderer& renderer = *CVulkanRenderer::get();
 
 	auto loadMesh = std::make_shared<SStaticMesh>();
 	loadMesh->name = fileName;
@@ -465,7 +465,7 @@ void CEngineLoader::load() {
 
 	// Load textures
 	for (const auto& path : textures) {
-		SImage_T* image = loadImage(CVulkanRenderer::get().mGlobalResourceManager, path);
+		SImage_T* image = loadImage(CVulkanRenderer::get()->mGlobalResourceManager, path);
 		get().mImages.emplace(pathToName(path), image);
 	}
 
@@ -516,7 +516,7 @@ void CEngineLoader::importTexture(const std::filesystem::path& inPath) {
 
 	basisu::basis_free_data(pKTX2_data);
 
-	SImage_T* loadedImage = loadImage(CVulkanRenderer::get().mGlobalResourceManager, cachedPath);
+	SImage_T* loadedImage = loadImage(CVulkanRenderer::get()->mGlobalResourceManager, cachedPath);
 
 	get().mImages.emplace(loadedImage->name, loadedImage);
 }
@@ -546,7 +546,7 @@ void CEngineLoader::createMaterial(const std::string& inMaterialName) {
 }
 
 void CEngineLoader::importMesh(const std::filesystem::path& inPath) {
-	CVulkanRenderer& renderer = CVulkanRenderer::get();
+	CVulkanRenderer& renderer = *CVulkanRenderer::get();
 
 	const std::string fileName = inPath.filename().string();
 

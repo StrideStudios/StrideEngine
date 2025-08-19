@@ -28,41 +28,28 @@
 ADD_COMMAND(bool, UseVsync, true);
 #undef SETTINGS_CATEGORY
 
-static CResourceManager gRendererResourceManager;
-
-void CVulkanRendererModule::init() {
-	gRendererResourceManager.push(mRenderer);
-}
-
-void CVulkanRendererModule::destroy() {
-	gRendererResourceManager.flush();
-}
-
-void CVulkanRendererModule::render() {
-	mRenderer->render();
-}
-
-bool CVulkanRendererModule::wait() {
-	return mRenderer->wait();
+CVulkanRenderer*& CVulkanRenderer::get() {
+	static CVulkanRenderer* renderer;
+	return renderer;
 }
 
 const vkb::Instance& CVulkanRenderer::instance() {
-	return get().m_Instance->mInstance;
+	return get()->m_Instance->mInstance;
 }
 
 const vkb::Device& CVulkanRenderer::device() {
-	return get().m_Device->getDevice();
+	return get()->m_Device->getDevice();
 }
 
 const vkb::PhysicalDevice& CVulkanRenderer::physicalDevice() {
-	return get().m_Device->getPhysicalDevice();
+	return get()->m_Device->getPhysicalDevice();
 }
 
 CVulkanRenderer::CVulkanRenderer(): mVSync(UseVsync.get()) {}
 
 void CVulkanRenderer::immediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function) {
 
-	CVulkanRenderer& renderer = get();
+	CVulkanRenderer& renderer = *get();
 	const VkDevice device = CVulkanRenderer::device();
 
 	std::unique_lock lock(renderer.mUploadContext.mMutex);
@@ -102,7 +89,7 @@ void CVulkanRenderer::init() {
 	m_Instance = new SVulkanInstance();
 
 	// Create a surface for Device to reference
-	SDL_Vulkan_CreateSurface(CEngine::get().getViewport().mWindow, instance(), nullptr, &mVkSurface);
+	SDL_Vulkan_CreateSurface(CEngineViewport::get()->mWindow, m_Instance->mInstance, nullptr, &mVkSurface);
 
 	// Create the vulkan device
 	m_Device = new CVulkanDevice();
@@ -136,7 +123,7 @@ void CVulkanRenderer::init() {
 
 			frame.mMainCommandBuffer = CVulkanResourceManager::allocateCommandBuffer(frameCmdAllocInfo);
 
-			frame.mTracyContext = TracyVkContext(physicalDevice(), device(), CVulkanDevice::getQueue(EQueueType::GRAPHICS).mQueue, frame.mMainCommandBuffer);
+			frame.mTracyContext = TracyVkContext(m_Device->getPhysicalDevice(), m_Device->getDevice(), CVulkanDevice::getQueue(EQueueType::GRAPHICS).mQueue, frame.mMainCommandBuffer);
 		}
 	}
 
@@ -170,7 +157,7 @@ void CVulkanRenderer::destroy() {
 	// Destroy allocator, if not all allocations have been destroyed, it will throw an error
 	CVulkanResourceManager::destroy();
 
-	vkb::destroy_surface(instance(), mVkSurface);
+	vkb::destroy_surface(m_Instance->mInstance, mVkSurface);
 
 	m_Device->destroy();
 	delete m_Device;
@@ -262,8 +249,8 @@ void CVulkanRenderer::render() {
 		VkRenderingAttachmentInfo depthAttachment = CVulkanUtils::createDepthAttachmentInfo(mEngineTextures->mDepthImage->mImageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
 		VkExtent2D extent {
-			CEngine::get().getViewport().mExtent.x,
-			CEngine::get().getViewport().mExtent.y
+			CEngineViewport::get()->mExtent.x,
+			CEngineViewport::get()->mExtent.y
 		};
 
 		{

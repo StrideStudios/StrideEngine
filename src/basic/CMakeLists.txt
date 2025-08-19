@@ -7,9 +7,6 @@
 
         include/control/ClassManager.h
         src/control/ClassManager.cpp
-        include/control/ModuleManager.h
-        src/control/ModuleManager.cpp
-        include/control/Modules.h
         include/control/ResourceManager.h
 )
 
@@ -30,8 +27,6 @@ target_precompile_headers(StrideEngine-basic PUBLIC
         include/core/Common.h
         include/control/ResourceManager.h
         include/control/ClassManager.h
-        include/control/ModuleManager.h
-        include/control/Modules.h
         include/core/Paths.h
         include/core/Threading.h
         include/core/Archive.h

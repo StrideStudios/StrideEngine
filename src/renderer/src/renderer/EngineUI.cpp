@@ -25,7 +25,7 @@ void SEngineUI::begin() {
 }
 
 void SEngineUI::init(VkQueue inQueue, VkFormat format) {
-	CVulkanRenderer& renderer = CVulkanRenderer::get();
+	CVulkanRenderer& renderer = *CVulkanRenderer::get();
 
 	// Setup Dear ImGui context
 	ImGui::CreateContext();
@@ -76,7 +76,7 @@ void SEngineUI::init(VkQueue inQueue, VkFormat format) {
 	initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 
 	ImGui_ImplVulkan_Init(&initInfo);
-	ImGui_ImplSDL3_InitForVulkan(CEngine::get().getViewport().mWindow);
+	ImGui_ImplSDL3_InitForVulkan(CEngineViewport::get()->mWindow);
 }
 
 void SEngineUI::destroy() {
@@ -273,7 +273,7 @@ void SEngineUI::renderMaterialUI() {
 void SEngineUI::renderSpriteUI() {
 	return;
 	if (ImGui::Begin("Sprites")) {
-		for (const auto& sprite : CVulkanRenderer::get().mSpritePass->objects) {
+		for (const auto& sprite : CVulkanRenderer::get()->mSpritePass->objects) {
 			if (ImGui::BeginTabBar("Sprite")) {
 				if (ImGui::BeginTabItem(sprite->mName.c_str())) {
 					//ImGui::Checkbox("Highlight", &material.material->mHighlight);

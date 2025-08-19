@@ -1,5 +1,6 @@
 ﻿#pragma once
 
+#include "Engine.h"
 #include "VkBootstrap.h"
 
 // Wrapper around vkb instance that can be destroyed

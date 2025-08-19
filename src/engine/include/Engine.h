@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-class CRendererModule;
+class CVulkanRenderer;
 class CEngineViewport;
 class CScene;
 
@@ -21,7 +21,7 @@ public:
 
 	EXPORT static CEngine& get();
 
-	static CRendererModule& renderer() {
+	static CVulkanRenderer& renderer() {
 		return *get().m_Renderer;
 	}
 
@@ -55,6 +55,6 @@ private:
 	// Vulkan
 	//
 
-	CRendererModule* m_Renderer = nullptr;
+	CVulkanRenderer* m_Renderer = nullptr;
 
 };

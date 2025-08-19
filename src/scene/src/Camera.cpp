@@ -4,6 +4,7 @@
 
 #include "Engine.h"
 #include "EngineSettings.h"
+#include "EngineTime.h"
 #include "Input.h"
 #include "Viewport.h"
 
@@ -27,7 +28,7 @@ Matrix4f CCamera::getViewProjectionMatrix() {
 	Matrix4f viewMatrix = glm::inverse(cameraTranslation * getRotationMatrix());
 
 	// camera projection
-	const Extent32u extent = CEngine::get().getViewport().mExtent;
+	const Extent32u extent = CEngineViewport::get()->mExtent;
 	const float tanHalfFov = tan(glm::radians(mFOV) / 2.f);
 	const float aspect = (float)extent.x / (float)extent.y;
 
@@ -53,8 +54,8 @@ void CCamera::update() {
 
 	if (!mShowMouse) {
 		Vector3f rotation = getRotation();
-		rotation.x += Sensitivity.get() * (CInput::getMouseVelocity().x / 360.f);// * (float)CEngine::get().getTime().mDeltaTime;
-		rotation.y -= Sensitivity.get() * (CInput::getMouseVelocity().y / 360.f);// * (float)CEngine::get().getTime().mDeltaTime;
+		rotation.x += Sensitivity.get() * (CInput::getMouseVelocity().x / 360.f);// * (float)SEngineTime::get().mDeltaTime;
+		rotation.y -= Sensitivity.get() * (CInput::getMouseVelocity().y / 360.f);// * (float)SEngineTime::get().mDeltaTime;
 		setRotation(rotation);
 	}
 
@@ -66,7 +67,7 @@ void CCamera::update() {
 
 	Vector2f movement{mVelocity.x * 0.5f, mVelocity.z * 0.5f};
 	Vector3f position = getPosition();
-	position += Vector3f(getRotationMatrix() * Vector4f(movement.x, 0.f, movement.y, 0.f)) * (float)CEngine::get().getTime().mDeltaTime * CameraSpeed.get();
-	position += Vector3f(0.f, mVelocity.y * 0.5f, 0.f) * (float)CEngine::get().getTime().mDeltaTime * CameraSpeed.get();
+	position += Vector3f(getRotationMatrix() * Vector4f(movement.x, 0.f, movement.y, 0.f)) * (float)SEngineTime::get().mDeltaTime * CameraSpeed.get();
+	position += Vector3f(0.f, mVelocity.y * 0.5f, 0.f) * (float)SEngineTime::get().mDeltaTime * CameraSpeed.get();
 	setPosition(position);
 }

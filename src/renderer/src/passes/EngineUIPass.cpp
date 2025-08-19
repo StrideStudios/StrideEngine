@@ -17,7 +17,7 @@ ADD_TEXT(SpriteTriangles, "Triangles: ");
 
 void CEngineUIPass::init() {
 
-	CVulkanRenderer& renderer = CVulkanRenderer::get();
+	CVulkanRenderer& renderer = *CVulkanRenderer::get();
 
 	CVulkanResourceManager manager;
 
