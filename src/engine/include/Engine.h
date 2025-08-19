@@ -21,15 +21,11 @@ public:
 
 	EXPORT static CEngine& get();
 
-	static CVulkanRenderer& renderer() {
-		return *get().m_Renderer;
-	}
-
 	no_discard Time& getTime() { return m_Time; }
 
 	no_discard const CEngineViewport& getViewport() const { return *m_EngineViewport; }
 
-private:
+public:
 
 	// Make sure only main can access init and run functions
 	friend int main();
@@ -50,11 +46,5 @@ private:
 
 	// SDL Window
 	CEngineViewport* m_EngineViewport = nullptr;
-
-	//
-	// Vulkan
-	//
-
-	CVulkanRenderer* m_Renderer = nullptr;
 
 };

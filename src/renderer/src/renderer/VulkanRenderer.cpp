@@ -8,7 +8,7 @@
 
 #include "Camera.h"
 #include "renderer/VulkanDevice.h"
-#include "renderer/VulkanUtils.h"
+#include "VulkanUtils.h"
 #include "vulkan/vk_enum_string_helper.h"
 #include "VkBootstrap.h"
 
@@ -28,21 +28,8 @@
 ADD_COMMAND(bool, UseVsync, true);
 #undef SETTINGS_CATEGORY
 
-CVulkanRenderer*& CVulkanRenderer::get() {
-	static CVulkanRenderer* renderer;
-	return renderer;
-}
-
-const vkb::Instance& CVulkanRenderer::instance() {
-	return get()->m_Instance->mInstance;
-}
-
-const vkb::Device& CVulkanRenderer::device() {
-	return get()->m_Device->getDevice();
-}
-
-const vkb::PhysicalDevice& CVulkanRenderer::physicalDevice() {
-	return get()->m_Device->getPhysicalDevice();
+CVulkanRenderer* CVulkanRenderer::get() {
+	return static_cast<CVulkanRenderer*>(CRenderer::get());
 }
 
 CVulkanRenderer::CVulkanRenderer(): mVSync(UseVsync.get()) {}
@@ -50,7 +37,7 @@ CVulkanRenderer::CVulkanRenderer(): mVSync(UseVsync.get()) {}
 void CVulkanRenderer::immediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function) {
 
 	CVulkanRenderer& renderer = *get();
-	const VkDevice device = CVulkanRenderer::device();
+	const VkDevice device = CRenderer::device();
 
 	std::unique_lock lock(renderer.mUploadContext.mMutex);
 
@@ -86,10 +73,10 @@ void CVulkanRenderer::init() {
 
 	// Initializes the vkb instance
 	//mGlobalResourceManager.push(m_Instance);
-	m_Instance = new SVulkanInstance();
+	m_Instance = new CVulkanInstance();
 
 	// Create a surface for Device to reference
-	SDL_Vulkan_CreateSurface(CEngineViewport::get()->mWindow, m_Instance->mInstance, nullptr, &mVkSurface);
+	SDL_Vulkan_CreateSurface(CEngineViewport::get().mWindow, m_Instance->mInstance, nullptr, &mVkSurface);
 
 	// Create the vulkan device
 	m_Device = new CVulkanDevice();
@@ -164,6 +151,14 @@ void CVulkanRenderer::destroy() {
 
 	m_Instance->destroy();
 	delete m_Instance;
+}
+
+CInstance* CVulkanRenderer::getInstance() {
+	return m_Instance;
+}
+
+CDevice* CVulkanRenderer::getDevice() {
+		return m_Device;
 }
 
 void CVulkanRenderer::render() {
@@ -249,8 +244,8 @@ void CVulkanRenderer::render() {
 		VkRenderingAttachmentInfo depthAttachment = CVulkanUtils::createDepthAttachmentInfo(mEngineTextures->mDepthImage->mImageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
 		VkExtent2D extent {
-			CEngineViewport::get()->mExtent.x,
-			CEngineViewport::get()->mExtent.y
+			CEngineViewport::get().mExtent.x,
+			CEngineViewport::get().mExtent.y
 		};
 
 		{
@@ -333,7 +328,7 @@ void CVulkanRenderer::render() {
 
 bool CVulkanRenderer::wait() {
 	// Make sure the gpu is not working
-	vkDeviceWaitIdle(device());
+	vkDeviceWaitIdle(CRenderer::device());
 
 	return mEngineTextures->getSwapchain().wait(getFrameIndex());
 }

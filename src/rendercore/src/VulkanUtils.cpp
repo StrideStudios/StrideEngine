@@ -1,15 +1,9 @@
-﻿#include "renderer/VulkanUtils.h"
+﻿#include "VulkanUtils.h"
 
 #include <vulkan/vulkan_core.h>
 #include <vulkan/vk_enum_string_helper.h>
 
-#include "renderer/VulkanDevice.h"
-#include "renderer/VulkanRenderer.h"
 #include "tracy/Tracy.hpp"
-
-VkDevice getDevice() {
-	return CVulkanRenderer::device();
-}
 
 VkImageSubresourceRange CVulkanUtils::imageSubresourceRange(VkImageAspectFlags inAspectMask) {
 	return {

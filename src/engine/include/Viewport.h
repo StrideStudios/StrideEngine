@@ -6,7 +6,7 @@ public:
 
 	CEngineViewport() = default;
 
-	static CEngineViewport*& get();
+	static const CEngineViewport& get();
 
 	typedef void cb(std::vector<std::string> inFiles);
 

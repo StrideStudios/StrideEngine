@@ -17,12 +17,13 @@ target_include_directories(StrideEngine-engine PUBLIC
         "include"
         "../basic/include"
         "../imgui/include"
+        "../rendercore/include"
 )
 
 target_link_libraries(StrideEngine-engine PUBLIC
         SDL3::SDL3
-        vk-bootstrap::vk-bootstrap
 
         StrideEngine-basic
         StrideEngine-imgui
+        StrideEngine-rendercore
 )

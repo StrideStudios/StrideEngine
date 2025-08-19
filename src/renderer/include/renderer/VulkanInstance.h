@@ -1,12 +1,15 @@
 ﻿#pragma once
 
 #include "Engine.h"
+#include "Renderer.h"
 #include "VkBootstrap.h"
 
 // Wrapper around vkb instance that can be destroyed
-struct SVulkanInstance final : IDestroyable {
+class CVulkanInstance : public CInstance, public IDestroyable {
 
-	SVulkanInstance() {
+public:
+
+	CVulkanInstance() {
 		vkb::InstanceBuilder builder;
 
 		auto instance = builder.set_app_name(gEngineName)
@@ -16,6 +19,10 @@ struct SVulkanInstance final : IDestroyable {
 				.build();
 
 		mInstance = instance.value();
+	}
+
+	virtual const vkb::Instance& getInstance() const override {
+		return mInstance;
 	}
 
 	virtual void destroy() override {

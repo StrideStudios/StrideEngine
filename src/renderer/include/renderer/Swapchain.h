@@ -4,7 +4,7 @@
 #include <vulkan/vulkan_core.h>
 #include <VkBootstrap.h>
 
-#include "VulkanUtils.h"
+#include "VulkanResources.h"
 
 // Forward declare vkb types
 namespace vkb {

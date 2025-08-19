@@ -58,9 +58,9 @@ void SEngineUI::init(VkQueue inQueue, VkFormat format) {
 
 	// this initializes imgui for Vulkan
 	ImGui_ImplVulkan_InitInfo initInfo {
-		.Instance = CVulkanRenderer::instance(),
-		.PhysicalDevice = CVulkanRenderer::physicalDevice(),
-		.Device = CVulkanRenderer::device(),
+		.Instance = CRenderer::instance(),
+		.PhysicalDevice = CRenderer::physicalDevice(),
+		.Device = CRenderer::device(),
 		.Queue = inQueue,
 		.DescriptorPool = *descriptorPool,
 		.MinImageCount = 3,
@@ -76,7 +76,7 @@ void SEngineUI::init(VkQueue inQueue, VkFormat format) {
 	initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 
 	ImGui_ImplVulkan_Init(&initInfo);
-	ImGui_ImplSDL3_InitForVulkan(CEngineViewport::get()->mWindow);
+	ImGui_ImplSDL3_InitForVulkan(CEngineViewport::get().mWindow);
 }
 
 void SEngineUI::destroy() {

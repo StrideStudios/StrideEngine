@@ -40,7 +40,7 @@ public:
 	}*/
 
 	no_discard virtual Matrix4f getTransformMatrix() const {
-		const Vector2f screenSize = CEngineViewport::get()->mExtent;
+		const Vector2f screenSize = CEngineViewport::get().mExtent;
 		const Vector2f screenScale = m_Scale * screenSize;
 		const Vector2f screenPos = m_Position * screenSize - m_Origin * screenScale;
 

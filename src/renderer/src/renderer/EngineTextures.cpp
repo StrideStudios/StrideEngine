@@ -67,7 +67,7 @@ void CEngineTextures::init() {
 
 		const auto sets = {writeSet, writeSet2};
 
-		vkUpdateDescriptorSets(CVulkanRenderer::device(), (uint32)sets.size(), sets.begin(), 0, nullptr);
+		vkUpdateDescriptorSets(CRenderer::device(), (uint32)sets.size(), sets.begin(), 0, nullptr);
 	}
 
 	// Error checkerboard image
@@ -102,7 +102,7 @@ void CEngineTextures::initializeTextures() {
 
 	constexpr VkImageUsageFlags drawImageUsages = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-	const auto extent = CEngineViewport::get()->mExtent;
+	const auto extent = CEngineViewport::get().mExtent;
 
 	mDrawImage = gTexturesResourceManager.allocateImage("Draw Image", {extent.x, extent.y, 1}, VK_FORMAT_R16G16B16A16_SFLOAT, drawImageUsages, VK_IMAGE_ASPECT_COLOR_BIT, false);
 
@@ -111,7 +111,7 @@ void CEngineTextures::initializeTextures() {
 
 void CEngineTextures::reallocate(const bool inUseVSync) {
 
-	auto extent = CEngineViewport::get()->mExtent;
+	auto extent = CEngineViewport::get().mExtent;
 	msgs("Reallocating Engine Textures to ({}, {})", extent.x, extent.y);
 
 	m_Swapchain->recreate(inUseVSync);

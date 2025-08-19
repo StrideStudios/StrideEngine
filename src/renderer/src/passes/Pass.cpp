@@ -3,7 +3,6 @@
 #include "renderer/Material.h"
 #include "Viewport.h"
 #include "renderer/VulkanRenderer.h"
-#include "renderer/VulkanUtils.h"
 #include "renderer/VulkanResourceManager.h"
 
 void SInstancer::reallocate(const Matrix4f& parentMatrix)  {
@@ -50,7 +49,7 @@ void CPass::bindPipeline(const VkCommandBuffer cmd, CPipeline* inPipeline, const
 		CVulkanResourceManager::bindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, inPipeline->mLayout, 0, 1, CVulkanResourceManager::getBindlessDescriptorSet());
 
 		//TODO: shouldnt do this here...
-		Extent32u extent = CEngineViewport::get()->mExtent;
+		Extent32u extent = CEngineViewport::get().mExtent;
 
 		VkViewport viewport = {};
 		viewport.x = 0;

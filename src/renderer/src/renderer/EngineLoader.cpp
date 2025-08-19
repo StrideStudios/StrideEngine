@@ -17,7 +17,7 @@
 
 #include "renderer/StaticMesh.h"
 #include "renderer/VulkanRenderer.h"
-#include "renderer/VulkanUtils.h"
+#include "VulkanUtils.h"
 
 constexpr static bool gUseOpenCL = false;
 

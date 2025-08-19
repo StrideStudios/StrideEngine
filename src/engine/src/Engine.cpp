@@ -3,6 +3,7 @@
 #include "EngineSettings.h"
 #include "Viewport.h"
 #include "Input.h"
+#include "Renderer.h"
 #include "SDL3/SDL_timer.h"
 
 #define SETTINGS_CATEGORY "Engine"
@@ -28,19 +29,16 @@ void CEngine::init() {
 	// Initialize the viewport
 	gEngineResourceManager.push(m_EngineViewport);
 
-	// Create the renderer
-	//gEngineResourceManager.push<CTestRenderer>(m_Renderer);
-
-	//m_Renderer = CModuleManager::getModule<CRendererModule>("renderer");
-	//gEngineResourceManager.add(m_Renderer);
+	// Add the renderer
+	gEngineResourceManager.add(CRenderer::get());
 }
 
 void CEngine::end() {
 
 	// Wait for the gpu to finish instructions
-	/*if (!m_Renderer->wait()) {
+	if (!CRenderer::get()->wait()) {
 		errs("Engine did not stop properly!");
-	}*/
+	}
 
 	// Flush Engine Resources
 	gEngineResourceManager.flush();
@@ -96,7 +94,7 @@ void CEngine::run() {
 		});
 
 		// Draw to the screen
-		//renderer().render();
+		CRenderer::get()->render();
 
 		// Execute any tasks that are on the 'main thread'
 		// Done here because they can be done during the frame cap wait

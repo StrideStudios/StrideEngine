@@ -48,7 +48,7 @@ void CVulkanDevice::init() {
     };
 
     //TODO: send out a simple error window telling the user why vulkan crashed (SimpleErrorReporter or something)
-    vkb::PhysicalDeviceSelector selector{CVulkanRenderer::instance()};
+    vkb::PhysicalDeviceSelector selector{CRenderer::instance()};
     auto physicalDevice = selector
             .set_minimum_version(1, 3)
             .set_required_features(features)
@@ -69,7 +69,7 @@ void CVulkanDevice::init() {
 
     // Create queueDescriptions based off queueFamilies input
     std::vector<vkb::CustomQueueDescription> queueDescriptions;
-    auto families = getPhysicalDevice().get_queue_families();
+    auto families = m_PhysicalDevice->get_queue_families();
     for (size_t i = 0; i < families.size(); i++) {
         for (const auto& [queueType, map] : queueFamilies) {
             if (families[i].queueFlags & queueBits[queueType]) {
@@ -82,7 +82,7 @@ void CVulkanDevice::init() {
         }
     }
 
-    vkb::DeviceBuilder deviceBuilder{getPhysicalDevice()};
+    vkb::DeviceBuilder deviceBuilder{*m_PhysicalDevice};
     deviceBuilder.custom_queue_setup(queueDescriptions);
     m_Device = std::make_unique<vkb::Device>(deviceBuilder.build().value());
 
@@ -103,5 +103,5 @@ void CVulkanDevice::init() {
 }
 
 void CVulkanDevice::destroy() {
-    vkb::destroy_device(getDevice());
+    vkb::destroy_device(*m_Device);
 }

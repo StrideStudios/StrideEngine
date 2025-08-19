@@ -1,47 +1,12 @@
 ﻿#pragma once
 
-#include <functional>
-#include <vma/vk_mem_alloc.h>
-#include <vulkan/vulkan_core.h>
 #include <vector>
 #include <span>
 
+#include "VulkanResources.h"
 #include "VulkanUtils.h"
 
 class CVulkanDevice;
-
-struct SImage_T final : IDestroyable {
-	std::string name;
-	VkImage mImage;
-	VkImageView mImageView;
-	VmaAllocation mAllocation;
-	VkExtent3D mImageExtent;
-	VkFormat mImageFormat;
-	uint32 mBindlessAddress;
-
-	virtual void destroy() override;
-};
-
-struct SBuffer_T final : IDestroyable {
-	VkBuffer buffer = nullptr;
-	VmaAllocation allocation = nullptr;
-	VmaAllocationInfo info = {};
-	uint32 mBindlessAddress;
-
-	virtual void destroy() override;
-
-	no_discard void* GetMappedData() const;
-
-	no_discard void mapData(void** data) const;
-
-	no_discard void unMapData() const;
-};
-
-// Holds the resources needed for mesh rendering
-struct SMeshBuffers_T final : IDestroyable {
-	SBuffer_T* indexBuffer = nullptr;
-	SBuffer_T* vertexBuffer = nullptr;
-};
 
 enum class EShaderStage : uint8 {
 	VERTEX,

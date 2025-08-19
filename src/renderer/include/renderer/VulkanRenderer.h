@@ -5,6 +5,7 @@
 #include <memory>
 #include <mutex>
 
+#include "Renderer.h"
 #include "renderer/VulkanResourceManager.h"
 
 // Forward declare vkb types
@@ -20,7 +21,7 @@ namespace tracy {
 
 class CEngineTextures;
 class CVulkanDevice;
-struct SVulkanInstance;
+class CVulkanInstance;
 
 struct SUploadContext {
 	std::mutex mMutex;
@@ -29,11 +30,11 @@ struct SUploadContext {
 	VkCommandBuffer mCommandBuffer{};
 };
 
-class EXPORT CVulkanRenderer : public IInitializable<>, public IDestroyable {
+class EXPORT CVulkanRenderer : public CRenderer {
 
 public:
 
-	static CVulkanRenderer*& get();
+	static CVulkanRenderer* get();
 
 	struct SceneData {
 		Matrix4f mViewProj;
@@ -59,12 +60,6 @@ public:
 
 	CVulkanRenderer();
 
-	static const vkb::Instance& instance();
-
-	static const vkb::Device& device();
-
-	static const vkb::PhysicalDevice& physicalDevice();
-
 	void immediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function);
 
 	virtual void init() override;
@@ -79,13 +74,18 @@ public:
 
 	force_inline const FrameData& getCurrentFrame() const { return mFrames[getFrameIndex()]; }
 
+	virtual CInstance* getInstance() override;
+
+	virtual CDevice* getDevice() override;
+
 	// Draw to the screen
-	void render();
+	virtual void render() override;
+
+	no_discard virtual bool wait() override;
 
 	// Tell children to render
 	virtual void render(VkCommandBuffer cmd) {};
 
-	no_discard bool wait();
 
 	/*
 	 * This resource allocator is flushed when the renderer is destroyed
@@ -103,7 +103,7 @@ public:
 	// Vulkan window surface
 	VkSurfaceKHR mVkSurface;
 
-	SVulkanInstance* m_Instance = nullptr;
+	CVulkanInstance* m_Instance = nullptr;
 
     CVulkanDevice* m_Device = nullptr;
 

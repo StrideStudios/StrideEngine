@@ -5,8 +5,6 @@
         src/renderer/EngineTextures.cpp
         include/renderer/TestRenderer.h
         src/renderer/TestRenderer.cpp
-        include/renderer/VulkanUtils.h
-        src/renderer/VulkanUtils.cpp
         include/renderer/Swapchain.h
         src/renderer/Swapchain.cpp
         include/renderer/VulkanInstance.h
@@ -38,15 +36,13 @@ target_include_directories(StrideEngine-renderer PUBLIC
         "include"
         "../../third_party/basis_universal"
         "../basic/include"
+        "../rendercore/include"
         "../engine/include"
         "../scene/include"
         "../imgui/include"
 )
 
-find_package(Vulkan REQUIRED)
 target_link_libraries(StrideEngine-renderer PUBLIC
-        glm::glm
-        Vulkan::Vulkan
         glslang::glslang-default-resource-limits
         glslang::glslang
         fastgltf::fastgltf
@@ -54,6 +50,7 @@ target_link_libraries(StrideEngine-renderer PUBLIC
         basisu_encoder
 
         StrideEngine-basic
+        StrideEngine-rendercore
         StrideEngine-engine
         StrideEngine-scene
         StrideEngine-imgui

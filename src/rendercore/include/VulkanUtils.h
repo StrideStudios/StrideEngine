@@ -1,55 +1,13 @@
 ﻿#pragma once
 
-#include <map>
 #include <vulkan/vulkan_core.h>
-#include <vulkan/vk_enum_string_helper.h>
 
 #define VK_CHECK(call) \
 	if (auto vkResult = call; vkResult != VK_SUCCESS) { \
 		errs("{} Failed. Vulkan Error {}", #call, string_VkResult(vkResult)); \
 	}
 
-VkDevice getDevice();
-
-// Create wrappers around Vulkan types that can be destroyed
-#define CREATE_VK_TYPE(inName) \
-	struct C##inName final : IDestroyable { \
-		C##inName() = default; \
-		C##inName(Vk##inName inType): m##inName(inType) {} \
-		C##inName(const C##inName& in##inName): m##inName(in##inName.m##inName) {} \
-		C##inName(Vk##inName##CreateInfo inCreateInfo) { \
-			VK_CHECK(vkCreate##inName(getDevice(), &inCreateInfo, nullptr, &m##inName)); \
-		} \
-		virtual void destroy() override { vkDestroy##inName(getDevice(), m##inName, nullptr); } \
-		Vk##inName operator->() const { return m##inName; } \
-		operator Vk##inName() const { return m##inName; } \
-		Vk##inName m##inName = nullptr; \
-	}
-
-CREATE_VK_TYPE(CommandPool);
-CREATE_VK_TYPE(DescriptorPool);
-CREATE_VK_TYPE(DescriptorSetLayout);
-CREATE_VK_TYPE(Fence);
-CREATE_VK_TYPE(ImageView);
-
-struct CPipeline final : IDestroyable {
-	CPipeline() = default;
-	CPipeline(VkPipeline inType, VkPipelineLayout inLayout): mPipeline(inType), mLayout(inLayout) {}
-	CPipeline(const CPipeline& inPipeline): mPipeline(inPipeline.mPipeline), mLayout(inPipeline.mLayout) {} \
-	virtual void destroy() override { vkDestroyPipeline(getDevice(), mPipeline, nullptr); }
-	VkPipeline operator->() const { return mPipeline; }
-	operator VkPipeline() const { return mPipeline; }
-	VkPipeline mPipeline = nullptr;
-	VkPipelineLayout mLayout;
-};
-
-CREATE_VK_TYPE(PipelineLayout);
-CREATE_VK_TYPE(RenderPass);
-CREATE_VK_TYPE(Sampler);
-CREATE_VK_TYPE(Semaphore);
-CREATE_VK_TYPE(ShaderModule);
-
-class CVulkanUtils {
+class EXPORT CVulkanUtils {
 public:
 	static VkImageSubresourceRange imageSubresourceRange(VkImageAspectFlags inAspectMask);
 	static void copyImageToImage(VkCommandBuffer inCmd, VkImage inSource, VkImage inDestination, VkExtent2D inSrcSize, VkExtent2D inDstSize);
@@ -59,7 +17,7 @@ public:
 	static VkRenderingInfo createRenderingInfo(VkExtent2D inExtent, VkRenderingAttachmentInfo* inColorAttachement, VkRenderingAttachmentInfo* inDepthAttachement);
 };
 
-class CVulkanInfo {
+class EXPORT CVulkanInfo {
 public:
 	static VkCommandPoolCreateInfo createCommandPoolInfo(uint32 inQueueFamilyIndex, VkCommandPoolCreateFlags inFlags = 0);
 	static VkCommandBufferAllocateInfo createCommandAllocateInfo(VkCommandPool inPool, uint32 inCount = 1);
@@ -72,11 +30,6 @@ public:
 	static VkSubmitInfo2 submitInfo(const VkCommandBufferSubmitInfo* inCmd, const VkSemaphoreSubmitInfo* inSignalSemaphoreInfo, const VkSemaphoreSubmitInfo* inWaitSemaphoreInfo);
 	static VkImageCreateInfo createImageInfo(VkFormat inFormat, VkImageUsageFlags inUsageFlags, VkExtent3D inExtent);
 	static VkImageViewCreateInfo createImageViewInfo(VkFormat inFormat, VkImage inImage, VkImageAspectFlags inAspectFlags);
-};
-
-struct VULKAN_FORMAT_INFO {
-	uint32 size;
-	uint32 channel_count;
 };
 
 inline uint32 getVkFormatSize(const VkFormat inFormat) {

@@ -1,9 +1,9 @@
 ﻿#pragma once
 
-// Basic Vulkan Includes
 #include <memory>
 #include <map>
 
+#include "Renderer.h"
 #include "VkBootstrap.h"
 
 enum class EQueueType : uint8 {
@@ -29,7 +29,7 @@ static std::map<vkb::QueueType, std::map<EQueueType, float>> queueFamilies {
     },
 };
 
-class CVulkanDevice : public IInitializable<>, public IDestroyable {
+class CVulkanDevice : public CDevice, public IInitializable<>, public IDestroyable {
 
 public:
 
@@ -39,9 +39,9 @@ public:
 
     virtual void destroy() override;
 
-    no_discard constexpr const vkb::PhysicalDevice& getPhysicalDevice() const { return *m_PhysicalDevice; }
+    no_discard virtual const vkb::PhysicalDevice& getPhysicalDevice() const override { return *m_PhysicalDevice; }
 
-    no_discard constexpr const vkb::Device& getDevice() const { return *m_Device; }
+    no_discard virtual const vkb::Device& getDevice() const override { return *m_Device; }
 
 private:
 

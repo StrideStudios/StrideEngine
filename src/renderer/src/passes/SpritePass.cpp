@@ -3,10 +3,8 @@
 #include "renderer/EngineLoader.h"
 #include "renderer/EngineTextures.h"
 #include "renderer/VulkanRenderer.h"
-#include "renderer/VulkanUtils.h"
 #include "renderer/VulkanDevice.h"
 #include "tracy/Tracy.hpp"
-#include "Viewport.h"
 #include "EngineSettings.h"
 
 #define SETTINGS_CATEGORY "Rendering/Sprite Pass"

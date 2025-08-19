@@ -1,6 +1,7 @@
 ﻿add_subdirectory(basic)
 add_subdirectory(imgui)
 add_subdirectory(scene)
+add_subdirectory(rendercore)
 add_subdirectory(engine)
 add_subdirectory(renderer)
 
@@ -10,6 +11,7 @@ target_link_libraries(StrideEngine PUBLIC
         StrideEngine-basic
         StrideEngine-imgui
         StrideEngine-scene
+        StrideEngine-rendercore
         StrideEngine-engine
         StrideEngine-renderer
 )
