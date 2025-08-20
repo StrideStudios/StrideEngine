@@ -15,6 +15,7 @@ ADD_TEXT(SpriteTriangles, "Triangles: ");
 #undef SETTINGS_CATEGORY
 
 void CSpritePass::init() {
+	CPass::init();
 
 	CVulkanRenderer& renderer = *CVulkanRenderer::get();
 

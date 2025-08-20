@@ -3,12 +3,11 @@
 #include <set>
 
 #include "renderer/EngineLoader.h"
-#include "Material.h"
 #include "Pass.h"
 
 class CSprite;
 
-class CEngineUIPass : public CPass, public IInitializable<> {
+class EXPORT CEngineUIPass : public CPass {
 
 public:
 

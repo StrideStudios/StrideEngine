@@ -3,6 +3,8 @@
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 
+#include "VulkanResources.h"
+
 class CSceneObject : public ISerializable {
 
 	//REGISTER_CLASS(CSceneObject)
@@ -26,6 +28,12 @@ public:
 		return inArchive;
 	}
 
+	SInstancer m_Instancer{1}; //TODO: bad, shouldnt have an instancer in a non-instanced widget
+
+	virtual SInstancer& getInstancer() {
+		return m_Instancer;
+	}
+
 	bool mIsDirty = true;
 
 	bool isDirty() const {
@@ -34,6 +42,7 @@ public:
 
 	void setDirty() {
 		mIsDirty = true;
+		m_Instancer.setDirty();
 	}
 
 	std::string mName{"Scene Object"};

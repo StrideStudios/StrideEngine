@@ -33,11 +33,11 @@ public:
 		return inArchive;
 	}
 
-	/*SInstancer m_Instancer{1}; //TODO: bad, shouldnt have an instancer in a non-instanced widget
+	SInstancer m_Instancer{1}; //TODO: bad, shouldnt have an instancer in a non-instanced widget
 
 	virtual SInstancer& getInstancer() {
 		return m_Instancer;
-	}*/
+	}
 
 	no_discard virtual Matrix4f getTransformMatrix() const {
 		const Vector2f screenSize = CEngineViewport::get().mExtent;
@@ -58,7 +58,7 @@ public:
 	Vector2f getScale() const { return m_Scale; }
 
 	virtual void onPositionChanged() {
-		//m_Instancer.setDirty();
+		m_Instancer.setDirty();
 	}
 
 	void getOrigin(const Vector2f inOrigin) {

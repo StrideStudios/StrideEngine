@@ -1,6 +1,4 @@
 ﻿add_library(StrideEngine-renderer SHARED
-        include/renderer/VulkanResourceManager.h
-        src/renderer/VulkanResourceManager.cpp
         include/renderer/EngineTextures.h
         src/renderer/EngineTextures.cpp
         include/renderer/Swapchain.h

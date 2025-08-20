@@ -1,6 +1,5 @@
 ﻿#pragma once
 
-#include <list>
 #include <vma/vk_mem_alloc.h>
 #include <vulkan/vk_enum_string_helper.h>
 #include <vulkan/vulkan_core.h>
@@ -56,7 +55,7 @@ struct SImage_T : IDestroyable {
 	uint32 mBindlessAddress = -1;
 	VkImageLayout mLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-	virtual void destroy() override;
+	EXPORT virtual void destroy() override;
 };
 
 struct SBuffer_T : IDestroyable {
@@ -65,13 +64,13 @@ struct SBuffer_T : IDestroyable {
 	VmaAllocationInfo info = {};
 	uint32 mBindlessAddress;
 
-	virtual void destroy() override;
+	EXPORT virtual void destroy() override;
 
-	no_discard void* GetMappedData() const;
+	no_discard EXPORT void* GetMappedData() const;
 
-	no_discard void mapData(void** data) const;
+	EXPORT void mapData(void** data) const;
 
-	no_discard void unMapData() const;
+	EXPORT void unMapData() const;
 };
 
 // Holds the resources needed for mesh rendering
@@ -119,4 +118,84 @@ struct SCommandBuffer {
 
 	VkCommandBuffer cmd;
 	std::forward_list<SImage_T*> imageTransitions;
+};
+
+struct SInstance {
+	Matrix4f Transform = Matrix4f(1.f);
+
+	friend CArchive& operator<<(CArchive& inArchive, const SInstance& inInstance) {
+		inArchive << inInstance.Transform;
+		return inArchive;
+	}
+
+	friend CArchive& operator>>(CArchive& inArchive, SInstance& inInstance) {
+		inArchive >> inInstance.Transform;
+		return inArchive;
+	}
+};
+
+struct EXPORT SInstancer {
+
+	SInstancer(uint32 initialSize = 0);
+
+	~SInstancer();
+
+	void append(const std::vector<SInstance>& inInstances) {
+		instances.append_range(inInstances);
+		setDirty();
+	}
+
+	uint32 push(const SInstance& inInstance) {
+		instances.push_back(inInstance);
+		setDirty();
+		return static_cast<uint32>(instances.size()) - 1;
+	}
+
+	SInstance remove(const uint32 inInstance) {
+		const auto& instance = instances.erase(instances.begin() + inInstance);
+		setDirty();
+		return *instance;
+	}
+
+	void flush() {
+		instances.clear();
+		setDirty();
+	}
+
+	void reallocate(const Matrix4f& parentMatrix = Matrix4f(1.f));
+
+	SBuffer_T* get(const Matrix4f& parentMatrix = Matrix4f(1.f)) {
+		if (isDirty()) {
+			mIsDirty = false;
+			reallocate(parentMatrix);
+		}
+		return instanceBuffer;
+	}
+
+	bool isDirty() const {
+		return mIsDirty;
+	}
+
+	void setDirty() {
+		mIsDirty = true;
+	}
+
+	friend CArchive& operator<<(CArchive& inArchive, const SInstancer& inInstancer) {
+		inArchive << inInstancer.instances;
+		return inArchive;
+	}
+
+	friend CArchive& operator>>(CArchive& inArchive, SInstancer& inInstancer) {
+		inArchive >> inInstancer.instances;
+		return inArchive;
+	}
+
+	bool mIsDirty = true;
+
+	std::vector<SInstance> instances;
+
+private:
+
+	SBuffer_T* instanceBuffer = nullptr;
+
 };

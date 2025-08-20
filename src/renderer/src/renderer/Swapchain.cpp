@@ -2,7 +2,7 @@
 #include "Viewport.h"
 #include "renderer/VulkanDevice.h"
 #include "renderer/VulkanRenderer.h"
-#include "renderer/VulkanResourceManager.h"
+#include "VulkanResourceManager.h"
 #include "VulkanUtils.h"
 #include "tracy/Tracy.hpp"
 

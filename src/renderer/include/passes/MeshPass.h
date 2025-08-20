@@ -1,6 +1,5 @@
 ﻿#pragma once
 
-#include "Material.h"
 #include "passes/Pass.h"
 
 enum class EMeshPass : uint8 {
@@ -10,13 +9,13 @@ enum class EMeshPass : uint8 {
 class CVulkanRenderer;
 class CGPUScene;
 
-class CMeshPass : public CPass, public IInitializable<EMeshPass> {
+class EXPORT CMeshPass : public CPass {
 
 public:
 
-	CMeshPass(): CPass("MeshPass") {}
+	DEFINE_PASS(CMeshPass)
 
-	virtual void init(EMeshPass inPassType) override;
+	virtual void init() override;
 
 	virtual void render(VkCommandBuffer cmd) override;
 

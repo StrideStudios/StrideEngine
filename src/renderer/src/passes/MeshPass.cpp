@@ -7,6 +7,7 @@
 #include "tracy/Tracy.hpp"
 #include "EngineSettings.h"
 #include "Scene.h"
+#include "renderer/EngineLoader.h"
 
 #define SETTINGS_CATEGORY "Rendering"
 ADD_TEXT(Meshes, "Meshes: ");
@@ -16,8 +17,10 @@ ADD_TEXT(Triangles, "Triangles: ");
 #undef SETTINGS_CATEGORY
 
 //TODO: for now this is hard coded base pass, dont need anything else for now
-void CMeshPass::init(const EMeshPass inPassType) {
-	passType = inPassType;
+void CMeshPass::init() {
+	CPass::init();
+
+	passType = EMeshPass::BASE_PASS; //Mesh Pass as base type, base pass implements instead (or maybe parent with pipelines)
 
 	CVulkanRenderer& renderer = *CVulkanRenderer::get();
 
@@ -140,7 +143,7 @@ void CMeshPass::render(const VkCommandBuffer cmd) {
 	uint32 drawCallCount = 0;
 	uint64 vertexCount = 0;
 
-	/*for (auto& object : renderObjects) {
+	for (auto& object : renderObjects) {
 		SInstancer& instancer = object->getInstancer();
 		std::shared_ptr<SStaticMesh> mesh = object->getMesh();
 		const size_t NumInstances = instancer.instances.size();
@@ -171,8 +174,8 @@ void CMeshPass::render(const VkCommandBuffer cmd) {
 
 			//TODO: auto pipeline rebind (or something)
 			// If the materials arent the same, rebind material data
-			bindPipeline(cmd, surface.material->getPipeline(renderer), surface.material->mConstants);
-
+			bindPipeline(cmd, opaquePipeline, surface.material->mConstants);
+			//surface.material->getPipeline(renderer) TODO: pipelines
 			vkCmdDrawIndexed(cmd, surface.count, (uint32)NumInstances, surface.startIndex, 0, 0);
 
 			drawCallCount++;
@@ -268,7 +271,7 @@ void CMeshPass::render(const VkCommandBuffer cmd) {
 				}
 			}
 		}
-	}*/
+	}
 
 	// Set number of drawcalls, vertices, and triangles
 	Drawcalls.setText(fmts("Draw Calls: {}", drawCallCount));

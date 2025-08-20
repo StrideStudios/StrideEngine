@@ -3,21 +3,18 @@
 #include "Scene.h"
 #include "renderer/VulkanRenderer.h"
 #include "EngineSettings.h"
-
-#define SETTINGS_CATEGORY "Engine"
-ADD_COMMAND(int32, UseFrameCap, 180, 0, 500);
-ADD_TEXT(FrameRate);
-ADD_TEXT(AverageFrameRate);
-ADD_TEXT(GameTime);
-ADD_TEXT(DeltaTime);
-#undef SETTINGS_CATEGORY
+#include "passes/MeshPass.h"
 
 int main() {
 
 	const auto renderer = new CEditorRenderer();
 	CRenderer::set(renderer);
 
+	CResourceManager passManager;
+
 	CEngine::get().init();
+
+	CMeshPass::enable(passManager);
 
 	CScene::get().init();
 
@@ -26,6 +23,8 @@ int main() {
 	CScene::get().destroy();
 
 	CEngine::get().end();
+
+	passManager.flush();
 
 	return 0;
 }

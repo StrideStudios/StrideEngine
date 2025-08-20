@@ -109,8 +109,8 @@ class EXPORT CInstancedStaticMeshObject : public CStaticMeshObject {
 
 public:
 
-	/*CInstancedStaticMeshObject() {
-		m_Instances.clear();
+	CInstancedStaticMeshObject() {
+		//m_Instances.clear();
 		setDirty();
 	}
 
@@ -128,10 +128,6 @@ public:
 		m_Instancer.remove(instance);
 	}
 
-	virtual void onPositionChanged() override {
-		m_Instancer.setDirty();
-	}
-
 	virtual SInstancer& getInstancer() override {
 		return m_Instancer;
 	}
@@ -146,5 +142,5 @@ public:
 		CStaticMeshObject::load(inArchive);
 		inArchive >> m_Instancer;
 		return inArchive;
-	}*/
+	}
 };

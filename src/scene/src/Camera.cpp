@@ -50,9 +50,7 @@ void CCamera::update() {
 	mFOV = FieldOfView.get();
 
 	// Engine camera moves only when right clicking
-	mShowMouse = !CInput::getMousePressed(3); //RightClick
-
-	if (!mShowMouse) {
+	if (!CInput::shouldShowMouse()) {
 		Vector3f rotation = getRotation();
 		rotation.x += Sensitivity.get() * (CInput::getMouseVelocity().x / 360.f);// * (float)SEngineTime::get().mDeltaTime;
 		rotation.y -= Sensitivity.get() * (CInput::getMouseVelocity().y / 360.f);// * (float)SEngineTime::get().mDeltaTime;
@@ -67,7 +65,7 @@ void CCamera::update() {
 
 	Vector2f movement{mVelocity.x * 0.5f, mVelocity.z * 0.5f};
 	Vector3f position = getPosition();
-	position += Vector3f(getRotationMatrix() * Vector4f(movement.x, 0.f, movement.y, 0.f)) * (float)SEngineTime::get().mDeltaTime * CameraSpeed.get();
-	position += Vector3f(0.f, mVelocity.y * 0.5f, 0.f) * (float)SEngineTime::get().mDeltaTime * CameraSpeed.get();
+	position += Vector3f(getRotationMatrix() * Vector4f(movement.x, 0.f, movement.y, 0.f)) * (float)CEngine::get().getTime().mDeltaTime * CameraSpeed.get();
+	position += Vector3f(0.f, mVelocity.y * 0.5f, 0.f) * (float)CEngine::get().getTime().mDeltaTime * CameraSpeed.get();
 	setPosition(position);
 }

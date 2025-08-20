@@ -106,10 +106,13 @@ void SEngineUI::renderSceneUI() {
 				} else {
 					Vector3f position = object->getPosition();
 					ImGui::InputFloat3("Position", reinterpret_cast<float*>(&position));
+					if (position != object->getPosition()) object->setPosition(position);
 					Vector3f rotation = object->getRotation();
 					ImGui::InputFloat3("Rotation", reinterpret_cast<float*>(&rotation));
+					if (rotation != object->getRotation()) object->setRotation(rotation);
 					Vector3f scale = object->getScale();
 					ImGui::InputFloat3("Scale", reinterpret_cast<float*>(&scale));
+					if (scale != object->getScale()) object->setScale(scale);
 
 					auto& sobject = dynamic_cast<CStaticMeshObject&>(*object);
 

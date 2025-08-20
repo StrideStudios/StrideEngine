@@ -6,7 +6,7 @@
 #include <mutex>
 
 #include "Renderer.h"
-#include "renderer/VulkanResourceManager.h"
+#include "VulkanResourceManager.h"
 
 // Forward declare vkb types
 namespace vkb {
@@ -60,7 +60,7 @@ public:
 
 	CVulkanRenderer();
 
-	void immediateSubmit(std::function<void(SCommandBuffer cmd)>&& function);
+	virtual void immediateSubmit(std::function<void(SCommandBuffer& cmd)>&& function) override;
 
 	virtual void init() override;
 

@@ -36,7 +36,7 @@ CVulkanRenderer* CVulkanRenderer::get() {
 
 CVulkanRenderer::CVulkanRenderer(): mVSync(UseVsync.get()) {}
 
-void CVulkanRenderer::immediateSubmit(std::function<void(SCommandBuffer cmd)>&& function) {
+void CVulkanRenderer::immediateSubmit(std::function<void(SCommandBuffer& cmd)>&& function) {
 
 	CVulkanRenderer& renderer = *get();
 	const VkDevice device = CRenderer::device();
@@ -113,7 +113,7 @@ void CVulkanRenderer::init() {
 
 	mSceneDataBuffer = mGlobalResourceManager.allocateGlobalBuffer(sizeof(SceneData), VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
 
-	mGlobalResourceManager.create(mBasePass, EMeshPass::BASE_PASS);
+	mGlobalResourceManager.create(mBasePass);//, EMeshPass::BASE_PASS);
 
 	mGlobalResourceManager.create(mSpritePass);
 
@@ -230,6 +230,8 @@ void CVulkanRenderer::render() {
 			CEngineViewport::get().mExtent.y
 		};
 
+		CScene::get().update();
+
 		{
 			ZoneScopedN("Update Scene Data");
 
@@ -263,7 +265,15 @@ void CVulkanRenderer::render() {
 			VkRenderingInfo renderInfo = CVulkanUtils::createRenderingInfo(extent, &colorAttachment, &depthAttachment);
 			vkCmdBeginRendering(cmd, &renderInfo); //TODO: when adding passes, this should be automatically determined with 'Global info for textures' as input (virtual func)
 
-			mBasePass->render(cmd);
+			auto& passes = CPass::getPasses();
+			for (CPass* pass : passes) {
+				ZoneScoped;
+				ZoneName(pass->getName().c_str(), pass->getName().size());
+
+				pass->render(cmd);
+			}
+
+			//mBasePass->render(cmd);
 
 			//mSpritePass->render(cmd);
 
