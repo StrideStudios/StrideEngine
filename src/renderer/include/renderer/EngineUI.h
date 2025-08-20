@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-#include "Material.h"
+#include "vulkan/vulkan_core.h"
 
 struct SEngineUI {
 
@@ -9,8 +9,6 @@ struct SEngineUI {
 	static void init(VkQueue inQueue, VkFormat format);
 
 	static void destroy();
-
-	static void render(VkCommandBuffer cmd, VkExtent2D inExtent, VkImageView inTargetImageView);
 
 	static void renderSceneUI();
 
@@ -22,5 +20,6 @@ struct SEngineUI {
 
 	static void renderMeshUI();
 
-	static void runEngineUI();
+	static void render(VkCommandBuffer cmd);
+
 };

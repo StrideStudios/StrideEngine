@@ -35,6 +35,18 @@ public:
 
 };
 
+class CSwapchain {
+
+public:
+
+	virtual ~CSwapchain() = default;
+
+	virtual bool isDirty() const = 0;
+
+	virtual void setDirty() = 0;
+
+};
+
 class CRenderer : public IInitializable<>, public IDestroyable {
 
 public:
@@ -52,6 +64,8 @@ public:
 	no_discard virtual CInstance* getInstance() = 0;
 
 	no_discard virtual CDevice* getDevice() = 0;
+
+	no_discard virtual CSwapchain* getSwapchain() = 0;
 
 	virtual void render() = 0;
 

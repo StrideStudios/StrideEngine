@@ -1,5 +1,7 @@
 ﻿#pragma once
 
+#include "VulkanResources.h"
+
 class EXPORT CEngineViewport : public IInitializable<>, public IDestroyable {
 
 public:
@@ -20,6 +22,33 @@ public:
 
 	void update(const Extent32u inExtent) {
 		mExtent = inExtent;
+	}
+
+	void set(VkCommandBuffer cmd) const {
+		const VkViewport viewport = {
+			.x = 0,
+			.y = 0,
+			.width = (float)mExtent.x,
+			.height = (float)mExtent.y,
+			.minDepth = 0.f,
+			.maxDepth = 1.f
+		};
+
+
+		vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+		const VkRect2D scissor = {
+			.offset = {
+				.x = 0,
+				.y = 0
+			},
+			.extent = {
+				.width = mExtent.x,
+				.height = mExtent.y
+			}
+		};
+
+		vkCmdSetScissor(cmd, 0, 1, &scissor);
 	}
 
 	// The extent of the window

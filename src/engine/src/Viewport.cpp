@@ -67,7 +67,7 @@ void CEngineViewport::pollEvents(bool& outRunning, bool& outPauseRendering) {
 			case SDL_EVENT_WINDOW_RESIZED:
 			case SDL_EVENT_WINDOW_MAXIMIZED:
 				update({static_cast<uint32>(e.window.data1), static_cast<uint32>(e.window.data2)});
-				//CVulkanRenderer::get().mEngineTextures->getSwapchain().setDirty();
+				CRenderer::get()->getSwapchain()->setDirty();
 				break;
 			default: break;
 		}

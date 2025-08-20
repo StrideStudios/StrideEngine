@@ -3,8 +3,6 @@
         src/renderer/VulkanResourceManager.cpp
         include/renderer/EngineTextures.h
         src/renderer/EngineTextures.cpp
-        include/renderer/TestRenderer.h
-        src/renderer/TestRenderer.cpp
         include/renderer/Swapchain.h
         src/renderer/Swapchain.cpp
         include/renderer/VulkanInstance.h
@@ -12,9 +10,6 @@
         src/renderer/VulkanDevice.cpp
         include/renderer/VulkanRenderer.h
         src/renderer/VulkanRenderer.cpp
-        include/renderer/Material.h
-        src/renderer/Material.cpp
-        include/renderer/StaticMesh.h
         include/renderer/EngineLoader.h
         src/renderer/EngineLoader.cpp
         include/renderer/EngineUI.h

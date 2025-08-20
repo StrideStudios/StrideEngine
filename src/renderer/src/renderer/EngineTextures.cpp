@@ -3,7 +3,7 @@
 #include <array>
 
 #include "Engine.h"
-#include "renderer/Material.h"
+#include "Material.h"
 #include "renderer/VulkanDevice.h"
 #include "renderer/VulkanRenderer.h"
 #include "renderer/Swapchain.h"
@@ -13,7 +13,7 @@ static CVulkanResourceManager gTexturesResourceManager;
 
 void CEngineTextures::init() {
 
-	CVulkanRenderer::get()->mGlobalResourceManager.push(m_Swapchain);
+	CVulkanRenderer::get()->mGlobalResourceManager.create(m_Swapchain);
 
 	// Initialize samplers
 	// Default samplers repeat and do not have anisotropy
@@ -30,14 +30,14 @@ void CEngineTextures::init() {
 		samplerCreateInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
 
 		CSampler* samplerNearest;
-		CVulkanRenderer::get()->mGlobalResourceManager.push(samplerNearest, samplerCreateInfo);
+		CVulkanRenderer::get()->mGlobalResourceManager.create(samplerNearest, samplerCreateInfo);
 
 		samplerCreateInfo.magFilter = VK_FILTER_LINEAR;
 		samplerCreateInfo.minFilter = VK_FILTER_LINEAR;
 		samplerCreateInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
 
 		CSampler* samplerLinear;
-		CVulkanRenderer::get()->mGlobalResourceManager.push(samplerLinear, samplerCreateInfo);
+		CVulkanRenderer::get()->mGlobalResourceManager.create(samplerLinear, samplerCreateInfo);
 
 		const auto imageDescriptorInfo = VkDescriptorImageInfo{
 			.sampler = *samplerNearest};

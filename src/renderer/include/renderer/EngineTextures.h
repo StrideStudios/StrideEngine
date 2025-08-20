@@ -3,7 +3,7 @@
 #include "VulkanResourceManager.h"
 
 class CMaterial;
-class CSwapchain;
+class CVulkanSwapchain;
 
 // Class used to house textures for the engine, easily resizable when necessary
 class CEngineTextures : public IDestroyable, public IInitializable<> {
@@ -22,7 +22,7 @@ public:
 
 	virtual void destroy() override;
 
-	no_discard CSwapchain& getSwapchain() const { return *m_Swapchain; }
+	no_discard CVulkanSwapchain* getSwapchain() const { return m_Swapchain; }
 
 	//
 	// Textures
@@ -45,6 +45,6 @@ private:
 	// SwapChain
 	//
 
-	CSwapchain* m_Swapchain;
+	CVulkanSwapchain* m_Swapchain;
 
 };

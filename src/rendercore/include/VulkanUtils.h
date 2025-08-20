@@ -11,7 +11,7 @@ class EXPORT CVulkanUtils {
 public:
 	static VkImageSubresourceRange imageSubresourceRange(VkImageAspectFlags inAspectMask);
 	static void copyImageToImage(VkCommandBuffer inCmd, VkImage inSource, VkImage inDestination, VkExtent2D inSrcSize, VkExtent2D inDstSize);
-	static void transitionImage(VkCommandBuffer inCmd, VkImage inImage, VkImageLayout inCurrentLayout, VkImageLayout inNewLayout);
+	static void transitionImage(struct SCommandBuffer& inCmd, struct SImage_T* inImage, VkImageLayout inLayout);
 	static VkRenderingAttachmentInfo createAttachmentInfo(VkImageView view, VkClearValue* clear ,VkImageLayout layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 	static VkRenderingAttachmentInfo createDepthAttachmentInfo(VkImageView view, VkImageLayout layout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 	static VkRenderingInfo createRenderingInfo(VkExtent2D inExtent, VkRenderingAttachmentInfo* inColorAttachement, VkRenderingAttachmentInfo* inDepthAttachement);

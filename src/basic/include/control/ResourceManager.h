@@ -31,7 +31,7 @@ public:
 
 	template <typename TType>
 	requires std::is_base_of_v<IDestroyable, TType>
-	void push(TType*& outType) {
+	void create(TType*& outType) {
 		outType = new TType();
 		if constexpr (std::is_base_of_v<SInitializable, TType>) {
 			outType->init();
@@ -41,13 +41,13 @@ public:
 
 	template <typename TTargetType, typename TType>
 	requires !std::is_same_v<TTargetType, TType> and std::is_base_of_v<IDestroyable, TTargetType>
-	void push(TType*& outType) {
-		push<TTargetType>(reinterpret_cast<TTargetType*&>(outType));
+	void create(TType*& outType) {
+		create<TTargetType>(reinterpret_cast<TTargetType*&>(outType));
 	}
 
 	template <typename TType, typename... TArgs>
 	requires std::is_base_of_v<IDestroyable, TType>
-	void push(TType*& outType, TArgs&&... args) {
+	void create(TType*& outType, TArgs&&... args) {
 		if constexpr (std::is_base_of_v<SInitializable, TType>) {
 			outType = new TType();
 			outType->init(args...);
@@ -59,13 +59,13 @@ public:
 
 	template <typename TTargetType, typename TType, typename... TArgs>
 	requires !std::is_same_v<TTargetType, TType> and std::is_base_of_v<IDestroyable, TTargetType>
-	void push(TType*& outType, TArgs&&... args) {
-		push<TTargetType, TArgs...>(reinterpret_cast<TTargetType*&>(outType), args...);
+	void create(TType*& outType, TArgs&&... args) {
+		create<TTargetType, TArgs...>(reinterpret_cast<TTargetType*&>(outType), args...);
 	}
 
 	template <typename TType>
 	requires std::is_base_of_v<IDestroyable, TType>
-	void add(TType* inType) {
+	void push(TType* inType) {
 		if constexpr (std::is_base_of_v<SInitializable, TType>) {
 			inType->init();
 		}

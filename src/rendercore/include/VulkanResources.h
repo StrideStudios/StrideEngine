@@ -1,5 +1,6 @@
 ﻿#pragma once
 
+#include <list>
 #include <vma/vk_mem_alloc.h>
 #include <vulkan/vk_enum_string_helper.h>
 #include <vulkan/vulkan_core.h>
@@ -27,12 +28,11 @@ CREATE_VK_TYPE(CommandPool);
 CREATE_VK_TYPE(DescriptorPool);
 CREATE_VK_TYPE(DescriptorSetLayout);
 CREATE_VK_TYPE(Fence);
-CREATE_VK_TYPE(ImageView);
 
 struct CPipeline final : IDestroyable {
 	CPipeline() = default;
 	CPipeline(VkPipeline inType, VkPipelineLayout inLayout): mPipeline(inType), mLayout(inLayout) {}
-	CPipeline(const CPipeline& inPipeline): mPipeline(inPipeline.mPipeline), mLayout(inPipeline.mLayout) {} \
+	CPipeline(const CPipeline& inPipeline): mPipeline(inPipeline.mPipeline), mLayout(inPipeline.mLayout) {}
 	virtual void destroy() override { vkDestroyPipeline(CRenderer::device(), mPipeline, nullptr); }
 	VkPipeline operator->() const { return mPipeline; }
 	operator VkPipeline() const { return mPipeline; }
@@ -46,19 +46,20 @@ CREATE_VK_TYPE(Sampler);
 CREATE_VK_TYPE(Semaphore);
 CREATE_VK_TYPE(ShaderModule);
 
-struct SImage_T final : IDestroyable {
-	std::string name;
-	VkImage mImage;
-	VkImageView mImageView;
-	VmaAllocation mAllocation;
+struct SImage_T : IDestroyable {
+	std::string name = "Image";
+	VkImage mImage = nullptr;
+	VkImageView mImageView = nullptr;
+	VmaAllocation mAllocation = nullptr;
 	VkExtent3D mImageExtent;
-	VkFormat mImageFormat;
-	uint32 mBindlessAddress;
+	VkFormat mImageFormat = VK_FORMAT_UNDEFINED;
+	uint32 mBindlessAddress = -1;
+	VkImageLayout mLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
 	virtual void destroy() override;
 };
 
-struct SBuffer_T final : IDestroyable {
+struct SBuffer_T : IDestroyable {
 	VkBuffer buffer = nullptr;
 	VmaAllocation allocation = nullptr;
 	VmaAllocationInfo info = {};
@@ -74,7 +75,48 @@ struct SBuffer_T final : IDestroyable {
 };
 
 // Holds the resources needed for mesh rendering
-struct SMeshBuffers_T final : IDestroyable {
+struct SMeshBuffers_T : IDestroyable {
 	SBuffer_T* indexBuffer = nullptr;
 	SBuffer_T* vertexBuffer = nullptr;
+};
+
+// A command buffer that stores some temporary data to be removed/changed at end of rendering
+// Ex: contains info for image transitions
+struct SCommandBuffer {
+
+	SCommandBuffer() = default;
+
+	SCommandBuffer(const CCommandPool* inCmdPool) {
+		VkCommandBufferAllocateInfo frameCmdAllocInfo = CVulkanInfo::createCommandAllocateInfo(*inCmdPool, 1);
+		VK_CHECK(vkAllocateCommandBuffers(CRenderer::device(), &frameCmdAllocInfo, &cmd));
+	}
+
+	SCommandBuffer(VkCommandBuffer inCmd): cmd(inCmd) {}
+	SCommandBuffer(const SCommandBuffer& inCmd): cmd(inCmd.cmd) {}
+
+	//TODO: not all command buffers are one time submit, perhaps have a parent class
+	void begin(const bool inReset = true) const {
+		if (inReset) {
+			VK_CHECK(vkResetCommandBuffer(cmd, 0));
+		}
+
+		VkCommandBufferBeginInfo cmdBeginInfo = CVulkanInfo::createCommandBufferBeginInfo(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+		VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
+	}
+
+	void end() {
+		vkEndCommandBuffer(cmd);
+
+		// Image transitions can no longer occur
+		for (const auto image : imageTransitions) {
+			image->mLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		}
+		imageTransitions.clear();
+	}
+
+	VkCommandBuffer operator->() const { return cmd; }
+	operator VkCommandBuffer() const { return cmd; }
+
+	VkCommandBuffer cmd;
+	std::forward_list<SImage_T*> imageTransitions;
 };

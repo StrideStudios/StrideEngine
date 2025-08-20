@@ -6,6 +6,7 @@
 #include <memory>
 
 #include "Material.h"
+#include "StaticMesh.h"
 #include "VulkanResourceManager.h"
 
 struct SStaticMesh;
@@ -43,26 +44,6 @@ struct SVertex {
 		inArchive >> inVertex.uv;
 		inArchive >> inVertex.normal;
 		inArchive >> inVertex.color;
-		return inArchive;
-	}
-};
-
-struct SBounds {
-	Vector3f origin;
-	float sphereRadius;
-	Vector3f extents;
-
-	friend CArchive& operator<<(CArchive& inArchive, const SBounds& inBounds) {
-		inArchive << inBounds.origin;
-		inArchive << inBounds.sphereRadius;
-		inArchive << inBounds.extents;
-		return inArchive;
-	}
-
-	friend CArchive& operator>>(CArchive& inArchive, SBounds& inBounds) {
-		inArchive >> inBounds.origin;
-		inArchive >> inBounds.sphereRadius;
-		inArchive >> inBounds.extents;
 		return inArchive;
 	}
 };

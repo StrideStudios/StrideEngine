@@ -27,7 +27,7 @@ struct SUploadContext {
 	std::mutex mMutex;
 	CFence* mUploadFence;
 	CCommandPool* mCommandPool;
-	VkCommandBuffer mCommandBuffer{};
+	SCommandBuffer mCommandBuffer{};
 };
 
 class EXPORT CVulkanRenderer : public CRenderer {
@@ -47,7 +47,7 @@ public:
 
 	struct FrameData {
 		CCommandPool* mCommandPool = nullptr;
-		VkCommandBuffer mMainCommandBuffer = nullptr;
+		SCommandBuffer mMainCommandBuffer{};
 
 		/*
 		 * A resource allocator that is persistent for a single frame
@@ -60,7 +60,7 @@ public:
 
 	CVulkanRenderer();
 
-	void immediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function);
+	void immediateSubmit(std::function<void(SCommandBuffer cmd)>&& function);
 
 	virtual void init() override;
 
@@ -77,6 +77,8 @@ public:
 	virtual CInstance* getInstance() override;
 
 	virtual CDevice* getDevice() override;
+
+	virtual CSwapchain* getSwapchain() override;
 
 	// Draw to the screen
 	virtual void render() override;

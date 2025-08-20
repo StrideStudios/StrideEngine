@@ -39,7 +39,9 @@ void SBuffer_T::unMapData() const {
 }
 
 void SImage_T::destroy() {
-	vmaDestroyImage(CVulkanResourceManager::getAllocator(), mImage, mAllocation);
+	if (mAllocation) {
+		vmaDestroyImage(CVulkanResourceManager::getAllocator(), mImage, mAllocation);
+	}
 	vkDestroyImageView(CRenderer::device(), mImageView, nullptr);
 }
 
@@ -95,7 +97,7 @@ void CVulkanResourceManager::init() {
 			.pPoolSizes = poolSizes.begin()
 		};
 
-		gGlobalResourceManager.push(getBindlessDescriptorPool(), poolCreateInfo);
+		gGlobalResourceManager.create(getBindlessDescriptorPool(), poolCreateInfo);
 	}
 
 	// Create Descriptor Set layout
@@ -145,7 +147,7 @@ void CVulkanResourceManager::init() {
         	.pBindings = binding.begin(),
         };
 
-		gGlobalResourceManager.push(getBindlessDescriptorSetLayout(), layoutCreateInfo);
+		gGlobalResourceManager.create(getBindlessDescriptorSetLayout(), layoutCreateInfo);
 	}
 
 	{
@@ -188,7 +190,7 @@ void CVulkanResourceManager::init() {
 			.pPushConstantRanges = pushConstants.begin()
 		};
 
-		gGlobalResourceManager.push(getBasicPipelineLayout(), layoutCreateInfo);
+		gGlobalResourceManager.create(getBasicPipelineLayout(), layoutCreateInfo);
 	}
 }
 
@@ -386,7 +388,7 @@ SShader CVulkanResourceManager::getShader(const char* inFilePath) {
 	};
 
 	// Create and add the shader module
-	push(shader.mModule);
+	create(shader.mModule);
 
 	const std::string path = SPaths::get().mShaderPath.string() + inFilePath;
 	const std::string SPIRVpath = path + ".spv";
@@ -599,7 +601,7 @@ CPipeline* CVulkanResourceManager::allocatePipeline(const SPipelineCreateInfo& i
 	};
 
 	CPipeline* pipeline;
-	push(pipeline, nullptr, inLayout->mPipelineLayout);
+	create(pipeline, nullptr, inLayout->mPipelineLayout);
 	if (vkCreateGraphicsPipelines(getDevice(), VK_NULL_HANDLE, 1, &pipelineInfo,nullptr, &pipeline->mPipeline) != VK_SUCCESS) {
 		msgs("Failed to create pipeline!");
 		return nullptr;
@@ -628,7 +630,7 @@ SBuffer_T* CVulkanResourceManager::allocateBuffer(size_t allocSize, VmaMemoryUsa
 	};
 
 	SBuffer_T* buffer;
-	push(buffer);
+	create(buffer);
 
 	// allocate the buffer
 	VK_CHECK(vmaCreateBuffer(getAllocator(), &bufferInfo, &vmaallocInfo, &buffer->buffer, &buffer->allocation, &buffer->info));
@@ -688,7 +690,7 @@ SImage_T* CVulkanResourceManager::allocateImage(const std::string& inDebugName, 
 SImage_T* CVulkanResourceManager::allocateImage(const std::string& inDebugName, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags, VkImageAspectFlags inViewFlags, uint32 inNumMips) {
 	ZoneScopedAllocation(fmts("Allocate Image {}", inDebugName.c_str()));
 	SImage_T* image;
-	push(image);
+	create(image);
 
 	image->name = inDebugName;
 	image->mImageExtent = inExtent;
@@ -762,7 +764,7 @@ void CVulkanResourceManager::updateGlobalBuffer(const SBuffer_T* buffer) {
 	}
 }
 
-void generateMipmaps(VkCommandBuffer cmd, VkImage image, VkExtent2D extent) {
+void generateMipmaps(SCommandBuffer cmd, SImage_T* image, VkExtent2D extent) {
 	ZoneScopedAllocation(std::string("Generate Mipmaps"));
 	int mipLevels = int(std::floor(std::log2(std::max(extent.width, extent.height)))) + 1;
     for (int mip = 0; mip < mipLevels; mip++) {
@@ -785,7 +787,7 @@ void generateMipmaps(VkCommandBuffer cmd, VkImage image, VkExtent2D extent) {
         imageBarrier.subresourceRange = CVulkanUtils::imageSubresourceRange(aspectMask);
         imageBarrier.subresourceRange.levelCount = 1;
         imageBarrier.subresourceRange.baseMipLevel = mip;
-        imageBarrier.image = image;
+        imageBarrier.image = image->mImage;
 
         VkDependencyInfo depInfo { .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO, .pNext = nullptr };
         depInfo.imageMemoryBarrierCount = 1;
@@ -815,9 +817,9 @@ void generateMipmaps(VkCommandBuffer cmd, VkImage image, VkExtent2D extent) {
             blitRegion.dstSubresource.mipLevel = mip + 1;
 
             VkBlitImageInfo2 blitInfo {.sType = VK_STRUCTURE_TYPE_BLIT_IMAGE_INFO_2, .pNext = nullptr};
-            blitInfo.dstImage = image;
+            blitInfo.dstImage = image->mImage;
             blitInfo.dstImageLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-            blitInfo.srcImage = image;
+            blitInfo.srcImage = image->mImage;
             blitInfo.srcImageLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
             blitInfo.filter = VK_FILTER_LINEAR;
             blitInfo.regionCount = 1;
@@ -830,7 +832,7 @@ void generateMipmaps(VkCommandBuffer cmd, VkImage image, VkExtent2D extent) {
     }
 
     // transition all mip levels into the final read_only layout
-    CVulkanUtils::transitionImage(cmd, image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    CVulkanUtils::transitionImage(cmd, image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 }
 
 SImage_T* CVulkanResourceManager::allocateImage(void* inData, const uint32& size, const std::string& inDebugName, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags, VkImageAspectFlags inViewFlags, bool inMipmapped) {
@@ -847,9 +849,9 @@ SImage_T* CVulkanResourceManager::allocateImage(void* inData, const uint32& size
 
 	SImage_T* new_image = allocateImage(inDebugName, inExtent, inFormat, inFlags | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, inViewFlags, inMipmapped);
 
-	CVulkanRenderer::get()->immediateSubmit([&](VkCommandBuffer cmd) {
+	CVulkanRenderer::get()->immediateSubmit([&](SCommandBuffer cmd) {
 		ZoneScopedAllocation(std::string("Copy Image from Upload Buffer"));
-		CVulkanUtils::transitionImage(cmd, new_image->mImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+		CVulkanUtils::transitionImage(cmd, new_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
 		VkBufferImageCopy copyRegion = {};
 		copyRegion.bufferOffset = 0;
@@ -866,13 +868,11 @@ SImage_T* CVulkanResourceManager::allocateImage(void* inData, const uint32& size
 		vkCmdCopyBufferToImage(cmd, uploadBuffer->buffer, new_image->mImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
 
 		if (inMipmapped) {
-			generateMipmaps(cmd, new_image->mImage, VkExtent2D{new_image->mImageExtent.width,new_image->mImageExtent.height});
+			generateMipmaps(cmd, new_image, VkExtent2D{new_image->mImageExtent.width,new_image->mImageExtent.height});
 		} else {
-			CVulkanUtils::transitionImage(cmd, new_image->mImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-			}
+			CVulkanUtils::transitionImage(cmd, new_image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 		}
-	);
+	});
 
 	manager.flush();
 

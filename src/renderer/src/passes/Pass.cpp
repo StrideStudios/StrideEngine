@@ -1,6 +1,6 @@
 ﻿#include "passes/Pass.h"
 
-#include "renderer/Material.h"
+#include "Material.h"
 #include "Viewport.h"
 #include "renderer/VulkanRenderer.h"
 #include "renderer/VulkanResourceManager.h"
@@ -27,7 +27,7 @@ void SInstancer::reallocate(const Matrix4f& parentMatrix)  {
 	memcpy(data, inputData.data(), bufferSize);
 
 	// TODO: shouldnt have instancer here, but its necessary for instanced static mesh object...
-	CVulkanRenderer::get()->immediateSubmit([&](VkCommandBuffer cmd) {
+	CVulkanRenderer::get()->immediateSubmit([&](SCommandBuffer cmd) {
 		VkBufferCopy vertexCopy{};
 		vertexCopy.dstOffset = 0;
 		vertexCopy.srcOffset = 0;
@@ -49,25 +49,7 @@ void CPass::bindPipeline(const VkCommandBuffer cmd, CPipeline* inPipeline, const
 		CVulkanResourceManager::bindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, inPipeline->mLayout, 0, 1, CVulkanResourceManager::getBindlessDescriptorSet());
 
 		//TODO: shouldnt do this here...
-		Extent32u extent = CEngineViewport::get().mExtent;
-
-		VkViewport viewport = {};
-		viewport.x = 0;
-		viewport.y = 0;
-		viewport.width = (float)extent.x;
-		viewport.height = (float)extent.y;
-		viewport.minDepth = 0.f;
-		viewport.maxDepth = 1.f;
-
-		vkCmdSetViewport(cmd, 0, 1, &viewport);
-
-		VkRect2D scissor = {};
-		scissor.offset.x = 0;
-		scissor.offset.y = 0;
-		scissor.extent.width = (float)extent.x;
-		scissor.extent.height = (float)extent.y;
-
-		vkCmdSetScissor(cmd, 0, 1, &scissor);
+		CEngineViewport::get().set(cmd);
 	}
 	//}
 

@@ -15,7 +15,7 @@
 #include "transcoder/basisu_transcoder.h"
 #include "encoder/basisu_gpu_texture.h"
 
-#include "renderer/StaticMesh.h"
+#include "StaticMesh.h"
 #include "renderer/VulkanRenderer.h"
 #include "VulkanUtils.h"
 
@@ -47,8 +47,8 @@ SImage_T* loadImage(CVulkanResourceManager& allocator, const std::filesystem::pa
 	// Allocate image and transition to dst
 	SImage_T* image = allocator.allocateImage(fileName, imageSize, VK_FORMAT_BC7_SRGB_BLOCK, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_IMAGE_ASPECT_COLOR_BIT, numMips);
 
-	CVulkanRenderer::get()->immediateSubmit([&](VkCommandBuffer cmd) {
-		CVulkanUtils::transitionImage(cmd, image->mImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+	CVulkanRenderer::get()->immediateSubmit([&](SCommandBuffer cmd) {
+		CVulkanUtils::transitionImage(cmd, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 	});
 
 	transcoder.start_transcoding();
@@ -77,7 +77,7 @@ SImage_T* loadImage(CVulkanResourceManager& allocator, const std::filesystem::pa
 
 		memcpy(uploadBuffer->GetMappedData(), pImage, image_size);
 
-		CVulkanRenderer::get()->immediateSubmit([&](VkCommandBuffer cmd) {
+		CVulkanRenderer::get()->immediateSubmit([&](SCommandBuffer cmd) {
 			//ZoneScopedAllocation(std::string("Copy Image from Upload Buffer"));
 
 			VkBufferImageCopy copyRegion = {};
@@ -98,8 +98,8 @@ SImage_T* loadImage(CVulkanResourceManager& allocator, const std::filesystem::pa
 		manager.flush();
 	}
 
-	CVulkanRenderer::get()->immediateSubmit([&](VkCommandBuffer cmd) {
-		CVulkanUtils::transitionImage(cmd, image->mImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	CVulkanRenderer::get()->immediateSubmit([&](SCommandBuffer cmd) {
+		CVulkanUtils::transitionImage(cmd, image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	});
 
 	return image;
@@ -387,7 +387,7 @@ SMeshBuffers_T uploadMesh(CVulkanResourceManager& inManager, std::span<uint32> i
 
 	//TODO: slow, render thread?
 	// also from an older version of the tutorial, doesnt use sync2
-	CVulkanRenderer::get()->immediateSubmit([&](VkCommandBuffer cmd) {
+	CVulkanRenderer::get()->immediateSubmit([&](SCommandBuffer cmd) {
 		VkBufferCopy vertexCopy{};
 		vertexCopy.dstOffset = 0;
 		vertexCopy.srcOffset = 0;

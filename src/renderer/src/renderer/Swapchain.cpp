@@ -20,25 +20,33 @@ static CVulkanResourceManager gSwapchainResourceManager;
 
 static CVulkanResourceManager gFrameResourceManager;
 
-SSwapchain::SSwapchain(const  vkb::Result<vkb::Swapchain>& inSwapchainBuilder) {
+void SSwapchainImage::destroy() {
+	vkDestroyImageView(CRenderer::device(), mImageView, nullptr);
+}
+
+SSwapchain::SSwapchain(const vkb::Result<vkb::Swapchain>& inSwapchainBuilder) {
 	//store swapchain and its related images
 	mSwapchain = inSwapchainBuilder.value();
-	mSwapchainImages = mSwapchain.get_images().value();
 
-	std::vector<VkImageView> imageViews = mSwapchain.get_image_views().value();
+	const std::vector<VkImage> images = mSwapchain.get_images().value();
+	const std::vector<VkImageView> imageViews = mSwapchain.get_image_views().value();
 
 	VkSemaphoreCreateInfo semaphoreCreateInfo = CVulkanInfo::createSemaphoreInfo();
 
 	// Allocate render semaphores
-	mSwapchainRenderSemaphores.resize(mSwapchainImages.size());
-	mSwapchainImageViews.resize(mSwapchainImages.size());
-	for (int32 i = 0; i < mSwapchainImages.size(); ++i) {
-		gSwapchainResourceManager.push(mSwapchainRenderSemaphores[i], semaphoreCreateInfo);
-		gSwapchainResourceManager.push(mSwapchainImageViews[i], imageViews[i]);
+	mSwapchainRenderSemaphores.resize(images.size());
+	mSwapchainImages.resize(images.size());
+
+	for (uint32 i = 0; i < (uint32)images.size(); ++i) { //TODO: these cause vkDestroyImage errors
+		gSwapchainResourceManager.create(mSwapchainRenderSemaphores[i], semaphoreCreateInfo);
+		gSwapchainResourceManager.create(mSwapchainImages[i]);
+		mSwapchainImages[i]->mImage = images[i];
+		mSwapchainImages[i]->mImageView = imageViews[i];
+		mSwapchainImages[i]->mBindlessAddress = i;
 	}
 }
 
-CSwapchain::CSwapchain() {
+CVulkanSwapchain::CVulkanSwapchain() {
 	// Create one fence to control when the gpu has finished rendering the frame,
 	// And 2 semaphores to synchronize rendering with swapchain
 	VkFenceCreateInfo fenceCreateInfo = CVulkanInfo::createFenceInfo(VK_FENCE_CREATE_SIGNALED_BIT);
@@ -46,15 +54,15 @@ CSwapchain::CSwapchain() {
 
 	for (auto& [mSwapchainSemaphore, mRenderSemaphore, mRenderFence, mPresentFence] : m_Frames) {
 
-		gFrameResourceManager.push(mRenderFence, fenceCreateInfo);
+		gFrameResourceManager.create(mRenderFence, fenceCreateInfo);
 		//gFrameResourceManager.createDestroyable(mPresentFence, fenceCreateInfo);
 
-		gFrameResourceManager.push(mSwapchainSemaphore, semaphoreCreateInfo);
+		gFrameResourceManager.create(mSwapchainSemaphore, semaphoreCreateInfo);
 		//gFrameResourceManager.createDestroyable(mRenderSemaphore, semaphoreCreateInfo);
 	}
 }
 
-void CSwapchain::init(const VkSwapchainKHR oldSwapchain, const bool inUseVSync) {
+void CVulkanSwapchain::init(const VkSwapchainKHR oldSwapchain, const bool inUseVSync) {
 	mFormat = VK_FORMAT_R8G8B8A8_UNORM;
 
 	m_VSync = inUseVSync;
@@ -75,22 +83,22 @@ void CSwapchain::init(const VkSwapchainKHR oldSwapchain, const bool inUseVSync) 
 	gSwapchainResourceManager.flush();
 
 	//Initialize internal swapchain
-	gSwapchainResourceManager.push(mSwapchain, vkbSwapchain);
+	gSwapchainResourceManager.create(mSwapchain, vkbSwapchain);
 }
 
-void CSwapchain::recreate(bool inUseVSync) {
+void CVulkanSwapchain::recreate(bool inUseVSync) {
 
 	init(mSwapchain->mSwapchain, inUseVSync);
 
 	m_Dirty = false;
 }
 
-void CSwapchain::destroy() {
+void CVulkanSwapchain::destroy() {
 	gSwapchainResourceManager.flush();
 	gFrameResourceManager.flush();
 }
 
-std::tuple<VkImage, VkImageView, uint32> CSwapchain::getSwapchainImage(const uint32 inCurrentFrameIndex) {
+SSwapchainImage* CVulkanSwapchain::getSwapchainImage(const uint32 inCurrentFrameIndex) {
 	ZoneScoped;
 	std::string zoneName("Swapchain Image Acquire");
 	if (m_VSync) zoneName.append(" (VSync)");
@@ -99,10 +107,10 @@ std::tuple<VkImage, VkImageView, uint32> CSwapchain::getSwapchainImage(const uin
 	uint32 swapchainImageIndex = 0;
 	SWAPCHAIN_CHECK(vkAcquireNextImageKHR(CRenderer::device(), mSwapchain->mSwapchain, 1000000000, *m_Frames[inCurrentFrameIndex].mSwapchainSemaphore, nullptr, &swapchainImageIndex), setDirty());
 
-	return {mSwapchain->mSwapchainImages[swapchainImageIndex], *mSwapchain->mSwapchainImageViews[swapchainImageIndex], swapchainImageIndex};
+	return mSwapchain->mSwapchainImages[swapchainImageIndex];
 }
 
-bool CSwapchain::wait(const uint32 inCurrentFrameIndex) const {
+bool CVulkanSwapchain::wait(const uint32 inCurrentFrameIndex) const {
 	ZoneScoped;
 	std::string zoneName("Swapchain Wait");
 	if (m_VSync) zoneName.append(" (VSync)");
@@ -115,7 +123,7 @@ bool CSwapchain::wait(const uint32 inCurrentFrameIndex) const {
 	return true;
 }
 
-void CSwapchain::reset(const uint32 inCurrentFrameIndex) const {
+void CVulkanSwapchain::reset(const uint32 inCurrentFrameIndex) const {
 	ZoneScoped;
 	std::string zoneName("Swapchain Reset");
 	if (m_VSync) zoneName.append(" (VSync)");
@@ -126,7 +134,7 @@ void CSwapchain::reset(const uint32 inCurrentFrameIndex) const {
 	//VK_CHECK(vkResetFences(CRenderer::device(), 1, &frame.mPresentFence));
 }
 
-void CSwapchain::submit(const VkCommandBuffer inCmd, const VkQueue inGraphicsQueue, uint32 inCurrentFrameIndex, const uint32 inSwapchainImageIndex) {
+void CVulkanSwapchain::submit(const VkCommandBuffer inCmd, const VkQueue inGraphicsQueue, uint32 inCurrentFrameIndex, const uint32 inSwapchainImageIndex) {
 	const auto& frame = m_Frames[inCurrentFrameIndex];
 
 	ZoneScopedN("Present");

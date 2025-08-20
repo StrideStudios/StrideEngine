@@ -13,6 +13,10 @@ namespace vkb {
 
 class CVulkanDevice;
 
+struct SSwapchainImage : SImage_T {
+	virtual void destroy() override;
+};
+
 struct SSwapchain final : IDestroyable {
 
 	SSwapchain(const vkb::Result<vkb::Swapchain>& inSwapchainBuilder);
@@ -23,16 +27,14 @@ struct SSwapchain final : IDestroyable {
 
 	vkb::Swapchain mSwapchain;
 
-	std::vector<VkImage> mSwapchainImages{};
-
-	std::vector<CImageView*> mSwapchainImageViews{};
+	std::vector<SSwapchainImage*> mSwapchainImages{};
 
 	// TODO: Needed if Maintenence1 is not available, should union
 	// TODO: this means i probably need some sort of platform info or something
 	std::vector<CSemaphore*> mSwapchainRenderSemaphores{};
 };
 
-class CSwapchain : public IInitializable<VkSwapchainKHR, bool>, public IDestroyable {
+class CVulkanSwapchain : public CSwapchain, public IInitializable<VkSwapchainKHR, bool>, public IDestroyable {
 
 public:
 
@@ -44,13 +46,13 @@ public:
 		CFence* mPresentFence = nullptr;
 	};
 
-	CSwapchain();
+	CVulkanSwapchain();
 
-	no_discard bool isDirty() const {
+	no_discard virtual bool isDirty() const override {
 		return m_Dirty;
 	}
 
-	void setDirty() {
+	virtual void setDirty() override {
 		m_Dirty = true;
 	}
 
@@ -60,7 +62,7 @@ public:
 
 	virtual void destroy() override;
 
-	std::tuple<VkImage, VkImageView, uint32> getSwapchainImage(uint32 inCurrentFrameIndex);
+	SSwapchainImage* getSwapchainImage(uint32 inCurrentFrameIndex);
 
 	no_discard bool wait(uint32 inCurrentFrameIndex) const;
 

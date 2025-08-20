@@ -27,10 +27,11 @@ void CEngine::init() {
 	astsOnce(CEngine)
 
 	// Initialize the viewport
-	gEngineResourceManager.push(m_EngineViewport);
+	gEngineResourceManager.create(m_EngineViewport);
 
 	// Add the renderer
-	gEngineResourceManager.add(CRenderer::get());
+	assert(CRenderer::get());
+	gEngineResourceManager.push(CRenderer::get());
 }
 
 void CEngine::end() {

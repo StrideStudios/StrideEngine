@@ -1,4 +1,6 @@
 ﻿add_library(StrideEngine-rendercore SHARED
+        include/Material.h
+        include/StaticMesh.h
         include/Renderer.h
         src/Renderer.cpp
         include/VulkanResources.h

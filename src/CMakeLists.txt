@@ -4,6 +4,7 @@ add_subdirectory(scene)
 add_subdirectory(rendercore)
 add_subdirectory(engine)
 add_subdirectory(renderer)
+add_subdirectory(editor)
 
 add_executable(StrideEngine Application.cpp)
 
@@ -14,6 +15,7 @@ target_link_libraries(StrideEngine PUBLIC
         StrideEngine-rendercore
         StrideEngine-engine
         StrideEngine-renderer
+        StrideEngine-editor
 )
 target_compile_definitions(TracyClient PRIVATE TRACY_ENABLE>)
 target_compile_definitions(StrideEngine PRIVATE TRACY_ENABLE>)

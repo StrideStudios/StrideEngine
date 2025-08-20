@@ -7,6 +7,6 @@ CRenderer* CRenderer::get() {
 }
 
 void CRenderer::set(CRenderer* inRenderer) {
-	astsOnce(CRenderer);
+	astsOnce(CRenderer); //Ensure Renderer is set only once
 	gRenderer = inRenderer;
 }

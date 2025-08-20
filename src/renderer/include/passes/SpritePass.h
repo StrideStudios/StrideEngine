@@ -3,7 +3,7 @@
 #include <set>
 
 #include "renderer/EngineLoader.h"
-#include "renderer/Material.h"
+#include "Material.h"
 #include "Pass.h"
 
 class CSprite;
@@ -11,6 +11,8 @@ class CSprite;
 class CSpritePass : public CPass, public IInitializable<> {
 
 public:
+
+	CSpritePass(): CPass("SpritePass") {}
 
 	virtual void init() override;
 
@@ -37,5 +39,5 @@ public:
 	// Pipelines
 	//
 
-	CPipeline* opaquePipeline;
+	CPipeline* opaquePipeline = nullptr;
 };

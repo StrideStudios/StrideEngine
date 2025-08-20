@@ -3,7 +3,7 @@
 #include "renderer/EngineTextures.h"
 #include "renderer/VulkanDevice.h"
 #include "renderer/VulkanRenderer.h"
-#include "renderer/StaticMesh.h"
+#include "StaticMesh.h"
 #include "tracy/Tracy.hpp"
 #include "EngineSettings.h"
 #include "Scene.h"

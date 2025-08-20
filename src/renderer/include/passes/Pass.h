@@ -95,11 +95,15 @@ class CPass : public IDestroyable {
 
 public:
 
+	CPass(const std::string& inPassName): m_Name(inPassName) {}
+
 	virtual void render(VkCommandBuffer cmd) = 0;
 
 	void bindPipeline(VkCommandBuffer cmd, CPipeline* inPipeline, const struct SPushConstants& inConstants);
 
 private:
+
+	std::string m_Name;
 
 	CPipeline* m_CurrentPipeline = nullptr;
 };

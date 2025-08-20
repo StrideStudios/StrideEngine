@@ -18,7 +18,7 @@ void CScene::init() {
 	file >> data.objects;
 	file.close();
 
-	gSceneResourceManager.push(mMainCamera);
+	gSceneResourceManager.create(mMainCamera);
 }
 
 void CScene::destroy() {

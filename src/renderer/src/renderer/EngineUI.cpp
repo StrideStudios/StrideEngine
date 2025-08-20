@@ -10,11 +10,11 @@
 #include "VkBootstrap.h"
 
 #include "renderer/EngineLoader.h"
-#include "renderer/Material.h"
+#include "Material.h"
 #include "Scene.h"
 #include "Sprite.h"
 #include "passes/SpritePass.h"
-#include "renderer/StaticMesh.h"
+#include "StaticMesh.h"
 #include "Viewport.h"
 
 void SEngineUI::begin() {
@@ -24,7 +24,7 @@ void SEngineUI::begin() {
 	ImGui::NewFrame();
 }
 
-void SEngineUI::init(VkQueue inQueue, VkFormat format) {
+void SEngineUI::init(VkQueue inQueue, VkFormat format) { //TODO: Global info for textures (depth is still hard-coded below)
 	CVulkanRenderer& renderer = *CVulkanRenderer::get();
 
 	// Setup Dear ImGui context
@@ -54,7 +54,7 @@ void SEngineUI::init(VkQueue inQueue, VkFormat format) {
 	};
 
 	CDescriptorPool* descriptorPool;
-	renderer.mGlobalResourceManager.push(descriptorPool, poolCreateInfo);
+	renderer.mGlobalResourceManager.create(descriptorPool, poolCreateInfo);
 
 	// this initializes imgui for Vulkan
 	ImGui_ImplVulkan_InitInfo initInfo {
@@ -72,6 +72,7 @@ void SEngineUI::init(VkQueue inQueue, VkFormat format) {
 	initInfo.PipelineRenderingCreateInfo = {.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};
 	initInfo.PipelineRenderingCreateInfo.colorAttachmentCount = 1;
 	initInfo.PipelineRenderingCreateInfo.pColorAttachmentFormats = &format;
+	initInfo.PipelineRenderingCreateInfo.depthAttachmentFormat = VK_FORMAT_D32_SFLOAT;
 
 	initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 
@@ -83,19 +84,6 @@ void SEngineUI::destroy() {
 	ImGui_ImplVulkan_Shutdown();
 	ImGui_ImplSDL3_Shutdown();
 	ImGui::DestroyContext();
-}
-
-void SEngineUI::render(VkCommandBuffer cmd, VkExtent2D inExtent, VkImageView inTargetImageView) {
-	ImGui::Render();
-
-	VkRenderingAttachmentInfo colorAttachment = CVulkanUtils::createAttachmentInfo(inTargetImageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-	VkRenderingInfo renderInfo = CVulkanUtils::createRenderingInfo(inExtent, &colorAttachment, nullptr);
-
-	vkCmdBeginRendering(cmd, &renderInfo);
-
-	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
-
-	vkCmdEndRendering(cmd);
 }
 
 void SEngineUI::renderSceneUI() {
@@ -380,7 +368,7 @@ void SEngineUI::renderMeshUI() {
 	ImGui::End();
 }
 
-void SEngineUI::runEngineUI() {
+void SEngineUI::render(VkCommandBuffer cmd) {
 	// Render Engine Settings
 	CEngineSettings::render();
 
@@ -389,4 +377,7 @@ void SEngineUI::runEngineUI() {
 	renderSpriteUI();
 	renderMeshUI();
 	renderSceneUI();
+
+	ImGui::Render();
+	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
 }

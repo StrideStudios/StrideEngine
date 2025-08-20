@@ -1,4 +1,5 @@
-﻿#include "Engine.h"
+﻿#include "EditorRenderer.h"
+#include "Engine.h"
 #include "Scene.h"
 #include "renderer/VulkanRenderer.h"
 #include "EngineSettings.h"
@@ -13,7 +14,7 @@ ADD_TEXT(DeltaTime);
 
 int main() {
 
-	CVulkanRenderer* renderer = new CVulkanRenderer();
+	const auto renderer = new CEditorRenderer();
 	CRenderer::set(renderer);
 
 	CEngine::get().init();

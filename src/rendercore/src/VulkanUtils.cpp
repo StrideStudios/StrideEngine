@@ -3,6 +3,7 @@
 #include <vulkan/vulkan_core.h>
 #include <vulkan/vk_enum_string_helper.h>
 
+#include "VulkanResources.h"
 #include "tracy/Tracy.hpp"
 
 VkImageSubresourceRange CVulkanUtils::imageSubresourceRange(VkImageAspectFlags inAspectMask) {
@@ -50,7 +51,7 @@ void CVulkanUtils::copyImageToImage(VkCommandBuffer inCmd, VkImage inSource, VkI
 	vkCmdBlitImage2(inCmd, &blitInfo);
 }
 
-void CVulkanUtils::transitionImage(VkCommandBuffer inCmd, VkImage inImage, VkImageLayout inCurrentLayout, VkImageLayout inNewLayout) {
+void CVulkanUtils::transitionImage(SCommandBuffer& inCmd, SImage_T* inImage, VkImageLayout inLayout) {
 	ZoneScopedN("Transition Image");
 
 	VkImageMemoryBarrier2 imageBarrier {.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2};
@@ -62,12 +63,12 @@ void CVulkanUtils::transitionImage(VkCommandBuffer inCmd, VkImage inImage, VkIma
 	imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
 	imageBarrier.dstAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT | VK_ACCESS_2_MEMORY_READ_BIT;
 
-	imageBarrier.oldLayout = inCurrentLayout;
-	imageBarrier.newLayout = inNewLayout;
+	imageBarrier.oldLayout = inImage->mLayout;
+	imageBarrier.newLayout = inLayout;
 
-	VkImageAspectFlags aspectMask = (inNewLayout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+	VkImageAspectFlags aspectMask = (inLayout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
 	imageBarrier.subresourceRange = imageSubresourceRange(aspectMask);
-	imageBarrier.image = inImage;
+	imageBarrier.image = inImage->mImage;
 
 	VkDependencyInfo depInfo {
 		.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
@@ -77,6 +78,9 @@ void CVulkanUtils::transitionImage(VkCommandBuffer inCmd, VkImage inImage, VkIma
 	};
 
 	vkCmdPipelineBarrier2(inCmd, &depInfo);
+
+	inImage->mLayout = inLayout;
+	inCmd.imageTransitions.push_front(inImage);
 }
 
 VkRenderingAttachmentInfo CVulkanUtils::createAttachmentInfo(VkImageView view, VkClearValue* clear ,VkImageLayout layout) {
