@@ -225,6 +225,30 @@ void CVulkanRenderer::render() {
 		VkRenderingAttachmentInfo colorAttachment = CVulkanUtils::createAttachmentInfo(mEngineTextures->mDrawImage->mImageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 		VkRenderingAttachmentInfo depthAttachment = CVulkanUtils::createDepthAttachmentInfo(mEngineTextures->mDepthImage->mImageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
+		/*  Each RenderAttachmentInfo has a few members
+			VkStructureType          sType; // Doesn't need to be changed
+		    const void*              pNext; // Should always be nullptr
+		    VkImageView              imageView; // Can be provided by images
+		    VkImageLayout            imageLayout; // Can be provided by images
+		    VkResolveModeFlagBits    resolveMode; // For MSAA, currently unused
+		    VkImageView              resolveImageView;
+		    VkImageLayout            resolveImageLayout;
+		    VkAttachmentLoadOp       loadOp; // Load and store can be a custom enum
+		    VkAttachmentStoreOp      storeOp;
+		    VkClearValue             clearValue;
+
+		    VkStructureType                     sType; // Doesn't need to be changed
+		    const void*                         pNext; // Should always be nullptr
+		    VkRenderingFlags                    flags;
+		    VkRect2D                            renderArea; // Determined by image
+		    uint32_t                            layerCount; // Determined by image
+		    uint32_t                            viewMask;
+		    uint32_t                            colorAttachmentCount; // Determined by vector of color attachements
+		    const VkRenderingAttachmentInfo*    pColorAttachments;
+		    const VkRenderingAttachmentInfo*    pDepthAttachment;
+		    const VkRenderingAttachmentInfo*    pStencilAttachment;
+		 */
+
 		VkExtent2D extent {
 			CEngineViewport::get().mExtent.x,
 			CEngineViewport::get().mExtent.y
@@ -262,20 +286,35 @@ void CVulkanRenderer::render() {
 		{
 			ZoneScopedN("Render");
 
-			VkRenderingInfo renderInfo = CVulkanUtils::createRenderingInfo(extent, &colorAttachment, &depthAttachment);
-			vkCmdBeginRendering(cmd, &renderInfo); //TODO: when adding passes, this should be automatically determined with 'Global info for textures' as input (virtual func)
-
-			auto& passes = CPass::getPasses();
-			for (CPass* pass : passes) {
+			CPass* previousPass = nullptr;
+			for (CPass* pass : CPass::getPasses()) {
 				ZoneScoped;
 				ZoneName(pass->getName().c_str(), pass->getName().size());
 
+				// Restart rendering if passes have different rendering info
+				if (previousPass) {
+					if (!pass->hasSameRenderingInfo(previousPass)) {
+						//vkCmdEndRendering(cmd);
+						//pass->beginRendering(cmd, CEngineViewport::get().mExtent, *mEngineTextures);
+					}
+				} else {
+					//pass->beginRendering(cmd, CEngineViewport::get().mExtent, *mEngineTextures);
+				}
+
+				pass->beginRendering(cmd, CEngineViewport::get().mExtent, *mEngineTextures);
 				pass->render(cmd);
+				previousPass = pass;
+				vkCmdEndRendering(cmd);
 			}
+
+			//vkCmdEndRendering(cmd);
 
 			//mBasePass->render(cmd);
 
 			//mSpritePass->render(cmd);
+
+			VkRenderingInfo info = CVulkanUtils::createRenderingInfo(extent, &colorAttachment, &depthAttachment);
+			vkCmdBeginRendering(cmd, &info);
 
 			{
 				ZoneScopedN("Engine UI");

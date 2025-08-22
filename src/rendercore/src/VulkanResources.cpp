@@ -4,6 +4,46 @@
 
 CVulkanResourceManager gInstancerManager;
 
+VkRenderingAttachmentInfo SRenderAttachment::get(const SImage_T* inImage) const {
+	VkRenderingAttachmentInfo info {
+		.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+		.pNext = nullptr,
+		.loadOp = mLoadOp,
+		.storeOp = mStoreOp
+	};
+
+	if (inImage) {
+		info.imageView = inImage->mImageView;
+		info.imageLayout = inImage->mLayout;
+	}
+
+	switch (mType) {
+		case EAttachmentType::COLOR:
+			info.clearValue = {
+				.color = {
+					.float32 = {
+						mClearValue[0],
+						mClearValue[1],
+						mClearValue[2],
+						mClearValue[3]
+					}
+				}
+			};
+			break;
+		case EAttachmentType::DEPTH:
+		case EAttachmentType::STENCIL:
+			info.clearValue = {
+				.depthStencil = {
+					.depth = mClearValue[0],
+					.stencil = static_cast<uint32>(mClearValue[1])
+				}
+			};
+			break;
+	}
+
+	return info;
+}
+
 SInstancer::SInstancer(const uint32 initialSize) {
 	instances.resize(initialSize);
 	setDirty();
@@ -12,7 +52,7 @@ SInstancer::SInstancer(const uint32 initialSize) {
 SInstancer::~SInstancer() {
 
 	//TODO: Temporary wait until proper destruction
-	CRenderer::get()->wait();
+	vkDeviceWaitIdle(CRenderer::device());
 
 	gInstancerManager.flush();
 }
@@ -29,6 +69,9 @@ void SInstancer::reallocate(const Matrix4f& parentMatrix) {
 
 	// Reallocate if buffer size has changed
 	if (!instanceBuffer || instanceBuffer->info.size != bufferSize) {
+		//TODO: Temporary wait until proper destruction
+		vkDeviceWaitIdle(CRenderer::device());
+
 		gInstancerManager.flush();
 
 		instanceBuffer = gInstancerManager.allocateBuffer(bufferSize, VMA_MEMORY_USAGE_GPU_ONLY, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
@@ -41,7 +84,6 @@ void SInstancer::reallocate(const Matrix4f& parentMatrix) {
 	void* data = staging->GetMappedData();
 	memcpy(data, inputData.data(), bufferSize);
 
-	// TODO: shouldnt have instancer here, but its necessary for instanced static mesh object...
 	CRenderer::get()->immediateSubmit([&](SCommandBuffer& cmd) {
 		VkBufferCopy vertexCopy{};
 		vertexCopy.dstOffset = 0;

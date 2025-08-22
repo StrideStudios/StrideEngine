@@ -30,9 +30,23 @@ public:
 
 	void bindPipeline(VkCommandBuffer cmd, CPipeline* inPipeline, const struct SPushConstants& inConstants);
 
+	void beginRendering(VkCommandBuffer cmd, Extent32u inExtent, const class CEngineTextures& inEngineTextures) const;
+
+	bool hasSameRenderingInfo(const CPass* inOther) const;
+
 protected:
 
 	static void addPass(CPass* pass);
+
+	virtual VkRenderingFlagBits getRenderingInfoFlags() const { return static_cast<VkRenderingFlagBits>(0); }
+
+	virtual bool isResolvePass() const { return false; }
+
+	virtual SRenderAttachment getColorAttachment() const { return SRenderAttachment::defaultColor(); }
+
+	virtual SRenderAttachment getDepthAttachment() const { return SRenderAttachment::defaultDepth(); }
+
+	virtual SRenderAttachment getStencilAttachment() const { return SRenderAttachment::defaultStencil(); }
 
 private:
 

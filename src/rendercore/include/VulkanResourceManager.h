@@ -175,7 +175,6 @@ public:
 	// Descriptors
 	//
 
-	//TODO: descriptors here
 	static void bindDescriptorSets(VkCommandBuffer cmd, VkPipelineBindPoint inBindPoint, VkPipelineLayout inPipelineLayout, uint32 inFirstSet, uint32 inDescriptorSetCount, const VkDescriptorSet& inDescriptorSets);
 
 	//

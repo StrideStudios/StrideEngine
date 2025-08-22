@@ -117,6 +117,7 @@ VkRenderingInfo CVulkanUtils::createRenderingInfo(VkExtent2D inExtent, VkRenderi
 		.pNext = nullptr,
 		.renderArea = VkRect2D { VkOffset2D { 0, 0 }, inExtent },
 		.layerCount = 1,
+		.viewMask = 0,
 		.colorAttachmentCount = 1,
 		.pColorAttachments = inColorAttachement,
 		.pDepthAttachment = inDepthAttachement,

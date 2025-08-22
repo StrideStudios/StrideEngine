@@ -67,7 +67,7 @@ public:
 
 	no_discard virtual CSwapchain* getSwapchain() = 0;
 
-	virtual void immediateSubmit(std::function<void(struct SCommandBuffer& cmd)>&& function) = 0; //TODO: SCommandBuffer
+	virtual void immediateSubmit(std::function<void(struct SCommandBuffer& cmd)>&& function) = 0;
 
 	virtual void render() = 0;
 

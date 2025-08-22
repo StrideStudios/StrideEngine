@@ -37,7 +37,7 @@ SSwapchain::SSwapchain(const vkb::Result<vkb::Swapchain>& inSwapchainBuilder) {
 	mSwapchainRenderSemaphores.resize(images.size());
 	mSwapchainImages.resize(images.size());
 
-	for (uint32 i = 0; i < (uint32)images.size(); ++i) { //TODO: these cause vkDestroyImage errors
+	for (uint32 i = 0; i < (uint32)images.size(); ++i) {
 		gSwapchainResourceManager.create(mSwapchainRenderSemaphores[i], semaphoreCreateInfo);
 		gSwapchainResourceManager.create(mSwapchainImages[i]);
 		mSwapchainImages[i]->mImage = images[i];

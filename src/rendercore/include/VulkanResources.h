@@ -45,6 +45,49 @@ CREATE_VK_TYPE(Sampler);
 CREATE_VK_TYPE(Semaphore);
 CREATE_VK_TYPE(ShaderModule);
 
+enum class EAttachmentType : uint8 {
+	COLOR,
+	DEPTH,
+	STENCIL
+};
+
+struct EXPORT SRenderAttachment {
+	VkAttachmentLoadOp mLoadOp = VK_ATTACHMENT_LOAD_OP_NONE;
+	VkAttachmentStoreOp mStoreOp = VK_ATTACHMENT_STORE_OP_NONE;
+	EAttachmentType mType = EAttachmentType::COLOR;
+	Vector4f mClearValue = Vector4f{0.f};
+
+	constexpr static SRenderAttachment defaultColor() {
+		return {
+			.mLoadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
+			.mStoreOp = VK_ATTACHMENT_STORE_OP_STORE,
+			.mType = EAttachmentType::COLOR
+		};
+	}
+
+	constexpr static SRenderAttachment defaultDepth() {
+		return {
+			.mLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+			.mStoreOp = VK_ATTACHMENT_STORE_OP_STORE,
+			.mType = EAttachmentType::DEPTH
+		};
+	}
+
+	constexpr static SRenderAttachment defaultStencil() {
+		return {
+			.mLoadOp = VK_ATTACHMENT_LOAD_OP_NONE,
+			.mStoreOp = VK_ATTACHMENT_STORE_OP_NONE,
+			.mType = EAttachmentType::STENCIL
+		};
+	}
+
+	VkRenderingAttachmentInfo get(const SImage_T* inImage) const;
+
+	bool operator==(const SRenderAttachment& inOther) const {
+		return mLoadOp == inOther.mLoadOp && mStoreOp == inOther.mStoreOp && mClearValue == inOther.mClearValue;
+	}
+};
+
 struct SImage_T : IDestroyable {
 	std::string name = "Image";
 	VkImage mImage = nullptr;

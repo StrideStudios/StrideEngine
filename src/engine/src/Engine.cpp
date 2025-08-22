@@ -87,8 +87,6 @@ void CEngine::run() {
 			continue;
 		}
 
-		// TODO: Update the camera
-
 		// Run the game loop
 		CThreading::getGameThread().run([this] {
 			update();
