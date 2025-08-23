@@ -78,20 +78,20 @@ void CVulkanRenderer::init() {
 	SDL_Vulkan_CreateSurface(CEngineViewport::get().mWindow, m_Instance->mInstance, nullptr, &mVkSurface);
 
 	// Create the vulkan device
-	gInstanceManager.create(m_Device);
+	gInstanceManager.create(m_Device, m_Instance, mVkSurface);
 
 	// Initialize the allocator
-	CVulkanResourceManager::init();
+	CVulkanResourceManager::init(this);
 
 	VkCommandPoolCreateInfo uploadCommandPoolInfo = CVulkanInfo::createCommandPoolInfo(CVulkanDevice::getQueue(EQueueType::UPLOAD).mFamily);
 	//create pool for upload context
-	mGlobalResourceManager.create(mUploadContext.mCommandPool, uploadCommandPoolInfo);
+	getResourceManager().create(mUploadContext.mCommandPool, uploadCommandPoolInfo);
 
 	//allocate the default command buffer that we will use for the instant commands
 	mUploadContext.mCommandBuffer = SCommandBuffer(mUploadContext.mCommandPool);
 
 	VkFenceCreateInfo fenceCreateInfo = CVulkanInfo::createFenceInfo(VK_FENCE_CREATE_SIGNALED_BIT);
-	mGlobalResourceManager.create(mUploadContext.mUploadFence, fenceCreateInfo);
+	getResourceManager().create(mUploadContext.mUploadFence, fenceCreateInfo);
 
 	{
 		// Create a command pool for commands submitted to the graphics queue.
@@ -100,7 +100,7 @@ void CVulkanRenderer::init() {
 			CVulkanDevice::getQueue(EQueueType::GRAPHICS).mFamily, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
 		for (auto &frame: mFrames) {
-			mGlobalResourceManager.create(frame.mCommandPool, commandPoolInfo);
+			getResourceManager().create(frame.mCommandPool, commandPoolInfo);
 
 			// Allocate the default command buffer that we will use for rendering
 			frame.mMainCommandBuffer = SCommandBuffer(frame.mCommandPool);
@@ -109,19 +109,25 @@ void CVulkanRenderer::init() {
 		}
 	}
 
-	mGlobalResourceManager.create(mEngineTextures);
+	getResourceManager().create(mEngineTextures);
 
-	mSceneDataBuffer = mGlobalResourceManager.allocateGlobalBuffer(sizeof(SceneData), VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
+	mSceneDataBuffer = getResourceManager().allocateGlobalBuffer(sizeof(SceneData), VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
 
-	mGlobalResourceManager.create(mBasePass);//, EMeshPass::BASE_PASS);
+	getResourceManager().create(mBasePass);//, EMeshPass::BASE_PASS);
 
-	mGlobalResourceManager.create(mSpritePass);
+	getResourceManager().create(mSpritePass);
 
 	// Setup Engine UI
 	SEngineUI::init(CVulkanDevice::getQueue(EQueueType::GRAPHICS).mQueue, mEngineTextures->mDrawImage->mImageFormat);
 
 	// Load textures and meshes
 	CEngineLoader::load();
+
+	// Initialize passes
+	for (const auto pass : getPasses()) {
+		CResourceManager::get().push(pass);
+		pass->init();
+	}
 }
 
 void CVulkanRenderer::destroy() {
@@ -134,7 +140,7 @@ void CVulkanRenderer::destroy() {
 		frame.mFrameResourceManager.flush();
 	}
 
-	mGlobalResourceManager.flush();
+	CRenderer::destroy();
 
 	// Destroy allocator, if not all allocations have been destroyed, it will throw an error
 	CVulkanResourceManager::destroy();
@@ -287,7 +293,7 @@ void CVulkanRenderer::render() {
 			ZoneScopedN("Render");
 
 			CPass* previousPass = nullptr;
-			for (CPass* pass : CPass::getPasses()) {
+			for (CPass* pass : getPasses()) {
 				ZoneScoped;
 				ZoneName(pass->getName().c_str(), pass->getName().size());
 

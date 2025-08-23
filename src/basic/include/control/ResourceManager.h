@@ -2,6 +2,8 @@
 
 #include <deque>
 
+#include "core/Common.h"
+
 struct IDestroyable {
 	virtual ~IDestroyable() = default;
 
@@ -24,6 +26,9 @@ class CResourceManager {
 
 public:
 
+	// Gets a global version of the resource manager that is destroyed upon engine stop
+	EXPORT static CResourceManager& get();
+
 	// Flush resources if out of scope
 	virtual ~CResourceManager() {
 		CResourceManager::flush();
@@ -36,7 +41,7 @@ public:
 		if constexpr (std::is_base_of_v<SInitializable, TType>) {
 			outType->init();
 		}
-		m_Destroyables.push_back(outType);
+		push(outType);
 	}
 
 	template <typename TTargetType, typename TType>
@@ -54,7 +59,7 @@ public:
 		} else {
 			outType = new TType(args...);
 		}
-		m_Destroyables.push_back(outType);
+		push(outType);
 	}
 
 	template <typename TTargetType, typename TType, typename... TArgs>
@@ -66,9 +71,6 @@ public:
 	template <typename TType>
 	requires std::is_base_of_v<IDestroyable, TType>
 	void push(TType* inType) {
-		if constexpr (std::is_base_of_v<SInitializable, TType>) {
-			inType->init();
-		}
 		m_Destroyables.push_back(inType);
 	}
 

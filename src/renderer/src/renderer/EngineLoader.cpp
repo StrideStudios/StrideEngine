@@ -423,7 +423,7 @@ std::shared_ptr<SStaticMesh> toStaticMesh(const std::shared_ptr<SMeshData>& mesh
 		});
 	}
 
-	loadMesh->meshBuffers = uploadMesh(renderer.mGlobalResourceManager, mesh->indices, mesh->vertices);
+	loadMesh->meshBuffers = uploadMesh(renderer.getResourceManager(), mesh->indices, mesh->vertices);
 	return loadMesh;
 }
 
@@ -465,7 +465,7 @@ void CEngineLoader::load() {
 
 	// Load textures
 	for (const auto& path : textures) {
-		SImage_T* image = loadImage(CVulkanRenderer::get()->mGlobalResourceManager, path);
+		SImage_T* image = loadImage(CVulkanRenderer::get()->getResourceManager(), path);
 		get().mImages.emplace(pathToName(path), image);
 	}
 
@@ -516,7 +516,7 @@ void CEngineLoader::importTexture(const std::filesystem::path& inPath) {
 
 	basisu::basis_free_data(pKTX2_data);
 
-	SImage_T* loadedImage = loadImage(CVulkanRenderer::get()->mGlobalResourceManager, cachedPath);
+	SImage_T* loadedImage = loadImage(CVulkanRenderer::get()->getResourceManager(), cachedPath);
 
 	get().mImages.emplace(loadedImage->name, loadedImage);
 }

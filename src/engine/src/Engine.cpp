@@ -15,7 +15,6 @@ ADD_TEXT(DeltaTime);
 #undef SETTINGS_CATEGORY
 
 static CEngine gEngine;
-static CResourceManager gEngineResourceManager;
 
 CEngine& CEngine::get() {
 	return gEngine;
@@ -27,11 +26,7 @@ void CEngine::init() {
 	astsOnce(CEngine)
 
 	// Initialize the viewport
-	gEngineResourceManager.create(m_EngineViewport);
-
-	// Add the renderer
-	assert(CRenderer::get());
-	gEngineResourceManager.push(CRenderer::get());
+	CResourceManager::get().create(m_EngineViewport);
 }
 
 void CEngine::end() {
@@ -40,9 +35,6 @@ void CEngine::end() {
 	if (!CRenderer::get()->wait()) {
 		errs("Engine did not stop properly!");
 	}
-
-	// Flush Engine Resources
-	gEngineResourceManager.flush();
 
 	// Stop 'main thread'
 	CThreading::getMainThread().stop();

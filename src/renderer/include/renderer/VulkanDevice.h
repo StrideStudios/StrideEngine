@@ -29,13 +29,13 @@ static std::map<vkb::QueueType, std::map<EQueueType, float>> queueFamilies {
     },
 };
 
-class CVulkanDevice : public CDevice, public IInitializable<>, public IDestroyable {
+class CVulkanDevice : public CDevice, public IInitializable<class CVulkanInstance*, VkSurfaceKHR>, public IDestroyable {
 
 public:
 
     static SQueue getQueue(EQueueType inType);
 
-    virtual void init() override;
+    virtual void init(CVulkanInstance* inInstance, VkSurfaceKHR inSurface) override;
 
     virtual void destroy() override;
 

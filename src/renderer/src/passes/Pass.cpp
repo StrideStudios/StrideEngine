@@ -5,16 +5,6 @@
 #include "renderer/EngineTextures.h"
 #include "renderer/VulkanRenderer.h"
 
-static std::set<CPass*> gPasses;
-
-std::set<CPass*>& CPass::getPasses() {
-	return gPasses;
-}
-
-void CPass::addPass(CPass* pass) {
-	gPasses.insert(pass);
-}
-
 void CPass::beginRendering(VkCommandBuffer cmd, const Extent32u inExtent, const CEngineTextures& inEngineTextures) const {
 	VkRenderingAttachmentInfo colorAttachment = getColorAttachment().get(inEngineTextures.mDrawImage);
 	VkRenderingAttachmentInfo depthAttachment = getDepthAttachment().get(inEngineTextures.mDepthImage);

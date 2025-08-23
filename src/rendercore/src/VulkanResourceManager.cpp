@@ -63,15 +63,15 @@ VkDescriptorSet& CVulkanResourceManager::getBindlessDescriptorSet() {
 
 CVulkanResourceManager gGlobalResourceManager;
 
-void CVulkanResourceManager::init() {
+void CVulkanResourceManager::init(CRenderer* inRenderer) {
 
 	// initialize the memory allocator
 	{
 		VmaAllocatorCreateInfo allocatorInfo {
 			.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT,
-			.physicalDevice = CRenderer::physicalDevice(),
-			.device = CRenderer::device(),
-			.instance = CRenderer::instance()
+			.physicalDevice = inRenderer->getDevice()->getPhysicalDevice(),
+			.device = inRenderer->getDevice()->getDevice(),
+			.instance = inRenderer->getInstance()->getInstance()
 		};
 
 		VK_CHECK(vmaCreateAllocator(&allocatorInfo, &getAllocator()));

@@ -53,19 +53,19 @@ void CMeshPass::init() {
 	attributes << VK_FORMAT_R32G32B32A32_SFLOAT;
 	attributes << VK_FORMAT_R32G32B32A32_SFLOAT;
 
-	opaquePipeline = renderer.mGlobalResourceManager.allocatePipeline(createInfo, attributes, CVulkanResourceManager::getBasicPipelineLayout());
+	opaquePipeline = renderer.getResourceManager().allocatePipeline(createInfo, attributes, CVulkanResourceManager::getBasicPipelineLayout());
 
 	// Transparent should be additive and always render in front
 	createInfo.mBlendMode = EBlendMode::ADDITIVE;
 	createInfo.mDepthTestMode = EDepthTestMode::FRONT;
 
-	transparentPipeline = renderer.mGlobalResourceManager.allocatePipeline(createInfo, attributes, CVulkanResourceManager::getBasicPipelineLayout());
+	transparentPipeline = renderer.getResourceManager().allocatePipeline(createInfo, attributes, CVulkanResourceManager::getBasicPipelineLayout());
 
 	createInfo.fragmentModule = *errorFrag.mModule;
 	createInfo.mBlendMode = EBlendMode::NONE;
 	createInfo.mDepthTestMode = EDepthTestMode::NORMAL;
 
-	errorPipeline = renderer.mGlobalResourceManager.allocatePipeline(createInfo, attributes, CVulkanResourceManager::getBasicPipelineLayout());
+	errorPipeline = renderer.getResourceManager().allocatePipeline(createInfo, attributes, CVulkanResourceManager::getBasicPipelineLayout());
 
 	createInfo.vertexModule = *wireframeVert.mModule;
 	createInfo.fragmentModule = *basicFrag.mModule;
@@ -74,7 +74,7 @@ void CMeshPass::init() {
 	createInfo.mCullMode = VK_CULL_MODE_NONE;
 	createInfo.mLineWidth = 5.f;
 
-	wireframePipeline = renderer.mGlobalResourceManager.allocatePipeline(createInfo, attributes, CVulkanResourceManager::getBasicPipelineLayout());
+	wireframePipeline = renderer.getResourceManager().allocatePipeline(createInfo, attributes, CVulkanResourceManager::getBasicPipelineLayout());
 
 	manager.flush();
 }

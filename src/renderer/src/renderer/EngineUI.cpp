@@ -54,7 +54,7 @@ void SEngineUI::init(VkQueue inQueue, VkFormat format) { //TODO: Global info for
 	};
 
 	CDescriptorPool* descriptorPool;
-	renderer.mGlobalResourceManager.create(descriptorPool, poolCreateInfo);
+	renderer.getResourceManager().create(descriptorPool, poolCreateInfo);
 
 	// this initializes imgui for Vulkan
 	ImGui_ImplVulkan_InitInfo initInfo {

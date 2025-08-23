@@ -13,7 +13,7 @@ static CVulkanResourceManager gTexturesResourceManager;
 
 void CEngineTextures::init() {
 
-	CVulkanRenderer::get()->mGlobalResourceManager.create(m_Swapchain);
+	CVulkanRenderer::get()->getResourceManager().create(m_Swapchain);
 
 	// Initialize samplers
 	// Default samplers repeat and do not have anisotropy
@@ -30,14 +30,14 @@ void CEngineTextures::init() {
 		samplerCreateInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
 
 		CSampler* samplerNearest;
-		CVulkanRenderer::get()->mGlobalResourceManager.create(samplerNearest, samplerCreateInfo);
+		CVulkanRenderer::get()->getResourceManager().create(samplerNearest, samplerCreateInfo);
 
 		samplerCreateInfo.magFilter = VK_FILTER_LINEAR;
 		samplerCreateInfo.minFilter = VK_FILTER_LINEAR;
 		samplerCreateInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
 
 		CSampler* samplerLinear;
-		CVulkanRenderer::get()->mGlobalResourceManager.create(samplerLinear, samplerCreateInfo);
+		CVulkanRenderer::get()->getResourceManager().create(samplerLinear, samplerCreateInfo);
 
 		const auto imageDescriptorInfo = VkDescriptorImageInfo{
 			.sampler = *samplerNearest};
@@ -82,7 +82,7 @@ void CEngineTextures::init() {
 
 	constexpr VkExtent3D extent(16, 16, 1);
 	constexpr int32 size = extent.width * extent.height * extent.depth * 4;
-	mErrorCheckerboardImage = CVulkanRenderer::get()->mGlobalResourceManager.allocateImage(pixels.data(), size, "Default Error", extent, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+	mErrorCheckerboardImage = CVulkanRenderer::get()->getResourceManager().allocateImage(pixels.data(), size, "Default Error", extent, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
 
 	{
 		mErrorMaterial = std::make_shared<CMaterial>();

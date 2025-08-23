@@ -8,6 +8,7 @@
         include/control/ClassManager.h
         src/control/ClassManager.cpp
         include/control/ResourceManager.h
+        src/control/ResourceManager.cpp
 )
 
 set_target_properties(StrideEngine-basic PROPERTIES LINKER_LANGUAGE CXX)

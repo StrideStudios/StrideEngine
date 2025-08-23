@@ -88,13 +88,6 @@ public:
 	// Tell children to render
 	virtual void render(VkCommandBuffer cmd) {};
 
-
-	/*
-	 * This resource allocator is flushed when the renderer is destroyed
-	 * This is useful for any objects that need a persistent lifetime
-	 */
-	CVulkanResourceManager mGlobalResourceManager;
-
 	// Stores textures used internally by the engine
 	CEngineTextures* mEngineTextures = nullptr;
 

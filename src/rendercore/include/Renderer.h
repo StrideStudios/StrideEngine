@@ -9,6 +9,8 @@ namespace vkb {
 	struct PhysicalDevice;
 }
 
+class CPass;
+
 /*
  * Base classes for engine access
  */
@@ -47,19 +49,30 @@ public:
 
 };
 
-class CRenderer : public IInitializable<>, public IDestroyable {
+class EXPORT CRenderer : public IInitializable<>, public IDestroyable {
 
 public:
 
-	EXPORT static CRenderer* get();
+	static CRenderer* get();
 
-	EXPORT static void set(CRenderer* inRenderer);
+	template <typename TType>
+	static void create(const std::forward_list<CPass*>& inPasses) {
+		TType* renderer = new TType();
+		set(renderer);
+		CResourceManager::get().push(renderer);
+		get()->m_Passes = inPasses;
+		renderer->init();
+	}
 
 	static const vkb::Instance& instance() { return get()->getInstance()->getInstance(); }
 
 	static const vkb::PhysicalDevice& physicalDevice() { return get()->getDevice()->getPhysicalDevice(); }
 
 	static const vkb::Device& device() { return get()->getDevice()->getDevice(); }
+
+	static class CVulkanResourceManager& getResourceManager();
+
+	virtual void destroy() override;
 
 	no_discard virtual CInstance* getInstance() = 0;
 
@@ -72,5 +85,14 @@ public:
 	virtual void render() = 0;
 
 	no_discard virtual bool wait() = 0;
+
+	std::forward_list<CPass*> getPasses() const { return m_Passes; }
+
+private:
+
+	static void set(CRenderer* inRenderer);
+
+
+	std::forward_list<CPass*> m_Passes;
 
 };

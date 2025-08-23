@@ -7,11 +7,9 @@
 
 #define DEFINE_PASS(className) \
 	className(): CPass(#className) {} \
-	static void enable(CResourceManager& manager) { \
-		astsOnce(className); \
-		CPass* pass; \
-		manager.create<className>(pass); \
-		CPass::addPass(pass); \
+	static CPass* make() { \
+		className* pass = new className(); \
+		return pass; \
 	}
 
 class EXPORT CPass : public IInitializable<>, public IDestroyable {
@@ -21,8 +19,6 @@ public:
 	CPass(): m_Name("Empty Pass") {}
 
 	CPass(const std::string& inPassName): m_Name(inPassName) {}
-
-	static std::set<CPass*>& getPasses();
 
 	virtual void render(VkCommandBuffer cmd) = 0;
 
@@ -35,8 +31,6 @@ public:
 	bool hasSameRenderingInfo(const CPass* inOther) const;
 
 protected:
-
-	static void addPass(CPass* pass);
 
 	virtual VkRenderingFlagBits getRenderingInfoFlags() const { return static_cast<VkRenderingFlagBits>(0); }
 

@@ -1,30 +1,34 @@
 ﻿#include "EditorRenderer.h"
 #include "Engine.h"
 #include "Scene.h"
-#include "renderer/VulkanRenderer.h"
-#include "EngineSettings.h"
 #include "passes/MeshPass.h"
+#include "passes/SpritePass.h"
 
 int main() {
 
-	const auto renderer = new CEditorRenderer();
-	CRenderer::set(renderer);
-
-	CResourceManager passManager;
-
 	CEngine::get().init();
 
-	CMeshPass::enable(passManager);
+	// Create a renderer with certain passes
+	CRenderer::create<CEditorRenderer>({
+		CMeshPass::make(),
+		CSpritePass::make()
+	});
 
 	CScene::get().init();
 
 	CEngine::get().run();
 
+	// Wait for the gpu to finish instructions
+	if (!CRenderer::get()->wait()) {
+		errs("Engine did not stop properly!");
+	}
+
+	// Stop 'main thread'
+	CThreading::getMainThread().stop();
+
 	CScene::get().destroy();
 
-	CEngine::get().end();
-
-	passManager.flush();
+	CResourceManager::get().flush();
 
 	return 0;
 }

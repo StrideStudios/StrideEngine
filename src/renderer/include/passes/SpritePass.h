@@ -11,7 +11,7 @@ class EXPORT CSpritePass : public CPass {
 
 public:
 
-	CSpritePass(): CPass("SpritePass") {}
+	DEFINE_PASS(CSpritePass)
 
 	virtual void init() override;
 
@@ -32,7 +32,7 @@ public:
 	}
 
 	// Sprites used to render this pass
-	std::set<std::shared_ptr<CSprite>> objects;
+	std::set<std::shared_ptr<CSprite>> objects{};
 
 	//
 	// Pipelines

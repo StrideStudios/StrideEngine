@@ -2,6 +2,9 @@
 
 #include "renderer/VulkanRenderer.h"
 
-class CEditorRenderer :public CVulkanRenderer {
+class EXPORT CEditorRenderer :public CVulkanRenderer {
 
+public:
+
+	virtual void init() override;
 };

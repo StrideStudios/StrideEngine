@@ -152,7 +152,7 @@ public:
 
 	CVulkanResourceManager() = default;
 
-	static void init();
+	static void init(CRenderer* inRenderer);
 
 	static void destroy();
 

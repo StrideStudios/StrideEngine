@@ -1,12 +1,13 @@
 ﻿#include "renderer/VulkanDevice.h"
 
+#include "renderer/VulkanInstance.h"
 #include "renderer/VulkanRenderer.h"
 
 SQueue CVulkanDevice::getQueue(const EQueueType inType) {
     return CVulkanRenderer::get()->m_Device->mQueues[inType];
 }
 
-void CVulkanDevice::init() {
+void CVulkanDevice::init(CVulkanInstance* inInstance, VkSurfaceKHR inSurface) {
     // Swapchain Maintenance features
     VkPhysicalDeviceSwapchainMaintenance1FeaturesEXT swapchainMaintenance1Features{
         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SWAPCHAIN_MAINTENANCE_1_FEATURES_EXT,
@@ -48,14 +49,14 @@ void CVulkanDevice::init() {
     };
 
     //TODO: send out a simple error window telling the user why vulkan crashed (SimpleErrorReporter or something)
-    vkb::PhysicalDeviceSelector selector{CRenderer::instance()};
+    vkb::PhysicalDeviceSelector selector{inInstance->getInstance()};
     auto physicalDevice = selector
             .set_minimum_version(1, 3)
             .set_required_features(features)
             .set_required_features_12(features12)
             .set_required_features_13(features13)
             .add_required_extension_features(swapchainMaintenance1Features)
-            .set_surface(CVulkanRenderer::get()->mVkSurface)
+            .set_surface(inSurface)
             .select();
 
     m_PhysicalDevice = std::make_unique<vkb::PhysicalDevice>(physicalDevice.value());
