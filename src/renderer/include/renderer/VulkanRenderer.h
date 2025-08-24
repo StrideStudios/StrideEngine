@@ -124,14 +124,6 @@ public:
 
 	std::vector<std::shared_ptr<class CSceneObject>> mObjects{};
 
-	//
-	// Passes
-	//
-
-	class CMeshPass* mBasePass = nullptr;
-
-	class CSpritePass* mSpritePass = nullptr;
-
 };
 
 class CNullRenderer final : public CVulkanRenderer {

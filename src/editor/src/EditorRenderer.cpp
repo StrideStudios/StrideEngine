@@ -28,18 +28,15 @@ void CEditorRenderer::init() {
 	sprite->mName = fmts("Instanced Sprite");
 	sprite->material = mEngineTextures->mErrorMaterial;
 
-	for (CPass* pass : getPasses()) {
-		if (const auto spritePass = dynamic_cast<CSpritePass*>(pass)) {
-			spritePass->push(sprite);
-			break;
-		}
-	}
-
 	for (int32 i = 0; i < numSprites; ++i) {
 		Transform2f transform;
 		transform.mPosition = {(float)distribx(gen) / 100.f, (float)distriby(gen) / 100.f};
 		transform.mScale = {0.025f, 0.05f};
 		sprite->addInstance(transform);
+	}
+
+	if (const auto spritePass = getPass<CSpritePass>()) {
+		spritePass->push(sprite);
 	}
 
 	/*Transform2f transform;

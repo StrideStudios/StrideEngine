@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-#include "passes/Pass.h"
+#include "Pass.h"
 
 enum class EMeshPass : uint8 {
 	BASE_PASS

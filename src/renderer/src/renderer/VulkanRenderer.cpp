@@ -113,10 +113,6 @@ void CVulkanRenderer::init() {
 
 	mSceneDataBuffer = getResourceManager().allocateGlobalBuffer(sizeof(SceneData), VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
 
-	getResourceManager().create(mBasePass);//, EMeshPass::BASE_PASS);
-
-	getResourceManager().create(mSpritePass);
-
 	// Setup Engine UI
 	SEngineUI::init(CVulkanDevice::getQueue(EQueueType::GRAPHICS).mQueue, mEngineTextures->mDrawImage->mImageFormat);
 
@@ -292,6 +288,8 @@ void CVulkanRenderer::render() {
 		{
 			ZoneScopedN("Render");
 
+			CEngineViewport::get().set(cmd);
+
 			CPass* previousPass = nullptr;
 			for (CPass* pass : getPasses()) {
 				ZoneScoped;
@@ -300,24 +298,18 @@ void CVulkanRenderer::render() {
 				// Restart rendering if passes have different rendering info
 				if (previousPass) {
 					if (!pass->hasSameRenderingInfo(previousPass)) {
-						//vkCmdEndRendering(cmd);
-						//pass->beginRendering(cmd, CEngineViewport::get().mExtent, *mEngineTextures);
+						vkCmdEndRendering(cmd);
+						pass->beginRendering(cmd, CEngineViewport::get().mExtent, mEngineTextures->mDrawImage, mEngineTextures->mDepthImage);
 					}
 				} else {
-					//pass->beginRendering(cmd, CEngineViewport::get().mExtent, *mEngineTextures);
+					pass->beginRendering(cmd, CEngineViewport::get().mExtent, mEngineTextures->mDrawImage, mEngineTextures->mDepthImage);
 				}
 
-				pass->beginRendering(cmd, CEngineViewport::get().mExtent, *mEngineTextures);
 				pass->render(cmd);
 				previousPass = pass;
-				vkCmdEndRendering(cmd);
 			}
 
-			//vkCmdEndRendering(cmd);
-
-			//mBasePass->render(cmd);
-
-			//mSpritePass->render(cmd);
+			vkCmdEndRendering(cmd);
 
 			VkRenderingInfo info = CVulkanUtils::createRenderingInfo(extent, &colorAttachment, &depthAttachment);
 			vkCmdBeginRendering(cmd, &info);

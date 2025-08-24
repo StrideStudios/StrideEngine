@@ -26,7 +26,7 @@ public:
 
 	void bindPipeline(VkCommandBuffer cmd, CPipeline* inPipeline, const struct SPushConstants& inConstants);
 
-	void beginRendering(VkCommandBuffer cmd, Extent32u inExtent, const class CEngineTextures& inEngineTextures) const;
+	void beginRendering(VkCommandBuffer cmd, Extent32u inExtent, const SImage_T* inColorImage = nullptr, const SImage_T* inDepthImage = nullptr, const SImage_T* inStencilImage = nullptr) const;
 
 	bool hasSameRenderingInfo(const CPass* inOther) const;
 

@@ -88,6 +88,15 @@ public:
 
 	std::forward_list<CPass*> getPasses() const { return m_Passes; }
 
+	template <typename TType>
+	TType* getPass() const {
+		for (auto pass : m_Passes) {
+			if (TType* typePass = dynamic_cast<TType*>(pass))
+				return typePass;
+		}
+		return nullptr;
+	}
+
 private:
 
 	static void set(CRenderer* inRenderer);

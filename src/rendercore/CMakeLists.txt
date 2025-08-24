@@ -9,6 +9,10 @@
         src/VulkanResources.cpp
         include/VulkanUtils.h
         src/VulkanUtils.cpp
+        include/Pass.h
+        src/Pass.cpp
+        include/Instancer.h
+        src/Instancer.cpp
 )
 
 set_target_properties(StrideEngine-rendercore PROPERTIES LINKER_LANGUAGE CXX)

@@ -13,8 +13,6 @@
         include/renderer/EngineUI.h
         src/renderer/EngineUI.cpp
 
-        include/passes/Pass.h
-        src/passes/Pass.cpp
         include/passes/MeshPass.h
         src/passes/MeshPass.cpp
         include/passes/SpritePass.h

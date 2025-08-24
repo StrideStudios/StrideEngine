@@ -3,6 +3,7 @@
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 
+#include "Instancer.h"
 #include "VulkanResources.h"
 
 class CSceneObject : public ISerializable {

@@ -6,6 +6,7 @@
 #include "renderer/VulkanDevice.h"
 #include "tracy/Tracy.hpp"
 #include "EngineSettings.h"
+#include "Sprite.h"
 
 #define SETTINGS_CATEGORY "Rendering/Sprite Pass"
 ADD_TEXT(Sprites, "Sprites: ");
@@ -25,7 +26,7 @@ void CSpritePass::init() {
 
 	const SShader vert = manager.getShader("material\\sprite.vert");
 
-	SPipelineCreateInfo createInfo {
+	const SPipelineCreateInfo createInfo {
 		.vertexModule = *vert.mModule,
 		.fragmentModule = *frag.mModule,
 		.mDepthTestMode = EDepthTestMode::FRONT,
@@ -56,7 +57,7 @@ void CSpritePass::render(VkCommandBuffer cmd) {
 	uint32 drawCallCount = 0;
 	uint64 vertexCount = 0;
 
-	/*for (auto& sprite : objects) {
+	for (auto& sprite : objects) {
 		SInstancer& instancer = sprite->getInstancer();
 		const size_t NumInstances = instancer.instances.size();
 
@@ -72,7 +73,7 @@ void CSpritePass::render(VkCommandBuffer cmd) {
 
 		drawCallCount++;
 		vertexCount += 6 * NumInstances;
-	}*/
+	}
 
 	// Set number of drawcalls, vertices, and triangles
 	SpriteDrawcalls.setText(fmts("Draw Calls: {}", drawCallCount));
