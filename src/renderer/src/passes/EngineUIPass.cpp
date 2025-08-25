@@ -6,6 +6,7 @@
 #include "renderer/VulkanDevice.h"
 #include "tracy/Tracy.hpp"
 #include "EngineSettings.h"
+#include "viewport/Sprite.h"
 
 /*#define SETTINGS_CATEGORY "Rendering/Sprite Pass"
 ADD_TEXT(Sprites, "Sprites: ");
@@ -43,6 +44,22 @@ void CEngineUIPass::init() {
 	opaquePipeline = renderer.getResourceManager().allocatePipeline(createInfo, attributes, CVulkanResourceManager::getBasicPipelineLayout());
 
 	manager.flush();
+
+	auto material = std::make_shared<CMaterial>();
+	material->mShouldSave = false;
+	material->mName = "Test";
+	material->mPassType = EMaterialPass::OPAQUE;
+
+	const auto sprite = std::make_shared<CInstancedSprite>();
+	sprite->mName = fmts("Instanced Sprite");
+	sprite->material = CVulkanRenderer::get()->mEngineTextures->mErrorMaterial;
+
+	Transform2f transform;
+	transform.mPosition = Vector2f{0.f};
+	transform.mScale = Vector2f{0.2f, 1.0f};
+	sprite->addInstance(transform);
+
+	objects.insert(sprite);
 }
 
 void CEngineUIPass::render(VkCommandBuffer cmd) {
@@ -57,7 +74,7 @@ void CEngineUIPass::render(VkCommandBuffer cmd) {
 	uint32 drawCallCount = 0;
 	uint64 vertexCount = 0;
 
-	/*for (auto& sprite : objects) {
+	for (auto& sprite : objects) {
 		SInstancer& instancer = sprite->getInstancer();
 		const size_t NumInstances = instancer.instances.size();
 
@@ -74,7 +91,7 @@ void CEngineUIPass::render(VkCommandBuffer cmd) {
 
 		drawCallCount++;
 		vertexCount += 6 * NumInstances;
-	}*/
+	}
 
 	// Set number of drawcalls, vertices, and triangles
 	/*SpriteDrawcalls.setText(fmts("Draw Calls: {}", drawCallCount));

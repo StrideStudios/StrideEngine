@@ -1,6 +1,7 @@
 ﻿#include "EditorRenderer.h"
 #include "Engine.h"
-#include "Scene.h"
+#include "base/Scene.h"
+#include "passes/EngineUIPass.h"
 #include "passes/MeshPass.h"
 #include "passes/SpritePass.h"
 
@@ -11,7 +12,8 @@ int main() {
 	// Create a renderer with certain passes
 	CRenderer::create<CEditorRenderer>({
 		CMeshPass::make(),
-		CSpritePass::make()
+		CSpritePass::make(),
+		CEngineUIPass::make()
 	});
 
 	CScene::get().init();

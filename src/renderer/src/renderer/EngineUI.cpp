@@ -11,8 +11,8 @@
 
 #include "renderer/EngineLoader.h"
 #include "Material.h"
-#include "Scene.h"
-#include "Sprite.h"
+#include "base/Scene.h"
+#include "viewport/Sprite.h"
 #include "passes/SpritePass.h"
 #include "StaticMesh.h"
 #include "Viewport.h"

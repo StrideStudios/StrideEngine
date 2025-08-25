@@ -4,7 +4,7 @@
 #include <random>
 
 #include "Material.h"
-#include "Sprite.h"
+#include "viewport/Sprite.h"
 #include "passes/SpritePass.h"
 #include "renderer/EngineTextures.h"
 
@@ -30,8 +30,8 @@ void CEditorRenderer::init() {
 
 	for (int32 i = 0; i < numSprites; ++i) {
 		Transform2f transform;
-		transform.mPosition = {(float)distribx(gen) / 100.f, (float)distriby(gen) / 100.f};
-		transform.mScale = {0.025f, 0.05f};
+		transform.mPosition = Vector2f{(float)distribx(gen) / 100.f, (float)distriby(gen) / 100.f};
+		transform.mScale = Vector2f{0.025f, 0.05f};
 		sprite->addInstance(transform);
 	}
 

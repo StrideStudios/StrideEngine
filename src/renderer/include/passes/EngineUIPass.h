@@ -11,7 +11,7 @@ class EXPORT CEngineUIPass : public CPass {
 
 public:
 
-	CEngineUIPass(): CPass("EngineUIPass") {}
+	DEFINE_PASS(CEngineUIPass)
 
 	virtual void init() override;
 

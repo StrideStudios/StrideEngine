@@ -3,7 +3,7 @@
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 
-#include "SceneObject.h"
+#include "base/SceneObject.h"
 #include "Viewport.h"
 
 class CWidget : ISerializable {

@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-#include "SceneObject.h"
+#include "base/SceneObject.h"
 
 class EXPORT CCamera : public CSceneObject3D, public IDestroyable {
 

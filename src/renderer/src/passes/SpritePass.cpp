@@ -6,7 +6,7 @@
 #include "renderer/VulkanDevice.h"
 #include "tracy/Tracy.hpp"
 #include "EngineSettings.h"
-#include "Sprite.h"
+#include "viewport/Sprite.h"
 
 #define SETTINGS_CATEGORY "Rendering/Sprite Pass"
 ADD_TEXT(Sprites, "Sprites: ");

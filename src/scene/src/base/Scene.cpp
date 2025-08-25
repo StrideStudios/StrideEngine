@@ -1,6 +1,6 @@
-﻿#include "Scene.h"
+﻿#include "base/Scene.h"
 
-#include "Camera.h"
+#include "world/Camera.h"
 
 static CScene gScene;
 static CResourceManager gSceneResourceManager;

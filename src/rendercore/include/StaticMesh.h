@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "Material.h"
-#include "SceneObject.h"
+#include "base/SceneObject.h"
 #include "VulkanResources.h"
 
 struct SBounds {

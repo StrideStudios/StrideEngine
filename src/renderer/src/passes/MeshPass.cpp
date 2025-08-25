@@ -6,7 +6,7 @@
 #include "StaticMesh.h"
 #include "tracy/Tracy.hpp"
 #include "EngineSettings.h"
-#include "Scene.h"
+#include "base/Scene.h"
 #include "renderer/EngineLoader.h"
 
 #define SETTINGS_CATEGORY "Rendering"
