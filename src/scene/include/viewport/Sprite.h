@@ -2,18 +2,12 @@
 
 #include <memory>
 
-#include "Widget.h"
+#include "base/RenderableObject.h"
 #include "renderer/EngineLoader.h"
 
-class CSprite : public CWidget {
+class CSprite : public CRenderableViewportObject {
 
 public:
-
-	struct Data {
-		Vector2f mUV0;
-		Vector2f mUV1;
-		Vector4f mColor;
-	};
 
 	// Surface Data
 	std::shared_ptr<CMaterial> material;
@@ -24,40 +18,32 @@ class CInstancedSprite : public CSprite {
 public:
 
 	CInstancedSprite() {
-		m_Instancer.flush();
+		CInstancedSprite::getInstancer().flush();
 	}
 
 	virtual uint32 addInstance(const Transform2f& inPosition) {
-		return m_Instancer.push(SInstance{inPosition.toMatrix()});
+		return getInstancer().push(SInstance{inPosition.toMatrix()});
 	}
 
 	virtual void setInstance(const int32 inInstanceIndex, const Transform2f& inPosition) {
-		SInstance& instance = m_Instancer.instances[inInstanceIndex];
+		SInstance& instance = getInstancer().instances[inInstanceIndex];
 		instance.Transform = inPosition.toMatrix();
-		m_Instancer.setDirty();
+		getInstancer().setDirty();
 	}
 
 	virtual void removeInstance(const uint32 instance) {
-		m_Instancer.remove(instance);
-	}
-
-	virtual void onPositionChanged() override {
-		m_Instancer.setDirty();
-	}
-
-	virtual SInstancer& getInstancer() override {
-		return m_Instancer;
+		getInstancer().remove(instance);
 	}
 
 	virtual CArchive& save(CArchive& inArchive) override {
 		CSprite::save(inArchive);
-		inArchive << m_Instancer;
+		inArchive << getInstancer();
 		return inArchive;
 	}
 
 	virtual CArchive& load(CArchive& inArchive) override {
 		CSprite::load(inArchive);
-		inArchive >> m_Instancer;
+		inArchive >> getInstancer();
 		return inArchive;
 	}
 

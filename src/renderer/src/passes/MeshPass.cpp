@@ -192,8 +192,8 @@ void CMeshPass::render(const VkCommandBuffer cmd) {
 			SPushConstants boxPcs;
 
 			Transform3f transform;
-			transform.mPosition = mesh->bounds.origin;
-			transform.mScale = mesh->bounds.extents;
+			transform.setPosition(mesh->bounds.origin);
+			transform.setScale(mesh->bounds.extents);
 			Matrix4f mat = transform.toMatrix();
 
 			boxPcs[0] = mat[0];
@@ -204,7 +204,7 @@ void CMeshPass::render(const VkCommandBuffer cmd) {
 
 			SPushConstants spherePcs;
 
-			transform.mScale = Vector3f(mesh->bounds.sphereRadius);
+			transform.setScale(Vector3f(mesh->bounds.sphereRadius));
 			mat = transform.toMatrix();
 
 			spherePcs[0] = mat[0];

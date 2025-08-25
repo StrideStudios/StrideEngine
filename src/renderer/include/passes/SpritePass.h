@@ -17,6 +17,8 @@ public:
 
 	virtual void render(VkCommandBuffer cmd) override;
 
+	virtual void update() override;
+
 	virtual void destroy() override {
 		objects.clear();
 	}

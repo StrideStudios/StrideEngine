@@ -94,6 +94,9 @@ struct half {
 	}
 };
 
+#define PI 3.14159265359
+#define DOUBLE_PI 6.28318530718
+
 // Extent should always be used with integer types
 
 typedef glm::vec<2, int32> Extent32;
@@ -132,31 +135,86 @@ typedef glm::mat<4, 4, double> Matrix4d;
 
 // Transforms combine position, rotation and scale.
 struct Transform3f {
-	Vector3f mPosition{0.f};
-	Vector3f mRotation{0.f};
-	Vector3f mScale{1.f};
+	Vector3f getPosition() const { return m_Position; }
+	Vector3f getRotation() const { return m_Rotation; }
+	Vector3f getScale() const { return m_Scale; }
+
+	void setPosition(const Vector3f inPosition) {
+		m_Position = inPosition;
+		createMatrix();
+	}
+	void setRotation(const Vector3f inRotation) {
+		m_Rotation = inRotation;
+		createMatrix();
+	}
+	void setScale(const Vector3f inScale) {
+		m_Scale = inScale;
+		createMatrix();
+	}
 
 	Matrix4f toMatrix() const {
-		Matrix4f mat = glm::translate(Matrix4f(1.0), mPosition);
-		mat *= glm::mat4_cast(glm::qua(mRotation));
-		mat = glm::scale(mat, mScale);
-		return mat;
+		return m_Transform;
 	}
+
+private:
+
+	void createMatrix() {
+		Matrix4f mat = glm::translate(Matrix4f(1.0), m_Position);
+		mat = glm::scale(mat, m_Scale);
+		mat *= glm::mat4_cast(glm::qua(m_Rotation / 180.f * (float)PI));
+		m_Transform = mat;
+	}
+
+	Matrix4f m_Transform{1.f};
+
+	Vector3f m_Position{0.f};
+	Vector3f m_Rotation{0.f};
+	Vector3f m_Scale{1.f};
 };
 
 // 2d transform (in screen coordinates)
 struct Transform2f {
-	Vector2f mOrigin{0.f};
-	Vector2f mPosition{0.f};
-	float mRotation = 0.f;
-	Vector2f mScale{1.f};
+	Vector2f getOrigin() const { return m_Origin; }
+	Vector2f getPosition() const { return m_Position; }
+	float getRotation() const { return m_Rotation; }
+	Vector2f getScale() const { return m_Scale; }
+
+	void setOrigin(const Vector2f inOrigin) {
+		m_Origin = inOrigin;
+		createMatrix();
+	}
+	void setPosition(const Vector2f inPosition) {
+		m_Position = inPosition;
+		createMatrix();
+	}
+	void setRotation(const float inRotation) {
+		m_Rotation = inRotation;
+		createMatrix();
+	}
+	void setScale(const Vector2f inScale) {
+		m_Scale = inScale;
+		createMatrix();
+	}
 
 	Matrix4f toMatrix() const {
-		Matrix4f mat = glm::translate(Matrix4f(1.0), Vector3f(mPosition - mOrigin * mScale, 0.f));
-		mat *= glm::mat4_cast(glm::qua(Vector3f(mRotation, 0.f, 0.f)));
-		mat = glm::scale(mat, Vector3f(mScale, 1.f));
-		return mat;
+		return m_Transform;
 	}
+
+private:
+
+	void createMatrix() {
+		Matrix4f mat = glm::translate(Matrix4f(1.0), Vector3f(m_Position - m_Origin * m_Scale, 0.f));
+		mat = glm::scale(mat, Vector3f(m_Scale, 1.f));
+		mat *= glm::mat4_cast(glm::qua(Vector3f(0.f, 0.f, m_Rotation / 180.f * (float)PI)));
+		m_Transform = mat;
+	}
+
+	Matrix4f m_Transform{1.f};
+
+	Vector2f m_Origin{0.f};
+	Vector2f m_Position{0.f};
+	float m_Rotation = 0.f;
+	Vector2f m_Scale{1.f};
 };
 
 // Not all platforms have wide characters as a defined length

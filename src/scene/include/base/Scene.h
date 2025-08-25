@@ -23,7 +23,7 @@ public:
 	class CCamera* mMainCamera = nullptr;
 
 	struct Data {
-		std::vector<std::shared_ptr<CSceneObject3D>> objects{};
+		std::vector<std::shared_ptr<CWorldObject>> objects{};
 	};
 
 	Data data;

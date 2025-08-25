@@ -3,11 +3,11 @@
 #include <set>
 
 #include "renderer/EngineLoader.h"
-#include "Pass.h"
+#include "SpritePass.h"
 
 class CSprite;
 
-class EXPORT CEngineUIPass : public CPass {
+class EXPORT CEngineUIPass : public CSpritePass {
 
 public:
 
@@ -15,14 +15,4 @@ public:
 
 	virtual void init() override;
 
-	virtual void render(VkCommandBuffer cmd) override;
-
-	// Sprites used to render this pass
-	std::set<std::shared_ptr<CSprite>> objects;
-
-	//
-	// Pipelines
-	//
-
-	CPipeline* opaquePipeline = nullptr;
 };

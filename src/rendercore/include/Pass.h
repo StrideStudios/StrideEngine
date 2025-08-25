@@ -6,23 +6,23 @@
 #include "VulkanResourceManager.h"
 
 #define DEFINE_PASS(className) \
-	className(): CPass(#className) {} \
+	className() = default; \
 	static CPass* make() { \
-		className* pass = new className(); \
-		return pass; \
-	}
+		return new className(); \
+	} \
+	virtual std::string getName() const override { return #className; } \
 
 class EXPORT CPass : public IInitializable<>, public IDestroyable {
 
 public:
 
-	CPass(): m_Name("Empty Pass") {}
-
-	CPass(const std::string& inPassName): m_Name(inPassName) {}
+	CPass() {}
 
 	virtual void render(VkCommandBuffer cmd) = 0;
 
-	std::string getName() const { return m_Name; }
+	virtual void update() {}
+
+	virtual std::string getName() const { return "Pass"; } \
 
 	void bindPipeline(VkCommandBuffer cmd, CPipeline* inPipeline, const struct SPushConstants& inConstants);
 
@@ -43,8 +43,6 @@ protected:
 	virtual SRenderAttachment getStencilAttachment() const { return SRenderAttachment::defaultStencil(); }
 
 private:
-
-	std::string m_Name = "Pass";
 
 	CPipeline* m_CurrentPipeline = nullptr;
 };

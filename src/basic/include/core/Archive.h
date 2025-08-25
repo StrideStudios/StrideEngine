@@ -80,6 +80,50 @@ public:
 		return inArchive;
 	}
 
+	friend CArchive& operator<<(CArchive& inArchive, const Transform2f& inTransform) {
+		inArchive << inTransform.getOrigin();
+		inArchive << inTransform.getPosition();
+		inArchive << inTransform.getRotation();
+		inArchive << inTransform.getScale();
+		return inArchive;
+	}
+
+	friend CArchive& operator>>(CArchive& inArchive, Transform2f& inTransform) {
+		Vector2f origin;
+		Vector2f position;
+		float rotation;
+		Vector2f scale;
+		inArchive >> origin;
+		inArchive >> position;
+		inArchive >> rotation;
+		inArchive >> scale;
+		inTransform.setOrigin(origin);
+		inTransform.setPosition(position);
+		inTransform.setRotation(rotation);
+		inTransform.setScale(scale);
+		return inArchive;
+	}
+
+	friend CArchive& operator<<(CArchive& inArchive, const Transform3f& inTransform) {
+		inArchive << inTransform.getPosition();
+		inArchive << inTransform.getRotation();
+		inArchive << inTransform.getScale();
+		return inArchive;
+	}
+
+	friend CArchive& operator>>(CArchive& inArchive, Transform3f& inTransform) {
+		Vector3f position;
+		Vector3f rotation;
+		Vector3f scale;
+		inArchive >> position;
+		inArchive >> rotation;
+		inArchive >> scale;
+		inTransform.setPosition(position);
+		inTransform.setRotation(rotation);
+		inTransform.setScale(scale);
+		return inArchive;
+	}
+
 	//
 	// Vectors
 	//
@@ -132,7 +176,7 @@ public:
 	//
 
 	template <typename TType>
-	requires not std::is_polymorphic_v<TType> or std::is_default_constructible_v<typename TType::Registry>
+	requires (not std::is_polymorphic_v<TType>) or std::is_default_constructible_v<typename TType::Registry>
 	friend CArchive& operator<<(CArchive& inArchive, const std::shared_ptr<TType>& inValue) {
 		if constexpr (std::is_polymorphic_v<TType>) {
 			inArchive << inValue->getTypeId();
@@ -142,7 +186,7 @@ public:
 	}
 
 	template <typename TType>
-	requires std::is_default_constructible_v<TType> and (not std::is_polymorphic_v<TType> or std::is_default_constructible_v<typename TType::Registry>)
+	requires std::is_default_constructible_v<TType> and ((not std::is_polymorphic_v<TType>) or std::is_default_constructible_v<typename TType::Registry>)
 	friend CArchive& operator>>(CArchive& inArchive, std::shared_ptr<TType>& inValue) {
 		if constexpr (std::is_polymorphic_v<TType>) {
 			std::string typeName;

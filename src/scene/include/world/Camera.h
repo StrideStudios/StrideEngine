@@ -2,7 +2,7 @@
 
 #include "base/SceneObject.h"
 
-class EXPORT CCamera : public CSceneObject3D, public IDestroyable {
+class EXPORT CCamera : public CWorldObject, public IDestroyable {
 
 	REGISTER_CLASS(CCamera)
 

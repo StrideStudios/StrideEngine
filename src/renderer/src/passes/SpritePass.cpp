@@ -80,3 +80,10 @@ void CSpritePass::render(VkCommandBuffer cmd) {
 	SpriteVertices.setText(fmts("Vertices: {}", vertexCount));
 	SpriteTriangles.setText(fmts("Triangles: {}", vertexCount / 3));
 }
+
+void CSpritePass::update() {
+	for (auto& sprite : objects) {
+		SInstancer& instancer = sprite->getInstancer();
+		instancer.setDirty();
+	}
+}

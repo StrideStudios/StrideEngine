@@ -172,6 +172,10 @@ void CVulkanRenderer::render() {
 			if (!wait()) continue;
 
 			mEngineTextures->reallocate(UseVsync.get());
+
+			for (CPass* pass : getPasses()) {
+				pass->update();
+			}
 		}
 	};
 	swapchainDirtyCheck();

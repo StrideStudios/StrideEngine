@@ -11,18 +11,14 @@
 void CEditorRenderer::init() {
 	CVulkanRenderer::init();
 
-	auto material = std::make_shared<CMaterial>();
-	material->mShouldSave = false;
-	material->mName = "Test";
-	material->mPassType = EMaterialPass::OPAQUE;
-
-	constexpr int32 numSprites = 1000;
+	constexpr int32 numSprites = 250;
 
 	std::random_device rd;
 	std::mt19937 gen(rd());
 
 	std::uniform_int_distribution distribx(0, 100);
 	std::uniform_int_distribution distriby(0, 100);
+	std::uniform_int_distribution distribr(0, 360);
 
 	const auto sprite = std::make_shared<CInstancedSprite>();
 	sprite->mName = fmts("Instanced Sprite");
@@ -30,18 +26,14 @@ void CEditorRenderer::init() {
 
 	for (int32 i = 0; i < numSprites; ++i) {
 		Transform2f transform;
-		transform.mPosition = Vector2f{(float)distribx(gen) / 100.f, (float)distriby(gen) / 100.f};
-		transform.mScale = Vector2f{0.025f, 0.05f};
+		transform.setPosition(Vector2f{(float)distribx(gen) / 100.f, (float)distriby(gen) / 100.f});
+		transform.setScale(Vector2f{0.025f, 0.05f});
+		//transform.setScale(Vector2f{50.f, 50.f});
+		transform.setRotation((float)distribr(gen));
 		sprite->addInstance(transform);
 	}
 
 	if (const auto spritePass = getPass<CSpritePass>()) {
 		spritePass->push(sprite);
 	}
-
-	/*Transform2f transform;
-	transform.mOrigin = {0.5f, 0.5f};
-	transform.mPosition = {0.5f, 0.5f};
-	transform.mScale = {0.5f, 1.0f};
-	sprite->addInstance(transform);*/
 }
