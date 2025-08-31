@@ -2,8 +2,8 @@
 
 #include <memory>
 
+#include "Material.h"
 #include "base/RenderableObject.h"
-#include "renderer/EngineLoader.h"
 
 class CSprite : public CRenderableViewportObject {
 

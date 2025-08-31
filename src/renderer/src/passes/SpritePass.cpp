@@ -4,7 +4,7 @@
 #include "renderer/EngineTextures.h"
 #include "renderer/VulkanRenderer.h"
 #include "renderer/VulkanDevice.h"
-#include "tracy/Tracy.hpp"
+#include "Profiling.h"
 #include "EngineSettings.h"
 #include "viewport/Sprite.h"
 
@@ -41,7 +41,7 @@ void CSpritePass::init() {
 	attributes << VK_FORMAT_R32G32B32A32_SFLOAT;
 	attributes << VK_FORMAT_R32G32B32A32_SFLOAT;
 
-	opaquePipeline = renderer.getResourceManager().allocatePipeline(createInfo, attributes, CVulkanResourceManager::getBasicPipelineLayout());
+	opaquePipeline = CVulkanResourceManager::get().allocatePipeline(createInfo, attributes, CVulkanResourceManager::getBasicPipelineLayout());
 
 	manager.flush();
 }

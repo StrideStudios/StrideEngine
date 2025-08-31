@@ -45,7 +45,7 @@ public:
 	}
 
 	template <typename TTargetType, typename TType>
-	requires !std::is_same_v<TTargetType, TType> and std::is_base_of_v<IDestroyable, TTargetType>
+	requires (!std::is_same_v<TTargetType, TType>) and std::is_base_of_v<IDestroyable, TTargetType>
 	void create(TType*& outType) {
 		create<TTargetType>(reinterpret_cast<TTargetType*&>(outType));
 	}
@@ -63,7 +63,7 @@ public:
 	}
 
 	template <typename TTargetType, typename TType, typename... TArgs>
-	requires !std::is_same_v<TTargetType, TType> and std::is_base_of_v<IDestroyable, TTargetType>
+	requires (!std::is_same_v<TTargetType, TType>) and std::is_base_of_v<IDestroyable, TTargetType>
 	void create(TType*& outType, TArgs&&... args) {
 		create<TTargetType, TArgs...>(reinterpret_cast<TTargetType*&>(outType), args...);
 	}

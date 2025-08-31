@@ -63,7 +63,7 @@ struct SStaticMesh {
 
 // A scene object that has the capability to render static meshes
 // This is also where static meshes are loaded
-class EXPORT CStaticMeshObject : public CRenderableWorldObject {
+class CStaticMeshObject : public CRenderableWorldObject {
 
 	REGISTER_CLASS(CStaticMeshObject)
 
@@ -105,7 +105,7 @@ public:
 };
 
 //TODO: mostly the same as SInstancer
-class EXPORT CInstancedStaticMeshObject : public CStaticMeshObject {
+class CInstancedStaticMeshObject : public CStaticMeshObject {
 
 public:
 

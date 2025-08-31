@@ -1,19 +1,20 @@
 ﻿#include "EditorRenderer.h"
 #include "Engine.h"
+#include "Profiling.h"
 #include "base/Scene.h"
-#include "passes/EngineUIPass.h"
 #include "passes/MeshPass.h"
 #include "passes/SpritePass.h"
 
 int main() {
+
+	CProfiler::StartupProfiler();
 
 	CEngine::get().init();
 
 	// Create a renderer with certain passes
 	CRenderer::create<CEditorRenderer>({
 		CMeshPass::make(),
-		CSpritePass::make(),
-		CEngineUIPass::make()
+		CSpritePass::make()
 	});
 
 	CScene::get().init();
@@ -31,6 +32,8 @@ int main() {
 	CScene::get().destroy();
 
 	CResourceManager::get().flush();
+
+	CProfiler::ShutdownProfiler();
 
 	return 0;
 }

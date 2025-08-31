@@ -1,7 +1,7 @@
 ﻿#include "EngineSettings.h"
 
 #include "imgui.h"
-#include "tracy/Tracy.hpp"
+#include "Profiling.h"
 
 CEngineSettings& CEngineSettings::get() {
 	static CEngineSettings sEngineSettings;

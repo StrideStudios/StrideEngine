@@ -2,7 +2,7 @@
 
 #include "SceneObject.h"
 
-class EXPORT CRenderableViewportObject : public CViewportObject {
+class CRenderableViewportObject : public CViewportObject {
 
 public:
 
@@ -26,7 +26,7 @@ private:
 	SInstancer m_Instancer{1}; //TODO: bad, shouldnt have an instancer in a non-instanced widget
 };
 
-class EXPORT CRenderableWorldObject : public CWorldObject {
+class CRenderableWorldObject : public CWorldObject {
 
 public:
 

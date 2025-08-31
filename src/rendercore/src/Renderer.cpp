@@ -2,22 +2,16 @@
 
 #include "VulkanResourceManager.h"
 
-CRenderer* gRenderer;
-CVulkanResourceManager gResourceManager;
+static CRenderer* gRenderer;
 
 CRenderer* CRenderer::get() {
 	return gRenderer;
 }
 
-CVulkanResourceManager& CRenderer::getResourceManager() {
-	return gResourceManager;
-}
-
-void CRenderer::destroy() {
-	gResourceManager.flush();
-}
-
-void CRenderer::set(CRenderer* inRenderer) {
+void CRenderer::set(CRenderer* inRenderer, const std::list<CPass*>& inPasses) {
 	astsOnce(CRenderer); // Ensure Renderer is set only once
 	gRenderer = inRenderer;
+	CResourceManager::get().push(gRenderer);
+	gRenderer->m_Passes = inPasses;
+	gRenderer->init();
 }

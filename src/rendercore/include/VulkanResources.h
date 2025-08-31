@@ -51,7 +51,7 @@ enum class EAttachmentType : uint8 {
 	STENCIL
 };
 
-struct EXPORT SRenderAttachment {
+struct SRenderAttachment {
 	VkAttachmentLoadOp mLoadOp = VK_ATTACHMENT_LOAD_OP_NONE;
 	VkAttachmentStoreOp mStoreOp = VK_ATTACHMENT_STORE_OP_NONE;
 	EAttachmentType mType = EAttachmentType::COLOR;
@@ -81,7 +81,7 @@ struct EXPORT SRenderAttachment {
 		};
 	}
 
-	VkRenderingAttachmentInfo get(const SImage_T* inImage) const;
+	EXPORT VkRenderingAttachmentInfo get(const SImage_T* inImage) const;
 
 	bool operator==(const SRenderAttachment& inOther) const {
 		return mLoadOp == inOther.mLoadOp && mStoreOp == inOther.mStoreOp && mClearValue == inOther.mClearValue;
@@ -109,7 +109,7 @@ struct SBuffer_T : IDestroyable {
 
 	EXPORT virtual void destroy() override;
 
-	no_discard EXPORT void* GetMappedData() const;
+	no_discard EXPORT void* getMappedData() const;
 
 	EXPORT void mapData(void** data) const;
 

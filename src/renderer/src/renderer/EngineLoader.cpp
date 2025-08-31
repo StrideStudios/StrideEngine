@@ -10,6 +10,9 @@
 
 #include <meshoptimizer.h>
 
+#include <unordered_set>
+
+#include "freetype/freetype.h"
 #include "renderer/EngineTextures.h"
 #include "encoder/basisu_comp.h"
 #include "transcoder/basisu_transcoder.h"
@@ -18,6 +21,7 @@
 #include "StaticMesh.h"
 #include "renderer/VulkanRenderer.h"
 #include "VulkanUtils.h"
+#include "viewport/generic/Text.h"
 
 constexpr static bool gUseOpenCL = false;
 
@@ -75,7 +79,7 @@ SImage_T* loadImage(CVulkanResourceManager& allocator, const std::filesystem::pa
 		CVulkanResourceManager manager;
 		const SBuffer_T* uploadBuffer = manager.allocateBuffer(image_size, VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
 
-		memcpy(uploadBuffer->GetMappedData(), pImage, image_size);
+		memcpy(uploadBuffer->getMappedData(), pImage, image_size);
 
 		CVulkanRenderer::get()->immediateSubmit([&](SCommandBuffer& cmd) {
 			//ZoneScopedAllocation(std::string("Copy Image from Upload Buffer"));
@@ -103,6 +107,21 @@ SImage_T* loadImage(CVulkanResourceManager& allocator, const std::filesystem::pa
 	});
 
 	return image;
+}
+
+std::shared_ptr<CFont> loadFont(CVulkanResourceManager& allocator, const std::filesystem::path& inPath) {
+	std::shared_ptr<CFont> font;
+	std::vector<uint8> atlasData;
+
+	CFileArchive file(inPath.string(), "rb");
+	file >> font;
+	file >> atlasData;
+	file.close();
+
+	const std::string label = font->mName + " Atlas";
+	font->mAtlasImage = allocator.allocateImage(atlasData.data(), atlasData.size(), label, {font->mAtlasSize.x, font->mAtlasSize.y, 1}, VK_FORMAT_R8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+
+	return font;
 }
 
 using MeshData = std::vector<std::pair<std::string, std::shared_ptr<SMeshData>>>;
@@ -378,7 +397,7 @@ SMeshBuffers_T uploadMesh(CVulkanResourceManager& inManager, std::span<uint32> i
 	CVulkanResourceManager manager;
 	const SBuffer_T* staging = manager.allocateBuffer(vertexBufferSize + indexBufferSize, VMA_MEMORY_USAGE_CPU_ONLY, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
 
-	void* data = staging->GetMappedData();
+	void* data = staging->getMappedData();
 
 	// copy vertex buffer
 	memcpy(data, vertices.data(), vertexBufferSize);
@@ -423,8 +442,13 @@ std::shared_ptr<SStaticMesh> toStaticMesh(const std::shared_ptr<SMeshData>& mesh
 		});
 	}
 
-	loadMesh->meshBuffers = uploadMesh(renderer.getResourceManager(), mesh->indices, mesh->vertices);
+	loadMesh->meshBuffers = uploadMesh(CVulkanResourceManager::get(), mesh->indices, mesh->vertices);
 	return loadMesh;
+}
+
+CEngineLoader& CEngineLoader::get() {
+	static CEngineLoader engineLoader;
+	return engineLoader;
 }
 
 void CEngineLoader::save() {
@@ -439,6 +463,7 @@ void CEngineLoader::load() {
 	basisu::basisu_encoder_init(gUseOpenCL, false);
 
 	std::vector<std::filesystem::path> textures;
+	std::vector<std::filesystem::path> fonts;
 	std::vector<std::filesystem::path> materials;
 	std::vector<std::filesystem::path> meshes;
 
@@ -447,6 +472,8 @@ void CEngineLoader::load() {
 		if (!std::filesystem::is_directory(i->path())) {
 			if (i->path().extension() == ".ktx2") {
 				textures.push_back(i->path());
+			} else if (i->path().extension() == ".fnt") {
+				fonts.push_back(i->path());
 			} else if (i->path().extension() == ".mat") {
 				materials.push_back(i->path());
 			} else if (i->path().extension() == ".msh") {
@@ -465,8 +492,14 @@ void CEngineLoader::load() {
 
 	// Load textures
 	for (const auto& path : textures) {
-		SImage_T* image = loadImage(CVulkanRenderer::get()->getResourceManager(), path);
+		SImage_T* image = loadImage(CVulkanResourceManager::get(), path);
 		get().mImages.emplace(pathToName(path), image);
+	}
+
+	// Load fonts
+	for (const auto& path : fonts) {
+		std::shared_ptr<CFont> font = loadFont(CVulkanResourceManager::get(), path);
+		get().mFonts.emplace(pathToName(path), font);
 	}
 
 	// Load materials
@@ -516,9 +549,98 @@ void CEngineLoader::importTexture(const std::filesystem::path& inPath) {
 
 	basisu::basis_free_data(pKTX2_data);
 
-	SImage_T* loadedImage = loadImage(CVulkanRenderer::get()->getResourceManager(), cachedPath);
+	SImage_T* loadedImage = loadImage(CVulkanResourceManager::get(), cachedPath);
 
 	get().mImages.emplace(loadedImage->name, loadedImage);
+}
+
+constexpr static uint32 FONT_MAX_SIZE = 128;
+constexpr static uint32 FONT_ATLAS_SIZE = 1024;
+
+void CEngineLoader::importFont(const std::filesystem::path& inPath) {
+	FT_Library ft;
+	if (const auto err = FT_Init_FreeType(&ft)) {
+		errs("FreeType could not initialize. {}", FT_Error_String(err));
+	}
+
+	FT_Face face;
+	if (const auto err = FT_New_Face(ft, inPath.string().c_str(), 0, &face)) {
+		errs("FreeType font could not load. {}", FT_Error_String(err));
+	}
+
+	FT_Set_Pixel_Sizes(face, 0, FONT_MAX_SIZE);
+
+    std::vector<uint8> atlasData(FONT_ATLAS_SIZE * FONT_ATLAS_SIZE);
+
+	Vector2f cursor{0.f};
+
+    uint32 maxHeightInRow = 0;
+
+    auto font = std::make_shared<CFont>();
+    font->mSize = FONT_MAX_SIZE;
+    font->mName = inPath.stem().string();
+	font->mAtlasSize = Extent32u{FONT_ATLAS_SIZE, FONT_ATLAS_SIZE};
+
+    font->mLineSpacing = face->size->metrics.height / 64.f;
+    font->mAscenderPx = face->size->metrics.ascender / 64.f;
+    font->mDescenderPx = face->size->metrics.descender / 64.f;
+
+    get().mFonts.emplace(font->mName, font);
+
+	// Do all standard ASCII characters
+    for (uint8 character = 0; character < std::numeric_limits<uint8>::max(); ++character) {
+        if (character < 255u && !std::isprint(character)) continue;
+
+        constexpr auto loadFlags = FT_LOAD_RENDER;
+        if (const auto err = FT_Load_Char(face, character, loadFlags)) {
+        	msgs("FreeType letter could not load. {}", FT_Error_String(err));
+            continue;
+        }
+
+        const auto& bitmap = face->glyph->bitmap;
+        if (cursor.x + bitmap.width >= FONT_ATLAS_SIZE) {
+            cursor.x = 0;
+            cursor.y += maxHeightInRow;
+            maxHeightInRow = 0;
+        }
+
+    	for (uint32 row = 0; row < bitmap.rows; ++row) {
+    		for (uint32 column = 0; column < bitmap.width; ++column) {
+    			atlasData[(cursor.y + row) * FONT_ATLAS_SIZE + (cursor.x + column)] = bitmap.buffer[row * bitmap.pitch + column];
+    		}
+    	}
+
+        auto letter = CFont::Letter{
+            .mUV0 = {cursor.x / FONT_ATLAS_SIZE, cursor.y / FONT_ATLAS_SIZE},
+            .mUV1 = {(cursor.x + bitmap.width) / FONT_ATLAS_SIZE, (cursor.y + bitmap.rows) / FONT_ATLAS_SIZE},
+            .mBearing = {face->glyph->bitmap_left, face->glyph->bitmap_top},
+            .mAdvance = face->glyph->advance.x >> 6u,
+        };
+
+        font->letters.emplace(character, std::move(letter));
+
+        cursor.x += bitmap.width;
+        if (bitmap.rows > maxHeightInRow) {
+            maxHeightInRow = bitmap.rows;
+        }
+    }
+
+    msgs("Created font {} with {} letters.", font->mName.c_str(), font->letters.size());
+
+	std::filesystem::path cachedPath = SPaths::get().mAssetPath.string() + font->mName;
+	cachedPath.replace_extension(".fnt");
+
+	const std::string label = font->mName + " Atlas";
+	font->mAtlasImage = CVulkanResourceManager::get().allocateImage(atlasData.data(), atlasData.size(), label, {FONT_ATLAS_SIZE, FONT_ATLAS_SIZE, 1}, VK_FORMAT_R8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+
+	// Write font and atlas data to file
+	CFileArchive file(cachedPath.string(), "wb");
+	file << font;
+	file << atlasData;
+	file.close();
+
+    FT_Done_Face(face);
+    FT_Done_FreeType(ft);
 }
 
 void CEngineLoader::createMaterial(const std::string& inMaterialName) {

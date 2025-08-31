@@ -4,6 +4,7 @@
 #include "Viewport.h"
 #include "Input.h"
 #include "Renderer.h"
+#include "VulkanResourceManager.h"
 #include "SDL3/SDL_timer.h"
 
 #define SETTINGS_CATEGORY "Engine"
@@ -26,7 +27,7 @@ void CEngine::init() {
 	astsOnce(CEngine)
 
 	// Initialize the viewport
-	CResourceManager::get().create(m_EngineViewport);
+	CVulkanResourceManager::get().create(m_EngineViewport);
 }
 
 void CEngine::end() {

@@ -4,7 +4,7 @@
 #include <vulkan/vk_enum_string_helper.h>
 
 #include "VulkanResources.h"
-#include "tracy/Tracy.hpp"
+#include "Profiling.h"
 
 VkImageSubresourceRange CVulkanUtils::imageSubresourceRange(VkImageAspectFlags inAspectMask) {
 	return {

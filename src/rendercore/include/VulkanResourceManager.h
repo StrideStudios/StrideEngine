@@ -125,36 +125,33 @@ static uint32 gSSBOBinding = 3;
 /*
  * Specific version of CResourceManager for vulkan resources
  */
-class EXPORT CVulkanResourceManager : public CResourceManager {
+class CVulkanResourceManager : public CResourceManager {
 
-	static VkDevice getDevice();
+	EXPORT static VkDevice getDevice();
 
 	friend SBuffer_T;
 	friend SImage_T;
 
-	constexpr static VmaAllocator& getAllocator() {
-		static VmaAllocator allocator;
-		return allocator;
-	}
+	EXPORT static VmaAllocator& getAllocator();
 
-	constexpr static CDescriptorPool*& getBindlessDescriptorPool() {
-		static CDescriptorPool* pool;
-		return pool;
-	}
+	EXPORT static CDescriptorPool*& getBindlessDescriptorPool();
 
 public:
 
-	static CPipelineLayout*& getBasicPipelineLayout();
+	// Gets a global version of the VULKAN resource manager that is destroyed upon engine stop
+	EXPORT static CVulkanResourceManager& get();
 
-	static CDescriptorSetLayout*& getBindlessDescriptorSetLayout();
+	EXPORT static CPipelineLayout*& getBasicPipelineLayout();
 
-	static VkDescriptorSet& getBindlessDescriptorSet();
+	EXPORT static CDescriptorSetLayout*& getBindlessDescriptorSetLayout();
+
+	EXPORT static VkDescriptorSet& getBindlessDescriptorSet();
 
 	CVulkanResourceManager() = default;
 
-	static void init(CRenderer* inRenderer);
+	EXPORT static void init(CRenderer* inRenderer);
 
-	static void destroy();
+	EXPORT static void destroy();
 
 	/*template <typename TType, typename TCreator>
 	requires std::constructible_from<Resource<TType>, TCreator>
@@ -169,51 +166,53 @@ public:
 	//
 
 	// Command Buffer does not need to be deallocated
-	no_discard static VkCommandBuffer allocateCommandBuffer(const VkCommandBufferAllocateInfo& pCreateInfo);
+	no_discard EXPORT static VkCommandBuffer allocateCommandBuffer(const VkCommandBufferAllocateInfo& pCreateInfo);
 
 	//
 	// Descriptors
 	//
 
-	static void bindDescriptorSets(VkCommandBuffer cmd, VkPipelineBindPoint inBindPoint, VkPipelineLayout inPipelineLayout, uint32 inFirstSet, uint32 inDescriptorSetCount, const VkDescriptorSet& inDescriptorSets);
+	EXPORT static void bindDescriptorSets(VkCommandBuffer cmd, VkPipelineBindPoint inBindPoint, VkPipelineLayout inPipelineLayout, uint32 inFirstSet, uint32 inDescriptorSetCount, const VkDescriptorSet& inDescriptorSets);
 
 	//
 	// Shaders
 	//
 
-	SShader getShader(const char* inFilePath);
+	EXPORT SShader getShader(const char* inFilePath);
 
 	//
 	// Pipelines
 	//
 
-	no_discard CPipeline* allocatePipeline(const SPipelineCreateInfo& inCreateInfo, CVertexAttributeArchive& inAttributes, CPipelineLayout* inLayout);
+	no_discard EXPORT CPipeline* allocatePipeline(const SPipelineCreateInfo& inCreateInfo, CVertexAttributeArchive& inAttributes, CPipelineLayout* inLayout);
 
-	static void bindPipeline(VkCommandBuffer cmd, VkPipelineBindPoint inBindPoint, VkPipeline inPipeline);
+	EXPORT static void bindPipeline(VkCommandBuffer cmd, VkPipelineBindPoint inBindPoint, VkPipeline inPipeline);
 
 	//
 	// Buffers
 	//
 
+	static void* getMappedData(VmaAllocation inAllocation);
+
 	// VkBufferUsageFlags is VERY important (VMA_MEMORY_USAGE_GPU_ONLY, VMA_MEMORY_USAGE_CPU_ONLY, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_MEMORY_USAGE_GPU_TO_CPU)
 	// VMA_MEMORY_USAGE_CPU_TO_GPU can be used for the small fast-access buffer on GPU that CPU can still write to (something important)
-	no_discard SBuffer_T* allocateBuffer(size_t allocSize, VmaMemoryUsage memoryUsage, VkBufferUsageFlags usage = 0);
+	no_discard EXPORT SBuffer_T* allocateBuffer(size_t allocSize, VmaMemoryUsage memoryUsage, VkBufferUsageFlags usage = 0);
 
-	no_discard SBuffer_T* allocateGlobalBuffer(size_t allocSize, VmaMemoryUsage memoryUsage, VkBufferUsageFlags usage = 0);
+	no_discard EXPORT SBuffer_T* allocateGlobalBuffer(size_t allocSize, VmaMemoryUsage memoryUsage, VkBufferUsageFlags usage = 0);
 
-	static void updateGlobalBuffer(const SBuffer_T* buffer);
+	EXPORT static void updateGlobalBuffer(const SBuffer_T* buffer);
 
-	no_discard SMeshBuffers_T allocateMeshBuffer(size_t indicesSize, size_t verticesSize);
+	no_discard EXPORT SMeshBuffers_T allocateMeshBuffer(size_t indicesSize, size_t verticesSize);
 
 	//
 	// Images
 	// Since bindless images are used, it is unnecessary to keep the result
 	//
 
-	SImage_T* allocateImage(const std::string& inDebugName, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags = 0, VkImageAspectFlags inViewFlags = 0, bool inMipmapped = false);
+	EXPORT SImage_T* allocateImage(const std::string& inDebugName, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags = 0, VkImageAspectFlags inViewFlags = 0, bool inMipmapped = false);
 
-	SImage_T* allocateImage(const std::string& inDebugName, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags = 0, VkImageAspectFlags inViewFlags = 0, uint32 NumMips = 1);
+	EXPORT SImage_T* allocateImage(const std::string& inDebugName, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags = 0, VkImageAspectFlags inViewFlags = 0, uint32 NumMips = 1);
 
-	SImage_T* allocateImage(void* inData, const uint32& size, const std::string& inDebugName, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags = 0, VkImageAspectFlags inViewFlags = 0, bool inMipmapped = false);
+	EXPORT SImage_T* allocateImage(void* inData, const uint32& size, const std::string& inDebugName, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags = 0, VkImageAspectFlags inViewFlags = 0, bool inMipmapped = false);
 
 };

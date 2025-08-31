@@ -9,15 +9,15 @@ enum class EMeshPass : uint8 {
 class CVulkanRenderer;
 class CGPUScene;
 
-class EXPORT CMeshPass : public CPass {
+class CMeshPass : public CPass {
 
 public:
 
 	DEFINE_PASS(CMeshPass)
 
-	virtual void init() override;
+	EXPORT virtual void init() override;
 
-	virtual void render(VkCommandBuffer cmd) override;
+	EXPORT virtual void render(VkCommandBuffer cmd) override;
 
 	EMeshPass passType = EMeshPass::BASE_PASS;
 

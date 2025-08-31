@@ -2,19 +2,19 @@
 
 #include "base/SceneObject.h"
 
-class EXPORT CCamera : public CWorldObject, public IDestroyable {
+class CCamera : public CWorldObject, public IDestroyable {
 
 	REGISTER_CLASS(CCamera)
 
 public:
 
-	CCamera();
+	EXPORT CCamera();
 
-	virtual Matrix4f getRotationMatrix();
+	EXPORT virtual Matrix4f getRotationMatrix();
 
-	virtual Matrix4f getViewProjectionMatrix();
+	EXPORT virtual Matrix4f getViewProjectionMatrix();
 
-	void update();
+	EXPORT void update();
 
 	bool mShowMouse = true;
 

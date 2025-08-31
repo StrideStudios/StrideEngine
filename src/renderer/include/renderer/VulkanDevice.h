@@ -33,15 +33,15 @@ class CVulkanDevice : public CDevice, public IInitializable<class CVulkanInstanc
 
 public:
 
-    static SQueue getQueue(EQueueType inType);
+    EXPORT static SQueue getQueue(EQueueType inType);
 
-    virtual void init(CVulkanInstance* inInstance, VkSurfaceKHR inSurface) override;
+    EXPORT virtual void init(CVulkanInstance* inInstance, VkSurfaceKHR inSurface) override;
 
-    virtual void destroy() override;
+    EXPORT virtual void destroy() override;
 
-    no_discard virtual const vkb::PhysicalDevice& getPhysicalDevice() const override { return *m_PhysicalDevice; }
+    no_discard EXPORT virtual const vkb::PhysicalDevice& getPhysicalDevice() const override { return *m_PhysicalDevice; }
 
-    no_discard virtual const vkb::Device& getDevice() const override { return *m_Device; }
+    no_discard EXPORT virtual const vkb::Device& getDevice() const override { return *m_Device; }
 
 private:
 

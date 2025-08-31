@@ -7,16 +7,16 @@
 class CGuiText;
 class CCommand;
 
-class EXPORT CEngineSettings {
+class CEngineSettings {
 
 public:
 
-	static CEngineSettings& get();
+	EXPORT static CEngineSettings& get();
 
 	// Get a certain command, is O(n) but is at compile time
-	static CCommand* getCommand(const std::string& inCommand);
+	EXPORT static CCommand* getCommand(const std::string& inCommand);
 
-	static void render();
+	EXPORT static void render();
 
 private:
 
@@ -24,7 +24,7 @@ private:
 	friend class CCommand;
 
 	// Add command to the settings
-	static void addCommand(const std::string& inCommand, CCommand* inCommandType);
+	EXPORT static void addCommand(const std::string& inCommand, CCommand* inCommandType);
 
 	std::vector<std::pair<std::string, CCommand*>> m_Commands;
 

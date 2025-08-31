@@ -12,7 +12,7 @@
 	} \
 	virtual std::string getName() const override { return #className; } \
 
-class EXPORT CPass : public IInitializable<>, public IDestroyable {
+class CPass : public IInitializable<>, public IDestroyable {
 
 public:
 
@@ -24,11 +24,11 @@ public:
 
 	virtual std::string getName() const { return "Pass"; } \
 
-	void bindPipeline(VkCommandBuffer cmd, CPipeline* inPipeline, const struct SPushConstants& inConstants);
+	EXPORT void bindPipeline(VkCommandBuffer cmd, CPipeline* inPipeline, const struct SPushConstants& inConstants);
 
-	void beginRendering(VkCommandBuffer cmd, Extent32u inExtent, const SImage_T* inColorImage = nullptr, const SImage_T* inDepthImage = nullptr, const SImage_T* inStencilImage = nullptr) const;
+	EXPORT void beginRendering(VkCommandBuffer cmd, Extent32u inExtent, const SImage_T* inColorImage = nullptr, const SImage_T* inDepthImage = nullptr, const SImage_T* inStencilImage = nullptr) const;
 
-	bool hasSameRenderingInfo(const CPass* inOther) const;
+	EXPORT bool hasSameRenderingInfo(const CPass* inOther) const;
 
 protected:
 

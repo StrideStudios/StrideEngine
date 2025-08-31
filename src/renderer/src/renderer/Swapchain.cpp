@@ -4,7 +4,7 @@
 #include "renderer/VulkanRenderer.h"
 #include "VulkanResourceManager.h"
 #include "VulkanUtils.h"
-#include "tracy/Tracy.hpp"
+#include "Profiling.h"
 
 #include "vulkan/vk_enum_string_helper.h"
 

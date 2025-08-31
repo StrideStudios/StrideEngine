@@ -4,7 +4,7 @@
 #include <vma/vk_mem_alloc.h>
 
 #include "Material.h"
-#include "tracy/Tracy.hpp"
+#include "Profiling.h"
 
 #include "glslang/Include/glslang_c_interface.h"
 #include "glslang/Public/resource_limits_c.h"
@@ -19,31 +19,45 @@
 #define ZoneScopedAllocation(inScope)
 #endif
 
-void SBuffer_T::destroy() {
-	vmaDestroyBuffer(CVulkanResourceManager::getAllocator(), buffer, allocation);
-}
+struct SAllocator final : IDestroyable {
 
-void* SBuffer_T::GetMappedData() const {
-	return allocation->GetMappedData();
-}
+	SAllocator(CRenderer* inRenderer) {
+		const VmaAllocatorCreateInfo allocatorInfo {
+			.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT,
+			.physicalDevice = inRenderer->getDevice()->getPhysicalDevice(),
+			.device = inRenderer->getDevice()->getDevice(),
+			.instance = inRenderer->getInstance()->getInstance()
+		};
 
-void SBuffer_T::mapData(void** data) const {
-	vmaMapMemory(CVulkanResourceManager::getAllocator(), allocation, data);
-}
-
-void SBuffer_T::unMapData() const {
-	vmaUnmapMemory(CVulkanResourceManager::getAllocator(), allocation);
-}
-
-void SImage_T::destroy() {
-	if (mAllocation) {
-		vmaDestroyImage(CVulkanResourceManager::getAllocator(), mImage, mAllocation);
+		VK_CHECK(vmaCreateAllocator(&allocatorInfo, &mAllocator));
 	}
-	vkDestroyImageView(CRenderer::device(), mImageView, nullptr);
-}
+
+	virtual void destroy() override {
+		vmaDestroyAllocator(mAllocator);
+	}
+
+	VmaAllocator mAllocator;
+};
+
+static CVulkanResourceManager gGlobalResourceManager;
+static SAllocator* gAllocator;
+static uint32 gCurrentTextureAddress = 0;
 
 VkDevice CVulkanResourceManager::getDevice() {
 	return CRenderer::device();
+}
+
+CVulkanResourceManager& CVulkanResourceManager::get() {
+	return gGlobalResourceManager;
+}
+
+VmaAllocator& CVulkanResourceManager::getAllocator() {
+	return gAllocator->mAllocator;
+}
+
+CDescriptorPool*& CVulkanResourceManager::getBindlessDescriptorPool() {
+	static CDescriptorPool* pool;
+	return pool;
 }
 
 CPipelineLayout*& CVulkanResourceManager::getBasicPipelineLayout() {
@@ -61,21 +75,7 @@ VkDescriptorSet& CVulkanResourceManager::getBindlessDescriptorSet() {
 	return set;
 }
 
-CVulkanResourceManager gGlobalResourceManager;
-
 void CVulkanResourceManager::init(CRenderer* inRenderer) {
-
-	// initialize the memory allocator
-	{
-		VmaAllocatorCreateInfo allocatorInfo {
-			.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT,
-			.physicalDevice = inRenderer->getDevice()->getPhysicalDevice(),
-			.device = inRenderer->getDevice()->getDevice(),
-			.instance = inRenderer->getInstance()->getInstance()
-		};
-
-		VK_CHECK(vmaCreateAllocator(&allocatorInfo, &getAllocator()));
-	}
 
 	// Create Descriptor pool
 	{
@@ -94,7 +94,7 @@ void CVulkanResourceManager::init(CRenderer* inRenderer) {
 			.pPoolSizes = poolSizes.begin()
 		};
 
-		gGlobalResourceManager.create(getBindlessDescriptorPool(), poolCreateInfo);
+		get().create(getBindlessDescriptorPool(), poolCreateInfo);
 	}
 
 	// Create Descriptor Set layout
@@ -144,7 +144,7 @@ void CVulkanResourceManager::init(CRenderer* inRenderer) {
         	.pBindings = binding.begin(),
         };
 
-		gGlobalResourceManager.create(getBindlessDescriptorSetLayout(), layoutCreateInfo);
+		get().create(getBindlessDescriptorSetLayout(), layoutCreateInfo);
 	}
 
 	{
@@ -187,13 +187,12 @@ void CVulkanResourceManager::init(CRenderer* inRenderer) {
 			.pPushConstantRanges = pushConstants.begin()
 		};
 
-		gGlobalResourceManager.create(getBasicPipelineLayout(), layoutCreateInfo);
+		get().create(getBasicPipelineLayout(), layoutCreateInfo);
 	}
-}
 
-void CVulkanResourceManager::destroy() {
-	vmaDestroyAllocator(getAllocator());
-	gGlobalResourceManager.flush();
+	// initialize the memory allocator
+	get().create(gAllocator, inRenderer);
+
 }
 
 VkCommandBuffer CVulkanResourceManager::allocateCommandBuffer(const VkCommandBufferAllocateInfo& pCreateInfo) {
@@ -611,6 +610,10 @@ void CVulkanResourceManager::bindPipeline(VkCommandBuffer cmd, const VkPipelineB
 	vkCmdBindPipeline(cmd, inBindPoint, inPipeline);
 }
 
+void* CVulkanResourceManager::getMappedData(VmaAllocation inAllocation) {
+	return inAllocation->GetMappedData();
+}
+
 SBuffer_T* CVulkanResourceManager::allocateBuffer(size_t allocSize, VmaMemoryUsage memoryUsage, VkBufferUsageFlags usage) {
 	ZoneScopedAllocation(std::string("Allocate Buffer"));
 	// allocate buffer
@@ -713,7 +716,6 @@ SImage_T* CVulkanResourceManager::allocateImage(const std::string& inDebugName, 
 	// Update descriptors with new image
 	if ((inFlags & VK_IMAGE_USAGE_SAMPLED_BIT) != 0) { //TODO: VK_IMAGE_USAGE_SAMPLED_BIT is not a permanent solution
 		// Set and increment current texture address
-		static uint32 gCurrentTextureAddress = 0;
 		image->mBindlessAddress = gCurrentTextureAddress;
 		gCurrentTextureAddress++;
 
@@ -842,7 +844,7 @@ SImage_T* CVulkanResourceManager::allocateImage(void* inData, const uint32& size
 	CVulkanResourceManager manager;
 	const SBuffer_T* uploadBuffer = manager.allocateBuffer(size, VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
 
-	memcpy(uploadBuffer->GetMappedData(), inData, size);
+	memcpy(uploadBuffer->getMappedData(), inData, size);
 
 	SImage_T* new_image = allocateImage(inDebugName, inExtent, inFormat, inFlags | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, inViewFlags, inMipmapped);
 

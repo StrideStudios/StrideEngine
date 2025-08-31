@@ -263,7 +263,7 @@ enum class EKey : uint32{
 	RHYPER = SDLK_RHYPER
 };
 
-class EXPORT CInput {
+class CInput {
 
 public:
 
@@ -271,22 +271,22 @@ public:
 		mMouseArray.fill(false);
 	}
 
-	static void tick();
+	EXPORT static void tick();
 
-	static void process(const SDL_Event& inEvent);
+	EXPORT static void process(const SDL_Event& inEvent);
 
-	static bool shouldShowMouse();
+	EXPORT static bool shouldShowMouse();
 
-	static void setShowMouse(bool inShowMouse);
+	EXPORT static void setShowMouse(bool inShowMouse);
 
-	static bool getKeyPressed(const EKey inKey);
+	EXPORT static bool getKeyPressed(const EKey inKey);
 
 	// 1 is left-click, 2 is middle-click, 3 is right-click
-	static bool getMousePressed(const int32 inMouseButton);
+	EXPORT static bool getMousePressed(const int32 inMouseButton);
 
-	static Vector2f getMousePosition();
+	EXPORT static Vector2f getMousePosition();
 
-	static Vector2f getMouseVelocity();
+	EXPORT static Vector2f getMouseVelocity();
 
 private:
 

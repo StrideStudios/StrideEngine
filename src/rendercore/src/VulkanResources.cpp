@@ -1,5 +1,7 @@
 ﻿#include "VulkanResources.h"
 
+#include "VulkanResourceManager.h"
+
 VkRenderingAttachmentInfo SRenderAttachment::get(const SImage_T* inImage) const {
 	VkRenderingAttachmentInfo info {
 		.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
@@ -38,4 +40,25 @@ VkRenderingAttachmentInfo SRenderAttachment::get(const SImage_T* inImage) const 
 	}
 
 	return info;
+}
+
+void SBuffer_T::destroy() {
+	vmaDestroyBuffer(CVulkanResourceManager::getAllocator(), buffer, allocation);
+}
+
+void* SBuffer_T::getMappedData() const {
+	return CVulkanResourceManager::getMappedData(allocation);
+}
+
+void SBuffer_T::mapData(void** data) const {
+	vmaMapMemory(CVulkanResourceManager::getAllocator(), allocation, data);
+}
+
+void SBuffer_T::unMapData() const {
+	vmaUnmapMemory(CVulkanResourceManager::getAllocator(), allocation);
+}
+
+void SImage_T::destroy() {
+	vmaDestroyImage(CVulkanResourceManager::getAllocator(), mImage, mAllocation);
+	vkDestroyImageView(CRenderer::device(), mImageView, nullptr);
 }

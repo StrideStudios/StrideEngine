@@ -16,11 +16,11 @@ struct SInstance {
 	}
 };
 
-struct EXPORT SInstancer {
+struct SInstancer {
 
-	SInstancer(uint32 initialSize = 0);
+	EXPORT SInstancer(uint32 initialSize = 0);
 
-	~SInstancer();
+	EXPORT ~SInstancer();
 
 	void append(const std::vector<SInstance>& inInstances) {
 		instances.append_range(inInstances);
@@ -44,7 +44,7 @@ struct EXPORT SInstancer {
 		setDirty();
 	}
 
-	void reallocate(const Matrix4f& parentMatrix = Matrix4f(1.f));
+	EXPORT void reallocate(const Matrix4f& parentMatrix = Matrix4f(1.f));
 
 	SBuffer_T* get(const Matrix4f& parentMatrix = Matrix4f(1.f)) {
 		if (isDirty()) {

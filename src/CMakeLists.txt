@@ -1,5 +1,5 @@
 ﻿# Function for creating modules in subdirectories
-function(create_module TARGET_NAME TYPE LIBRARY_TYPE)
+function(create_module TARGET_NAME LIBRARY_TYPE)
 
     # Get headers and sources
     # Configure depends allows it to check if new files have been added
@@ -18,14 +18,16 @@ function(create_module TARGET_NAME TYPE LIBRARY_TYPE)
 
     # If it finds an include directory, include it
     if(EXISTS "include")
-        target_include_directories(${TARGET_NAME} ${TYPE} "include")
+        target_include_directories(${TARGET_NAME} PUBLIC "include")
     endif()
+endfunction()
 
+function(add_public_dependencies TARGET_NAME)
     # Each module the target wishes to link with is an extra argument
     foreach(arg IN LISTS ARGN)
 
         # Link with other target
-        target_link_libraries(${TARGET_NAME} ${TYPE} ${arg})
+        target_link_libraries(${TARGET_NAME} PUBLIC ${arg})
 
         # Get other target's source directory and create an include directory for it
         get_target_property(TARGET_DIR ${arg} CMAKE_CURRENT_SOURCE_DIR)
@@ -33,7 +35,25 @@ function(create_module TARGET_NAME TYPE LIBRARY_TYPE)
 
         # if it finds an include directory, include it
         if(EXISTS ${TARGET_INCLUDE_DIR})
-            target_include_directories(${TARGET_NAME} ${TYPE} ${TARGET_INCLUDE_DIR})
+            target_include_directories(${TARGET_NAME} PUBLIC ${TARGET_INCLUDE_DIR})
+        endif()
+    endforeach()
+endfunction()
+
+function(add_private_dependencies TARGET_NAME)
+    # Each module the target wishes to link with is an extra argument
+    foreach(arg IN LISTS ARGN)
+
+        # Link with other target
+        target_link_libraries(${TARGET_NAME} PRIVATE ${arg})
+
+        # Get other target's source directory and create an include directory for it
+        get_target_property(TARGET_DIR ${arg} CMAKE_CURRENT_SOURCE_DIR)
+        set(TARGET_INCLUDE_DIR "${TARGET_DIR}/include")
+
+        # if it finds an include directory, include it
+        if(EXISTS ${TARGET_INCLUDE_DIR})
+            target_include_directories(${TARGET_NAME} PRIVATE ${TARGET_INCLUDE_DIR})
         endif()
     endforeach()
 endfunction()

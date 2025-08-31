@@ -30,11 +30,11 @@ struct SUploadContext {
 	SCommandBuffer mCommandBuffer{};
 };
 
-class EXPORT CVulkanRenderer : public CRenderer {
+class CVulkanRenderer : public CRenderer {
 
 public:
 
-	static CVulkanRenderer* get();
+	EXPORT static CVulkanRenderer* get();
 
 	struct SceneData {
 		Matrix4f mViewProj;
@@ -58,13 +58,13 @@ public:
 		tracy::VkCtx* mTracyContext;
 	};
 
-	CVulkanRenderer();
+	EXPORT CVulkanRenderer();
 
-	virtual void immediateSubmit(std::function<void(SCommandBuffer& cmd)>&& function) override;
+	EXPORT virtual void immediateSubmit(std::function<void(SCommandBuffer& cmd)>&& function) override;
 
-	virtual void init() override;
+	EXPORT virtual void init() override;
 
-	virtual void destroy() override;
+	EXPORT virtual void destroy() override;
 
 	force_inline uint32 getFrameNumber() const { return mFrameNumber; }
 
@@ -74,16 +74,16 @@ public:
 
 	force_inline const FrameData& getCurrentFrame() const { return mFrames[getFrameIndex()]; }
 
-	virtual CInstance* getInstance() override;
+	EXPORT virtual CInstance* getInstance() override;
 
-	virtual CDevice* getDevice() override;
+	EXPORT virtual CDevice* getDevice() override;
 
-	virtual CSwapchain* getSwapchain() override;
+	EXPORT virtual CSwapchain* getSwapchain() override;
 
 	// Draw to the screen
-	virtual void render() override;
+	EXPORT virtual void render() override;
 
-	no_discard virtual bool wait() override;
+	no_discard EXPORT virtual bool wait() override;
 
 	// Tell children to render
 	virtual void render(VkCommandBuffer cmd) {};

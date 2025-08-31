@@ -49,19 +49,16 @@ public:
 
 };
 
-class EXPORT CRenderer : public IInitializable<>, public IDestroyable {
+class CRenderer : public IInitializable<>, public IDestroyable {
 
 public:
 
-	static CRenderer* get();
+	EXPORT static CRenderer* get();
 
 	template <typename TType>
-	static void create(const std::forward_list<CPass*>& inPasses) {
+	static void create(const std::list<CPass*>& inPasses) {
 		TType* renderer = new TType();
-		set(renderer);
-		CResourceManager::get().push(renderer);
-		get()->m_Passes = inPasses;
-		renderer->init();
+		set(renderer, inPasses);
 	}
 
 	static const vkb::Instance& instance() { return get()->getInstance()->getInstance(); }
@@ -69,10 +66,6 @@ public:
 	static const vkb::PhysicalDevice& physicalDevice() { return get()->getDevice()->getPhysicalDevice(); }
 
 	static const vkb::Device& device() { return get()->getDevice()->getDevice(); }
-
-	static class CVulkanResourceManager& getResourceManager();
-
-	virtual void destroy() override;
 
 	no_discard virtual CInstance* getInstance() = 0;
 
@@ -84,9 +77,9 @@ public:
 
 	virtual void render() = 0;
 
-	no_discard virtual bool wait() = 0;
+	virtual bool wait() = 0;
 
-	std::forward_list<CPass*> getPasses() const { return m_Passes; }
+	std::list<CPass*> getPasses() const { return m_Passes; }
 
 	template <typename TType>
 	TType* getPass() const {
@@ -97,11 +90,17 @@ public:
 		return nullptr;
 	}
 
+protected:
+
+	template <typename TType>
+	void addPass() {
+		m_Passes.push_back(TType::make());
+	}
+
 private:
 
-	static void set(CRenderer* inRenderer);
+	EXPORT static void set(CRenderer* inRenderer, const std::list<CPass*>& inPasses);
 
-
-	std::forward_list<CPass*> m_Passes;
+	std::list<CPass*> m_Passes;
 
 };

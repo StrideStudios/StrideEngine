@@ -37,7 +37,7 @@ void SInstancer::reallocate(const Matrix4f& parentMatrix) {
 	CVulkanResourceManager manager;
 	const SBuffer_T* staging = manager.allocateBuffer(bufferSize, VMA_MEMORY_USAGE_CPU_ONLY, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
 
-	void* data = staging->GetMappedData();
+	void* data = staging->getMappedData();
 	memcpy(data, inputData.data(), bufferSize);
 
 	CRenderer::get()->immediateSubmit([&](SCommandBuffer& cmd) {

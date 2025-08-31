@@ -7,17 +7,17 @@
 
 class CSprite;
 
-class EXPORT CSpritePass : public CPass {
+class CSpritePass : public CPass {
 
 public:
 
 	DEFINE_PASS(CSpritePass)
 
-	virtual void init() override;
+	EXPORT virtual void init() override;
 
-	virtual void render(VkCommandBuffer cmd) override;
+	EXPORT virtual void render(VkCommandBuffer cmd) override;
 
-	virtual void update() override;
+	EXPORT virtual void update() override;
 
 	virtual void destroy() override {
 		objects.clear();

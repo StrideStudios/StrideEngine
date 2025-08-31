@@ -2,23 +2,23 @@
 
 #include "VulkanResources.h"
 
-class EXPORT CEngineViewport : public IInitializable<>, public IDestroyable {
+class CEngineViewport : public IInitializable<>, public IDestroyable {
 
 public:
 
 	CEngineViewport() = default;
 
-	static const CEngineViewport& get();
+	EXPORT static const CEngineViewport& get();
 
 	typedef void cb(std::vector<std::string> inFiles);
 
-	static void queryForFile(const std::vector<std::pair<const char*, const char*>>& inFilters, cb callback);
+	EXPORT static void queryForFile(const std::vector<std::pair<const char*, const char*>>& inFilters, cb callback);
 
-	virtual void init() override;
+	EXPORT virtual void init() override;
 
-	virtual void destroy() override;
+	EXPORT virtual void destroy() override;
 
-	void pollEvents(bool& outRunning, bool& outPauseRendering);
+	EXPORT void pollEvents(bool& outRunning, bool& outPauseRendering);
 
 	void update(const Extent32u inExtent) {
 		mExtent = inExtent;

@@ -13,7 +13,7 @@
 	private:
 
 // Gives the ability to construct a class based on a class name
-class EXPORT CClassManager final {
+class CClassManager final {
 
 	std::map<std::string, std::function<std::shared_ptr<void>()>> m_Classes;
 
@@ -24,10 +24,10 @@ public:
 		register_Internal(std::make_pair(typeName, [] { return std::make_shared<TType>(); }));
 	}
 
-	static std::shared_ptr<void> construct(const std::string& inTypeName);
+	EXPORT static std::shared_ptr<void> construct(const std::string& inTypeName);
 
 private:
 
-	static void register_Internal(std::pair<const std::string&, std::function<std::shared_ptr<void>()>> inPair);
+	EXPORT static void register_Internal(std::pair<const std::string&, std::function<std::shared_ptr<void>()>> inPair);
 
 };

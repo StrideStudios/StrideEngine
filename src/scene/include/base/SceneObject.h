@@ -35,7 +35,7 @@ public:
 
 };
 
-class EXPORT CViewportObject : public CSceneObject {
+class CViewportObject : public CSceneObject {
 
 	REGISTER_CLASS(CViewportObject)
 
@@ -43,7 +43,7 @@ public:
 
 	CViewportObject(): CSceneObject("Viewport Object") {}
 
-	no_discard virtual Matrix4f getTransformMatrix() const override;
+	no_discard EXPORT virtual Matrix4f getTransformMatrix() const override;
 
 	virtual CArchive& save(CArchive& inArchive) override {
 		CSceneObject::save(inArchive);
@@ -90,7 +90,7 @@ private:
 	Transform2f m_Transform;
 };
 
-class EXPORT CWorldObject : public CSceneObject {
+class CWorldObject : public CSceneObject {
 
 	REGISTER_CLASS(CWorldObject)
 

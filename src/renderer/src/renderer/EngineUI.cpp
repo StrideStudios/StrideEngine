@@ -16,6 +16,7 @@
 #include "passes/SpritePass.h"
 #include "StaticMesh.h"
 #include "Viewport.h"
+#include "viewport/generic/Text.h"
 
 void SEngineUI::begin() {
 	// Start the Dear ImGui frame
@@ -54,7 +55,7 @@ void SEngineUI::init(VkQueue inQueue, VkFormat format) { //TODO: Global info for
 	};
 
 	CDescriptorPool* descriptorPool;
-	renderer.getResourceManager().create(descriptorPool, poolCreateInfo);
+	CVulkanResourceManager::get().create(descriptorPool, poolCreateInfo);
 
 	// this initializes imgui for Vulkan
 	ImGui_ImplVulkan_InitInfo initInfo {
@@ -141,6 +142,51 @@ void SEngineUI::renderSceneUI() {
 				ImGui::InputText("Name", &object->mName);
 			}
 			ImGui::PopID();
+		}
+	}
+	ImGui::End();
+}
+
+void SEngineUI::renderFontUI() {
+	if (ImGui::Begin("Fonts")) {
+		if (ImGui::Button("Import Font")) {
+
+			// Supported fonts
+			const static std::vector<std::pair<const char*, const char*>> filters = {
+				{ "Supported Formats (*.ttf; *.otf;)", "ttf;otf" },
+				{ "TTF (*.ttf)", "ttf" },
+				{ "OTF (*.otf)", "otf" }
+			};
+
+			//TODO: file query shouldnt be in viewport (also should be on background, but rendering thread crashes)
+			CEngineViewport::queryForFile(filters, [](std::vector<std::string> inFiles) {
+				for (const auto& file : inFiles) {
+
+					CThreading::getMainThread().add([file] {
+						CEngineLoader::importFont(file);
+					});
+					/*CThreading::runOnBackgroundThread([file] {
+						CEngineLoader::importFont(file);
+					});*/
+				}
+			});
+		}
+
+		for (auto font : CEngineLoader::getFonts()) {
+			if (ImGui::BeginCombo("Font", font.first.c_str(), ImGuiComboFlags_HeightRegular)) {
+				static uint32 selected = 0;
+				for (int32 i = 0; i < CEngineLoader::getFonts().size(); ++i) {
+					const bool isSelected = selected == i;
+					if (ImGui::Selectable(font.first.c_str(), isSelected))
+						selected = i;
+
+					// Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
+					if (isSelected)
+						ImGui::SetItemDefaultFocus();
+				}
+
+				ImGui::EndCombo();
+			}
 		}
 	}
 	ImGui::End();
@@ -380,6 +426,7 @@ void SEngineUI::render(VkCommandBuffer cmd) {
 	renderSpriteUI();
 	renderMeshUI();
 	renderSceneUI();
+	renderFontUI();
 
 	ImGui::Render();
 	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);

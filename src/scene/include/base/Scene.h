@@ -14,11 +14,11 @@ public:
 
 	EXPORT static CScene& get();
 
-	virtual void init() override;
+	EXPORT virtual void init() override;
 
-	virtual void destroy() override;
+	EXPORT virtual void destroy() override;
 
-	virtual void update();
+	EXPORT virtual void update();
 
 	class CCamera* mMainCamera = nullptr;
 

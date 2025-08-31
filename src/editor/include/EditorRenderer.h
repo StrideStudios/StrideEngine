@@ -1,10 +1,30 @@
 ﻿#pragma once
 
+#include "passes/SpritePass.h"
 #include "renderer/VulkanRenderer.h"
 
-class EXPORT CEditorRenderer :public CVulkanRenderer {
+class CEditorSpritePass : public CSpritePass {
 
 public:
 
-	virtual void init() override;
+	DEFINE_PASS(CEditorSpritePass)
+
+	EXPORT virtual void init() override;
+
+	EXPORT virtual void render(VkCommandBuffer cmd) override;
+
+	//
+	// Pipelines
+	//
+
+	CPipeline* textPipeline = nullptr;
+};
+
+class CEditorRenderer :public CVulkanRenderer {
+
+public:
+
+	EXPORT virtual void init() override;
+
+	EXPORT virtual void destroy() override;
 };

@@ -6,7 +6,7 @@ class CScene;
 
 constexpr static auto gEngineName = text("Stride Engine");
 
-class EXPORT CEngine {
+class CEngine {
 
 	struct Time {
 		int32 mAverageFrameRate = 0;
@@ -17,7 +17,7 @@ class EXPORT CEngine {
 
 public:
 
-	static CEngine& get();
+	EXPORT static CEngine& get();
 
 	no_discard Time& getTime() { return m_Time; }
 
@@ -28,13 +28,13 @@ public:
 	// Make sure only main can access init and run functions
 	friend int main();
 
-	void init();
+	EXPORT void init();
 
-	void end();
+	EXPORT void end();
 
-	void run();
+	EXPORT void run();
 
-	void update();
+	EXPORT void update();
 
 	//
 	// Frame Time

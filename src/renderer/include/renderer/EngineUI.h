@@ -12,6 +12,8 @@ struct SEngineUI {
 
 	static void renderSceneUI();
 
+	static void renderFontUI();
+
 	static void renderTextureUI();
 
 	static void renderMaterialUI();

@@ -1,5 +1,9 @@
 ﻿#pragma once
 
+#include <set>
+#include <unordered_set>
+#include <map>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 #include <string>
@@ -125,11 +129,115 @@ public:
 	}
 
 	//
+	// Sets
+	//
+
+	template <typename TType>
+	friend CArchive& operator<<(CArchive& inArchive, const std::set<TType>& inValue) {
+		inArchive << inValue.size();
+		for (auto value : inValue) {
+			inArchive << value;
+		}
+		return inArchive;
+	}
+
+	template <typename TType>
+	friend CArchive& operator>>(CArchive& inArchive, std::set<TType>& inValue) {
+		size_t size;
+		inArchive >> size;
+		for (size_t i = 0; i < size; ++i) {
+			TType value;
+			inArchive >> value;
+			inValue.emplace(value);
+		}
+		return inArchive;
+	}
+
+	template <typename TType>
+	friend CArchive& operator<<(CArchive& inArchive, const std::unordered_set<TType>& inValue) {
+		inArchive << inValue.size();
+		for (auto value : inValue) {
+			inArchive << value;
+		}
+		return inArchive;
+	}
+
+	template <typename TType>
+	friend CArchive& operator>>(CArchive& inArchive, std::unordered_set<TType>& inValue) {
+		size_t size;
+		inArchive >> size;
+		for (size_t i = 0; i < size; ++i) {
+			TType value;
+			inArchive >> value;
+			inValue.emplace(value);
+		}
+		return inArchive;
+	}
+
+	//
+	// Maps
+	//
+
+	template <typename TKeyType, typename TValueType>
+	friend CArchive& operator<<(CArchive& inArchive, const std::map<TKeyType, TValueType>& inValue) {
+		inArchive << inValue.size();
+		for (auto pair : inValue) {
+			inArchive << pair.first;
+			inArchive << pair.second;
+		}
+		return inArchive;
+	}
+
+	template <typename TKeyType, typename TValueType>
+	friend CArchive& operator>>(CArchive& inArchive, std::map<TKeyType, TValueType>& inValue) {
+		size_t size;
+		inArchive >> size;
+		for (size_t i = 0; i < size; ++i) {
+			// Get key values
+			TKeyType first;
+			TValueType second;
+			inArchive >> first;
+			inArchive >> second;
+
+			// Set key value pair
+			inValue[first] = second;
+		}
+		return inArchive;
+	}
+
+	template <typename TKeyType, typename TValueType>
+	friend CArchive& operator<<(CArchive& inArchive, const std::unordered_map<TKeyType, TValueType>& inValue) {
+		inArchive << inValue.size();
+		for (auto pair : inValue) {
+			inArchive << pair.first;
+			inArchive << pair.second;
+		}
+		return inArchive;
+	}
+
+	template <typename TKeyType, typename TValueType>
+	friend CArchive& operator>>(CArchive& inArchive, std::unordered_map<TKeyType, TValueType>& inValue) {
+		size_t size;
+		inArchive >> size;
+		for (size_t i = 0; i < size; ++i) {
+			// Get key values
+			TKeyType first;
+			TValueType second;
+			inArchive >> first;
+			inArchive >> second;
+
+			// Set key value pair
+			inValue[first] = second;
+		}
+		return inArchive;
+	}
+
+	//
 	// Vectors
 	//
 	//TODO: inherited classes DO NOT work
-	template <typename TType, class TAlloc = std::allocator<TType>>
-	friend CArchive& operator<<(CArchive& inArchive, const std::vector<TType, TAlloc>& inValue) {
+	template <typename TType>
+	friend CArchive& operator<<(CArchive& inArchive, const std::vector<TType>& inValue) {
 		inArchive << inValue.size();
 		for (auto value : inValue) {
 			inArchive << value;
@@ -138,8 +246,8 @@ public:
 	}
 
 	// Vector assumes a default constructor and save overloads
-	template <typename TType, class TAlloc = std::allocator<TType>>
-	friend CArchive& operator>>(CArchive& inArchive, std::vector<TType, TAlloc>& inValue) {
+	template <typename TType>
+	friend CArchive& operator>>(CArchive& inArchive, std::vector<TType>& inValue) {
 		size_t size;
 		inArchive >> size;
 		inValue.resize(size);

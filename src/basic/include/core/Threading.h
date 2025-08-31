@@ -4,8 +4,7 @@
 #include <mutex>
 #include <deque>
 
-#include "tracy/Tracy.hpp"
-#include "tracy/TracyC.h"
+#include "Profiling.h"
 
 class CWorker {
 public:
@@ -200,36 +199,21 @@ public:
 
 class CThreading {
 
-	constexpr static CThreading& get() {
-		static CThreading threading;
-		return threading;
-	}
-
 public:
 
-	static CWorker& getMainThread() { return get().mMainThread; }
+	EXPORT static CWorker& getMainThread();
 
-	static CThread& getRenderingThread() { return get().mRenderingThread; }
+	EXPORT static CThread& getRenderingThread();
 
-	static CThread& getGameThread() { return get().mGameThread; }
+	EXPORT static CThread& getGameThread();
 
-	static void runOnBackgroundThread(const std::function<void()>& inFunc) {
-		get().mThreadPool.run(inFunc);
-	}
+	EXPORT static void runOnBackgroundThread(const std::function<void()>& inFunc);
 
 	// Wait for threads to finish operations
-	static void wait() {
-		get().mRenderingThread.wait();
-		get().mGameThread.wait();
-		get().mThreadPool.wait();
-	}
+	EXPORT static void wait();
 
-	// Wait for threads to finish operations
-	static void stop() {
-		get().mRenderingThread.stop();
-		get().mGameThread.stop();
-		get().mThreadPool.stop();
-	}
+	// Not guaranteed to finish all operations (some may stop prematurely)
+	EXPORT static void stop();
 
 	CWorker mMainThread;
 

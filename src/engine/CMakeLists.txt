@@ -1,4 +1,6 @@
-﻿create_module(StrideEngine-engine PUBLIC SHARED
+﻿create_module(StrideEngine-engine SHARED)
+
+add_public_dependencies(StrideEngine-engine
         SDL3::SDL3
 
         StrideEngine-basic

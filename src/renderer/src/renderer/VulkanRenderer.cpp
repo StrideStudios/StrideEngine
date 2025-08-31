@@ -85,13 +85,13 @@ void CVulkanRenderer::init() {
 
 	VkCommandPoolCreateInfo uploadCommandPoolInfo = CVulkanInfo::createCommandPoolInfo(CVulkanDevice::getQueue(EQueueType::UPLOAD).mFamily);
 	//create pool for upload context
-	getResourceManager().create(mUploadContext.mCommandPool, uploadCommandPoolInfo);
+	CVulkanResourceManager::get().create(mUploadContext.mCommandPool, uploadCommandPoolInfo);
 
 	//allocate the default command buffer that we will use for the instant commands
 	mUploadContext.mCommandBuffer = SCommandBuffer(mUploadContext.mCommandPool);
 
 	VkFenceCreateInfo fenceCreateInfo = CVulkanInfo::createFenceInfo(VK_FENCE_CREATE_SIGNALED_BIT);
-	getResourceManager().create(mUploadContext.mUploadFence, fenceCreateInfo);
+	CVulkanResourceManager::get().create(mUploadContext.mUploadFence, fenceCreateInfo);
 
 	{
 		// Create a command pool for commands submitted to the graphics queue.
@@ -100,7 +100,7 @@ void CVulkanRenderer::init() {
 			CVulkanDevice::getQueue(EQueueType::GRAPHICS).mFamily, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
 		for (auto &frame: mFrames) {
-			getResourceManager().create(frame.mCommandPool, commandPoolInfo);
+			CVulkanResourceManager::get().create(frame.mCommandPool, commandPoolInfo);
 
 			// Allocate the default command buffer that we will use for rendering
 			frame.mMainCommandBuffer = SCommandBuffer(frame.mCommandPool);
@@ -109,9 +109,9 @@ void CVulkanRenderer::init() {
 		}
 	}
 
-	getResourceManager().create(mEngineTextures);
+	CVulkanResourceManager::get().create(mEngineTextures);
 
-	mSceneDataBuffer = getResourceManager().allocateGlobalBuffer(sizeof(SceneData), VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
+	mSceneDataBuffer = CVulkanResourceManager::get().allocateGlobalBuffer(sizeof(SceneData), VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
 
 	// Setup Engine UI
 	SEngineUI::init(CVulkanDevice::getQueue(EQueueType::GRAPHICS).mQueue, mEngineTextures->mDrawImage->mImageFormat);
@@ -121,7 +121,7 @@ void CVulkanRenderer::init() {
 
 	// Initialize passes
 	for (const auto pass : getPasses()) {
-		CResourceManager::get().push(pass);
+		CVulkanResourceManager::get().push(pass);
 		pass->init();
 	}
 }
@@ -136,10 +136,7 @@ void CVulkanRenderer::destroy() {
 		frame.mFrameResourceManager.flush();
 	}
 
-	CRenderer::destroy();
-
-	// Destroy allocator, if not all allocations have been destroyed, it will throw an error
-	CVulkanResourceManager::destroy();
+	CVulkanResourceManager::get().flush();
 
 	vkb::destroy_surface(m_Instance->mInstance, mVkSurface);//TODO: in instance?
 
@@ -283,7 +280,7 @@ void CVulkanRenderer::render() {
 			}
 
 			//write the buffer
-			auto* sceneUniformData = static_cast<SceneData*>(mSceneDataBuffer->GetMappedData());
+			auto* sceneUniformData = static_cast<SceneData*>(mSceneDataBuffer->getMappedData());
 			*sceneUniformData = mSceneData;
 
 			CVulkanResourceManager::updateGlobalBuffer(mSceneDataBuffer);

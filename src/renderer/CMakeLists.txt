@@ -1,4 +1,6 @@
-﻿create_module(StrideEngine-renderer PUBLIC SHARED
+﻿create_module(StrideEngine-renderer SHARED)
+
+add_public_dependencies(StrideEngine-renderer
         glslang::glslang-default-resource-limits
         glslang::glslang
         fastgltf::fastgltf

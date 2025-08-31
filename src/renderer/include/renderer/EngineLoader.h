@@ -5,11 +5,12 @@
 #include <string>
 #include <memory>
 
-#include "Material.h"
 #include "StaticMesh.h"
 #include "VulkanResourceManager.h"
 
 struct SStaticMesh;
+class CMaterial;
+class CFont;
 
 // Represents a vertex
 struct SVertex {
@@ -174,10 +175,7 @@ struct SMeshData {
 
 class CEngineLoader {
 
-	static CEngineLoader& get() {
-		static CEngineLoader engineLoader;
-		return engineLoader;
-	}
+	EXPORT static CEngineLoader& get();
 
 	template <typename TType>
 	static void save(const std::string& inFileName, const TType& inValue) {
@@ -214,9 +212,19 @@ public:
 
 	static void importTexture(const std::filesystem::path& inPath);
 
-	static std::map<std::string, SImage_T*> getImages() { return get().mImages; }
+	static std::map<std::string, SImage_T*>& getImages() { return get().mImages; }
 
 	std::map<std::string, SImage_T*> mImages{};
+
+	//
+	// Fonts
+	//
+
+	static void importFont(const std::filesystem::path& inPath);
+
+	static std::map<std::string, std::shared_ptr<CFont>>& getFonts() { return get().mFonts; }
+
+	std::map<std::string, std::shared_ptr<CFont>> mFonts{};
 
 	//
 	// Materials
@@ -224,17 +232,17 @@ public:
 
 	static void createMaterial(const std::string& inMaterialName);
 
-	static std::map<std::string, std::shared_ptr<CMaterial>> getMaterials() { return get().mMaterials; }
+	static std::map<std::string, std::shared_ptr<CMaterial>>& getMaterials() { return get().mMaterials; }
 
 	std::map<std::string, std::shared_ptr<CMaterial>> mMaterials{};
 
 	//
-	// Materials
+	// Meshes
 	//
 
 	static void importMesh(const std::filesystem::path& inPath);
 
-	static std::map<std::string, std::shared_ptr<SStaticMesh>> getMeshes() { return get().mMeshes; }
+	static std::map<std::string, std::shared_ptr<SStaticMesh>>& getMeshes() { return get().mMeshes; }
 
 	std::map<std::string, std::shared_ptr<SStaticMesh>> mMeshes{};
 
