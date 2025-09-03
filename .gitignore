@@ -34,3 +34,6 @@ cache/
 # Build files
 cmake-build-debug/
 bin/
+
+# Auto generated files
+src/Sources.h

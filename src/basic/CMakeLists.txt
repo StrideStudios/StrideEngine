@@ -1,6 +1,7 @@
 ﻿create_module(StrideEngine-basic SHARED)
 
-add_public_dependencies(StrideEngine-basic
+add_dependencies(StrideEngine-basic
+    PUBLIC
         glm::glm
         fmt::fmt
         Tracy::TracyClient

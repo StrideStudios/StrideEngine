@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/Archive.h"
 #include "VulkanResourceManager.h"
 
 struct SInstance {

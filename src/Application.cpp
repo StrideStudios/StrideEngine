@@ -1,11 +1,11 @@
-﻿#include "EditorRenderer.h"
-#include "Engine.h"
-#include "Profiling.h"
-#include "base/Scene.h"
-#include "passes/MeshPass.h"
-#include "passes/SpritePass.h"
+﻿
+// This include ensures static calls are done before main (even in libraries)
+// Without it, the linker might drop symbols that need to run before main (like factory registration)
+#include "Sources.h"
 
 int main() {
+
+	msgs("Main Called");
 
 	CProfiler::StartupProfiler();
 

@@ -21,6 +21,7 @@ public:
 
 	template <typename TType>
 	static void registerClass(const std::string& typeName) {
+		std::cout << typeName << " registered." << std::endl;
 		register_Internal(std::make_pair(typeName, [] { return std::make_shared<TType>(); }));
 	}
 

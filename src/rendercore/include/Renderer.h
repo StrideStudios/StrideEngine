@@ -1,5 +1,6 @@
 ﻿#pragma once
 
+#include "control/ResourceManager.h"
 #include "core/Common.h"
 
 // Forward declare vkb types

@@ -1,7 +1,8 @@
 ﻿create_module(StrideEngine-rendercore SHARED)
 
 find_package(Vulkan REQUIRED)
-add_public_dependencies(StrideEngine-rendercore
+add_dependencies(StrideEngine-rendercore
+    PUBLIC
         glslang::glslang-default-resource-limits #TODO: dont want glslang in rendercore but fine for now
         glslang::glslang
 

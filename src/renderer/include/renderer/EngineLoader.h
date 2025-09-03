@@ -5,6 +5,7 @@
 #include <string>
 #include <memory>
 
+#include "core/Paths.h"
 #include "StaticMesh.h"
 #include "VulkanResourceManager.h"
 

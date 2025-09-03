@@ -6,6 +6,7 @@
 #include <mutex>
 
 #include "Renderer.h"
+#include "control/ClassManager.h"
 #include "VulkanResourceManager.h"
 
 // Forward declare vkb types

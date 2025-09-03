@@ -9,6 +9,8 @@
 #include <string>
 #include <memory>
 
+#include "control/ClassManager.h"
+
 class CArchive;
 
 // A serializable function that can be passed down

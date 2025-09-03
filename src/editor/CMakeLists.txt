@@ -1,6 +1,7 @@
 ﻿create_module(StrideEngine-editor SHARED)
 
-add_public_dependencies(StrideEngine-editor
+add_dependencies(StrideEngine-editor
+    PUBLIC
         StrideEngine-basic
         StrideEngine-rendercore
         StrideEngine-engine
