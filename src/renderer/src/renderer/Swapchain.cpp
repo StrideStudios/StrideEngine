@@ -24,12 +24,12 @@ void SSwapchainImage::destroy() {
 	vkDestroyImageView(CRenderer::device(), mImageView, nullptr);
 }
 
-SSwapchain::SSwapchain(const vkb::Result<vkb::Swapchain>& inSwapchainBuilder) {
+void SSwapchain::init(const vkb::Result<vkb::Swapchain>& inSwapchainBuilder) {
 	//store swapchain and its related images
-	mSwapchain = inSwapchainBuilder.value();
+	mInternalSwapchain = inSwapchainBuilder.value();
 
-	const std::vector<VkImage> images = mSwapchain.get_images().value();
-	const std::vector<VkImageView> imageViews = mSwapchain.get_image_views().value();
+	const std::vector<VkImage> images = mInternalSwapchain.get_images().value();
+	const std::vector<VkImageView> imageViews = mInternalSwapchain.get_image_views().value();
 
 	VkSemaphoreCreateInfo semaphoreCreateInfo = CVulkanInfo::createSemaphoreInfo();
 
@@ -88,7 +88,7 @@ void CVulkanSwapchain::init(const VkSwapchainKHR oldSwapchain, const bool inUseV
 
 void CVulkanSwapchain::recreate(bool inUseVSync) {
 
-	init(mSwapchain->mSwapchain, inUseVSync);
+	init(mSwapchain->mInternalSwapchain, inUseVSync);
 
 	m_Dirty = false;
 }
@@ -105,7 +105,7 @@ SSwapchainImage* CVulkanSwapchain::getSwapchainImage(const uint32 inCurrentFrame
 	ZoneName(zoneName.c_str(), zoneName.size());
 
 	uint32 swapchainImageIndex = 0;
-	SWAPCHAIN_CHECK(vkAcquireNextImageKHR(CRenderer::device(), mSwapchain->mSwapchain, 1000000000, *m_Frames[inCurrentFrameIndex].mSwapchainSemaphore, nullptr, &swapchainImageIndex), setDirty());
+	SWAPCHAIN_CHECK(vkAcquireNextImageKHR(CRenderer::device(), mSwapchain->mInternalSwapchain, 1000000000, *m_Frames[inCurrentFrameIndex].mSwapchainSemaphore, nullptr, &swapchainImageIndex), setDirty());
 
 	return mSwapchain->mSwapchainImages[swapchainImageIndex];
 }
@@ -166,7 +166,7 @@ void CVulkanSwapchain::submit(const VkCommandBuffer inCmd, const VkQueue inGraph
 			.waitSemaphoreCount = 1,
 			.pWaitSemaphores = &mSwapchain->mSwapchainRenderSemaphores[inSwapchainImageIndex]->mSemaphore,
 			.swapchainCount = 1,
-			.pSwapchains = &mSwapchain->mSwapchain.swapchain,
+			.pSwapchains = &mSwapchain->mInternalSwapchain.swapchain,
 			.pImageIndices = &inSwapchainImageIndex,
 		};
 

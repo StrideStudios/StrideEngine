@@ -1,18 +1,19 @@
 ﻿#pragma once
 
-#include <set>
 #include <vulkan/vulkan_core.h>
 
 #include "VulkanResourceManager.h"
+#include "core/Registry.h"
 
-#define DEFINE_PASS(className) \
-	className() = default; \
-	static CPass* make() { \
-		return new className(); \
-	} \
-	virtual std::string getName() const override { return #className; } \
+class CObjectRenderer;
 
-class CPass : public IInitializable<>, public IDestroyable {
+#define REGISTER_PASS(className) \
+	REGISTER_OBJ(CPassDeferredRegistry, className) \
+	public: \
+		virtual const char* getName() const override { return #className; } \
+	private:
+
+class CPass : public SObject, public IInitializable, public IDestroyable {
 
 public:
 
@@ -21,8 +22,6 @@ public:
 	virtual void render(VkCommandBuffer cmd) = 0;
 
 	virtual void update() {}
-
-	virtual std::string getName() const { return "Pass"; } \
 
 	EXPORT void bindPipeline(VkCommandBuffer cmd, CPipeline* inPipeline, const struct SPushConstants& inConstants);
 
@@ -42,7 +41,11 @@ protected:
 
 	virtual SRenderAttachment getStencilAttachment() const { return SRenderAttachment::defaultStencil(); }
 
+	std::map<std::string, std::shared_ptr<CObjectRenderer>> m_Renderers;
+
 private:
 
 	CPipeline* m_CurrentPipeline = nullptr;
 };
+
+DEFINE_DEFERRED_REGISTRY(CPass)

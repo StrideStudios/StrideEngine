@@ -33,6 +33,8 @@ struct SUploadContext {
 
 class CVulkanRenderer : public CRenderer {
 
+	REGISTER_CLASS(CVulkanRenderer)
+
 public:
 
 	EXPORT static CVulkanRenderer* get();

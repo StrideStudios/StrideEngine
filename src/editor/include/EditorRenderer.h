@@ -5,9 +5,9 @@
 
 class CEditorSpritePass : public CSpritePass {
 
-public:
+	REGISTER_PASS(CEditorSpritePass)
 
-	DEFINE_PASS(CEditorSpritePass)
+public:
 
 	EXPORT virtual void init() override;
 

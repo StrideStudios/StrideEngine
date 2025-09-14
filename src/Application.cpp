@@ -5,17 +5,12 @@
 
 int main() {
 
-	msgs("Main Called");
-
 	CProfiler::StartupProfiler();
 
 	CEngine::get().init();
 
 	// Create a renderer with certain passes
-	CRenderer::create<CEditorRenderer>({
-		CMeshPass::make(),
-		CSpritePass::make()
-	});
+	CRenderer::create<CEditorRenderer>();
 
 	CScene::get().init();
 

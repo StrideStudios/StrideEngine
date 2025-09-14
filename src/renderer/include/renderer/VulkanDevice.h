@@ -29,7 +29,9 @@ static std::map<vkb::QueueType, std::map<EQueueType, float>> queueFamilies {
     },
 };
 
-class CVulkanDevice : public CDevice, public IInitializable<class CVulkanInstance*, VkSurfaceKHR>, public IDestroyable {
+class CVulkanDevice : public CDevice, public TInitializable<class CVulkanInstance*, VkSurfaceKHR>, public IDestroyable {
+
+    REGISTER_CLASS(CVulkanDevice)
 
 public:
 

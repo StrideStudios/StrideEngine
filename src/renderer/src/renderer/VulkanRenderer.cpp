@@ -119,11 +119,7 @@ void CVulkanRenderer::init() {
 	// Load textures and meshes
 	CEngineLoader::load();
 
-	// Initialize passes
-	for (const auto pass : getPasses()) {
-		CVulkanResourceManager::get().push(pass);
-		pass->init();
-	}
+	CPassDeferredRegistry::init(CResourceManager::get());
 }
 
 void CVulkanRenderer::destroy() {
@@ -170,7 +166,7 @@ void CVulkanRenderer::render() {
 
 			mEngineTextures->reallocate(UseVsync.get());
 
-			for (CPass* pass : getPasses()) {
+			for (const auto pass : getPasses()) {
 				pass->update();
 			}
 		}
@@ -292,9 +288,10 @@ void CVulkanRenderer::render() {
 			CEngineViewport::get().set(cmd);
 
 			CPass* previousPass = nullptr;
-			for (CPass* pass : getPasses()) {
+			for (const auto pass : getPasses()) {
 				ZoneScoped;
-				ZoneName(pass->getName().c_str(), pass->getName().size());
+				std::string passName = pass->getName();
+				ZoneName(passName.c_str(), passName.size());
 
 				// Restart rendering if passes have different rendering info
 				if (previousPass) {
@@ -336,7 +333,7 @@ void CVulkanRenderer::render() {
 
 		// Execute a copy from the draw image into the swapchain
 		auto [width, height, depth] = mEngineTextures->mDrawImage->mImageExtent;
-		CVulkanUtils::copyImageToImage(cmd, mEngineTextures->mDrawImage->mImage, swapchainImage->mImage, {width, height}, mEngineTextures->getSwapchain()->mSwapchain->mSwapchain.extent);
+		CVulkanUtils::copyImageToImage(cmd, mEngineTextures->mDrawImage->mImage, swapchainImage->mImage, {width, height}, mEngineTextures->getSwapchain()->mSwapchain->mInternalSwapchain.extent);
 
 		// Set swapchain image layout to Present so we can show it on the screen
 		CVulkanUtils::transitionImage(cmd, swapchainImage, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);

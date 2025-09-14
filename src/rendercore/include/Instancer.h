@@ -23,6 +23,8 @@ struct SInstancer {
 
 	EXPORT ~SInstancer();
 
+	EXPORT void destroy();
+
 	void append(const std::vector<SInstance>& inInstances) {
 		instances.append_range(inInstances);
 		setDirty();

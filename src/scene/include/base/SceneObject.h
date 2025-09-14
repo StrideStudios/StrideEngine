@@ -1,17 +1,19 @@
 ﻿#pragma once
 
-#include <glm/ext/matrix_transform.hpp>
-#include <glm/gtc/quaternion.hpp>
-
 #include "Instancer.h"
 #include "VulkanResources.h"
+#include "core/Object.h"
+#include "core/Class.h"
 
-class CSceneObject : public ISerializable {
+#define REGISTER_SCENE_OBJECT(n) \
+	ADD_TO_FACTORY(SObjectFactory, n) \
+	REGISTER_CLASS(n)
 
-	//REGISTER_CLASS(CSceneObject)
+class CSceneObject : public SObject, public ISerializable {
+
+	//REGISTER_SCENE_OBJECT(CSceneObject)
 
 public:
-	virtual ~CSceneObject() = default;
 
 	CSceneObject() = default;
 
@@ -37,7 +39,7 @@ public:
 
 class CViewportObject : public CSceneObject {
 
-	REGISTER_CLASS(CViewportObject)
+	REGISTER_SCENE_OBJECT(CViewportObject)
 
 public:
 
@@ -92,7 +94,7 @@ private:
 
 class CWorldObject : public CSceneObject {
 
-	REGISTER_CLASS(CWorldObject)
+	REGISTER_SCENE_OBJECT(CWorldObject)
 
 public:
 

@@ -2,6 +2,7 @@
 
 #include "control/ResourceManager.h"
 #include "core/Common.h"
+#include "core/Class.h"
 
 // Forward declare vkb types
 namespace vkb {
@@ -16,21 +17,17 @@ class CPass;
  * Base classes for engine access
  */
 
-class CInstance {
+class CInstance : public SObject {
 
 public:
-
-	virtual ~CInstance() = default;
 
 	no_discard virtual const vkb::Instance& getInstance() const = 0;
 
 };
 
-class CDevice {
+class CDevice : public SObject {
 
 public:
-
-	virtual ~CDevice() = default;
 
 	no_discard virtual const vkb::PhysicalDevice& getPhysicalDevice() const = 0;
 
@@ -38,11 +35,9 @@ public:
 
 };
 
-class CSwapchain {
+class CSwapchain : public SObject {
 
 public:
-
-	virtual ~CSwapchain() = default;
 
 	virtual bool isDirty() const = 0;
 
@@ -50,16 +45,21 @@ public:
 
 };
 
-class CRenderer : public IInitializable<>, public IDestroyable {
+class CRenderer : public SObject, public IInitializable, public IDestroyable {
 
 public:
 
 	EXPORT static CRenderer* get();
 
 	template <typename TType>
-	static void create(const std::list<CPass*>& inPasses) {
+	static void create() {
 		TType* renderer = new TType();
-		set(renderer, inPasses);
+		set(renderer);
+	}
+
+	template <typename... TPasses>
+	static void addPasses(TPasses... passes) {
+		get()->m_Passes.append_range(std::initializer_list<CPass*>{passes...});
 	}
 
 	static const vkb::Instance& instance() { return get()->getInstance()->getInstance(); }
@@ -82,25 +82,9 @@ public:
 
 	std::list<CPass*> getPasses() const { return m_Passes; }
 
-	template <typename TType>
-	TType* getPass() const {
-		for (auto pass : m_Passes) {
-			if (TType* typePass = dynamic_cast<TType*>(pass))
-				return typePass;
-		}
-		return nullptr;
-	}
-
-protected:
-
-	template <typename TType>
-	void addPass() {
-		m_Passes.push_back(TType::make());
-	}
-
 private:
 
-	EXPORT static void set(CRenderer* inRenderer, const std::list<CPass*>& inPasses);
+	EXPORT static void set(CRenderer* inRenderer);
 
 	std::list<CPass*> m_Passes;
 

@@ -4,6 +4,7 @@
 #include <random>
 
 #include "Material.h"
+#include "passes/MeshPass.h"
 #include "viewport/Sprite.h"
 #include "passes/SpritePass.h"
 #include "renderer/EngineTextures.h"
@@ -150,10 +151,13 @@ void CEditorSpritePass::render(VkCommandBuffer cmd) {
 
 void CEditorRenderer::init() {
 
-	// Add editor pass on top of the other passes
-	addPass<CEditorSpritePass>();
-
 	CVulkanRenderer::init();
+
+	addPasses(
+		&CMeshPass::get(),
+		&CSpritePass::get(),
+		&CEditorSpritePass::get()
+	);
 
 	constexpr int32 numSprites = 250;
 
@@ -177,9 +181,7 @@ void CEditorRenderer::init() {
 		sprite->addInstance(transform);
 	}
 
-	if (const auto spritePass = getPass<CSpritePass>()) {
-		spritePass->push(sprite);
-	}
+	CSpritePass::get().push(sprite);
 }
 
 void CEditorRenderer::destroy() {

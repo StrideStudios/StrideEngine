@@ -1,5 +1,7 @@
 ﻿#pragma once
 
+#include "core/Common.h"
+
 class CVulkanRenderer;
 class CEngineViewport;
 class CScene;
@@ -23,7 +25,7 @@ public:
 
 	no_discard const CEngineViewport& getViewport() const { return *m_EngineViewport; }
 
-public:
+private:
 
 	// Make sure only main can access init and run functions
 	friend int main();

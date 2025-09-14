@@ -3,6 +3,7 @@
 #include <deque>
 
 #include "core/Common.h"
+#include "core/Object.h"
 
 struct IDestroyable {
 	virtual ~IDestroyable() = default;
@@ -10,16 +11,18 @@ struct IDestroyable {
 	virtual void destroy() {}
 };
 
-// class which makes it easy to check if a class extends Initializable
 struct SInitializable {};
 
 template <typename... TArgs>
-struct IInitializable : SInitializable {
+struct TInitializable : SInitializable {
 	virtual void init(TArgs... args) {}
 };
 
+// typedef which makes it easy to check if a class has an empty init function
+typedef TInitializable<> IInitializable;
+
 /*
- * Stores pointers to IDestroyable so they can be automatically deallocated when flush is called
+ * Stores pointers to CObject so they can be automatically deallocated when flush is called
  * This means initialization can be done in a local context to remove clutter
  */
 class CResourceManager {
@@ -35,23 +38,23 @@ public:
 	}
 
 	template <typename TType>
-	requires std::is_base_of_v<IDestroyable, TType>
+	requires std::is_base_of_v<SObject, TType>
 	void create(TType*& outType) {
 		outType = new TType();
-		if constexpr (std::is_base_of_v<SInitializable, TType>) {
+		if constexpr (std::is_base_of_v<IInitializable, TType>) {
 			outType->init();
 		}
 		push(outType);
 	}
 
 	template <typename TTargetType, typename TType>
-	requires (!std::is_same_v<TTargetType, TType>) and std::is_base_of_v<IDestroyable, TTargetType>
+	requires (!std::is_same_v<TTargetType, TType>) and std::is_base_of_v<SObject, TTargetType>
 	void create(TType*& outType) {
 		create<TTargetType>(reinterpret_cast<TTargetType*&>(outType));
 	}
 
 	template <typename TType, typename... TArgs>
-	requires std::is_base_of_v<IDestroyable, TType>
+	requires std::is_base_of_v<SObject, TType>
 	void create(TType*& outType, TArgs&&... args) {
 		if constexpr (std::is_base_of_v<SInitializable, TType>) {
 			outType = new TType();
@@ -63,27 +66,29 @@ public:
 	}
 
 	template <typename TTargetType, typename TType, typename... TArgs>
-	requires (!std::is_same_v<TTargetType, TType>) and std::is_base_of_v<IDestroyable, TTargetType>
+	requires (!std::is_same_v<TTargetType, TType>) and std::is_base_of_v<SObject, TTargetType>
 	void create(TType*& outType, TArgs&&... args) {
 		create<TTargetType, TArgs...>(reinterpret_cast<TTargetType*&>(outType), args...);
 	}
 
 	template <typename TType>
-	requires std::is_base_of_v<IDestroyable, TType>
+	requires std::is_base_of_v<SObject, TType>
 	void push(TType* inType) {
-		m_Destroyables.push_back(inType);
+		m_Objects.push_back(inType);
 	}
 
 	// Reverse iterate and destroy
 	virtual void flush() {
-		for (auto itr = m_Destroyables.rbegin(); itr != m_Destroyables.rend(); ++itr) {
-			(*itr)->destroy();
+		for (auto itr = m_Objects.rbegin(); itr != m_Objects.rend(); ++itr) {
+			if (const auto& destroyable = dynamic_cast<IDestroyable*>(*itr)) {
+				destroyable->destroy();
+			}
 			delete *itr;
 		}
-		m_Destroyables.clear();
+		m_Objects.clear();
 	}
 
 private:
 
-	std::deque<IDestroyable*> m_Destroyables;
+	std::deque<SObject*> m_Objects;
 };

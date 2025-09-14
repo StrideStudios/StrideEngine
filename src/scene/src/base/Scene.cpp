@@ -12,11 +12,11 @@ CScene& CScene::get() {
 void CScene::init() {
 	std::filesystem::path path = SPaths::get().mAssetPath.string() + "Scene.scn";
 
-	if (!std::filesystem::exists(path)) return;
-
-	CFileArchive file(path.string(), "rb");
-	file >> data.objects;
-	file.close();
+	if (std::filesystem::exists(path)) {
+		CFileArchive file(path.string(), "rb");
+		file >> data.objects;
+		file.close();
+	}
 
 	gSceneResourceManager.create(mMainCamera);
 }

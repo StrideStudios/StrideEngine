@@ -6,7 +6,9 @@ class CMaterial;
 class CVulkanSwapchain;
 
 // Class used to house textures for the engine, easily resizable when necessary
-class CEngineTextures : public IDestroyable, public IInitializable<> {
+class CEngineTextures : public SObject, public IDestroyable, public IInitializable {
+
+	REGISTER_CLASS(CEngineTextures)
 
 	friend class CVulkanRenderer;
 
@@ -14,13 +16,13 @@ public:
 
 	CEngineTextures() = default;
 
-	virtual void init() override;
+	EXPORT virtual void init() override;
 
-	void initializeTextures();
+	EXPORT void initializeTextures();
 
-	void reallocate(bool inUseVSync = true);
+	EXPORT void reallocate(bool inUseVSync = true);
 
-	virtual void destroy() override;
+	EXPORT virtual void destroy() override;
 
 	no_discard CVulkanSwapchain* getSwapchain() const { return m_Swapchain; }
 

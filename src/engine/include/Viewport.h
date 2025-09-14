@@ -2,7 +2,9 @@
 
 #include "VulkanResources.h"
 
-class CEngineViewport : public IInitializable<>, public IDestroyable {
+class CEngineViewport : public SObject, public IInitializable, public IDestroyable {
+
+	REGISTER_CLASS(CEngineViewport)
 
 public:
 
@@ -10,9 +12,9 @@ public:
 
 	EXPORT static const CEngineViewport& get();
 
-	typedef void cb(std::vector<std::string> inFiles);
+	typedef void FCallback(std::vector<std::string> inFiles);
 
-	EXPORT static void queryForFile(const std::vector<std::pair<const char*, const char*>>& inFilters, cb callback);
+	EXPORT static void queryForFile(const std::vector<std::pair<const char*, const char*>>& inFilters, FCallback* callback);
 
 	EXPORT virtual void init() override;
 

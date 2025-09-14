@@ -310,7 +310,7 @@ void SEngineUI::renderMaterialUI() {
 void SEngineUI::renderSpriteUI() {
 	return;
 	if (ImGui::Begin("Sprites")) {
-		for (const auto pass = CRenderer::get()->getPass<CSpritePass>(); const auto& sprite : pass->objects) {
+		for (const auto& pass = CSpritePass::get(); const auto& sprite : pass.objects) {
 			if (ImGui::BeginTabBar("Sprite")) {
 				if (ImGui::BeginTabItem(sprite->mName.c_str())) {
 					//ImGui::Checkbox("Highlight", &material.material->mHighlight);

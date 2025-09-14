@@ -7,6 +7,8 @@
 // Wrapper around vkb instance that can be destroyed
 class CVulkanInstance : public CInstance, public IDestroyable {
 
+	REGISTER_CLASS(CVulkanInstance)
+
 public:
 
 	CVulkanInstance() {

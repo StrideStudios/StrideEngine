@@ -65,7 +65,7 @@ struct SStaticMesh {
 // This is also where static meshes are loaded
 class CStaticMeshObject : public CRenderableWorldObject {
 
-	REGISTER_CLASS(CStaticMeshObject)
+	REGISTER_SCENE_OBJECT(CStaticMeshObject)
 
 public:
 

@@ -87,3 +87,11 @@ void CSpritePass::update() {
 		instancer.setDirty();
 	}
 }
+
+void CSpritePass::destroy() {
+	for (auto& sprite : objects) {
+		SInstancer& instancer = sprite->getInstancer();
+		instancer.destroy();
+	}
+	objects.clear();
+}

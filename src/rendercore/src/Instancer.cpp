@@ -1,16 +1,23 @@
 #include "Instancer.h"
 
+class CStaticMeshObject;
+
 SInstancer::SInstancer(const uint32 initialSize) {
 	instances.resize(initialSize);
 	setDirty();
 }
 
 SInstancer::~SInstancer() {
+	destroy();
+}
+
+void SInstancer::destroy() {
 
 	//TODO: Temporary wait until proper destruction
 	vkDeviceWaitIdle(CRenderer::device());
 
 	m_ResourceManager.flush();
+	instances.clear();
 }
 
 void SInstancer::reallocate(const Matrix4f& parentMatrix) {

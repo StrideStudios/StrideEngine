@@ -9,7 +9,8 @@
 #include <string>
 #include <memory>
 
-#include "control/ClassManager.h"
+#include "Class.h"
+#include "Object.h"
 
 class CArchive;
 
@@ -286,22 +287,22 @@ public:
 	//
 
 	template <typename TType>
-	requires (not std::is_polymorphic_v<TType>) or std::is_default_constructible_v<typename TType::Class>
+	requires (not std::is_polymorphic_v<TType>) or std::is_base_of_v<SObject, TType>
 	friend CArchive& operator<<(CArchive& inArchive, const std::shared_ptr<TType>& inValue) {
 		if constexpr (std::is_polymorphic_v<TType>) {
-			inArchive << inValue->getClass().getName();
+			inArchive << inValue->getName();
 		}
 		inArchive << *inValue;
 		return inArchive;
 	}
 
 	template <typename TType>
-	requires std::is_default_constructible_v<TType> and ((not std::is_polymorphic_v<TType>) or std::is_default_constructible_v<typename TType::Class>)
+	requires std::is_default_constructible_v<TType> and ((not std::is_polymorphic_v<TType>) or std::is_base_of_v<SObject, TType>)
 	friend CArchive& operator>>(CArchive& inArchive, std::shared_ptr<TType>& inValue) {
 		if constexpr (std::is_polymorphic_v<TType>) {
 			std::string className;
 			inArchive >> className;
-			inValue = std::static_pointer_cast<TType>(CClassManager::construct(className.c_str()));
+			inValue = SObjectFactory::construct<TType>(className.c_str());
 		} else {
 			inValue = std::make_shared<TType>();
 		}

@@ -9,9 +9,9 @@ class CSprite;
 
 class CSpritePass : public CPass {
 
-public:
+	REGISTER_PASS(CSpritePass)
 
-	DEFINE_PASS(CSpritePass)
+public:
 
 	EXPORT virtual void init() override;
 
@@ -19,9 +19,7 @@ public:
 
 	EXPORT virtual void update() override;
 
-	virtual void destroy() override {
-		objects.clear();
-	}
+	EXPORT virtual void destroy() override;
 
 	void push(const std::set<std::shared_ptr<CSprite>>& inObjects) {
 		for (auto& sprite : inObjects) {

@@ -17,15 +17,17 @@ struct SSwapchainImage : SImage_T {
 	virtual void destroy() override;
 };
 
-struct SSwapchain final : IDestroyable {
+struct SSwapchain final : SObject, TInitializable<const vkb::Result<vkb::Swapchain>&>, IDestroyable {
 
-	SSwapchain(const vkb::Result<vkb::Swapchain>& inSwapchainBuilder);
+	REGISTER_STRUCT(SSwapchain)
+
+	EXPORT virtual void init(const vkb::Result<vkb::Swapchain>& inSwapchainBuilder) override;
 
 	virtual void destroy() override {
-		vkb::destroy_swapchain(mSwapchain);
+		vkb::destroy_swapchain(mInternalSwapchain);
 	}
 
-	vkb::Swapchain mSwapchain;
+	vkb::Swapchain mInternalSwapchain;
 
 	std::vector<SSwapchainImage*> mSwapchainImages{};
 
@@ -34,7 +36,9 @@ struct SSwapchain final : IDestroyable {
 	std::vector<CSemaphore*> mSwapchainRenderSemaphores{};
 };
 
-class CVulkanSwapchain : public CSwapchain, public IInitializable<VkSwapchainKHR, bool>, public IDestroyable {
+class CVulkanSwapchain : public CSwapchain, public IInitializable, public IDestroyable {
+
+	REGISTER_CLASS(CVulkanSwapchain)
 
 public:
 
@@ -46,7 +50,7 @@ public:
 		CFence* mPresentFence = nullptr;
 	};
 
-	CVulkanSwapchain();
+	EXPORT CVulkanSwapchain();
 
 	no_discard virtual bool isDirty() const override {
 		return m_Dirty;
@@ -56,19 +60,23 @@ public:
 		m_Dirty = true;
 	}
 
-	virtual void init(VkSwapchainKHR oldSwapchain = VK_NULL_HANDLE, bool inUseVSync = true) override;
+	virtual void init() override {
+		init(VK_NULL_HANDLE);
+	}
 
-	void recreate(bool inUseVSync = true);
+	EXPORT virtual void init(VkSwapchainKHR oldSwapchain, bool inUseVSync = true);
 
-	virtual void destroy() override;
+	EXPORT void recreate(bool inUseVSync = true);
 
-	SSwapchainImage* getSwapchainImage(uint32 inCurrentFrameIndex);
+	EXPORT virtual void destroy() override;
 
-	no_discard bool wait(uint32 inCurrentFrameIndex) const;
+	EXPORT SSwapchainImage* getSwapchainImage(uint32 inCurrentFrameIndex);
 
-	void reset(uint32 inCurrentFrameIndex) const;
+	no_discard EXPORT bool wait(uint32 inCurrentFrameIndex) const;
 
-	void submit(VkCommandBuffer inCmd, VkQueue inGraphicsQueue, uint32 inCurrentFrameIndex, uint32 inSwapchainImageIndex);
+	EXPORT void reset(uint32 inCurrentFrameIndex) const;
+
+	EXPORT void submit(VkCommandBuffer inCmd, VkQueue inGraphicsQueue, uint32 inCurrentFrameIndex, uint32 inSwapchainImageIndex);
 
 	SSwapchain* mSwapchain = nullptr;
 
@@ -80,5 +88,5 @@ private:
 
 	bool m_VSync = true;
 
-	bool m_Dirty = false;
+	bool m_Dirty = true;
 };

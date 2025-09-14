@@ -1,14 +1,11 @@
 ﻿#pragma once
 
-#include <filesystem>
 #include <vector>
 #include <memory>
 
 #include "SceneObject.h"
 
-class CSceneObject;
-
-class CScene : public IInitializable<>, public IDestroyable {
+class CScene : public IInitializable, public IDestroyable {
 
 public:
 

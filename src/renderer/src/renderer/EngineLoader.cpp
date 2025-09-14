@@ -551,7 +551,7 @@ void CEngineLoader::importTexture(const std::filesystem::path& inPath) {
 
 	SImage_T* loadedImage = loadImage(CVulkanResourceManager::get(), cachedPath);
 
-	get().mImages.emplace(loadedImage->name, loadedImage);
+	get().mImages.emplace(loadedImage->mName, loadedImage);
 }
 
 constexpr static uint32 FONT_MAX_SIZE = 128;

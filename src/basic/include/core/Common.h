@@ -38,6 +38,7 @@
  * non-const
  *
  * Functions are in camel case, ex: startMainFunction
+ * (typedef functions should start with an F and be uppercase, like FFunction)
  *
  * multi line variable initialization should have another tab indent:
  * auto vkbInstance = builder.set_app_name(gEngineName)
@@ -263,3 +264,12 @@ constexpr static uint8 gFrameOverlap = 2;
 	{ static bool beenHere##name = false; \
 	asts(!beenHere##name, "Code block {} called more than once.", #name); \
 	beenHere##name = true; }
+
+#define CONCAT(x, y) _CONCAT(x,y)
+
+// Used to run code statically, returns int similar to main
+#define STATIC_BLOCK(...) \
+	inline static int CONCAT(__static_block,__LINE__) = [] { \
+		__VA_ARGS__ \
+		return 0; \
+	}();

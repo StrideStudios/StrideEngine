@@ -7,13 +7,12 @@ enum class EMeshPass : uint8 {
 };
 
 class CVulkanRenderer;
-class CGPUScene;
 
 class CMeshPass : public CPass {
 
-public:
+	REGISTER_PASS(CMeshPass)
 
-	DEFINE_PASS(CMeshPass)
+public:
 
 	EXPORT virtual void init() override;
 

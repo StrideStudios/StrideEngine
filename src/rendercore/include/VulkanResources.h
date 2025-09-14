@@ -8,10 +8,12 @@
 #include "Renderer.h"
 #include "VulkanUtils.h"
 #include "VkBootstrap.h"
+#include "core/Class.h"
 
 // Create wrappers around Vulkan types that can be destroyed
 #define CREATE_VK_TYPE(inName) \
-	struct C##inName final : IDestroyable { \
+	struct C##inName final : SObject, IDestroyable { \
+		REGISTER_STRUCT(C##inName) \
 		C##inName() = default; \
 		C##inName(Vk##inName inType): m##inName(inType) {} \
 		C##inName(const C##inName& in##inName): m##inName(in##inName.m##inName) {} \
@@ -29,7 +31,8 @@ CREATE_VK_TYPE(DescriptorPool);
 CREATE_VK_TYPE(DescriptorSetLayout);
 CREATE_VK_TYPE(Fence);
 
-struct CPipeline final : IDestroyable {
+struct CPipeline final : SObject, IDestroyable {
+	REGISTER_STRUCT(CPipeline)
 	CPipeline() = default;
 	CPipeline(VkPipeline inType, VkPipelineLayout inLayout): mPipeline(inType), mLayout(inLayout) {}
 	CPipeline(const CPipeline& inPipeline): mPipeline(inPipeline.mPipeline), mLayout(inPipeline.mLayout) {}
@@ -89,12 +92,15 @@ struct SRenderAttachment {
 	}
 };
 
-struct SImage_T : IDestroyable {
-	std::string name = "Image";
+struct SImage_T : SObject, IDestroyable {
+
+	REGISTER_STRUCT(SImage_T)
+
+	std::string mName = "Image";
 	VkImage mImage = nullptr;
 	VkImageView mImageView = nullptr;
 	VmaAllocation mAllocation = nullptr;
-	VkExtent3D mImageExtent;
+	VkExtent3D mImageExtent = {0, 0, 0};
 	VkFormat mImageFormat = VK_FORMAT_UNDEFINED;
 	uint32 mBindlessAddress = -1;
 	VkImageLayout mLayout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -102,7 +108,10 @@ struct SImage_T : IDestroyable {
 	EXPORT virtual void destroy() override;
 };
 
-struct SBuffer_T : IDestroyable {
+struct SBuffer_T : SObject, IDestroyable {
+
+	REGISTER_STRUCT(SBuffer_T)
+
 	VkBuffer buffer = nullptr;
 	VmaAllocation allocation = nullptr;
 	VmaAllocationInfo info = {};
@@ -118,14 +127,19 @@ struct SBuffer_T : IDestroyable {
 };
 
 // Holds the resources needed for mesh rendering
-struct SMeshBuffers_T : IDestroyable {
+struct SMeshBuffers_T : SObject, IDestroyable {
+
+	REGISTER_STRUCT(SMeshBuffers_T)
+
 	SBuffer_T* indexBuffer = nullptr;
 	SBuffer_T* vertexBuffer = nullptr;
 };
 
 // A command buffer that stores some temporary data to be removed/changed at end of rendering
 // Ex: contains info for image transitions
-struct SCommandBuffer {
+struct SCommandBuffer : SObject {
+
+	REGISTER_STRUCT(SCommandBuffer)
 
 	SCommandBuffer() = default;
 

@@ -19,9 +19,11 @@
 #define ZoneScopedAllocation(inScope)
 #endif
 
-struct SAllocator final : IDestroyable {
+struct SAllocator final : SObject, TInitializable<CRenderer*>, IDestroyable {
 
-	SAllocator(CRenderer* inRenderer) {
+	REGISTER_STRUCT(SAllocator)
+
+	virtual void init(CRenderer* inRenderer) override {
 		const VmaAllocatorCreateInfo allocatorInfo {
 			.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT,
 			.physicalDevice = inRenderer->getDevice()->getPhysicalDevice(),
@@ -692,7 +694,7 @@ SImage_T* CVulkanResourceManager::allocateImage(const std::string& inDebugName, 
 	SImage_T* image;
 	create(image);
 
-	image->name = inDebugName;
+	image->mName = inDebugName;
 	image->mImageExtent = inExtent;
 	image->mImageFormat = inFormat;
 

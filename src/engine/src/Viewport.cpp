@@ -20,15 +20,15 @@ void sdlCallback(void* callback, const char* const* inFileName, int inFilter) {
 		fileNames.push_back(*inFileName);
 		++inFileName;
 	}
-	(*reinterpret_cast<CEngineViewport::cb*>(callback))(fileNames);
+	(*reinterpret_cast<CEngineViewport::FCallback*>(callback))(fileNames);
 }
 
-void CEngineViewport::queryForFile(const std::vector<std::pair<const char*, const char*>>& inFilters, cb callback) {
+void CEngineViewport::queryForFile(const std::vector<std::pair<const char*, const char*>>& inFilters, FCallback* callback) {
 	std::vector<SDL_DialogFileFilter> filters;
 	for (auto [fst, snd] : inFilters) {
 		filters.push_back({fst, snd});
 	}
-	SDL_ShowOpenFileDialog(sdlCallback, callback, get().mWindow, filters.data(), (int32)filters.size(), SPaths::get().mEnginePath.parent_path().string().c_str(), true);
+	SDL_ShowOpenFileDialog(sdlCallback, reinterpret_cast<void*>(callback), get().mWindow, filters.data(), static_cast<int32>(filters.size()), SPaths::get().mEnginePath.parent_path().string().c_str(), true);
 }
 
 void CEngineViewport::init() {
