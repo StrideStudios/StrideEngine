@@ -176,7 +176,7 @@ struct SMeshData {
 
 class CEngineLoader {
 
-	EXPORT static CEngineLoader& get();
+	MAKE_SINGLETON(CEngineLoader)
 
 	template <typename TType>
 	static void save(const std::string& inFileName, const TType& inValue) {

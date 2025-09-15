@@ -6,8 +6,8 @@
 #include <mutex>
 
 #include "Renderer.h"
-#include "control/ClassManager.h"
 #include "VulkanResourceManager.h"
+#include "core/Singleton.h"
 
 // Forward declare vkb types
 namespace vkb {
@@ -34,6 +34,8 @@ struct SUploadContext {
 class CVulkanRenderer : public CRenderer {
 
 	REGISTER_CLASS(CVulkanRenderer)
+
+	//MAKE_SINGLETON(CVulkanRenderer)
 
 public:
 

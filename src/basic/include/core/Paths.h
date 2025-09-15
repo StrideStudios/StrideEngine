@@ -3,7 +3,11 @@
 #include <filesystem>
 #include <string>
 
+#include "Singleton.h"
+
 struct SPaths {
+
+	MAKE_SINGLETON(SPaths)
 
 private:
 
@@ -37,11 +41,6 @@ public:
 		mAssetPath = mEnginePath.string() + "assets\\";
 
 		mCachePath = mEnginePath.string() + "cache\\";
-	}
-
-	constexpr static SPaths& get() {
-		static SPaths paths;
-		return paths;
 	}
 
 	Directory mEnginePath;

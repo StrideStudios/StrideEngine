@@ -6,8 +6,6 @@
 #include "tracy/Tracy.hpp"
 
 void CStaticMeshObjectRenderer::render(CMeshPass* inPass, VkCommandBuffer cmd, CStaticMeshObject* inObject, uint32& outDrawCalls, uint64& outVertices) {
-	VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
-
 	SInstancer& instancer = inObject->getInstancer();
 	std::shared_ptr<SStaticMesh> mesh = inObject->getMesh();
 	const size_t NumInstances = instancer.instances.size();
@@ -16,10 +14,10 @@ void CStaticMeshObjectRenderer::render(CMeshPass* inPass, VkCommandBuffer cmd, C
 	ZoneName(inObject->mName.c_str(), inObject->mName.size());
 
 	// Rebind index buffer if starting a new mesh
-	if (lastIndexBuffer != mesh->meshBuffers.indexBuffer->buffer) {
+	if (m_LastIndexBuffer != mesh->meshBuffers.indexBuffer->buffer) {
 		ZoneScopedN("Bind Buffers");
 
-		lastIndexBuffer = mesh->meshBuffers.indexBuffer->buffer;
+		m_LastIndexBuffer = mesh->meshBuffers.indexBuffer->buffer;
 		vkCmdBindIndexBuffer(cmd, mesh->meshBuffers.indexBuffer->buffer, 0, VK_INDEX_TYPE_UINT32);
 		const auto offset = {
 			VkDeviceSize { 0 },
@@ -80,8 +78,8 @@ void CStaticMeshObjectRenderer::render(CMeshPass* inPass, VkCommandBuffer cmd, C
 		// Render Bounds cube
 		{
 			// Bind Wireframe mesh data
-			if (lastIndexBuffer != cubeBoundsMesh->meshBuffers.indexBuffer->buffer) {
-				lastIndexBuffer = cubeBoundsMesh->meshBuffers.indexBuffer->buffer;
+			if (m_LastIndexBuffer != cubeBoundsMesh->meshBuffers.indexBuffer->buffer) {
+				m_LastIndexBuffer = cubeBoundsMesh->meshBuffers.indexBuffer->buffer;
 				vkCmdBindIndexBuffer(cmd, cubeBoundsMesh->meshBuffers.indexBuffer->buffer, 0, VK_INDEX_TYPE_UINT32);
 				const auto offset = {
 					VkDeviceSize { 0 },
@@ -106,8 +104,8 @@ void CStaticMeshObjectRenderer::render(CMeshPass* inPass, VkCommandBuffer cmd, C
 		// Render Bounds sphere
 		{
 			// Bind Wireframe mesh data
-			if (lastIndexBuffer != sphereBoundsMesh->meshBuffers.indexBuffer->buffer) {
-				lastIndexBuffer = sphereBoundsMesh->meshBuffers.indexBuffer->buffer;
+			if (m_LastIndexBuffer != sphereBoundsMesh->meshBuffers.indexBuffer->buffer) {
+				m_LastIndexBuffer = sphereBoundsMesh->meshBuffers.indexBuffer->buffer;
 				vkCmdBindIndexBuffer(cmd, sphereBoundsMesh->meshBuffers.indexBuffer->buffer, 0, VK_INDEX_TYPE_UINT32);
 				const auto offset = {
 					VkDeviceSize { 0 },

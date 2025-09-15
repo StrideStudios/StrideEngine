@@ -41,16 +41,11 @@ struct SAllocator final : SObject, TInitializable<CRenderer*>, IDestroyable {
 	VmaAllocator mAllocator;
 };
 
-static CVulkanResourceManager gGlobalResourceManager;
 static SAllocator* gAllocator;
 static uint32 gCurrentTextureAddress = 0;
 
 VkDevice CVulkanResourceManager::getDevice() {
 	return CRenderer::device();
-}
-
-CVulkanResourceManager& CVulkanResourceManager::get() {
-	return gGlobalResourceManager;
 }
 
 VmaAllocator& CVulkanResourceManager::getAllocator() {

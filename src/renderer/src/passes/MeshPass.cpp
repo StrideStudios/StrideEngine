@@ -138,16 +138,14 @@ void CMeshPass::render(const VkCommandBuffer cmd) {
 	// Set number of meshes being drawn
 	Meshes.setText(fmts("Meshes: {}", renderObjects.size()));
 
-	// Defined outside the draw function, this is the state we will try to skip
-	VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
-
 	uint32 drawCallCount = 0;
 	uint64 vertexCount = 0;
 
+	CStaticMeshObjectRenderer::get().begin();
 	for (auto& object : renderObjects) {
-		CStaticMeshObjectRenderer srenderer;
-		srenderer.render(this, cmd, object.get(), drawCallCount, vertexCount);
+		CStaticMeshObjectRenderer::get().render(this, cmd, object.get(), drawCallCount, vertexCount);
 	}
+	CStaticMeshObjectRenderer::get().end();
 
 	// Set number of drawcalls, vertices, and triangles
 	Drawcalls.setText(fmts("Draw Calls: {}", drawCallCount));

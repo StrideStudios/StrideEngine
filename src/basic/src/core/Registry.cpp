@@ -17,3 +17,9 @@ std::unique_ptr<CStandardRegistry>& getStandardRegistry(const char* inName) {
 	}
 	return gStandardRegistries.at(inName);
 }
+
+static std::unique_ptr<CStaticRegistry> gStaticRegistry;
+
+const std::unique_ptr<CStaticRegistry>& getStaticRegistry() {
+	return gStaticRegistry;
+}

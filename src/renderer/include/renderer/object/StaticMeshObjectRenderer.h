@@ -6,15 +6,18 @@
 
 class CStaticMeshObjectRenderer : public CWorldObjectRenderer<CStaticMeshObject, CMeshPass> {
 
-	REGISTER_CLASS(CStaticMeshObjectRenderer) //TODO: combine macros lol
-
-	REGISTER_RENDERER(CStaticMeshObjectRenderer, CMeshPass)
+	REGISTER_RENDERER(CStaticMeshObjectRenderer)
 
 public:
 
-	virtual void begin() override {}
+	virtual void begin() override {
+		m_LastIndexBuffer = VK_NULL_HANDLE;
+	}
 
 	EXPORT virtual void render(CMeshPass* inPass, VkCommandBuffer cmd, CStaticMeshObject* inObject, uint32& outDrawCalls, uint64& outVertices) override;
 
-	virtual void end() override {}
+private:
+
+	VkBuffer m_LastIndexBuffer = VK_NULL_HANDLE;
+
 };

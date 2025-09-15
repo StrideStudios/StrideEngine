@@ -3,11 +3,6 @@
 #include "imgui.h"
 #include "Profiling.h"
 
-CEngineSettings& CEngineSettings::get() {
-	static CEngineSettings sEngineSettings;
-	return sEngineSettings;
-}
-
 CCommand* CEngineSettings::getCommand(const std::string& inCommand) {
 
 	CCommand* outCommand = nullptr;

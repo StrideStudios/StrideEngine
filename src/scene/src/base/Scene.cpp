@@ -2,12 +2,7 @@
 
 #include "world/Camera.h"
 
-static CScene gScene;
 static CResourceManager gSceneResourceManager;
-
-CScene& CScene::get() {
-	return gScene;
-}
 
 void CScene::init() {
 	std::filesystem::path path = SPaths::get().mAssetPath.string() + "Scene.scn";

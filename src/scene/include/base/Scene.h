@@ -7,9 +7,9 @@
 
 class CScene : public IInitializable, public IDestroyable {
 
-public:
+	MAKE_SINGLETON(CScene)
 
-	EXPORT static CScene& get();
+public:
 
 	EXPORT virtual void init() override;
 

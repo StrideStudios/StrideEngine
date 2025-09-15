@@ -446,11 +446,6 @@ std::shared_ptr<SStaticMesh> toStaticMesh(const std::shared_ptr<SMeshData>& mesh
 	return loadMesh;
 }
 
-CEngineLoader& CEngineLoader::get() {
-	static CEngineLoader engineLoader;
-	return engineLoader;
-}
-
 void CEngineLoader::save() {
 	// Only materials need to be saved (as they are the only thing created at runtime)
 	for (const auto& [name, material] : get().mMaterials) {

@@ -15,12 +15,6 @@ ADD_TEXT(GameTime);
 ADD_TEXT(DeltaTime);
 #undef SETTINGS_CATEGORY
 
-static CEngine gEngine;
-
-CEngine& CEngine::get() {
-	return gEngine;
-}
-
 void CEngine::init() {
 	ZoneScopedN("Engine Initialization");
 

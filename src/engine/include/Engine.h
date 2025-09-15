@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "core/Common.h"
+#include "core/Singleton.h"
 
 class CVulkanRenderer;
 class CEngineViewport;
@@ -10,6 +11,8 @@ constexpr static auto gEngineName = text("Stride Engine");
 
 class CEngine {
 
+	MAKE_SINGLETON(CEngine)
+
 	struct Time {
 		int32 mAverageFrameRate = 0;
 		int32 mFrameRate = 0;
@@ -18,8 +21,6 @@ class CEngine {
 	};
 
 public:
-
-	EXPORT static CEngine& get();
 
 	no_discard Time& getTime() { return m_Time; }
 

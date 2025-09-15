@@ -128,6 +128,9 @@ static uint32 gSSBOBinding = 3;
  */
 class CVulkanResourceManager : public CResourceManager {
 
+	// Creates a singleton version of the VULKAN resource manager that is destroyed upon engine stop
+	MAKE_SINGLETON(CVulkanResourceManager)
+
 	EXPORT static VkDevice getDevice();
 
 	friend SBuffer_T;
@@ -138,9 +141,6 @@ class CVulkanResourceManager : public CResourceManager {
 	EXPORT static CDescriptorPool*& getBindlessDescriptorPool();
 
 public:
-
-	// Gets a global version of the VULKAN resource manager that is destroyed upon engine stop
-	EXPORT static CVulkanResourceManager& get();
 
 	EXPORT static CPipelineLayout*& getBasicPipelineLayout();
 

@@ -3,6 +3,7 @@
 #include <map>
 
 #include "core/Common.h"
+#include "core/Factory.h"
 #include "Object.h"
 #include "control/ResourceManager.h"
 
@@ -55,9 +56,13 @@ public:
 
 typedef TTypedRegistry<std::shared_ptr<SObject>> CSharedRegistry;
 typedef TTypedRegistry<SObject*> CStandardRegistry;
+typedef TTypedRegistry<std::shared_ptr<void>> CStaticRegistry;
 
 EXPORT std::unique_ptr<CSharedRegistry>& getSharedRegistry(const char* inName);
 EXPORT std::unique_ptr<CStandardRegistry>& getStandardRegistry(const char* inName);
+
+// A registry that holds objects that are always created before main
+EXPORT const std::unique_ptr<CStaticRegistry>& getStaticRegistry();
 
 template <typename TType, const char* TName>
 requires std::is_base_of_v<SObject, TType>
@@ -68,6 +73,10 @@ class TRegistry : public CSharedRegistry {
 	}
 
 public:
+
+	TRegistry() {
+
+	}
 
 	template <typename TChildType = TType>
 	//requires std::is_base_of_v<TType, TChildType>
@@ -94,12 +103,11 @@ public:
 // Registry with the intent to have its objects initialized in a deferred manner
 // This can be done at any point the user wishes
 // It does this by storing registration, and doing it all at once at any point
-//TODO: use factory, clean up rest of this code
-template <typename TType, const char* TName>
+template <typename TType, const char* TName, typename... TArgs>
 requires std::is_base_of_v<SObject, TType>
 class TDeferredRegistry : public CStandardRegistry {
 
-	typedef TDeferredFactory<TType, TName> TTypeDeferredFactory;
+	typedef TDeferredFactory<TType, TName, TArgs...> TTypeDeferredFactory;
 
 	static std::unique_ptr<CStandardRegistry>& get() {
 		return getStandardRegistry(TName);
@@ -107,9 +115,9 @@ class TDeferredRegistry : public CStandardRegistry {
 
 public:
 
-	static void init(CResourceManager& inResourceManager) {
-		TTypeDeferredFactory::forEachObject([&inResourceManager](const std::string& inName) {
-			get()->registerObject(inName.c_str(), TTypeDeferredFactory::construct(inName.c_str(), inResourceManager));
+	static void init(CResourceManager& inResourceManager, TArgs... args) {
+		TTypeDeferredFactory::forEachObject([&](const std::string& inName) {
+			get()->registerObject(inName.c_str(), TTypeDeferredFactory::construct(inName.c_str(), inResourceManager, args...));
 		});
 	}
 
@@ -130,3 +138,9 @@ public:
 		return dynamic_cast<TChildType*>(get()->get(inName));
 	}
 };
+/*
+STATIC_BLOCK(
+	static constexpr char c[] = "TRegistry<SObject>";
+	getStaticRegistry()->registerObject(c, std::make_shared<TRegistry<SObject, c>>());
+	auto registry = std::static_pointer_cast<TRegistry<SObject, c>>(getStaticRegistry()->get(c));
+)*/

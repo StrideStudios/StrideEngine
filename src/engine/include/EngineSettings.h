@@ -2,6 +2,7 @@
 
 #include <vector>
 
+#include "core/Singleton.h"
 #include "imgui.h"
 
 class CGuiText;
@@ -9,9 +10,9 @@ class CCommand;
 
 class CEngineSettings {
 
-public:
+	MAKE_SINGLETON(CEngineSettings)
 
-	EXPORT static CEngineSettings& get();
+public:
 
 	// Get a certain command, is O(n) but is at compile time
 	EXPORT static CCommand* getCommand(const std::string& inCommand);

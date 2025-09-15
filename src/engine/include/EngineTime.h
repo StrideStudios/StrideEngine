@@ -4,7 +4,9 @@
 
 struct SEngineTime {
 
-	EXPORT static SEngineTime& get();
+	MAKE_SINGLETON(SEngineTime)
+
+public:
 
 	int32 mAverageFrameRate = 0;
 	int32 mFrameRate = 0;

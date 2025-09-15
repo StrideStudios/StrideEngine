@@ -89,7 +89,7 @@ public:
 	}
 };
 
-template <typename TType, const char* TName>
+template <typename TType, const char* TName, typename... TArgs>
 requires std::is_base_of_v<SObject, TType>
 class TDeferredFactory : public CStandardFactory {
 
@@ -103,9 +103,9 @@ public:
 	//requires std::is_base_of_v<TType, TChildType>
 	static void addToFactory(const char* inName) {
 		if (get()->contains(inName)) return;
-		get()->addToFactory(inName, [](CResourceManager& inResourceManager) -> SObject* {
+		get()->addToFactory(inName, [](CResourceManager& inResourceManager, TArgs... args) -> SObject* {
 			TChildType* object;
-			inResourceManager.create(object);
+			inResourceManager.create(object, args...);
 			return object;
 		});
 	}
@@ -116,7 +116,7 @@ public:
 
 	template <typename TChildType = TType>
 	//requires std::is_base_of_v<TType, TChildType>
-	static TChildType* construct(const char* inName, CResourceManager& inResourceManager) {
-		return dynamic_cast<TChildType*>(get()->construct(inName, inResourceManager));
+	static TChildType* construct(const char* inName, CResourceManager& inResourceManager, TArgs... args) {
+		return dynamic_cast<TChildType*>(get()->construct(inName, inResourceManager, args...));
 	}
 };

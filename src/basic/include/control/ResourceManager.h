@@ -4,6 +4,7 @@
 
 #include "core/Common.h"
 #include "core/Object.h"
+#include "core/Singleton.h"
 
 struct IDestroyable {
 	virtual ~IDestroyable() = default;
@@ -27,10 +28,10 @@ typedef TInitializable<> IInitializable;
  */
 class CResourceManager {
 
-public:
+	// Creates a singleton version of the resource manager that is destroyed upon engine stop
+	MAKE_SINGLETON(CResourceManager)
 
-	// Gets a global version of the resource manager that is destroyed upon engine stop
-	EXPORT static CResourceManager& get();
+public:
 
 	// Flush resources if out of scope
 	virtual ~CResourceManager() {
