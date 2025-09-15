@@ -12,9 +12,9 @@ target_precompile_headers(StrideEngine-basic PUBLIC
         include/core/Object.h
         include/core/Common.h
         include/core/Singleton.h
+        include/control/ResourceManager.h
         include/core/Factory.h
         include/core/Class.h
-        include/control/ResourceManager.h
         include/core/Registry.h
         include/control/ClassManager.h
         include/core/Paths.h

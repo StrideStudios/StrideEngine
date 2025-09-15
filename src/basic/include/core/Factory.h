@@ -2,6 +2,7 @@
 
 #include <map>
 
+#include "control/ResourceManager.h"
 #include "core/Common.h"
 #include "core/Object.h"
 
