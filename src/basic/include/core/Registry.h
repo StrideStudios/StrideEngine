@@ -19,11 +19,15 @@
 
 #define DEFINE_REGISTRY(n, ...) \
 	inline static constexpr char n##Registry##Name[] = #n __VA_ARGS__; \
-	typedef TRegistry<n, n##Registry##Name> n##Registry;
+	typedef TRegistry<n, n##Registry##Name> n##Registry; \
+	template class TRegistry<n, n##Registry##Name>;
 
+// Since Deferred Registry internally relies on a factory, we force the factory to initialize its template
 #define DEFINE_DEFERRED_REGISTRY(n, ...) \
 	inline static constexpr char n##DeferredRegistry##Name[] = #n __VA_ARGS__; \
-	typedef TDeferredRegistry<n, n##DeferredRegistry##Name> n##DeferredRegistry;
+	typedef TDeferredRegistry<n, n##DeferredRegistry##Name> n##DeferredRegistry; \
+	template class TDeferredRegistry<n, n##DeferredRegistry##Name>; \
+	template class TDeferredFactory<n, n##DeferredRegistry##Name>;
 
 template <typename TType>
 class TTypedRegistry {
@@ -58,19 +62,11 @@ typedef TTypedRegistry<std::shared_ptr<SObject>> CSharedRegistry;
 typedef TTypedRegistry<SObject*> CStandardRegistry;
 typedef TTypedRegistry<std::shared_ptr<void>> CStaticRegistry;
 
-EXPORT std::unique_ptr<CSharedRegistry>& getSharedRegistry(const char* inName);
-EXPORT std::unique_ptr<CStandardRegistry>& getStandardRegistry(const char* inName);
-
-// A registry that holds objects that are always created before main
-EXPORT const std::unique_ptr<CStaticRegistry>& getStaticRegistry();
-
 template <typename TType, const char* TName>
 requires std::is_base_of_v<SObject, TType>
 class TRegistry : public CSharedRegistry {
 
-	static std::unique_ptr<CSharedRegistry>& get() {
-		return getSharedRegistry(TName);
-	}
+	CUSTOM_SINGLETON(TRegistry, TName)
 
 public:
 
@@ -81,22 +77,22 @@ public:
 	template <typename TChildType = TType>
 	//requires std::is_base_of_v<TType, TChildType>
 	static void registerObject(const char* inName) {
-		if (get()->contains(inName)) return;
+		if (static_cast<CSharedRegistry&>(get()).contains(inName)) return;
 		auto object = std::make_shared<TChildType>();
-		get()->registerObject(inName, object);
+		static_cast<CSharedRegistry&>(get()).registerObject(inName, object);
 		if (const auto& initializable = std::dynamic_pointer_cast<IInitializable>(object)) {
 			initializable->init();
 		}
 	}
 
 	static void forEachObject(const std::function<void(std::string, std::shared_ptr<SObject>)>& inFunction) {
-		get()->forEachObject(inFunction);
+		static_cast<CSharedRegistry&>(get()).forEachObject(inFunction);
 	}
 
 	template <typename TChildType = TType>
 	//requires std::is_base_of_v<TType, TChildType>
 	static std::shared_ptr<TChildType> get(const char* inName) {
-		return std::dynamic_pointer_cast<TChildType>(get()->get(inName));
+		return std::dynamic_pointer_cast<TChildType>(static_cast<CSharedRegistry&>(get()).get(inName));
 	}
 };
 
@@ -107,40 +103,32 @@ template <typename TType, const char* TName, typename... TArgs>
 requires std::is_base_of_v<SObject, TType>
 class TDeferredRegistry : public CStandardRegistry {
 
-	typedef TDeferredFactory<TType, TName, TArgs...> TTypeDeferredFactory;
+	CUSTOM_SINGLETON(TDeferredRegistry, TName)
 
-	static std::unique_ptr<CStandardRegistry>& get() {
-		return getStandardRegistry(TName);
-	}
+	typedef TDeferredFactory<TType, TName, TArgs...> TTypeDeferredFactory;
 
 public:
 
 	static void init(CResourceManager& inResourceManager, TArgs... args) {
 		TTypeDeferredFactory::forEachObject([&](const std::string& inName) {
-			get()->registerObject(inName.c_str(), TTypeDeferredFactory::construct(inName.c_str(), inResourceManager, args...));
+			static_cast<CStandardRegistry&>(get()).registerObject(inName.c_str(), TTypeDeferredFactory::construct(inName.c_str(), inResourceManager, args...));
 		});
 	}
 
 	template <typename TChildType = TType>
 	//requires std::is_base_of_v<TType, TChildType>
 	static void registerObject(const char* inName) {
-		if (get()->contains(inName)) return;
+		if (static_cast<CStandardRegistry&>(get()).contains(inName)) return;
 		TTypeDeferredFactory::template addToFactory<TChildType>(inName);
 	}
 
 	static void forEachObject(const std::function<void(const std::string&, SObject*)>& inFunction) {
-		get()->forEachObject(inFunction);
+		static_cast<CStandardRegistry&>(get()).forEachObject(inFunction);
 	}
 
 	template <typename TChildType = TType>
 	//requires std::is_base_of_v<TType, TChildType>
 	static TChildType* get(const char* inName) {
-		return dynamic_cast<TChildType*>(get()->get(inName));
+		return dynamic_cast<TChildType*>(static_cast<CStandardRegistry&>(get()).get(inName));
 	}
 };
-/*
-STATIC_BLOCK(
-	static constexpr char c[] = "TRegistry<SObject>";
-	getStaticRegistry()->registerObject(c, std::make_shared<TRegistry<SObject, c>>());
-	auto registry = std::static_pointer_cast<TRegistry<SObject, c>>(getStaticRegistry()->get(c));
-)*/
