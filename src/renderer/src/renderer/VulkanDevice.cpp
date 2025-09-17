@@ -1,7 +1,19 @@
 ﻿#include "renderer/VulkanDevice.h"
 
+#include "VkBootstrap.h"
 #include "renderer/VulkanInstance.h"
 #include "renderer/VulkanRenderer.h"
+
+// Define how to create queues
+static std::map<vkb::QueueType, std::map<EQueueType, float>> queueFamilies {
+        {
+            vkb::QueueType::graphics,
+            {
+                {EQueueType::GRAPHICS, 1.f},
+                {EQueueType::UPLOAD, 0.f}
+            }
+        },
+    };
 
 SQueue CVulkanDevice::getQueue(const EQueueType inType) {
     return CVulkanRenderer::get()->m_Device->mQueues[inType];
@@ -105,4 +117,12 @@ void CVulkanDevice::init(CVulkanInstance* inInstance, VkSurfaceKHR inSurface) {
 
 void CVulkanDevice::destroy() {
     vkb::destroy_device(*m_Device);
+}
+
+const vkb::PhysicalDevice& CVulkanDevice::getPhysicalDevice() const {
+    return *m_PhysicalDevice;
+}
+
+const vkb::Device& CVulkanDevice::getDevice() const {
+    return *m_Device;
 }

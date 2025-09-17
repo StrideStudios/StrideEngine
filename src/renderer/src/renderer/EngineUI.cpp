@@ -59,9 +59,9 @@ void SEngineUI::init(VkQueue inQueue, VkFormat format) { //TODO: Global info for
 
 	// this initializes imgui for Vulkan
 	ImGui_ImplVulkan_InitInfo initInfo {
-		.Instance = CRenderer::instance(),
-		.PhysicalDevice = CRenderer::physicalDevice(),
-		.Device = CRenderer::device(),
+		.Instance = CRenderer::vkInstance(),
+		.PhysicalDevice = CRenderer::vkPhysicalDevice(),
+		.Device = CRenderer::vkDevice(),
 		.Queue = inQueue,
 		.DescriptorPool = *descriptorPool,
 		.MinImageCount = 3,

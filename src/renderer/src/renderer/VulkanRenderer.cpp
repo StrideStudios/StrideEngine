@@ -39,7 +39,7 @@ CVulkanRenderer::CVulkanRenderer(): mVSync(UseVsync.get()) {}
 void CVulkanRenderer::immediateSubmit(std::function<void(SCommandBuffer& cmd)>&& function) {
 
 	CVulkanRenderer& renderer = *get();
-	const VkDevice device = CRenderer::device();
+	const VkDevice device = CRenderer::vkDevice();
 
 	std::unique_lock lock(renderer.mUploadContext.mMutex);
 
@@ -75,7 +75,7 @@ void CVulkanRenderer::init() {
 	gInstanceManager.create(m_Instance);
 
 	// Create a surface for Device to reference
-	SDL_Vulkan_CreateSurface(CEngineViewport::get().mWindow, m_Instance->mInstance, nullptr, &mVkSurface);
+	SDL_Vulkan_CreateSurface(CEngineViewport::get().mWindow, vkInstance(), nullptr, &mVkSurface);
 
 	// Create the vulkan device
 	gInstanceManager.create(m_Device, m_Instance, mVkSurface);
@@ -105,7 +105,7 @@ void CVulkanRenderer::init() {
 			// Allocate the default command buffer that we will use for rendering
 			frame.mMainCommandBuffer = SCommandBuffer(frame.mCommandPool);
 
-			frame.mTracyContext = TracyVkContext(m_Device->getPhysicalDevice(), m_Device->getDevice(), CVulkanDevice::getQueue(EQueueType::GRAPHICS).mQueue, frame.mMainCommandBuffer);
+			frame.mTracyContext = TracyVkContext(vkPhysicalDevice(), vkDevice(), CVulkanDevice::getQueue(EQueueType::GRAPHICS).mQueue, frame.mMainCommandBuffer);
 		}
 	}
 
@@ -134,7 +134,7 @@ void CVulkanRenderer::destroy() {
 
 	CVulkanResourceManager::get().flush();
 
-	vkb::destroy_surface(m_Instance->mInstance, mVkSurface);//TODO: in instance?
+	vkb::destroy_surface(vkInstance(), mVkSurface);//TODO: in instance?
 
 	gInstanceManager.flush();
 }
@@ -333,7 +333,7 @@ void CVulkanRenderer::render() {
 
 		// Execute a copy from the draw image into the swapchain
 		auto [width, height, depth] = mEngineTextures->mDrawImage->mImageExtent;
-		CVulkanUtils::copyImageToImage(cmd, mEngineTextures->mDrawImage->mImage, swapchainImage->mImage, {width, height}, mEngineTextures->getSwapchain()->mSwapchain->mInternalSwapchain.extent);
+		CVulkanUtils::copyImageToImage(cmd, mEngineTextures->mDrawImage->mImage, swapchainImage->mImage, {width, height}, mEngineTextures->getSwapchain()->mSwapchain->mInternalSwapchain->extent);
 
 		// Set swapchain image layout to Present so we can show it on the screen
 		CVulkanUtils::transitionImage(cmd, swapchainImage, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
@@ -353,7 +353,7 @@ void CVulkanRenderer::render() {
 
 bool CVulkanRenderer::wait() {
 	// Make sure the gpu is not working
-	vkDeviceWaitIdle(device());
+	vkDeviceWaitIdle(vkDevice());
 
 	return mEngineTextures->getSwapchain()->wait(getFrameIndex());
 }

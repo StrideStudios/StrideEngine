@@ -26,6 +26,10 @@ std::vector<std::pair<std::string, std::vector<CGuiType*>>>& CGuiType::getCatego
 	return map;
 }
 
+void CGuiText::render() {
+	ImGui::Text(m_Text.c_str());
+}
+
 void CEngineSettings::render() {
 	ZoneScopedN("Engine UI");
 
@@ -43,4 +47,33 @@ void CEngineSettings::render() {
 		ImGui::EndTabBar();
 	}
 	ImGui::End();
+}
+
+void CommandRenderType::checkbox(const char* inCommand, bool* outValue) {
+	ImGui::Checkbox(inCommand, outValue);
+}
+
+void CommandRenderType::intSlider(const char* inCommand, int32* outValue, const int32 min, const int32 max) {
+	ImGui::SliderInt(inCommand, outValue, min, max);
+}
+
+void CommandRenderType::floatSlider(const char* inCommand, float* outValue, const float min, const float max) {
+	ImGui::SliderFloat(inCommand, outValue, min, max);
+}
+
+void CommandRenderType::int2Input(const char* inCommand, int32* outValue) {
+	ImGui::InputInt2(inCommand, outValue);
+}
+
+void CommandRenderType::float2Input(const char* inCommand, float* outValue) {
+	ImGui::InputFloat2(inCommand, outValue);
+
+}
+
+void CommandRenderType::float3Input(const char* inCommand, float* outValue) {
+	ImGui::InputFloat3(inCommand, outValue);
+}
+
+void CommandRenderType::float4Input(const char* inCommand, float* outValue) {
+	ImGui::InputFloat4(inCommand, outValue);
 }

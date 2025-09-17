@@ -92,7 +92,7 @@ void CEditorSpritePass::render(VkCommandBuffer cmd) {
 		ZoneScoped;
 		ZoneName(sprite->mName.c_str(), sprite->mName.size());
 
-		vkDeviceWaitIdle(CRenderer::device());
+		vkDeviceWaitIdle(CRenderer::vkDevice());
 
 		gTextManager.flush();
 

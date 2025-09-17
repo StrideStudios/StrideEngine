@@ -26,9 +26,9 @@ struct SAllocator final : SObject, TInitializable<CRenderer*>, IDestroyable {
 	virtual void init(CRenderer* inRenderer) override {
 		const VmaAllocatorCreateInfo allocatorInfo {
 			.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT,
-			.physicalDevice = inRenderer->getDevice()->getPhysicalDevice(),
-			.device = inRenderer->getDevice()->getDevice(),
-			.instance = inRenderer->getInstance()->getInstance()
+			.physicalDevice = CRenderer::vkPhysicalDevice(),
+			.device = CRenderer::vkDevice(),
+			.instance = CRenderer::vkInstance()
 		};
 
 		VK_CHECK(vmaCreateAllocator(&allocatorInfo, &mAllocator));
@@ -45,7 +45,7 @@ static SAllocator* gAllocator;
 static uint32 gCurrentTextureAddress = 0;
 
 VkDevice CVulkanResourceManager::getDevice() {
-	return CRenderer::device();
+	return CRenderer::vkDevice();
 }
 
 VmaAllocator& CVulkanResourceManager::getAllocator() {
@@ -160,7 +160,7 @@ void CVulkanResourceManager::init(CRenderer* inRenderer) {
 			.pSetLayouts = &getBindlessDescriptorSetLayout()->mDescriptorSetLayout
 		};
 
-		VK_CHECK( vkAllocateDescriptorSets(CRenderer::device(), &AllocationCreateInfo, &getBindlessDescriptorSet()));
+		VK_CHECK( vkAllocateDescriptorSets(CRenderer::vkDevice(), &AllocationCreateInfo, &getBindlessDescriptorSet()));
 
 	}
 
@@ -195,7 +195,7 @@ void CVulkanResourceManager::init(CRenderer* inRenderer) {
 VkCommandBuffer CVulkanResourceManager::allocateCommandBuffer(const VkCommandBufferAllocateInfo& pCreateInfo) {
 	ZoneScopedAllocation(std::string("Allocate CommandBuffer"));
 	VkCommandBuffer Buffer;
-	VK_CHECK(vkAllocateCommandBuffers(CRenderer::device(), &pCreateInfo, &Buffer));
+	VK_CHECK(vkAllocateCommandBuffers(CRenderer::vkDevice(), &pCreateInfo, &Buffer));
 	return Buffer;
 }
 
@@ -399,7 +399,7 @@ SShader CVulkanResourceManager::getShader(const char* inFilePath) {
 	}
 
 	// Check for written SPIRV files
-	if (loadShader(CRenderer::device(), SPIRVpath.c_str(), Hash, shader)) {
+	if (loadShader(CRenderer::vkDevice(), SPIRVpath.c_str(), Hash, shader)) {
 		return shader;
 	}
 
@@ -415,7 +415,7 @@ SShader CVulkanResourceManager::getShader(const char* inFilePath) {
 		errs("Shader file {} failed to compile!", inFilePath);
 	}
 
-	if (loadShader(CRenderer::device(), SPIRVpath.c_str(), Hash, shader)) {
+	if (loadShader(CRenderer::vkDevice(), SPIRVpath.c_str(), Hash, shader)) {
 		return shader;
 	}
 
@@ -660,7 +660,7 @@ SBuffer_T* CVulkanResourceManager::allocateGlobalBuffer(size_t allocSize, VmaMem
 			.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
 			.pBufferInfo = &bufferDescriptorInfo,
 		};
-		vkUpdateDescriptorSets(CRenderer::device(), 1, &writeSet, 0, nullptr);
+		vkUpdateDescriptorSets(CRenderer::vkDevice(), 1, &writeSet, 0, nullptr);
 	}
 
 	return buffer;
@@ -708,7 +708,7 @@ SImage_T* CVulkanResourceManager::allocateImage(const std::string& inDebugName, 
 	VkImageViewCreateInfo imageViewInfo = CVulkanInfo::createImageViewInfo(image->mImageFormat, image->mImage, inViewFlags);
 	imageViewInfo.subresourceRange.levelCount = imageInfo.mipLevels;
 
-	VK_CHECK(vkCreateImageView(CRenderer::device(), &imageViewInfo, nullptr, &image->mImageView));
+	VK_CHECK(vkCreateImageView(CRenderer::vkDevice(), &imageViewInfo, nullptr, &image->mImageView));
 
 	// Update descriptors with new image
 	if ((inFlags & VK_IMAGE_USAGE_SAMPLED_BIT) != 0) { //TODO: VK_IMAGE_USAGE_SAMPLED_BIT is not a permanent solution
@@ -730,7 +730,7 @@ SImage_T* CVulkanResourceManager::allocateImage(const std::string& inDebugName, 
 			.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
 			.pImageInfo = &imageDescriptorInfo,
 		};
-		vkUpdateDescriptorSets(CRenderer::device(), 1, &writeSet, 0, nullptr);
+		vkUpdateDescriptorSets(CRenderer::vkDevice(), 1, &writeSet, 0, nullptr);
 	}
 
 	return image;
@@ -756,7 +756,7 @@ void CVulkanResourceManager::updateGlobalBuffer(const SBuffer_T* buffer) {
 			.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
 			.pBufferInfo = &bufferDescriptorInfo,
 		};
-		vkUpdateDescriptorSets(CRenderer::device(), 1, &writeSet, 0, nullptr);
+		vkUpdateDescriptorSets(CRenderer::vkDevice(), 1, &writeSet, 0, nullptr);
 	}
 }
 

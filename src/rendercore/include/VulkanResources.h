@@ -7,7 +7,6 @@
 
 #include "Renderer.h"
 #include "VulkanUtils.h"
-#include "VkBootstrap.h"
 #include "core/Class.h"
 
 // Create wrappers around Vulkan types that can be destroyed
@@ -18,9 +17,9 @@
 		C##inName(Vk##inName inType): m##inName(inType) {} \
 		C##inName(const C##inName& in##inName): m##inName(in##inName.m##inName) {} \
 		C##inName(Vk##inName##CreateInfo inCreateInfo) { \
-			VK_CHECK(vkCreate##inName(CRenderer::device(), &inCreateInfo, nullptr, &m##inName)); \
+			VK_CHECK(vkCreate##inName(CRenderer::vkDevice(), &inCreateInfo, nullptr, &m##inName)); \
 		} \
-		virtual void destroy() override { vkDestroy##inName(CRenderer::device(), m##inName, nullptr); } \
+		virtual void destroy() override { vkDestroy##inName(CRenderer::vkDevice(), m##inName, nullptr); } \
 		Vk##inName operator->() const { return m##inName; } \
 		operator Vk##inName() const { return m##inName; } \
 		Vk##inName m##inName = nullptr; \
@@ -36,7 +35,7 @@ struct CPipeline final : SObject, IDestroyable {
 	CPipeline() = default;
 	CPipeline(VkPipeline inType, VkPipelineLayout inLayout): mPipeline(inType), mLayout(inLayout) {}
 	CPipeline(const CPipeline& inPipeline): mPipeline(inPipeline.mPipeline), mLayout(inPipeline.mLayout) {}
-	virtual void destroy() override { vkDestroyPipeline(CRenderer::device(), mPipeline, nullptr); }
+	virtual void destroy() override { vkDestroyPipeline(CRenderer::vkDevice(), mPipeline, nullptr); }
 	VkPipeline operator->() const { return mPipeline; }
 	operator VkPipeline() const { return mPipeline; }
 	VkPipeline mPipeline = nullptr;
@@ -145,7 +144,7 @@ struct SCommandBuffer : SObject {
 
 	SCommandBuffer(const CCommandPool* inCmdPool) {
 		VkCommandBufferAllocateInfo frameCmdAllocInfo = CVulkanInfo::createCommandAllocateInfo(*inCmdPool, 1);
-		VK_CHECK(vkAllocateCommandBuffers(CRenderer::device(), &frameCmdAllocInfo, &cmd));
+		VK_CHECK(vkAllocateCommandBuffers(CRenderer::vkDevice(), &frameCmdAllocInfo, &cmd));
 	}
 
 	SCommandBuffer(VkCommandBuffer inCmd): cmd(inCmd) {}

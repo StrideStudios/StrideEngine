@@ -67,7 +67,7 @@ void CEngineTextures::init() {
 
 		const auto sets = {writeSet, writeSet2};
 
-		vkUpdateDescriptorSets(CRenderer::device(), (uint32)sets.size(), sets.begin(), 0, nullptr);
+		vkUpdateDescriptorSets(CRenderer::vkDevice(), (uint32)sets.size(), sets.begin(), 0, nullptr);
 	}
 
 	// Error checkerboard image

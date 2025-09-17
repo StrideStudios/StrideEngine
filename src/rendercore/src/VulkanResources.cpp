@@ -60,5 +60,5 @@ void SBuffer_T::unMapData() const {
 
 void SImage_T::destroy() {
 	vmaDestroyImage(CVulkanResourceManager::getAllocator(), mImage, mAllocation);
-	vkDestroyImageView(CRenderer::device(), mImageView, nullptr);
+	vkDestroyImageView(CRenderer::vkDevice(), mImageView, nullptr);
 }

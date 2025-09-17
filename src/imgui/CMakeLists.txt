@@ -2,7 +2,7 @@
 
 find_package(Vulkan REQUIRED)
 add_dependencies(StrideEngine-imgui
-    PUBLIC
+    PRIVATE
         SDL3::SDL3
         Vulkan::Vulkan
 )

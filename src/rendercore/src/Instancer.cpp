@@ -14,7 +14,7 @@ SInstancer::~SInstancer() {
 void SInstancer::destroy() {
 
 	//TODO: Temporary wait until proper destruction
-	vkDeviceWaitIdle(CRenderer::device());
+	vkDeviceWaitIdle(CRenderer::vkDevice());
 
 	m_ResourceManager.flush();
 	instances.clear();
@@ -33,7 +33,7 @@ void SInstancer::reallocate(const Matrix4f& parentMatrix) {
 	// Reallocate if buffer size has changed
 	if (!instanceBuffer || instanceBuffer->info.size != bufferSize) {
 		//TODO: Temporary wait until proper destruction
-		vkDeviceWaitIdle(CRenderer::device());
+		vkDeviceWaitIdle(CRenderer::vkDevice());
 
 		m_ResourceManager.flush();
 

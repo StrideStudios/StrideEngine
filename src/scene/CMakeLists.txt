@@ -5,5 +5,6 @@ add_dependencies(StrideEngine-scene
         freetype
 
         StrideEngine-basic
+        StrideEngine-rendercore
         StrideEngine-engine
 )

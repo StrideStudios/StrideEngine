@@ -2,9 +2,9 @@
 
 #include <memory>
 #include <map>
+#include <vulkan/vulkan_core.h>
 
 #include "Renderer.h"
-#include "VkBootstrap.h"
 
 enum class EQueueType : uint8 {
     GRAPHICS,
@@ -16,17 +16,6 @@ enum class EQueueType : uint8 {
 struct SQueue {
     VkQueue mQueue;
     uint32 mFamily;
-};
-
-// Define how to create queues
-static std::map<vkb::QueueType, std::map<EQueueType, float>> queueFamilies {
-    {
-        vkb::QueueType::graphics,
-        {
-            {EQueueType::GRAPHICS, 1.f},
-            {EQueueType::UPLOAD, 0.f}
-        }
-    },
 };
 
 class CVulkanDevice : public CDevice, public TInitializable<class CVulkanInstance*, VkSurfaceKHR>, public IDestroyable {
@@ -41,9 +30,9 @@ public:
 
     EXPORT virtual void destroy() override;
 
-    no_discard EXPORT virtual const vkb::PhysicalDevice& getPhysicalDevice() const override { return *m_PhysicalDevice; }
+    no_discard EXPORT virtual const vkb::PhysicalDevice& getPhysicalDevice() const override;
 
-    no_discard EXPORT virtual const vkb::Device& getDevice() const override { return *m_Device; }
+    no_discard EXPORT virtual const vkb::Device& getDevice() const override;
 
 private:
 

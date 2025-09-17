@@ -3,7 +3,6 @@
 #include <vector>
 
 #include "core/Singleton.h"
-#include "imgui.h"
 
 class CGuiText;
 class CCommand;
@@ -114,9 +113,7 @@ public:
 
 private:
 
-	virtual void render() override {
-		ImGui::Text(m_Text.c_str());
-	}
+	EXPORT virtual void render() override;
 
 	virtual uint32 getTypeOrder() const override {
 		return 0;
@@ -246,6 +243,16 @@ private:
 	
 };
 
+namespace CommandRenderType {
+	void checkbox(const char* inCommand, bool* outValue);
+	void intSlider(const char* inCommand, int32* outValue, int32 min, int32 max);
+	void floatSlider(const char* inCommand, float* outValue, float min, float max);
+	void int2Input(const char* inCommand, int32* outValue);
+	void float2Input(const char* inCommand, float* outValue);
+	void float3Input(const char* inCommand, float* outValue);
+	void float4Input(const char* inCommand, float* outValue);
+}
+
 template <typename TType>
 class TCommand final : public CCommand {
 	using Type = TType;
@@ -327,19 +334,19 @@ private:
 
 	virtual void render() override {
 		if constexpr (std::is_same_v<TType, bool>) {
-			ImGui::Checkbox(m_Command.c_str(), &m_Value.bValue);
+			CommandRenderType::checkbox(m_Command.c_str(), &m_Value.bValue);
 		} else if constexpr (std::is_same_v<TType, int32>) {
-			ImGui::SliderInt(m_Command.c_str(), &m_Value.iValue.val, m_Value.iValue.min, m_Value.iValue.max);
+			CommandRenderType::intSlider(m_Command.c_str(), &m_Value.iValue.val, m_Value.iValue.min, m_Value.iValue.max);
 		} else if constexpr (std::is_same_v<TType, float>) {
-			ImGui::SliderFloat(m_Command.c_str(), &m_Value.fValue.val, m_Value.fValue.min, m_Value.fValue.max);
+			CommandRenderType::floatSlider(m_Command.c_str(), &m_Value.fValue.val, m_Value.fValue.min, m_Value.fValue.max);
 		} else if constexpr (std::is_same_v<TType, Extent32>) {
-			ImGui::InputInt2(m_Command.c_str(), (int32*)&m_Value.extent);
+			CommandRenderType::int2Input(m_Command.c_str(), (int32*)&m_Value.extent);
 		} else if constexpr (std::is_same_v<TType, Vector2f>) {
-			ImGui::InputFloat2(m_Command.c_str(), (float*)&m_Value.vector2);
+			CommandRenderType::float2Input(m_Command.c_str(), (float*)&m_Value.vector2);
 		} else if constexpr (std::is_same_v<TType, Vector3f>) {
-			ImGui::InputFloat3(m_Command.c_str(), (float*)&m_Value.vector3);
+			CommandRenderType::float3Input(m_Command.c_str(), (float*)&m_Value.vector3);
 		} else if constexpr (std::is_same_v<TType, Vector4f>) {
-			ImGui::InputFloat4(m_Command.c_str(), (float*)&m_Value.vector4);
+			CommandRenderType::float4Input(m_Command.c_str(), (float*)&m_Value.vector4);
 		}
 	}
 };

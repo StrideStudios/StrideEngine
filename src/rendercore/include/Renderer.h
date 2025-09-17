@@ -2,7 +2,6 @@
 
 #include "control/ResourceManager.h"
 #include "core/Common.h"
-#include "core/Class.h"
 
 // Forward declare vkb types
 namespace vkb {
@@ -10,6 +9,10 @@ namespace vkb {
 	struct Device;
 	struct PhysicalDevice;
 }
+
+typedef struct VkInstance_T* VkInstance;
+typedef struct VkDevice_T* VkDevice;
+typedef struct VkPhysicalDevice_T* VkPhysicalDevice;
 
 class CPass;
 
@@ -64,9 +67,15 @@ public:
 
 	static const vkb::Instance& instance() { return get()->getInstance()->getInstance(); }
 
+	EXPORT static const VkInstance& vkInstance();
+
 	static const vkb::PhysicalDevice& physicalDevice() { return get()->getDevice()->getPhysicalDevice(); }
 
+	EXPORT static const VkPhysicalDevice& vkPhysicalDevice();
+
 	static const vkb::Device& device() { return get()->getDevice()->getDevice(); }
+
+	EXPORT static const VkDevice& vkDevice();
 
 	no_discard virtual CInstance* getInstance() = 0;
 

@@ -1,9 +1,12 @@
 ﻿create_module(StrideEngine-renderer SHARED)
 
 add_dependencies(StrideEngine-renderer
+    PRIVATE
+        vk-bootstrap::vk-bootstrap
+        SDL3::SDL3
+
+        StrideEngine-imgui
     PUBLIC
-        glslang::glslang-default-resource-limits
-        glslang::glslang
         fastgltf::fastgltf
         meshoptimizer
         basisu_encoder
@@ -12,7 +15,6 @@ add_dependencies(StrideEngine-renderer
         StrideEngine-rendercore
         StrideEngine-engine
         StrideEngine-scene
-        StrideEngine-imgui
 )
 
 # Basis universal doesn't include itself by default

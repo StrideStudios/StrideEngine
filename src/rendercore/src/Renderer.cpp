@@ -1,11 +1,23 @@
 ﻿#include "Renderer.h"
 
-#include "VulkanResourceManager.h"
+#include "VkBootstrap.h"
 
 static CRenderer* gRenderer;
 
 CRenderer* CRenderer::get() {
 	return gRenderer;
+}
+
+const VkInstance& CRenderer::vkInstance() {
+	return instance().instance;
+}
+
+const VkPhysicalDevice& CRenderer::vkPhysicalDevice() {
+	return physicalDevice().physical_device;
+}
+
+const VkDevice& CRenderer::vkDevice() {
+	return device().device;
 }
 
 void CRenderer::set(CRenderer* inRenderer) {

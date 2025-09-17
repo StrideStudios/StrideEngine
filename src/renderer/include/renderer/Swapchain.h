@@ -2,13 +2,13 @@
 
 #include <vector>
 #include <vulkan/vulkan_core.h>
-#include <VkBootstrap.h>
 
 #include "VulkanResources.h"
 
 // Forward declare vkb types
 namespace vkb {
 	struct Swapchain;
+	template <typename T> class Result;
 }
 
 class CVulkanDevice;
@@ -23,11 +23,9 @@ struct SSwapchain final : SObject, TInitializable<const vkb::Result<vkb::Swapcha
 
 	EXPORT virtual void init(const vkb::Result<vkb::Swapchain>& inSwapchainBuilder) override;
 
-	virtual void destroy() override {
-		vkb::destroy_swapchain(mInternalSwapchain);
-	}
+	EXPORT virtual void destroy() override;
 
-	vkb::Swapchain mInternalSwapchain;
+	std::unique_ptr<vkb::Swapchain> mInternalSwapchain;
 
 	std::vector<SSwapchainImage*> mSwapchainImages{};
 

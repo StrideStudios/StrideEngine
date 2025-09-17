@@ -1,10 +1,11 @@
 ﻿create_module(StrideEngine-engine SHARED)
 
 add_dependencies(StrideEngine-engine
-    PUBLIC
+    PRIVATE
         SDL3::SDL3
 
-        StrideEngine-basic
-        StrideEngine-imgui
         StrideEngine-rendercore
+        StrideEngine-imgui
+    PUBLIC
+        StrideEngine-basic
 )

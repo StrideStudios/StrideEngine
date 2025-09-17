@@ -5,7 +5,6 @@
 #include "Input.h"
 #include "SDL3/SDL_dialog.h"
 #include "SDL3/SDL_init.h"
-#include "VkBootstrap.h"
 
 const CEngineViewport& CEngineViewport::get() {
 	return CEngine::get().getViewport(); //TODO: bad place for this
