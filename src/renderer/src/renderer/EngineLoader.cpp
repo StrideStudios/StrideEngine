@@ -10,8 +10,6 @@
 
 #include <meshoptimizer.h>
 
-#include <unordered_set>
-
 #include "freetype/freetype.h"
 #include "renderer/EngineTextures.h"
 #include "encoder/basisu_comp.h"

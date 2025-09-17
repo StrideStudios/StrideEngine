@@ -9,7 +9,6 @@ add_dependencies(StrideEngine-rendercore
         glslang::glslang
     PUBLIC
         Vulkan::Vulkan
-        #vk-bootstrap::vk-bootstrap
 
         StrideEngine-basic
 )
