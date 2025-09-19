@@ -75,7 +75,7 @@ class TDeferredRegistry {
 public:
 
 	static void init(CResourceManager& inResourceManager, TArgs... args) {
-		for (auto& [name, object] : get().m_Objects) {
+		for (auto& [name, object] : TTypeDeferredFactory::get().m_Objects) {
 			get().m_Objects.insert(std::make_pair(name, TTypeDeferredFactory::construct(name.c_str(), inResourceManager, args...)));
 		}
 	}

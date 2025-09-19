@@ -1,7 +1,7 @@
 #pragma once
 
 #include "renderer/object/ObjectRenderer.h"
-#include "StaticMesh.h"
+#include "world/StaticMeshObject.h"
 #include "passes/MeshPass.h"
 
 class CStaticMeshObjectRenderer : public CWorldObjectRenderer<CStaticMeshObject, CMeshPass> {

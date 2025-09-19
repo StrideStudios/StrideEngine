@@ -242,7 +242,7 @@ public:
 	template <typename TType>
 	friend CArchive& operator<<(CArchive& inArchive, const std::vector<TType>& inValue) {
 		inArchive << inValue.size();
-		for (auto value : inValue) {
+		for (const auto& value : inValue) {
 			inArchive << value;
 		}
 		return inArchive;
@@ -289,7 +289,7 @@ public:
 	template <typename TType>
 	requires (not std::is_polymorphic_v<TType>) or std::is_base_of_v<SObject, TType>
 	friend CArchive& operator<<(CArchive& inArchive, const std::shared_ptr<TType>& inValue) {
-		if constexpr (std::is_polymorphic_v<TType>) {
+		if constexpr (std::is_base_of_v<SObject, TType>) {
 			inArchive << inValue->getName();
 		}
 		inArchive << *inValue;
@@ -299,7 +299,7 @@ public:
 	template <typename TType>
 	requires std::is_default_constructible_v<TType> and ((not std::is_polymorphic_v<TType>) or std::is_base_of_v<SObject, TType>)
 	friend CArchive& operator>>(CArchive& inArchive, std::shared_ptr<TType>& inValue) {
-		if constexpr (std::is_polymorphic_v<TType>) {
+		if constexpr (std::is_base_of_v<SObject, TType>) {
 			std::string className;
 			inArchive >> className;
 			inValue = SObjectFactory::construct<TType>(className.c_str());
@@ -343,14 +343,14 @@ public:
 	//
 
 	template <typename TType>
-	requires std::is_trivial_v<TType>
+	requires std::is_trivial_v<TType> and (not std::is_pointer_v<TType>)
 	friend CArchive& operator<<(CArchive& inArchive, const TType& inValue) {
 		inArchive.write(&inValue, sizeof(TType), 1);
 		return inArchive;
 	}
 
 	template <typename TType>
-	requires std::is_trivial_v<TType>
+	requires std::is_trivial_v<TType> and (not std::is_pointer_v<TType>) and (not std::is_const_v<TType>)
 	friend CArchive& operator>>(CArchive& inArchive, TType& inValue) {
 		inArchive.read(&inValue, sizeof(TType), 1);
 		return inArchive;

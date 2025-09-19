@@ -3,6 +3,8 @@
 #include "Engine.h"
 #include "imgui_impl_sdl3.h"
 #include "Input.h"
+#include "core/Paths.h"
+#include "core/Threading.h"
 #include "SDL3/SDL_dialog.h"
 #include "SDL3/SDL_init.h"
 

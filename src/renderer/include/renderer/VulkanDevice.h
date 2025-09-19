@@ -5,6 +5,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include "Renderer.h"
+#include "core/Class.h"
 
 enum class EQueueType : uint8 {
     GRAPHICS,

@@ -2,6 +2,8 @@
 
 #include <fstream>
 
+#include "Archive.h"
+
 // Simple hashing, could potentially have repeats, but it is unlikely
 // djb2 http://www.cse.yorku.ca/~oz/hash.html
 static uint32 getHash(const std::string& string) {

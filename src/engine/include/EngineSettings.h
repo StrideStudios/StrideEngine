@@ -244,13 +244,13 @@ private:
 };
 
 namespace CommandRenderType {
-	void checkbox(const char* inCommand, bool* outValue);
-	void intSlider(const char* inCommand, int32* outValue, int32 min, int32 max);
-	void floatSlider(const char* inCommand, float* outValue, float min, float max);
-	void int2Input(const char* inCommand, int32* outValue);
-	void float2Input(const char* inCommand, float* outValue);
-	void float3Input(const char* inCommand, float* outValue);
-	void float4Input(const char* inCommand, float* outValue);
+	EXPORT void checkbox(const char* inCommand, bool* outValue);
+	EXPORT void intSlider(const char* inCommand, int32* outValue, int32 min, int32 max);
+	EXPORT void floatSlider(const char* inCommand, float* outValue, float min, float max);
+	EXPORT void int2Input(const char* inCommand, int32* outValue);
+	EXPORT void float2Input(const char* inCommand, float* outValue);
+	EXPORT void float3Input(const char* inCommand, float* outValue);
+	EXPORT void float4Input(const char* inCommand, float* outValue);
 }
 
 template <typename TType>

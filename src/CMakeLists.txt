@@ -17,8 +17,8 @@ function(create_module TARGET_NAME LIBRARY_TYPE)
             ${SOURCES}
     )
 
-    # Ensure target is using CMAKE_CXX_STANDARD
-    set_target_properties(${TARGET_NAME} PROPERTIES LINKER_LANGUAGE CMAKE_CXX_STANDARD)
+    # Ensure target is using CXX
+    set_target_properties(${TARGET_NAME} PROPERTIES LINKER_LANGUAGE CXX)
 
     # If it finds an include directory, include it
     if(EXISTS "include")
@@ -46,8 +46,8 @@ function(create_precompiled_module TARGET_NAME LIBRARY_TYPE)
             ${HEADERS}
     )
 
-    # Ensure target is using CMAKE_CXX_STANDARD
-    set_target_properties(${TARGET_NAME} PROPERTIES LINKER_LANGUAGE CMAKE_CXX_STANDARD)
+    # Ensure target is using CXX
+    set_target_properties(${TARGET_NAME} PROPERTIES LINKER_LANGUAGE CXX)
 
     # If it finds an include directory, include it
     if(EXISTS "include")

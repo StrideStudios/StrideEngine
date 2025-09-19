@@ -8,6 +8,7 @@
 #include "viewport/Sprite.h"
 #include "passes/SpritePass.h"
 #include "renderer/EngineTextures.h"
+#include "tracy/Tracy.hpp"
 #include "viewport/generic/Text.h"
 
 void CEditorSpritePass::init() {

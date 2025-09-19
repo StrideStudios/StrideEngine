@@ -23,7 +23,7 @@ public:
 		std::vector<std::shared_ptr<CWorldObject>> objects{};
 	};
 
-	Data data;
+	Data data{};
 
 	friend CArchive& operator<<(CArchive& inArchive, const CScene& inScene) {
 		inArchive << inScene.data.objects;

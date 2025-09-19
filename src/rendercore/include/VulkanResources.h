@@ -7,6 +7,7 @@
 
 #include "Renderer.h"
 #include "VulkanUtils.h"
+#include "core/Common.h"
 #include "core/Class.h"
 
 // Create wrappers around Vulkan types that can be destroyed

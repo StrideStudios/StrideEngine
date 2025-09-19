@@ -2,7 +2,7 @@
 
 add_dependencies(StrideEngine-basic
     PUBLIC
-        glm::glm
+        glm::glm-header-only
         fmt::fmt
         Tracy::TracyClient
 )

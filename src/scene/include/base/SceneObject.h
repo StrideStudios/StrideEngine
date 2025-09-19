@@ -1,7 +1,6 @@
 ﻿#pragma once
 
 #include "Instancer.h"
-#include "VulkanResources.h"
 #include "core/Object.h"
 #include "core/Class.h"
 

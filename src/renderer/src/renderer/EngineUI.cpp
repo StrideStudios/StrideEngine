@@ -15,7 +15,9 @@
 #include "viewport/Sprite.h"
 #include "passes/SpritePass.h"
 #include "StaticMesh.h"
+#include "world/StaticMeshObject.h"
 #include "Viewport.h"
+#include "core/Threading.h"
 #include "viewport/generic/Text.h"
 
 void SEngineUI::begin() {

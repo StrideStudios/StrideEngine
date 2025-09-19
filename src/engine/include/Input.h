@@ -3,6 +3,8 @@
 #include <array>
 #include <map>
 
+#include "core/Common.h"
+
 typedef union SDL_Event SDL_Event;
 
 enum class EKey : uint32{

@@ -7,7 +7,9 @@
 #define MAKE_SINGLETON(n) \
 	private: \
 		STATIC_BLOCK( \
-			if (!getSingletons().contains(#n)) getSingletons().insert(std::make_pair(#n, std::make_shared<n>())); \
+			if (!getSingletons().contains(#n)) { \
+				getSingletons().insert(std::make_pair(#n, std::make_shared<n>())); \
+			} \
 		) \
 	public: \
 		static n& get() { \
@@ -19,7 +21,9 @@
 	private: \
 		inline static std::string __singleton_name = (std::string(#n) + __VA_ARGS__); \
 		STATIC_BLOCK( \
-			if (!getSingletons().contains(__singleton_name)) getSingletons().insert(std::make_pair(__singleton_name, std::make_shared<n>())); \
+			if (!getSingletons().contains(__singleton_name)) { \
+				getSingletons().insert(std::make_pair(__singleton_name, std::make_shared<n>())); \
+			} \
 		) \
 	public: \
 		static n& get() { \

@@ -1,7 +1,5 @@
 #include "Instancer.h"
 
-class CStaticMeshObject;
-
 SInstancer::SInstancer(const uint32 initialSize) {
 	instances.resize(initialSize);
 	setDirty();

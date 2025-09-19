@@ -1,11 +1,15 @@
 ﻿#include "Engine.h"
 
+#include <chrono>
+
 #include "EngineSettings.h"
 #include "Viewport.h"
 #include "Input.h"
 #include "Renderer.h"
 #include "VulkanResourceManager.h"
+#include "core/Threading.h"
 #include "SDL3/SDL_timer.h"
+#include "tracy/Tracy.hpp"
 
 #define SETTINGS_CATEGORY "Engine"
 ADD_COMMAND(int32, UseFrameCap, 180, 0, 500);
