@@ -8,10 +8,8 @@
 class CObjectRenderer;
 
 #define REGISTER_PASS(className) \
-	REGISTER_OBJ(CPassDeferredRegistry, className) \
-	public: \
-		virtual const char* getName() const override { return #className; } \
-	private:
+	REGISTER_STRUCT(className)\
+	REGISTER_OBJ(CPassDeferredRegistry, className)
 
 class CPass : public SObject, public IInitializable, public IDestroyable {
 

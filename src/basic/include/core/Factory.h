@@ -13,7 +13,6 @@
 			factoryType::addToFactory<n>(#n); \
 		) \
 	public: \
-		static const char* name() { return #n; } \
 		static std::shared_ptr<n> construct() { return factoryType::construct<n>(#n); } \
 	private:
 

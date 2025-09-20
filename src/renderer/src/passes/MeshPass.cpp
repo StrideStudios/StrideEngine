@@ -21,8 +21,6 @@ ADD_TEXT(Triangles, "Triangles: ");
 void CMeshPass::init() {
 	CPass::init();
 
-	passType = EMeshPass::BASE_PASS; //Mesh Pass as base type, base pass implements instead (or maybe parent with pipelines)
-
 	CVulkanRenderer& renderer = *CVulkanRenderer::get();
 
 	CVulkanResourceManager manager;
@@ -141,11 +139,9 @@ void CMeshPass::render(const VkCommandBuffer cmd) {
 	uint32 drawCallCount = 0;
 	uint64 vertexCount = 0;
 
-	CStaticMeshObjectRenderer::get().begin();
-	for (auto& object : renderObjects) {
-		CStaticMeshObjectRenderer::get().render(this, cmd, object.get(), drawCallCount, vertexCount);
+	for (auto& object : renderObjects) { //TODO: renderer object with object member, so it can keep track of instancer?
+		CObjectRendererRegistry::get(object->getRendererType())->render(this, cmd, object.get(), drawCallCount, vertexCount);
 	}
-	CStaticMeshObjectRenderer::get().end();
 
 	// Set number of drawcalls, vertices, and triangles
 	Drawcalls.setText(fmts("Draw Calls: {}", drawCallCount));

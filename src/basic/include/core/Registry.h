@@ -14,7 +14,6 @@
 		) \
 	public: \
 		static n& get() { return *registryType::get<n>(#n); } \
-		static const char* name() { return #n; } \
 	private:
 
 #define DEFINE_REGISTRY(n, ...) \
@@ -45,6 +44,12 @@ public:
 		get().m_Objects.insert(std::make_pair(inName, object));
 		if (const auto& initializable = std::dynamic_pointer_cast<IInitializable>(object)) {
 			initializable->init();
+		}
+	}
+
+	static void forEach(const std::function<void(const std::pair<std::string, std::shared_ptr<TType>>&)>& inFunction) {
+		for (const auto& pair : get().m_Objects) {
+			inFunction(pair);
 		}
 	}
 
@@ -85,6 +90,12 @@ public:
 	static void registerObject(const char* inName) {
 		if (get().m_Objects.contains(inName)) return;
 		TTypeDeferredFactory::template addToFactory<TChildType>(inName);
+	}
+
+	static void forEach(const std::function<void(std::pair<std::string, TType*>)>& inFunction) {
+		for (auto& pair : get().m_Objects) {
+			inFunction(pair);
+		}
 	}
 
 	template <typename TChildType = TType>

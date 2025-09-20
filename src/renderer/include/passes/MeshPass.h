@@ -2,10 +2,6 @@
 
 #include "Pass.h"
 
-enum class EMeshPass : uint8 {
-	BASE_PASS
-};
-
 class CVulkanRenderer;
 
 class CMeshPass : public CPass {
@@ -17,8 +13,6 @@ public:
 	EXPORT virtual void init() override;
 
 	EXPORT virtual void render(VkCommandBuffer cmd) override;
-
-	EMeshPass passType = EMeshPass::BASE_PASS;
 
 	//
 	// Pipelines

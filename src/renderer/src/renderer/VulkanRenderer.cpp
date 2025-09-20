@@ -22,6 +22,7 @@
 #include "renderer/Swapchain.h"
 #include "Viewport.h"
 #include "renderer/VulkanInstance.h"
+#include "renderer/object/ObjectRenderer.h"
 #include "SDL3/SDL_vulkan.h"
 
 #define SETTINGS_CATEGORY "Engine"
@@ -285,6 +286,11 @@ void CVulkanRenderer::render() {
 		{
 			ZoneScopedN("Render");
 
+			// Tell all renderers that rendering has begun
+			CObjectRendererRegistry::forEach([](const auto& object) {
+				object.second->begin();
+			});
+
 			CEngineViewport::get().set(cmd);
 
 			CPass* previousPass = nullptr;
@@ -308,6 +314,11 @@ void CVulkanRenderer::render() {
 			}
 
 			vkCmdEndRendering(cmd);
+
+			// Tell all renderers that rendering has ended
+			CObjectRendererRegistry::forEach([](const auto& object) {
+				object.second->end();
+			});
 
 			VkRenderingInfo info = CVulkanUtils::createRenderingInfo(extent, &colorAttachment, &depthAttachment);
 			vkCmdBeginRendering(cmd, &info);

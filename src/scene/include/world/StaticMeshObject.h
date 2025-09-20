@@ -9,6 +9,8 @@ class CStaticMeshObject : public CRenderableWorldObject {
 
 	REGISTER_SCENE_OBJECT(CStaticMeshObject)
 
+	SET_OBJECT_RENDERER(CStaticMeshObjectRenderer)
+
 public:
 
 	CStaticMeshObject() = default;

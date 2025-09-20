@@ -13,7 +13,8 @@
 
 #define REGISTER_STRUCT(n) \
 	public: \
-		virtual const char* getName() const override { return #n; }
+		virtual const char* getName() const override { return #n; } \
+		static const char* name() { return #n; } \
 
 #define REGISTER_CLASS(n) \
 	REGISTER_STRUCT(n) \

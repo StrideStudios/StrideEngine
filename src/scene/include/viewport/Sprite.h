@@ -9,6 +9,10 @@ class CSprite : public CRenderableViewportObject {
 
 public:
 
+	virtual const char* getRendererType() override {
+		return "TODO";
+	}
+
 	// Surface Data
 	std::shared_ptr<CMaterial> material;
 };
