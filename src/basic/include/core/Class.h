@@ -39,6 +39,8 @@ struct SClass {
 
 	virtual const std::string& getClassName() const = 0;
 
+	virtual std::shared_ptr<SObject> construct() const = 0;
+
 	virtual SClass* getParent() const = 0;
 
 	virtual bool doesInherit(const SClass* inClass) = 0;
@@ -81,7 +83,15 @@ struct TClass<TCurrentClass, TParentClasses...> : SClass {
 
 	TClass(const std::string& inName): m_Name(inName) {}
 
-	const std::string& getClassName() const {
+	virtual std::shared_ptr<SObject> construct() const override {
+		if constexpr (std::is_abstract_v<TCurrentClass>) {
+			return nullptr;
+		} else {
+			return std::make_shared<TCurrentClass>();
+		}
+	}
+
+	virtual const std::string& getClassName() const override {
 		return m_Name;
 	}
 
