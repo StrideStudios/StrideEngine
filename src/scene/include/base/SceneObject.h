@@ -9,8 +9,10 @@
 	REGISTER_CLASS(n)
 
 class CSceneObject : public SObject, public ISerializable {
+public:
+	DEFINE_CLASS(CSceneObject, SObject)
 
-	//REGISTER_SCENE_OBJECT(CSceneObject)
+	REGISTER_CLASS(CSceneObject)
 
 public:
 
@@ -92,6 +94,9 @@ private:
 };
 
 class CWorldObject : public CSceneObject {
+public:
+
+	DEFINE_CLASS(CWorldObject, CSceneObject)
 
 	REGISTER_SCENE_OBJECT(CWorldObject)
 

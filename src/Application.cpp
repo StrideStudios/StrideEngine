@@ -12,6 +12,18 @@ int main() {
 	// Create a renderer with certain passes
 	CRenderer::create<CEditorRenderer>();
 
+	auto cname = CStaticMeshObject::staticClass()->getClassName();
+	auto name = CStaticMeshObject::staticClass()->getParent()->getClassName();
+	auto name2 = CStaticMeshObject::staticClass()->getParent()->getParent()->getClassName();
+	auto name3 = CStaticMeshObject::staticClass()->getParent()->getParent()->getParent()->getClassName();
+
+	CStaticMeshObject s;
+	SObject& obj = s;
+
+	msgs("Class Name: {}, Parent Class Name: {}, Parent Parent Class Name: {}, Parent Parent Parent Class Name: {}", cname, name, name2, name3);
+	msgs("Does Inherit: {}", obj.getClass()->doesInherit(CSceneObject::staticClass()));
+	msgs("Equals: {}", obj.getClass() == CSceneObject::staticClass());
+
 	CScene::get().init();
 
 	CEngine::get().run();

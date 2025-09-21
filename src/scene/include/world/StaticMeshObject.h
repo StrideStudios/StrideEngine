@@ -11,6 +11,8 @@ class CStaticMeshObject : public CRenderableWorldObject {
 
 	SET_OBJECT_RENDERER(CStaticMeshObjectRenderer)
 
+	DEFINE_CLASS(CStaticMeshObject, CRenderableWorldObject)
+
 public:
 
 	CStaticMeshObject() = default;

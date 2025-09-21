@@ -20,34 +20,86 @@
 	REGISTER_STRUCT(n) \
 	private:
 
+//virtual const Class& getClass() const { return c; }
+
+#define DEFINE_CLASS(n, ...) \
+	private: \
+		typedef TClass<n, ##__VA_ARGS__> Class; \
+		inline static Class c{#n}; \
+	public: \
+		virtual SClass* getClass() const override { return &c; } \
+		static Class* staticClass() { return &c; } \
+	private:
+
 DEFINE_FACTORY(SObject)
 
 // Represents a object's class
 // The purpose of this is to have an easy way to construct a class with just the class's name
-class CClass final {
+struct SClass {
 
-	// Function for constructing an object
-	typedef std::shared_ptr<SObject> (*FConstructor)();
+	virtual const std::string& getClassName() const = 0;
 
-public:
+	virtual SClass* getParent() const = 0;
 
-	CClass() = delete;
+	virtual bool doesInherit(const SClass* inClass) = 0;
 
-	CClass(const char* inName, const FConstructor inConstructor): m_Name(inName), m_Constructor(inConstructor) {}
-
-	template <typename TType>
-	static CClass make(const char* inName) {
-		CClass c(inName, [] -> std::shared_ptr<SObject> { return std::make_shared<TType>(); });
-		SObjectFactory::addToFactory<TType>(inName);
-		return std::move(c);
+	friend bool operator==(const SClass& fst, const SClass& snd) {
+		return fst.getClassName() == snd.getClassName();
 	}
 
-	std::shared_ptr<SObject> create() const { return (*m_Constructor)(); }
-	const char* getName() const { return m_Name; }
+};
+
+template <typename... TParentClasses>
+//requires std::is_base_of_v<SObject, TType>
+struct TClass : SClass {
+
+	using Current = SObject;
+
+	using Type = TClass<TParentClasses...>;
+
+	virtual SClass* getParent() const override {
+		return nullptr;
+	};
+
+	virtual bool doesInherit(const SClass* inClass) override {
+		return false;
+	}
+
+};
+
+template <typename TCurrentClass, typename... TParentClasses>
+//requires std::is_base_of_v<SObject, TType>
+struct TClass<TCurrentClass, TParentClasses...> : SClass {
+
+	using Current = TCurrentClass;
+
+	using Type = TClass<TCurrentClass, TParentClasses...>;;
+
+	using Super = TClass<TParentClasses...>;
+
+	TClass() = delete;
+
+	TClass(const std::string& inName): m_Name(inName) {}
+
+	const std::string& getClassName() const {
+		return m_Name;
+	}
+
+	virtual SClass* getParent() const override {
+		return Super::Current::staticClass();
+	}
+
+	virtual bool doesInherit(const SClass* inClass) override {
+		if (inClass == nullptr) return false;
+		if (*this == *inClass) {
+			return true;
+		}
+		return getParent()->doesInherit(inClass);
+	}
 
 private:
 
-	const char* m_Name;
-	FConstructor m_Constructor;
+	// Name of the current class
+	std::string m_Name;
 
 };

@@ -30,10 +30,14 @@ private: \
 	virtual const char* getRendererType() override { return #n; }
 
 class CRenderableViewportObject : public CViewportObject {
+	DEFINE_CLASS(CRenderableViewportObject)
+	REGISTER_CLASS(CRenderableViewportObject)
 	MAKE_RENDERABLE
 };
 
 class CRenderableWorldObject : public CWorldObject {
+	DEFINE_CLASS(CRenderableWorldObject, CWorldObject)
+	REGISTER_CLASS(CRenderableWorldObject)
 	MAKE_RENDERABLE
 };
 
