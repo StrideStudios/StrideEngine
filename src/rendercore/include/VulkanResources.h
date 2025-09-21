@@ -13,7 +13,7 @@
 // Create wrappers around Vulkan types that can be destroyed
 #define CREATE_VK_TYPE(inName) \
 	struct C##inName final : SObject, IDestroyable { \
-		REGISTER_STRUCT(C##inName) \
+		REGISTER_STRUCT(C##inName, SObject) \
 		C##inName() = default; \
 		C##inName(Vk##inName inType): m##inName(inType) {} \
 		C##inName(const C##inName& in##inName): m##inName(in##inName.m##inName) {} \
@@ -32,7 +32,7 @@ CREATE_VK_TYPE(DescriptorSetLayout);
 CREATE_VK_TYPE(Fence);
 
 struct CPipeline final : SObject, IDestroyable {
-	REGISTER_STRUCT(CPipeline)
+	REGISTER_STRUCT(CPipeline, SObject)
 	CPipeline() = default;
 	CPipeline(VkPipeline inType, VkPipelineLayout inLayout): mPipeline(inType), mLayout(inLayout) {}
 	CPipeline(const CPipeline& inPipeline): mPipeline(inPipeline.mPipeline), mLayout(inPipeline.mLayout) {}
@@ -94,7 +94,7 @@ struct SRenderAttachment {
 
 struct SImage_T : SObject, IDestroyable {
 
-	REGISTER_STRUCT(SImage_T)
+	REGISTER_STRUCT(SImage_T, SObject)
 
 	std::string mName = "Image";
 	VkImage mImage = nullptr;
@@ -110,7 +110,7 @@ struct SImage_T : SObject, IDestroyable {
 
 struct SBuffer_T : SObject, IDestroyable {
 
-	REGISTER_STRUCT(SBuffer_T)
+	REGISTER_STRUCT(SBuffer_T, SObject)
 
 	VkBuffer buffer = nullptr;
 	VmaAllocation allocation = nullptr;
@@ -129,7 +129,7 @@ struct SBuffer_T : SObject, IDestroyable {
 // Holds the resources needed for mesh rendering
 struct SMeshBuffers_T : SObject, IDestroyable {
 
-	REGISTER_STRUCT(SMeshBuffers_T)
+	REGISTER_STRUCT(SMeshBuffers_T, SObject)
 
 	SBuffer_T* indexBuffer = nullptr;
 	SBuffer_T* vertexBuffer = nullptr;
@@ -139,7 +139,7 @@ struct SMeshBuffers_T : SObject, IDestroyable {
 // Ex: contains info for image transitions
 struct SCommandBuffer : SObject {
 
-	REGISTER_STRUCT(SCommandBuffer)
+	REGISTER_STRUCT(SCommandBuffer, SObject)
 
 	SCommandBuffer() = default;
 

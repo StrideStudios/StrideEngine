@@ -290,7 +290,7 @@ public:
 	requires (not std::is_polymorphic_v<TType>) or std::is_base_of_v<SObject, TType>
 	friend CArchive& operator<<(CArchive& inArchive, const std::shared_ptr<TType>& inValue) {
 		if constexpr (std::is_base_of_v<SObject, TType>) {
-			inArchive << inValue->getName();
+			inArchive << inValue->getClass()->getName();
 		}
 		inArchive << *inValue;
 		return inArchive;

@@ -14,7 +14,5 @@ struct SObject {
 
 	virtual ~SObject() = default;
 
-	virtual SClass* getClass() const { return nullptr; } \
-
-	virtual const char* getName() const = 0;
+	virtual SClass* getClass() const = 0;
 };

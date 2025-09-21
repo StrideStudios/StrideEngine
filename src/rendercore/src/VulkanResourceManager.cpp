@@ -22,7 +22,7 @@
 
 struct SAllocator final : SObject, TInitializable<CRenderer*>, IDestroyable {
 
-	REGISTER_STRUCT(SAllocator)
+	REGISTER_STRUCT(SAllocator, SObject)
 
 	virtual void init(CRenderer* inRenderer) override {
 		const VmaAllocatorCreateInfo allocatorInfo {

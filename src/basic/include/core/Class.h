@@ -11,24 +11,16 @@
  * For these to work properly, an empty constructor needs to be provided, and it needs to inherit from SObject
  */
 
-#define REGISTER_STRUCT(n) \
-	public: \
-		virtual const char* getName() const override { return #n; } \
-		static const char* name() { return #n; } \
-
-#define REGISTER_CLASS(n) \
-	REGISTER_STRUCT(n) \
-	private:
-
-//virtual const Class& getClass() const { return c; }
-
-#define DEFINE_CLASS(n, ...) \
+#define REGISTER_STRUCT(n, ...) \
 	private: \
 		typedef TClass<n, ##__VA_ARGS__> Class; \
 		inline static Class c{#n}; \
 	public: \
 		virtual SClass* getClass() const override { return &c; } \
 		static Class* staticClass() { return &c; } \
+
+#define REGISTER_CLASS(n, ...) \
+	REGISTER_STRUCT(n, __VA_ARGS__) \
 	private:
 
 DEFINE_FACTORY(SObject)
@@ -37,7 +29,7 @@ DEFINE_FACTORY(SObject)
 // The purpose of this is to have an easy way to construct a class with just the class's name
 struct SClass {
 
-	virtual const std::string& getClassName() const = 0;
+	virtual const std::string& getName() const = 0;
 
 	virtual std::shared_ptr<SObject> construct() const = 0;
 
@@ -46,7 +38,7 @@ struct SClass {
 	virtual bool doesInherit(const SClass* inClass) = 0;
 
 	friend bool operator==(const SClass& fst, const SClass& snd) {
-		return fst.getClassName() == snd.getClassName();
+		return fst.getName() == snd.getName();
 	}
 
 };
@@ -91,7 +83,7 @@ struct TClass<TCurrentClass, TParentClasses...> : SClass {
 		}
 	}
 
-	virtual const std::string& getClassName() const override {
+	virtual const std::string& getName() const override {
 		return m_Name;
 	}
 

@@ -12,7 +12,7 @@ CVulkanInstance::CVulkanInstance() {
 			.require_api_version(1, 3, 0)
 			.build();
 
-	mInstance = std::make_unique<vkb::Instance>(instance.value());
+	mInstance = std::make_shared<vkb::Instance>(instance.value());
 }
 
 const vkb::Instance& CVulkanInstance::getInstance() const {

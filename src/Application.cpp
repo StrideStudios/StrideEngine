@@ -12,18 +12,18 @@ int main() {
 	// Create a renderer with certain passes
 	CRenderer::create<CEditorRenderer>();
 
-	auto name = CStaticMeshObject::staticClass()->getClassName();
-	auto name1 = CStaticMeshObject::staticClass()->getParent()->getClassName();
-	auto name2 = CStaticMeshObject::staticClass()->getParent()->getParent()->getClassName();
-	auto name3 = CStaticMeshObject::staticClass()->getParent()->getParent()->getParent()->getClassName();
+	auto name = CStaticMeshObject::staticClass()->getName();
+	auto name1 = CStaticMeshObject::staticClass()->getParent()->getName();
+	auto name2 = CStaticMeshObject::staticClass()->getParent()->getParent()->getName();
+	auto name3 = CStaticMeshObject::staticClass()->getParent()->getParent()->getParent()->getName();
 
 	std::shared_ptr<CStaticMeshObject> s = std::static_pointer_cast<CStaticMeshObject>(CStaticMeshObject::staticClass()->construct());
 	std::shared_ptr<SObject> obj = std::static_pointer_cast<SObject>(s);
 
-	auto name10 = obj->getClass()->getClassName();
-	auto name11 = obj->getClass()->getParent()->getClassName();
-	auto name12 = obj->getClass()->getParent()->getParent()->getClassName();
-	auto name13 = obj->getClass()->getParent()->getParent()->getParent()->getClassName();
+	auto name10 = obj->getClass()->getName();
+	auto name11 = obj->getClass()->getParent()->getName();
+	auto name12 = obj->getClass()->getParent()->getParent()->getName();
+	auto name13 = obj->getClass()->getParent()->getParent()->getParent()->getName();
 
 	msgs("Class Name: {}, Parent Class Name: {}, Parent Parent Class Name: {}, Parent Parent Parent Class Name: {}", name, name1, name2, name3);
 	msgs("NEXT: Class Name: {}, Parent Class Name: {}, Parent Parent Class Name: {}, Parent Parent Parent Class Name: {}", name10, name11, name12, name13);

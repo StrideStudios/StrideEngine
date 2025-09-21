@@ -7,11 +7,9 @@
 // A scene object that has the capability to render static meshes
 class CStaticMeshObject : public CRenderableWorldObject {
 
-	REGISTER_SCENE_OBJECT(CStaticMeshObject)
+	REGISTER_SCENE_OBJECT(CStaticMeshObject, CRenderableWorldObject)
 
 	SET_OBJECT_RENDERER(CStaticMeshObjectRenderer)
-
-	DEFINE_CLASS(CStaticMeshObject, CRenderableWorldObject)
 
 public:
 

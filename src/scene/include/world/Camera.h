@@ -4,7 +4,7 @@
 
 class CCamera : public CWorldObject, public IDestroyable {
 
-	REGISTER_SCENE_OBJECT(CCamera)
+	REGISTER_SCENE_OBJECT(CCamera, CWorldObject)
 
 public:
 

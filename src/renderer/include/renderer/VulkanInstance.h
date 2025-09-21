@@ -6,7 +6,7 @@
 // Wrapper around vkb instance that can be destroyed
 class CVulkanInstance : public CInstance, public IDestroyable {
 
-	REGISTER_CLASS(CVulkanInstance)
+	REGISTER_CLASS(CVulkanInstance, CInstance)
 
 public:
 
@@ -16,5 +16,5 @@ public:
 
 	EXPORT virtual void destroy() override;
 
-	std::unique_ptr<vkb::Instance> mInstance;
+	std::shared_ptr<vkb::Instance> mInstance;
 };

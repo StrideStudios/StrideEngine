@@ -296,7 +296,7 @@ void CVulkanRenderer::render() {
 			CPass* previousPass = nullptr;
 			for (const auto pass : getPasses()) {
 				ZoneScoped;
-				std::string passName = pass->getName();
+				std::string passName = pass->getClass()->getName();
 				ZoneName(passName.c_str(), passName.size());
 
 				// Restart rendering if passes have different rendering info

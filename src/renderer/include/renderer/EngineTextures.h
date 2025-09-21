@@ -8,7 +8,7 @@ class CVulkanSwapchain;
 // Class used to house textures for the engine, easily resizable when necessary
 class CEngineTextures : public SObject, public IDestroyable, public IInitializable {
 
-	REGISTER_CLASS(CEngineTextures)
+	REGISTER_CLASS(CEngineTextures, SObject)
 
 	friend class CVulkanRenderer;
 

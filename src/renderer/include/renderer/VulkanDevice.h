@@ -21,7 +21,7 @@ struct SQueue {
 
 class CVulkanDevice : public CDevice, public TInitializable<class CVulkanInstance*, VkSurfaceKHR>, public IDestroyable {
 
-    REGISTER_CLASS(CVulkanDevice)
+    REGISTER_CLASS(CVulkanDevice, CDevice)
 
 public:
 
@@ -42,10 +42,10 @@ private:
     //
 
     // GPU chosen as the default device
-    std::unique_ptr<vkb::PhysicalDevice> m_PhysicalDevice;
+    std::shared_ptr<vkb::PhysicalDevice> m_PhysicalDevice;
 
     // Vulkan device for commands
-    std::unique_ptr<vkb::Device> m_Device;
+    std::shared_ptr<vkb::Device> m_Device;
 
     // Queues are created by the driver, so it is only natural they are stored in the device
 	std::map<EQueueType, SQueue> mQueues;

@@ -26,7 +26,7 @@ void SSwapchainImage::destroy() {
 
 void SSwapchain::init(const vkb::Result<vkb::Swapchain>& inSwapchainBuilder) {
 	//store swapchain and its related images
-	mInternalSwapchain = std::make_unique<vkb::Swapchain>(inSwapchainBuilder.value());
+	mInternalSwapchain = std::make_shared<vkb::Swapchain>(inSwapchainBuilder.value());
 
 	const std::vector<VkImage> images = mInternalSwapchain->get_images().value();
 	const std::vector<VkImageView> imageViews = mInternalSwapchain->get_image_views().value();

@@ -4,7 +4,7 @@
 
 class CEngineViewport : public SObject, public IInitializable, public IDestroyable {
 
-	REGISTER_CLASS(CEngineViewport)
+	REGISTER_CLASS(CEngineViewport, SObject)
 
 public:
 

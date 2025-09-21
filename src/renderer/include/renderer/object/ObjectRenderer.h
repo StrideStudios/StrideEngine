@@ -11,8 +11,8 @@ class CSceneObject;
 class CViewportObject;
 class CWorldObject;
 
-#define REGISTER_RENDERER(n) \
-	REGISTER_CLASS(n) \
+#define REGISTER_RENDERER(n, ...) \
+	REGISTER_CLASS(n, __VA_ARGS__) \
 	REGISTER_OBJ(CObjectRendererRegistry, n)
 
 class CObjectRenderer : public SObject {

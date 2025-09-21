@@ -33,7 +33,7 @@ struct SUploadContext {
 
 class CVulkanRenderer : public CRenderer {
 
-	REGISTER_CLASS(CVulkanRenderer)
+	REGISTER_CLASS(CVulkanRenderer, CRenderer)
 
 	//MAKE_SINGLETON(CVulkanRenderer)
 

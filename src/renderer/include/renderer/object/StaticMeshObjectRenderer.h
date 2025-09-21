@@ -6,7 +6,7 @@
 
 class CStaticMeshObjectRenderer : public CWorldObjectRenderer<CStaticMeshObject, CMeshPass> {
 
-	REGISTER_RENDERER(CStaticMeshObjectRenderer)
+	REGISTER_RENDERER(CStaticMeshObjectRenderer, CWorldObjectRenderer<CStaticMeshObject, CMeshPass>)
 
 public:
 

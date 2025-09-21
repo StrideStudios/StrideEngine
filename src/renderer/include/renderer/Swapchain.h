@@ -19,13 +19,13 @@ struct SSwapchainImage : SImage_T {
 
 struct SSwapchain final : SObject, TInitializable<const vkb::Result<vkb::Swapchain>&>, IDestroyable {
 
-	REGISTER_STRUCT(SSwapchain)
+	REGISTER_STRUCT(SSwapchain, SObject)
 
 	EXPORT virtual void init(const vkb::Result<vkb::Swapchain>& inSwapchainBuilder) override;
 
 	EXPORT virtual void destroy() override;
 
-	std::unique_ptr<vkb::Swapchain> mInternalSwapchain;
+	std::shared_ptr<vkb::Swapchain> mInternalSwapchain;
 
 	std::vector<SSwapchainImage*> mSwapchainImages{};
 
@@ -36,7 +36,7 @@ struct SSwapchain final : SObject, TInitializable<const vkb::Result<vkb::Swapcha
 
 class CVulkanSwapchain : public CSwapchain, public IInitializable, public IDestroyable {
 
-	REGISTER_CLASS(CVulkanSwapchain)
+	REGISTER_CLASS(CVulkanSwapchain, CSwapchain)
 
 public:
 

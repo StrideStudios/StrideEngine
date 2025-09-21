@@ -71,7 +71,7 @@ void CVulkanDevice::init(CVulkanInstance* inInstance, VkSurfaceKHR inSurface) {
             .set_surface(inSurface)
             .select();
 
-    m_PhysicalDevice = std::make_unique<vkb::PhysicalDevice>(physicalDevice.value());
+    m_PhysicalDevice = std::make_shared<vkb::PhysicalDevice>(physicalDevice.value());
 
     std::map<vkb::QueueType, size_t> queueBits;
 
@@ -97,7 +97,7 @@ void CVulkanDevice::init(CVulkanInstance* inInstance, VkSurfaceKHR inSurface) {
 
     vkb::DeviceBuilder deviceBuilder{*m_PhysicalDevice};
     deviceBuilder.custom_queue_setup(queueDescriptions);
-    m_Device = std::make_unique<vkb::Device>(deviceBuilder.build().value());
+    m_Device = std::make_shared<vkb::Device>(deviceBuilder.build().value());
 
     // Get queues from the device
     for (const auto&[type, map] : queueFamilies) {

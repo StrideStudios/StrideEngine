@@ -4,15 +4,13 @@
 #include "core/Object.h"
 #include "core/Class.h"
 
-#define REGISTER_SCENE_OBJECT(n) \
+#define REGISTER_SCENE_OBJECT(n, ...) \
 	ADD_TO_FACTORY(SObjectFactory, n) \
-	REGISTER_CLASS(n)
+	REGISTER_CLASS(n, __VA_ARGS__)
 
 class CSceneObject : public SObject, public ISerializable {
 public:
-	DEFINE_CLASS(CSceneObject, SObject)
-
-	REGISTER_CLASS(CSceneObject)
+	REGISTER_CLASS(CSceneObject, SObject)
 
 public:
 
@@ -40,7 +38,7 @@ public:
 
 class CViewportObject : public CSceneObject {
 
-	REGISTER_SCENE_OBJECT(CViewportObject)
+	REGISTER_SCENE_OBJECT(CViewportObject, CSceneObject)
 
 public:
 
@@ -96,9 +94,7 @@ private:
 class CWorldObject : public CSceneObject {
 public:
 
-	DEFINE_CLASS(CWorldObject, CSceneObject)
-
-	REGISTER_SCENE_OBJECT(CWorldObject)
+	REGISTER_SCENE_OBJECT(CWorldObject, CSceneObject)
 
 public:
 
