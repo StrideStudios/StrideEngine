@@ -302,7 +302,7 @@ public:
 		if constexpr (std::is_base_of_v<SObject, TType>) {
 			std::string className;
 			inArchive >> className;
-			inValue = SObjectFactory::construct<TType>(className.c_str());
+			inValue = std::dynamic_pointer_cast<TType>(SClassRegistry::get(className.c_str())->construct());
 		} else {
 			inValue = std::make_shared<TType>();
 		}

@@ -8,11 +8,11 @@ struct SClass;
 struct SObject {
 
 	//typedef TClass<SObject> Class;
-	static SClass* staticClass() {
+	static std::shared_ptr<SClass> staticClass() {
 		return nullptr;
 	}
 
 	virtual ~SObject() = default;
 
-	virtual SClass* getClass() const = 0;
+	virtual std::shared_ptr<SClass> getClass() const = 0;
 };

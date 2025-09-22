@@ -4,7 +4,6 @@
 
 #include "core/Common.h"
 #include "core/Factory.h"
-#include "Object.h"
 #include "control/ResourceManager.h"
 
 #define REGISTER_OBJ(registryType, n) \
@@ -29,7 +28,7 @@
 	template class TDeferredFactory<n, n##DeferredRegistry##Name>;
 
 template <typename TType, const char* TName>
-requires std::is_base_of_v<SObject, TType>
+//requires std::is_base_of_v<SObject, TType>
 class TRegistry {
 
 	CUSTOM_SINGLETON(TRegistry, TName)
@@ -38,11 +37,22 @@ public:
 
 	template <typename TChildType = TType>
 	//requires std::is_base_of_v<TType, TChildType>
-	static void registerObject(const char* inName) {
-		if (get().m_Objects.contains(inName)) return;
+	static std::shared_ptr<TChildType> registerObject(const char* inName) {
+		if (get().m_Objects.contains(inName)) return nullptr;
 		auto object = std::make_shared<TChildType>();
 		get().m_Objects.insert(std::make_pair(inName, object));
 		if (const auto& initializable = std::dynamic_pointer_cast<IInitializable>(object)) {
+			initializable->init();
+		}
+		return object;
+	}
+
+	template <typename TChildType = TType>
+	//requires std::is_base_of_v<TType, TChildType>
+	static void registerObject(const char* inName, const std::shared_ptr<TChildType>& inObject) {
+		if (get().m_Objects.contains(inName)) return;
+		get().m_Objects.insert(std::make_pair(inName, inObject));
+		if (const auto& initializable = std::dynamic_pointer_cast<IInitializable>(inObject)) {
 			initializable->init();
 		}
 	}
@@ -70,7 +80,7 @@ public:
 // This can be done at any point the user wishes
 // It does this by storing registration, and doing it all at once at any point
 template <typename TType, const char* TName, typename... TArgs>
-requires std::is_base_of_v<SObject, TType>
+//requires std::is_base_of_v<SObject, TType>
 class TDeferredRegistry {
 
 	CUSTOM_SINGLETON(TDeferredRegistry, TName)

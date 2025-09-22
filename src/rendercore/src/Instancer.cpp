@@ -10,6 +10,7 @@ SInstancer::~SInstancer() {
 }
 
 void SInstancer::destroy() {
+	//TODO: is happening at end of execution because of shared ptr.
 
 	//TODO: Temporary wait until proper destruction
 	vkDeviceWaitIdle(CRenderer::vkDevice());
