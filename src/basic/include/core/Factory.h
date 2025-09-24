@@ -4,7 +4,6 @@
 
 #include "control/ResourceManager.h"
 #include "core/Common.h"
-#include "core/Object.h"
 #include "core/Singleton.h"
 
 #define ADD_TO_FACTORY(factoryType, n) \
@@ -27,7 +26,6 @@
 	template class TDeferredFactory<n, n##DeferredFactory##Name>;
 
 template <typename TType, const char* TName>
-requires std::is_base_of_v<SObject, TType>
 class TFactory {
 
 	CUSTOM_SINGLETON(TFactory, TName)
@@ -40,7 +38,7 @@ public:
 	//requires std::is_base_of_v<TType, TChildType>
 	static void addToFactory(const char* inName) {
 		if (get().m_Objects.contains(inName)) return;
-		get().m_Objects.insert(std::make_pair(inName, [] -> std::shared_ptr<SObject> { return std::make_shared<TChildType>(); }));
+		get().m_Objects.insert(std::make_pair(inName, [] -> std::shared_ptr<TType> { return std::make_shared<TChildType>(); }));
 	}
 
 	template <typename TChildType = TType>
@@ -57,7 +55,6 @@ public:
 };
 
 template <typename TType, const char* TName, typename... TArgs>
-requires std::is_base_of_v<SObject, TType>
 class TDeferredFactory {
 
 	CUSTOM_SINGLETON(TDeferredFactory, TName)

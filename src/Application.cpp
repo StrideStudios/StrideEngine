@@ -16,6 +16,8 @@ int main() {
 	auto name1 = CStaticMeshObject::staticClass()->getParent()->getName();
 	auto name2 = CStaticMeshObject::staticClass()->getParent()->getParent()->getName();
 	auto name3 = CStaticMeshObject::staticClass()->getParent()->getParent()->getParent()->getName();
+	auto name4 = CStaticMeshObject::staticClass()->getParent()->getParent()->getParent()->getParent()->getName();
+	auto name5 = CStaticMeshObject::staticClass()->getParent()->getParent()->getParent()->getParent()->getParent()->getName();
 
 	std::shared_ptr<CStaticMeshObject> s = std::static_pointer_cast<CStaticMeshObject>(CStaticMeshObject::staticClass()->construct());
 	std::shared_ptr<SObject> obj = std::static_pointer_cast<SObject>(s);
@@ -24,9 +26,11 @@ int main() {
 	auto name11 = obj->getClass()->getParent()->getName();
 	auto name12 = obj->getClass()->getParent()->getParent()->getName();
 	auto name13 = obj->getClass()->getParent()->getParent()->getParent()->getName();
+	auto name14 = obj->getClass()->getParent()->getParent()->getParent()->getParent()->getName();
+	auto name15 = obj->getClass()->getParent()->getParent()->getParent()->getParent()->getParent()->getName();
 
-	msgs("Class Name: {}, Parent Class Name: {}, Parent Parent Class Name: {}, Parent Parent Parent Class Name: {}", name, name1, name2, name3);
-	msgs("NEXT: Class Name: {}, Parent Class Name: {}, Parent Parent Class Name: {}, Parent Parent Parent Class Name: {}", name10, name11, name12, name13);
+	msgs("Class Name: {}, Name1: {}, Name2: {}, Name3: {}, Name4: {}, Name5: {}", name, name1, name2, name3, name4, name5);
+	msgs("NEXT: Class Name: {}, Name1: {}, Name2: {}, Name3: {}, Name4: {}, Name5: {}", name10, name11, name12, name13, name14, name15);
 	msgs("Does Inherit: {}", obj->getClass()->doesInherit(CSceneObject::staticClass()));
 	msgs("Equals: {}", obj->getClass() == CSceneObject::staticClass());
 

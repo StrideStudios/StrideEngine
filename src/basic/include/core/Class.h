@@ -27,8 +27,11 @@
 // Represents a object's class
 // The purpose of this is to have an easy way to construct a class with just the class's name
 struct SClass {
+	virtual ~SClass() = default;
 
-	virtual const std::string& getName() const = 0;
+	virtual std::string getName() const = 0;
+
+	virtual bool isAbstract() const = 0;
 
 	virtual std::shared_ptr<SObject> construct() const = 0;
 
@@ -49,6 +52,18 @@ template <typename... TParentClasses>
 struct TClass : SClass {
 
 	using Current = SObject;
+
+	virtual std::shared_ptr<SObject> construct() const override {
+		return nullptr;
+	}
+
+	virtual std::string getName() const override {
+		return "None";
+	}
+
+	virtual bool isAbstract() const override {
+		return true;
+	}
 
 	virtual std::shared_ptr<SClass> getParent() const override {
 		return nullptr;
@@ -86,8 +101,12 @@ struct TClass<TCurrentClass, TParentClasses...> : SClass {
 		}
 	}
 
-	virtual const std::string& getName() const override {
+	virtual std::string getName() const override {
 		return m_Name;
+	}
+
+	virtual bool isAbstract() const override {
+		return std::is_abstract_v<TCurrentClass>;
 	}
 
 	virtual std::shared_ptr<SClass> getParent() const override {
