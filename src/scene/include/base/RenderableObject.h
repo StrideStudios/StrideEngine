@@ -2,13 +2,15 @@
 
 #include "SceneObject.h"
 
+class CObjectRenderer;
+
 #define MAKE_RENDERABLE \
 	public: \
 	\
 	virtual SInstancer& getInstancer() { \
 		return m_Instancer; \
 	} \
-	virtual const char* getRendererType() = 0; \
+	virtual const char* getRendererType() { return ""; }; \
 	\
 	bool isDirty() const { \
 		return m_IsDirty; \
@@ -29,14 +31,32 @@ private: \
 	public: \
 	virtual const char* getRendererType() override { return #n; }
 
+struct IRenderableClass {
+	virtual CObjectRenderer* getRenderer() const = 0;
+};
+
 class CRenderableViewportObject : public CViewportObject {
 	REGISTER_CLASS(CRenderableViewportObject, CViewportObject)
 	MAKE_RENDERABLE
 };
 
 class CRenderableWorldObject : public CWorldObject {
-	REGISTER_CLASS(CRenderableWorldObject, CWorldObject)
+	//REGISTER_CLASS(CRenderableWorldObject, CWorldObject)
 	MAKE_RENDERABLE
+};
+
+template <typename TCurrentClass, typename... TParentClasses>
+requires std::is_base_of_v<CRenderableWorldObject, TCurrentClass>
+struct TClass<TCurrentClass, TParentClasses...> : TGenericClass<TCurrentClass, TParentClasses...>, IRenderableClass {
+
+	using Current = TCurrentClass;
+
+	TClass(const std::string& inName): TGenericClass<TCurrentClass, TParentClasses...>(inName) {}
+
+	virtual CObjectRenderer* getRenderer() const override {
+		return nullptr;
+	}
+
 };
 
 #undef MAKE_RENDERABLE

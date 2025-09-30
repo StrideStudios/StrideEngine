@@ -274,9 +274,15 @@ constexpr static uint8 gFrameOverlap = 2;
 		return 0; \
 	}();
 
+#define STATIC_BLOCK_2(...) \
+	inline static int CONCAT(__static_block_2,__LINE__) = [] { \
+		__VA_ARGS__ \
+		return 0; \
+	}();
+
 // Used to run code statically, returns int similar to main
 #define STATIC_C_BLOCK(...) \
-	struct CONCAT(__static_block,__LINE__) { \
-		CONCAT(__static_block,__LINE__)() { __VA_ARGS__ } \
+	struct CONCAT(__static_c_block,__LINE__) { \
+		CONCAT(__static_c_block,__LINE__)() { __VA_ARGS__ } \
 	}; \
-	CONCAT(__static_block,__LINE__) CONCAT(__block,__LINE__){};
+	inline static CONCAT(__static_c_block,__LINE__) CONCAT(__block,__LINE__){};

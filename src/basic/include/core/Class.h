@@ -14,8 +14,9 @@
 
 #define REGISTER_STRUCT(n, ...) \
 	private: \
-		typedef TClass<n, ##__VA_ARGS__> Class; \
-		inline static std::shared_ptr<Class> c = Class::make(#n); \
+		typedef TClass<n, __VA_ARGS__> Class; \
+		inline static std::shared_ptr<Class> c = nullptr; \
+		STATIC_C_BLOCK( c = makeClass<Class>(#n); ) \
 	public: \
 		virtual std::shared_ptr<SClass> getClass() const override { return c; } \
 		static std::shared_ptr<Class> staticClass() { return c; } \
@@ -27,9 +28,16 @@
 // Represents a object's class
 // The purpose of this is to have an easy way to construct a class with just the class's name
 struct SClass {
+
+	SClass() = delete;
+
+	SClass(const std::string& inName): m_Name(inName) {}
+
 	virtual ~SClass() = default;
 
-	virtual std::string getName() const = 0;
+	virtual std::string getName() const {
+		return m_Name;
+	}
 
 	virtual bool isAbstract() const = 0;
 
@@ -43,6 +51,9 @@ struct SClass {
 		return fst.getName() == snd.getName();
 	}
 
+	// Name of the current class
+	std::string m_Name;
+
 };
 
 DEFINE_REGISTRY(SClass)
@@ -53,12 +64,10 @@ struct TClass : SClass {
 
 	using Current = SObject;
 
+	TClass(): SClass("None") {}
+
 	virtual std::shared_ptr<SObject> construct() const override {
 		return nullptr;
-	}
-
-	virtual std::string getName() const override {
-		return "None";
 	}
 
 	virtual bool isAbstract() const override {
@@ -67,7 +76,7 @@ struct TClass : SClass {
 
 	virtual std::shared_ptr<SClass> getParent() const override {
 		return nullptr;
-	};
+	}
 
 	virtual bool doesInherit(const std::shared_ptr<SClass>& inClass) override {
 		return false;
@@ -76,21 +85,16 @@ struct TClass : SClass {
 };
 
 template <typename TCurrentClass, typename... TParentClasses>
-//requires std::is_base_of_v<SObject, TType>
-struct TClass<TCurrentClass, TParentClasses...> : SClass {
+struct TGenericClass : SClass {
 
 	using Current = TCurrentClass;
 
 	using Super = TClass<TParentClasses...>;
 
-	TClass() = delete;
+	TGenericClass(const std::string& inName): SClass(inName) {}
 
-	TClass(const std::string& inName): m_Name(inName) {}
-
-	static std::shared_ptr<TClass> make(const std::string& inName) {
-		std::shared_ptr<TClass> c = std::make_shared<TClass>(inName);
-		SClassRegistry::registerObject(inName.c_str(), c);
-		return c;
+	virtual bool isAbstract() const override {
+		return std::is_abstract_v<TCurrentClass>;
 	}
 
 	virtual std::shared_ptr<SObject> construct() const override {
@@ -99,14 +103,6 @@ struct TClass<TCurrentClass, TParentClasses...> : SClass {
 		} else {
 			return std::make_shared<TCurrentClass>();
 		}
-	}
-
-	virtual std::string getName() const override {
-		return m_Name;
-	}
-
-	virtual bool isAbstract() const override {
-		return std::is_abstract_v<TCurrentClass>;
 	}
 
 	virtual std::shared_ptr<SClass> getParent() const override {
@@ -120,10 +116,21 @@ struct TClass<TCurrentClass, TParentClasses...> : SClass {
 		}
 		return getParent()->doesInherit(inClass);
 	}
+};
 
-private:
+template <typename TCurrentClass, typename... TParentClasses>
+//requires std::is_base_of_v<SObject, TCurrentClass>
+struct TClass<TCurrentClass, TParentClasses...> : TGenericClass<TCurrentClass, TParentClasses...> {
 
-	// Name of the current class
-	std::string m_Name;
+	using Current = TCurrentClass;
+
+	TClass(const std::string& inName): TGenericClass<TCurrentClass, TParentClasses...>(inName) {}
 
 };
+
+template <typename TClassType>
+std::shared_ptr<TClassType> makeClass(const std::string& inName) {
+	std::shared_ptr<TClassType> c = std::make_shared<TClassType>(inName);
+	SClassRegistry::registerObject(inName.c_str(), c);
+	return c;
+}

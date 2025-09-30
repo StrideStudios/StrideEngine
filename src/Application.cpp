@@ -3,6 +3,8 @@
 // Without it, the linker might drop symbols that need to run before main (like factory registration)
 #include "Sources.h"
 
+#include "world/StaticMeshObject.h"
+
 int main() {
 
 	CProfiler::StartupProfiler();
@@ -21,6 +23,14 @@ int main() {
 
 	std::shared_ptr<CStaticMeshObject> s = std::static_pointer_cast<CStaticMeshObject>(CStaticMeshObject::staticClass()->construct());
 	std::shared_ptr<SObject> obj = std::static_pointer_cast<SObject>(s);
+
+	//auto sc = s->getClass();
+	auto sc = CStaticMeshObject::staticClass();
+
+
+	if (auto c = std::dynamic_pointer_cast<IRenderableClass>(sc)) {
+		msgs("is renderable");
+	}
 
 	auto name10 = obj->getClass()->getName();
 	auto name11 = obj->getClass()->getParent()->getName();
