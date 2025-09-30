@@ -35,15 +35,7 @@ struct IRenderableClass {
 	virtual CObjectRenderer* getRenderer() const = 0;
 };
 
-class CRenderableViewportObject : public CViewportObject {
-	REGISTER_CLASS(CRenderableViewportObject, CViewportObject)
-	MAKE_RENDERABLE
-};
-
-class CRenderableWorldObject : public CWorldObject {
-	//REGISTER_CLASS(CRenderableWorldObject, CWorldObject)
-	MAKE_RENDERABLE
-};
+class CRenderableWorldObject;
 
 template <typename TCurrentClass, typename... TParentClasses>
 requires std::is_base_of_v<CRenderableWorldObject, TCurrentClass>
@@ -57,6 +49,16 @@ struct TClass<TCurrentClass, TParentClasses...> : TGenericClass<TCurrentClass, T
 		return nullptr;
 	}
 
+};
+
+class CRenderableViewportObject : public CViewportObject {
+	REGISTER_CLASS(CRenderableViewportObject, CViewportObject)
+	MAKE_RENDERABLE
+};
+
+class CRenderableWorldObject : public CWorldObject {
+	REGISTER_CLASS(CRenderableWorldObject, CWorldObject)
+	MAKE_RENDERABLE
 };
 
 #undef MAKE_RENDERABLE

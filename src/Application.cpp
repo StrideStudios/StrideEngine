@@ -3,8 +3,6 @@
 // Without it, the linker might drop symbols that need to run before main (like factory registration)
 #include "Sources.h"
 
-#include "world/StaticMeshObject.h"
-
 int main() {
 
 	CProfiler::StartupProfiler();
