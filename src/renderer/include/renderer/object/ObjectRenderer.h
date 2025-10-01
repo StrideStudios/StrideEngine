@@ -15,10 +15,7 @@ class CWorldObject;
 	REGISTER_CLASS(n, __VA_ARGS__) \
 	REGISTER_OBJ(CObjectRendererRegistry, n) \
 	STATIC_C_BLOCK( \
-		if (object::staticClass()->mRenderer == nullptr || object::staticClass()->mRenderer->getClass()->getName() != #n) { \
-			std::shared_ptr<n> renderer = std::make_shared<n>(); \
-			object::staticClass()->setRenderer(renderer); \
-		} \
+		object::staticClass()->setRenderer(CObjectRendererRegistry::get(#n)); \
 	)
 
 class CObjectRenderer : public SObject {
