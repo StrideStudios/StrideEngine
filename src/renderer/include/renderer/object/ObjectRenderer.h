@@ -11,11 +11,20 @@ class CSceneObject;
 class CViewportObject;
 class CWorldObject;
 
-#define REGISTER_RENDERER(n, ...) \
+#define REGISTER_RENDERER(n, object, ...) \
 	REGISTER_CLASS(n, __VA_ARGS__) \
-	REGISTER_OBJ(CObjectRendererRegistry, n)
+	REGISTER_OBJ(CObjectRendererRegistry, n) \
+	STATIC_C_BLOCK( \
+		if (object::staticClass()->mRenderer == nullptr || object::staticClass()->mRenderer->getClass()->getName() != #n) { \
+			std::shared_ptr<n> renderer = std::make_shared<n>(); \
+			object::staticClass()->setRenderer(renderer); \
+		} \
+	)
 
 class CObjectRenderer : public SObject {
+
+	REGISTER_CLASS(CObjectRenderer, SObject)
+
 public:
 	virtual void begin() {}
 
@@ -29,6 +38,9 @@ DEFINE_REGISTRY(CObjectRenderer)
 template <typename TType, typename TPassType>
 requires std::is_base_of_v<CViewportObject, TType>
 class CViewportObjectRenderer : public CObjectRenderer {
+
+	REGISTER_CLASS(CViewportObjectRenderer, CObjectRenderer)
+
 public:
 
 	virtual void render(TPassType* inPass, VkCommandBuffer cmd, TType* inObject, uint32& outDrawCalls, uint64& outVertices) = 0;
@@ -41,6 +53,9 @@ public:
 template <typename TType, typename TPassType>
 requires std::is_base_of_v<CWorldObject, TType>
 class CWorldObjectRenderer : public CObjectRenderer {
+
+	REGISTER_CLASS(CWorldObjectRenderer, CObjectRenderer)
+
 public:
 
 	virtual void render(TPassType* inPass, VkCommandBuffer cmd, TType* inObject, uint32& outDrawCalls, uint64& outVertices) = 0;

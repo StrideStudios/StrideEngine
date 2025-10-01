@@ -47,10 +47,6 @@ struct SClass {
 
 	virtual bool doesInherit(const std::shared_ptr<SClass>& inClass) = 0;
 
-	friend bool operator==(const SClass& fst, const SClass& snd) {
-		return fst.getName() == snd.getName();
-	}
-
 	// Name of the current class
 	std::string m_Name;
 
@@ -106,15 +102,25 @@ struct TGenericClass : SClass {
 	}
 
 	virtual std::shared_ptr<SClass> getParent() const override {
-		return Super::Current::staticClass();
+		// Prevents object class from returning itself as its own parent
+		if constexpr (std::is_same_v<TCurrentClass, SObject> and std::is_same_v<typename Super::Current, SObject>) {
+			return nullptr;
+		} else {
+			return Super::Current::staticClass();
+		}
 	}
 
 	virtual bool doesInherit(const std::shared_ptr<SClass>& inClass) override {
 		if (inClass == nullptr) return false;
-		if (*this == *inClass) {
+		if (getName() == inClass->getName()) {
 			return true;
 		}
-		return getParent()->doesInherit(inClass);
+		// If parent class is SObject, then that is the endpoint
+		if constexpr (std::is_same_v<typename Super::Current, SObject>) {
+			return false;
+		} else {
+			return getParent()->doesInherit(inClass);
+		}
 	}
 };
 
@@ -130,6 +136,9 @@ struct TClass<TCurrentClass, TParentClasses...> : TGenericClass<TCurrentClass, T
 
 template <typename TClassType>
 std::shared_ptr<TClassType> makeClass(const std::string& inName) {
+	if (SClassRegistry::contains(inName.c_str())) {
+		return std::dynamic_pointer_cast<TClassType>(SClassRegistry::get(inName.c_str()));
+	}
 	std::shared_ptr<TClassType> c = std::make_shared<TClassType>(inName);
 	SClassRegistry::registerObject(inName.c_str(), c);
 	return c;

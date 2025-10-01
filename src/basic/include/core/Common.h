@@ -267,22 +267,26 @@ constexpr static uint8 gFrameOverlap = 2;
 
 #define CONCAT(x, y) _CONCAT(x,y)
 
+#define MY_MACRO MY_MACRO_COUNTED(__COUNTER__)
+
+#define MY_MACRO_COUNTED(counter) counter + counter
+
+#define UNIQUE_VAR(x) CONCAT(x, __COUNTER__)
+
 // Used to run code statically, returns int similar to main
-#define STATIC_BLOCK(...) \
-	inline static int CONCAT(__static_block,__LINE__) = [] { \
+#define STATIC_BLOCK_(id, ...) \
+	inline static int CONCAT(__static_block, id) = [] { \
 		__VA_ARGS__ \
 		return 0; \
 	}();
 
-#define STATIC_BLOCK_2(...) \
-	inline static int CONCAT(__static_block_2,__LINE__) = [] { \
-		__VA_ARGS__ \
-		return 0; \
-	}();
+#define STATIC_BLOCK(...) STATIC_BLOCK_(__COUNTER__, __VA_ARGS__)
 
 // Used to run code statically, returns int similar to main
-#define STATIC_C_BLOCK(...) \
-	struct CONCAT(__static_c_block,__LINE__) { \
-		CONCAT(__static_c_block,__LINE__)() { __VA_ARGS__ } \
+#define STATIC_C_BLOCK_(id, ...) \
+	struct CONCAT(__static_c_block, id) { \
+		CONCAT(__static_c_block, id)() { __VA_ARGS__ } \
 	}; \
-	inline static CONCAT(__static_c_block,__LINE__) CONCAT(__block,__LINE__){};
+	inline static CONCAT(__static_c_block, id) CONCAT(__block, id){};
+
+#define STATIC_C_BLOCK(...) STATIC_C_BLOCK_(__COUNTER__, __VA_ARGS__)

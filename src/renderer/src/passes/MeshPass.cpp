@@ -140,7 +140,9 @@ void CMeshPass::render(const VkCommandBuffer cmd) {
 	uint64 vertexCount = 0;
 
 	for (auto& object : renderObjects) { //TODO: renderer object with object member, so it can keep track of instancer?
-		CObjectRendererRegistry::get(object->getRendererType())->render(this, cmd, object.get(), drawCallCount, vertexCount);
+		if (const auto rendererClass = std::dynamic_pointer_cast<IRenderableClass>(object->getClass())) {
+			rendererClass->getRenderer()->render(this, cmd, object.get(), drawCallCount, vertexCount);
+		}
 	}
 
 	// Set number of drawcalls, vertices, and triangles

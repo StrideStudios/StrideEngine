@@ -287,8 +287,8 @@ void CVulkanRenderer::render() {
 			ZoneScopedN("Render");
 
 			// Tell all renderers that rendering has begun
-			CObjectRendererRegistry::forEach([](const auto& object) {
-				object.second->begin();
+			CObjectRendererRegistry::forEach([](const std::string& inName, const std::shared_ptr<CObjectRenderer>& object) {
+				object->begin();
 			});
 
 			CEngineViewport::get().set(cmd);
@@ -316,8 +316,8 @@ void CVulkanRenderer::render() {
 			vkCmdEndRendering(cmd);
 
 			// Tell all renderers that rendering has ended
-			CObjectRendererRegistry::forEach([](const auto& object) {
-				object.second->end();
+			CObjectRendererRegistry::forEach([](const std::string& inName, const std::shared_ptr<CObjectRenderer>& object) {
+				object->end();
 			});
 
 			VkRenderingInfo info = CVulkanUtils::createRenderingInfo(extent, &colorAttachment, &depthAttachment);

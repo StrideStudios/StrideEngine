@@ -38,7 +38,7 @@ public:
 	template <typename TChildType = TType>
 	//requires std::is_base_of_v<TType, TChildType>
 	static std::shared_ptr<TChildType> registerObject(const char* inName) {
-		if (get().m_Objects.contains(inName)) return nullptr;
+		if (contains(inName)) return nullptr;
 		auto object = std::make_shared<TChildType>();
 		get().m_Objects.insert(std::make_pair(inName, object));
 		if (const auto& initializable = std::dynamic_pointer_cast<IInitializable>(object)) {
@@ -50,23 +50,27 @@ public:
 	template <typename TChildType = TType>
 	//requires std::is_base_of_v<TType, TChildType>
 	static void registerObject(const char* inName, const std::shared_ptr<TChildType>& inObject) {
-		if (get().m_Objects.contains(inName)) return;
+		if (contains(inName)) return;
 		get().m_Objects.insert(std::make_pair(inName, inObject));
 		if (const auto& initializable = std::dynamic_pointer_cast<IInitializable>(inObject)) {
 			initializable->init();
 		}
 	}
 
-	static void forEach(const std::function<void(const std::pair<std::string, std::shared_ptr<TType>>&)>& inFunction) {
+	static void forEach(const std::function<void(const std::string&, const std::shared_ptr<TType>&)>& inFunction) {
 		for (const auto& pair : get().m_Objects) {
-			inFunction(pair);
+			inFunction(pair.first, pair.second);
 		}
+	}
+
+	static bool contains(const char* inName) {
+		return get().m_Objects.contains(inName);
 	}
 
 	template <typename TChildType = TType>
 	//requires std::is_base_of_v<TType, TChildType>
 	static std::shared_ptr<TChildType> get(const char* inName) {
-		if (!get().m_Objects.contains(inName)) {
+		if (!contains(inName)) {
 			errs("Could not get registry object {}", inName);
 		}
 		return std::dynamic_pointer_cast<TChildType>(get().m_Objects[inName]);
@@ -98,20 +102,24 @@ public:
 	template <typename TChildType = TType>
 	//requires std::is_base_of_v<TType, TChildType>
 	static void registerObject(const char* inName) {
-		if (get().m_Objects.contains(inName)) return;
+		if (contains(inName)) return;
 		TTypeDeferredFactory::template addToFactory<TChildType>(inName);
 	}
 
-	static void forEach(const std::function<void(std::pair<std::string, TType*>)>& inFunction) {
+	static void forEach(const std::function<void(const std::string&, TType*)>& inFunction) {
 		for (auto& pair : get().m_Objects) {
-			inFunction(pair);
+			inFunction(pair.first, pair.second);
 		}
+	}
+
+	static bool contains(const char* inName) {
+		return get().m_Objects.contains(inName);
 	}
 
 	template <typename TChildType = TType>
 	//requires std::is_base_of_v<TType, TChildType>
 	static TChildType* get(const char* inName) {
-		if (!get().m_Objects.contains(inName)) {
+		if (!contains(inName)) {
 			errs("Could not get registry object {}", inName);
 		}
 		return dynamic_cast<TChildType*>(get().m_Objects[inName]);
