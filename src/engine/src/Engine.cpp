@@ -6,7 +6,6 @@
 #include "Viewport.h"
 #include "Input.h"
 #include "Renderer.h"
-#include "VulkanResourceManager.h"
 #include "core/Threading.h"
 #include "SDL3/SDL_timer.h"
 #include "tracy/Tracy.hpp"
@@ -25,7 +24,7 @@ void CEngine::init() {
 	astsOnce(CEngine)
 
 	// Initialize the viewport
-	CVulkanResourceManager::get().create(m_EngineViewport);
+	CResourceManager::get().create(m_EngineViewport);
 }
 
 void CEngine::end() {

@@ -2,7 +2,7 @@
 
 #include "core/Common.h"
 
-struct SEngineTime {
+struct SEngineTime : SBase {
 
 	MAKE_SINGLETON(SEngineTime)
 

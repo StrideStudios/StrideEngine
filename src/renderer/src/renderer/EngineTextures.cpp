@@ -2,6 +2,7 @@
 
 #include <array>
 
+#include "BindlessResources.h"
 #include "Engine.h"
 #include "Material.h"
 #include "renderer/VulkanDevice.h"
@@ -9,11 +10,11 @@
 #include "renderer/Swapchain.h"
 #include "Viewport.h"
 
-static CVulkanResourceManager gTexturesResourceManager;
+static CResourceManager gTexturesResourceManager;
 
 void CEngineTextures::init() {
 
-	CVulkanResourceManager::get().create(m_Swapchain);
+	CResourceManager::get().create(m_Swapchain);
 
 	// Initialize samplers
 	// Default samplers repeat and do not have anisotropy
@@ -30,21 +31,21 @@ void CEngineTextures::init() {
 		samplerCreateInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
 
 		CSampler* samplerNearest;
-		CVulkanResourceManager::get().create(samplerNearest, samplerCreateInfo);
+		CResourceManager::get().create(samplerNearest, samplerCreateInfo);
 
 		samplerCreateInfo.magFilter = VK_FILTER_LINEAR;
 		samplerCreateInfo.minFilter = VK_FILTER_LINEAR;
 		samplerCreateInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
 
 		CSampler* samplerLinear;
-		CVulkanResourceManager::get().create(samplerLinear, samplerCreateInfo);
+		CResourceManager::get().create(samplerLinear, samplerCreateInfo);
 
 		const auto imageDescriptorInfo = VkDescriptorImageInfo{
 			.sampler = *samplerNearest};
 
 		const auto writeSet = VkWriteDescriptorSet{
 			.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-			.dstSet = CVulkanResourceManager::getBindlessDescriptorSet(),
+			.dstSet = *CBindlessResources::getBindlessDescriptorSet(),
 			.dstBinding = gSamplerBinding,
 			.dstArrayElement = 0,
 			.descriptorCount = 1,
@@ -57,7 +58,7 @@ void CEngineTextures::init() {
 
 		const auto writeSet2 = VkWriteDescriptorSet{
 			.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-			.dstSet = CVulkanResourceManager::getBindlessDescriptorSet(),
+			.dstSet = *CBindlessResources::getBindlessDescriptorSet(),
 			.dstBinding = gSamplerBinding,
 			.dstArrayElement = 1,
 			.descriptorCount = 1,
@@ -82,7 +83,8 @@ void CEngineTextures::init() {
 
 	constexpr VkExtent3D extent(16, 16, 1);
 	constexpr int32 size = extent.width * extent.height * extent.depth * 4;
-	mErrorCheckerboardImage = CVulkanResourceManager::get().allocateImage(pixels.data(), size, "Default Error", extent, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+	CResourceManager::get().create<SImage_T>(mErrorCheckerboardImage, "Default Error", extent, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+	mErrorCheckerboardImage->push(pixels.data(), size);
 
 	{
 		mErrorMaterial = std::make_shared<CMaterial>();
@@ -104,9 +106,9 @@ void CEngineTextures::initializeTextures() {
 
 	const auto extent = CEngineViewport::get().mExtent;
 
-	mDrawImage = gTexturesResourceManager.allocateImage("Draw Image", {extent.x, extent.y, 1}, VK_FORMAT_R16G16B16A16_SFLOAT, drawImageUsages, VK_IMAGE_ASPECT_COLOR_BIT, false);
+	gTexturesResourceManager.create<SImage_T>(mDrawImage, "Draw Image", VkExtent3D{extent.x, extent.y, 1}, VK_FORMAT_R16G16B16A16_SFLOAT, drawImageUsages, VK_IMAGE_ASPECT_COLOR_BIT);
 
-	mDepthImage = gTexturesResourceManager.allocateImage("Depth Image", {extent.x, extent.y, 1}, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_ASPECT_DEPTH_BIT, false);
+	gTexturesResourceManager.create<SImage_T>(mDepthImage, "Depth Image", VkExtent3D{extent.x, extent.y, 1}, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_ASPECT_DEPTH_BIT);
 }
 
 void CEngineTextures::reallocate(const bool inUseVSync) {

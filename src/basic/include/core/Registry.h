@@ -29,7 +29,7 @@
 
 template <typename TType, const char* TName>
 //requires std::is_base_of_v<SObject, TType>
-class TRegistry {
+class TRegistry : public SBase {
 
 	CUSTOM_SINGLETON(TRegistry, TName)
 
@@ -85,7 +85,7 @@ public:
 // It does this by storing registration, and doing it all at once at any point
 template <typename TType, const char* TName, typename... TArgs>
 //requires std::is_base_of_v<SObject, TType>
-class TDeferredRegistry {
+class TDeferredRegistry : public SBase {
 
 	CUSTOM_SINGLETON(TDeferredRegistry, TName)
 

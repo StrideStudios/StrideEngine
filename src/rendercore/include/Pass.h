@@ -2,7 +2,7 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include "VulkanResourceManager.h"
+#include "VulkanResources.h"
 #include "core/Registry.h"
 
 class CObjectRenderer;
@@ -16,6 +16,10 @@ class CPass : public SObject, public IInitializable, public IDestroyable {
 public:
 
 	CPass() {}
+
+	virtual void begin() {}
+
+	virtual void end() {}
 
 	virtual void render(VkCommandBuffer cmd) = 0;
 

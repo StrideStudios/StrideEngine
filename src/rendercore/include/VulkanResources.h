@@ -8,12 +8,101 @@
 #include "Renderer.h"
 #include "VulkanUtils.h"
 #include "core/Common.h"
-#include "core/Class.h"
+
+enum class EShaderStage : uint8 {
+	VERTEX,
+	FRAGMENT,
+	COMPUTE
+};
+
+enum class EBlendMode : uint8 {
+	NONE,
+	ADDITIVE,
+	ALPHA_BLEND
+};
+
+enum class EDepthTestMode : uint8 {
+	NORMAL,
+	BEHIND,
+	FRONT
+};
+
+struct SPipelineCreateInfo {
+	VkShaderModule vertexModule;
+	VkShaderModule fragmentModule;
+	VkPrimitiveTopology mTopology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+	VkPolygonMode mPolygonMode = VK_POLYGON_MODE_FILL;
+	float mLineWidth = 1.f;
+	VkCullModeFlags mCullMode = VK_CULL_MODE_FRONT_BIT;
+	VkFrontFace mFrontFace = VK_FRONT_FACE_CLOCKWISE;
+	bool mUseMultisampling = false;
+	EBlendMode mBlendMode = EBlendMode::NONE;
+	EDepthTestMode mDepthTestMode = EDepthTestMode::NORMAL;
+	VkFormat mColorFormat;
+	VkFormat mDepthFormat;
+};
+
+class CVertexAttributeArchive {
+
+public:
+
+	void createBinding(VkVertexInputRate InputRate) {
+		m_Formats.emplace(InputRate, std::vector<VkFormat>());
+	}
+
+	VkPipelineVertexInputStateCreateInfo get() {
+		m_Bindings.clear();
+		m_Attributes.clear();
+
+		uint32 location = 0;
+		uint32 binding = 0;
+		for (auto& [InputRate, formats] : m_Formats) {
+			uint32 stride = 0;
+			for (uint32 current = 0; current < formats.size(); ++current, ++location) {
+				const auto& format = formats[current];
+				m_Attributes.push_back(VkVertexInputAttributeDescription{
+					location,
+					binding,
+					format,
+					stride
+				});
+				stride += getVkFormatSize(format);
+			}
+			m_Bindings.push_back({
+				.binding = binding,
+				.stride = stride,
+				.inputRate = InputRate
+			});
+			binding++;
+		}
+
+		return
+		{
+			.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+			.vertexBindingDescriptionCount = static_cast<uint32>(m_Bindings.size()),
+			.pVertexBindingDescriptions = m_Bindings.data(),
+			.vertexAttributeDescriptionCount = static_cast<uint32>(m_Attributes.size()),
+			.pVertexAttributeDescriptions = m_Attributes.data()
+		};
+	}
+
+	friend CVertexAttributeArchive& operator<<(CVertexAttributeArchive& inArchive, VkFormat inFormat) {
+		inArchive.m_Formats.rbegin()->second.push_back(inFormat);
+		return inArchive;
+	}
+
+private:
+
+	// Stored here because the data needs to last the lifetime of this object
+	std::vector<VkVertexInputBindingDescription> m_Bindings;
+	std::vector<VkVertexInputAttributeDescription> m_Attributes;
+
+	std::map<VkVertexInputRate, std::vector<VkFormat>> m_Formats;
+};
 
 // Create wrappers around Vulkan types that can be destroyed
 #define CREATE_VK_TYPE(inName) \
-	struct C##inName final : SObject, IDestroyable { \
-		REGISTER_STRUCT(C##inName, SObject) \
+	struct C##inName final : SBase, IDestroyable { \
 		C##inName() = default; \
 		C##inName(Vk##inName inType): m##inName(inType) {} \
 		C##inName(const C##inName& in##inName): m##inName(in##inName.m##inName) {} \
@@ -30,24 +119,74 @@ CREATE_VK_TYPE(CommandPool);
 CREATE_VK_TYPE(DescriptorPool);
 CREATE_VK_TYPE(DescriptorSetLayout);
 CREATE_VK_TYPE(Fence);
+CREATE_VK_TYPE(PipelineLayout);
 
-struct CPipeline final : SObject, IDestroyable {
-	REGISTER_STRUCT(CPipeline, SObject)
+struct CPipeline final : SBase, IDestroyable {
+
 	CPipeline() = default;
-	CPipeline(VkPipeline inType, VkPipelineLayout inLayout): mPipeline(inType), mLayout(inLayout) {}
-	CPipeline(const CPipeline& inPipeline): mPipeline(inPipeline.mPipeline), mLayout(inPipeline.mLayout) {}
+	EXPORT CPipeline(const SPipelineCreateInfo& inCreateInfo, CVertexAttributeArchive& inAttributes, CPipelineLayout* inLayout);
+
+	EXPORT void bind(VkCommandBuffer cmd, const VkPipelineBindPoint inBindPoint) const;
+
 	virtual void destroy() override { vkDestroyPipeline(CRenderer::vkDevice(), mPipeline, nullptr); }
+
 	VkPipeline operator->() const { return mPipeline; }
+
 	operator VkPipeline() const { return mPipeline; }
+
 	VkPipeline mPipeline = nullptr;
-	VkPipelineLayout mLayout;
+
+	CPipelineLayout* mLayout;
+
 };
 
-CREATE_VK_TYPE(PipelineLayout);
 CREATE_VK_TYPE(RenderPass);
 CREATE_VK_TYPE(Sampler);
 CREATE_VK_TYPE(Semaphore);
-CREATE_VK_TYPE(ShaderModule);
+CREATE_VK_TYPE(ShaderModule); //TODO: remove
+
+struct CDescriptorSet final : SBase {
+
+	CDescriptorSet() = default;
+
+	CDescriptorSet(const VkDescriptorSet inType): mDescriptorSet(inType) {}
+
+	CDescriptorSet(const CDescriptorSet& inDescriptorSet): mDescriptorSet(inDescriptorSet.mDescriptorSet) {}
+
+	CDescriptorSet(const VkDescriptorSetAllocateInfo& inCreateInfo) {
+		VK_CHECK(vkAllocateDescriptorSets(CRenderer::vkDevice(), &inCreateInfo, &mDescriptorSet));
+	}
+
+	void bind(VkCommandBuffer cmd, VkPipelineBindPoint inBindPoint, VkPipelineLayout inPipelineLayout, uint32 inFirstSet, uint32 inDescriptorSetCount) const {
+		vkCmdBindDescriptorSets(cmd, inBindPoint,inPipelineLayout, inFirstSet, inDescriptorSetCount, &mDescriptorSet, 0, nullptr);
+	}
+
+	VkDescriptorSet operator->() const { return mDescriptorSet; }
+	operator VkDescriptorSet() const { return mDescriptorSet; }
+
+	VkDescriptorSet mDescriptorSet = nullptr;
+};
+
+struct SShader : SBase, IDestroyable {
+
+	SShader() = default;
+	EXPORT SShader(const char* inFilePath);
+
+	virtual void destroy() override { vkDestroyShaderModule(CRenderer::vkDevice(), mModule, nullptr); }
+
+	VkShaderModule mModule = nullptr;
+	EShaderStage mStage = EShaderStage::VERTEX;
+	std::string mShaderCode = "";
+	std::vector<uint32> mCompiledShader{};
+
+private:
+
+	uint32 compile();
+
+	bool loadShader(VkDevice inDevice, const char* inFileName, uint32 Hash);
+
+	bool saveShader(const char* inFileName, uint32 Hash) const;
+};
 
 enum class EAttachmentType : uint8 {
 	COLOR,
@@ -92,30 +231,43 @@ struct SRenderAttachment {
 	}
 };
 
-struct SImage_T : SObject, IDestroyable {
+struct SImage_T : SBase, IDestroyable {
 
-	REGISTER_STRUCT(SImage_T, SObject)
+	SImage_T() = default;
+	EXPORT SImage_T(const std::string& inDebugName, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags = 0, VkImageAspectFlags inViewFlags = 0, uint32 inNumMips = 1);
 
-	std::string mName = "Image";
-	VkImage mImage = nullptr;
-	VkImageView mImageView = nullptr;
-	VmaAllocation mAllocation = nullptr;
-	VkExtent3D mImageExtent = {0, 0, 0};
-	VkFormat mImageFormat = VK_FORMAT_UNDEFINED;
-	uint32 mBindlessAddress = -1;
-	VkImageLayout mLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	VkExtent3D getExtent() const { return mImageInfo.extent; }
+
+	VkFormat getFormat() const { return mImageInfo.format; }
+
+	bool isMipmapped() const { return mImageInfo.mipLevels > 1; }
 
 	EXPORT virtual void destroy() override;
+
+	EXPORT void push(const void* inData, const uint32& inSize);
+
+	std::string mName = "Image";
+
+	VkImage mImage = nullptr;
+	VkImageCreateInfo mImageInfo;
+
+	VkImageView mImageView = nullptr;
+	VkImageViewCreateInfo mImageViewInfo;
+
+	VmaAllocation mAllocation = nullptr;
+	uint32 mBindlessAddress = -1;
+
+	VkImageLayout mLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
 };
 
-struct SBuffer_T : SObject, IDestroyable {
+struct SBuffer_T : SBase, IDestroyable {
 
-	REGISTER_STRUCT(SBuffer_T, SObject)
+	SBuffer_T() = default;
+	EXPORT SBuffer_T(uint32 inBufferSize, VmaMemoryUsage inMemoryUsage, VkBufferUsageFlags inBufferUsage = 0);
 
-	VkBuffer buffer = nullptr;
-	VmaAllocation allocation = nullptr;
-	VmaAllocationInfo info = {};
-	uint32 mBindlessAddress;
+	EXPORT void makeGlobal(); //TODO: alternate way of doing this
+	EXPORT void updateGlobal() const; // TODO: not global but instead 'dynamic' (address should be separate?)
 
 	EXPORT virtual void destroy() override;
 
@@ -124,12 +276,199 @@ struct SBuffer_T : SObject, IDestroyable {
 	EXPORT void mapData(void** data) const;
 
 	EXPORT void unMapData() const;
+
+	VkBuffer buffer = nullptr;
+
+	VmaAllocation allocation = nullptr;
+	VmaAllocationInfo info = {};
+
+	uint32 mBindlessAddress = 0;
+};
+/*
+// A class that automatically removes itself from the Resource Manager once it's deleted
+// Also supports replacement
+template <typename TType>
+requires std::is_base_of_v<SBase, TType>
+struct TRemovable {
+
+	~TRemovable() {
+		destroy();
+	}
+
+	template <typename... TArgs>
+	requires std::is_constructible_v<TType, TArgs...>
+	void construct(CResourceManager& manager, TArgs... args) {
+		destroy();
+
+		mManager = &manager;
+		itr = mManager->create<TType>(mObject, args...);
+
+		mManager->callback([&] {
+			destroy();
+		});
+	}
+
+	TType* get() const { return mObject; }
+
+	bool isValid() const { return mObject != nullptr; }
+
+	void destroy() {
+		if (mObject && mManager) {
+			mManager->remove(itr);
+			mObject = nullptr;
+		}
+	}
+
+private:
+	CResourceManager* mManager = nullptr;
+	CResourceManager::Iterator itr;
+	TType* mObject = nullptr;
+};*/
+
+// Static Buffers are initialized when needed
+// Can be done either through templates or constructors for flexibility
+template <VmaMemoryUsage TMemoryUsage, VkBufferUsageFlags TBufferUsage, size_t TElementSize = 0, size_t TSize = 0>
+struct SStaticBuffer {
+
+	SStaticBuffer() = default;
+
+	~SStaticBuffer() {
+		destroy();
+	}
+
+	// Since templated Static Buffers are resolved at compile time, the buffer will never change
+	// Thus, it should always be allocated globally
+	SBuffer_T* get() {
+		if (!mAllocated) {
+			mAllocated = true;
+			itr = CResourceManager::get().create(mBuffer, TElementSize * TSize, TMemoryUsage, TBufferUsage);
+		}
+		return mBuffer;
+	}
+
+	void destroy() {
+		if (!mAllocated) return;
+		mAllocated = false;
+		CResourceManager::get().remove(itr);
+	}
+
+private:
+	CResourceManager::Iterator itr;
+	bool mAllocated = false;
+	SBuffer_T* mBuffer;
+};
+
+template <VmaMemoryUsage TMemoryUsage, VkBufferUsageFlags TBufferUsage>
+struct SStaticBuffer<TMemoryUsage, TBufferUsage, 0, 0> {
+
+	SStaticBuffer() = delete; // Static Buffer needs to explicitly know it's size at construction
+
+	SStaticBuffer(CResourceManager& inManager, const size_t inAllocSize): mAllocSize(inAllocSize), mManager(inManager) {}
+	SStaticBuffer(CResourceManager& inManager, const size_t inElementSize, const size_t inSize): SStaticBuffer(inManager, inElementSize * inSize) {}
+
+	SStaticBuffer(const size_t inAllocSize): SStaticBuffer(CResourceManager::get(), inAllocSize) {}
+	SStaticBuffer(const size_t inElementSize, const size_t inSize): SStaticBuffer(CResourceManager::get(), inElementSize, inSize) {}
+
+	// For safety, either destroyed when global resource manager is, or at end of scope, whichever comes first
+	~SStaticBuffer() {
+		destroy();
+	}
+
+	SBuffer_T* get() {
+		if (mAllocSize <= 0) {
+			errs("Static Buffer has not been given a size!");
+		}
+		if (!mAllocated) {
+			mAllocated = true;
+			itr = mManager.create(mBuffer, mAllocSize, TMemoryUsage, TBufferUsage);
+		}
+		return mBuffer;
+	}
+
+	size_t getSize() const {
+		return mAllocSize;
+	}
+
+	bool isValid() const {
+		return mAllocated && mAllocSize > 0;
+	}
+
+	void destroy() {
+		if (!mAllocated) return;
+		mAllocated = false;
+		mManager.remove(itr);
+	}
+
+private:
+	const size_t mAllocSize = 0;
+	CResourceManager& mManager;
+	CResourceManager::Iterator itr;
+	bool mAllocated = false;
+	SBuffer_T* mBuffer = nullptr;
+};
+
+// Dynamic Buffers are initialized when their size changes
+template <VmaMemoryUsage TMemoryUsage, VkBufferUsageFlags TBufferUsage = 0>
+struct SDynamicBuffer {
+
+	SDynamicBuffer(CResourceManager& inManager): mManager(inManager) {}
+
+	// By default, use global manager
+	SDynamicBuffer(): SDynamicBuffer(CResourceManager::get()) {}
+
+	SBuffer_T* get() const {
+		if (mAllocSize <= 0 || !mAllocated) {
+			errs("Dynamic Buffer has not been allocated!");
+		}
+		return mBuffer;
+	}
+
+	void allocate(const size_t inElementSize, const size_t inSize) {
+		return allocate(inElementSize * inSize);
+	}
+
+	void allocate(const size_t inAllocSize) {
+		if (inAllocSize <= 0) {
+			errs("Dynamic Buffer has been given an invalid size!");
+		}
+		// If allocated and has changed, destroy
+		if (mAllocated && mAllocSize != inAllocSize) {
+			destroy();
+		}
+		if (!mAllocated) {
+			mAllocated = true;
+			mAllocSize = inAllocSize;
+			itr = mManager.create(mBuffer, mAllocSize, TMemoryUsage, TBufferUsage);
+		}
+	}
+
+	size_t getSize() const {
+		return mAllocSize;
+	}
+
+	bool isValid() const {
+		return mAllocated;
+	}
+
+	void destroy() {
+		if (!mAllocated) return;
+		mAllocated = false;
+		mManager.remove(itr);
+	}
+
+private:
+	size_t mAllocSize = 0;
+	CResourceManager& mManager;
+	CResourceManager::Iterator itr;
+	bool mAllocated = false;
+	SBuffer_T* mBuffer = nullptr;
 };
 
 // Holds the resources needed for mesh rendering
-struct SMeshBuffers_T : SObject, IDestroyable {
+struct SMeshBuffers_T : SBase, IDestroyable {
 
-	REGISTER_STRUCT(SMeshBuffers_T, SObject)
+	SMeshBuffers_T() = default;
+	EXPORT SMeshBuffers_T(const size_t indicesSize, const size_t verticesSize);
 
 	SBuffer_T* indexBuffer = nullptr;
 	SBuffer_T* vertexBuffer = nullptr;
@@ -137,9 +476,7 @@ struct SMeshBuffers_T : SObject, IDestroyable {
 
 // A command buffer that stores some temporary data to be removed/changed at end of rendering
 // Ex: contains info for image transitions
-struct SCommandBuffer : SObject {
-
-	REGISTER_STRUCT(SCommandBuffer, SObject)
+struct SCommandBuffer : SBase {
 
 	SCommandBuffer() = default;
 
@@ -174,6 +511,28 @@ struct SCommandBuffer : SObject {
 	VkCommandBuffer operator->() const { return cmd; }
 	operator VkCommandBuffer() const { return cmd; }
 
-	VkCommandBuffer cmd;
+	VkCommandBuffer cmd = nullptr;
 	std::forward_list<SImage_T*> imageTransitions;
+};
+
+struct SVulkanAllocator final : SObject, IInitializable, IDestroyable {
+
+	REGISTER_STRUCT(SVulkanAllocator, SObject)
+
+	// Allocator may be called at any point, especially by static buffers, so it needs to be lazy
+	MAKE_LAZY_SINGLETON(SVulkanAllocator)
+
+public:
+
+	VmaAllocator& getAllocator() {
+		return mAllocator;
+	}
+
+	EXPORT virtual void init() override;
+
+	EXPORT virtual void destroy() override;
+
+private:
+
+	VmaAllocator mAllocator = nullptr;
 };

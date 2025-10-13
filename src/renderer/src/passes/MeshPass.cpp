@@ -1,5 +1,6 @@
 ﻿#include "passes/MeshPass.h"
 
+#include "BindlessResources.h"
 #include "renderer/EngineTextures.h"
 #include "renderer/VulkanDevice.h"
 #include "renderer/VulkanRenderer.h"
@@ -23,20 +24,28 @@ void CMeshPass::init() {
 
 	CVulkanRenderer& renderer = *CVulkanRenderer::get();
 
-	CVulkanResourceManager manager;
+	CResourceManager manager;
 
-	const SShader frag = manager.getShader("material\\mesh.frag");
-	const SShader errorFrag = manager.getShader("material\\mesh_error.frag");
-	const SShader vert = manager.getShader("material\\mesh.vert");
+	SShader* frag;
+	manager.create<SShader>(frag, "material\\mesh.frag");
 
-	const SShader basicFrag = manager.getShader("material\\basic.frag");
-	const SShader wireframeVert = manager.getShader("material\\wireframe.vert");
+	SShader* errorFrag;
+	manager.create<SShader>(errorFrag, "material\\mesh_error.frag");
+
+	SShader* vert;
+	manager.create<SShader>(vert, "material\\mesh.vert");
+
+	SShader* basicFrag;
+	manager.create<SShader>(basicFrag, "material\\basic.frag");
+
+	SShader* wireframeVert;
+	manager.create<SShader>(wireframeVert, "material\\wireframe.vert");
 
 	SPipelineCreateInfo createInfo {
-		.vertexModule = *vert.mModule,
-		.fragmentModule = *frag.mModule,
-		.mColorFormat = renderer.mEngineTextures->mDrawImage->mImageFormat,
-		.mDepthFormat = renderer.mEngineTextures->mDepthImage->mImageFormat
+		.vertexModule = vert->mModule,
+		.fragmentModule = frag->mModule,
+		.mColorFormat = renderer.mEngineTextures->mDrawImage->getFormat(),
+		.mDepthFormat = renderer.mEngineTextures->mDepthImage->getFormat()
 	};
 
 	//TODO: could probably read from shader and do automatically...
@@ -52,28 +61,28 @@ void CMeshPass::init() {
 	attributes << VK_FORMAT_R32G32B32A32_SFLOAT;
 	attributes << VK_FORMAT_R32G32B32A32_SFLOAT;
 
-	opaquePipeline = CVulkanResourceManager::get().allocatePipeline(createInfo, attributes, CVulkanResourceManager::getBasicPipelineLayout());
+	CResourceManager::get().create<CPipeline>(opaquePipeline, createInfo, attributes, CBindlessResources::getBasicPipelineLayout());
 
 	// Transparent should be additive and always render in front
 	createInfo.mBlendMode = EBlendMode::ADDITIVE;
 	createInfo.mDepthTestMode = EDepthTestMode::FRONT;
 
-	transparentPipeline = CVulkanResourceManager::get().allocatePipeline(createInfo, attributes, CVulkanResourceManager::getBasicPipelineLayout());
+	CResourceManager::get().create<CPipeline>(transparentPipeline, createInfo, attributes, CBindlessResources::getBasicPipelineLayout());
 
-	createInfo.fragmentModule = *errorFrag.mModule;
+	createInfo.fragmentModule = errorFrag->mModule;
 	createInfo.mBlendMode = EBlendMode::NONE;
 	createInfo.mDepthTestMode = EDepthTestMode::NORMAL;
 
-	errorPipeline = CVulkanResourceManager::get().allocatePipeline(createInfo, attributes, CVulkanResourceManager::getBasicPipelineLayout());
+	CResourceManager::get().create<CPipeline>(errorPipeline, createInfo, attributes, CBindlessResources::getBasicPipelineLayout());
 
-	createInfo.vertexModule = *wireframeVert.mModule;
-	createInfo.fragmentModule = *basicFrag.mModule;
+	createInfo.vertexModule = wireframeVert->mModule;
+	createInfo.fragmentModule = basicFrag->mModule;
 	createInfo.mTopology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 	createInfo.mPolygonMode = VK_POLYGON_MODE_LINE;
 	createInfo.mCullMode = VK_CULL_MODE_NONE;
 	createInfo.mLineWidth = 5.f;
 
-	wireframePipeline = CVulkanResourceManager::get().allocatePipeline(createInfo, attributes, CVulkanResourceManager::getBasicPipelineLayout());
+	CResourceManager::get().create<CPipeline>(wireframePipeline, createInfo, attributes, CBindlessResources::getBasicPipelineLayout());
 
 	manager.flush();
 }

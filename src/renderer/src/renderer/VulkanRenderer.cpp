@@ -81,18 +81,15 @@ void CVulkanRenderer::init() {
 	// Create the vulkan device
 	gInstanceManager.create(m_Device, m_Instance, mVkSurface);
 
-	// Initialize the allocator
-	CVulkanResourceManager::init(this);
-
 	VkCommandPoolCreateInfo uploadCommandPoolInfo = CVulkanInfo::createCommandPoolInfo(CVulkanDevice::getQueue(EQueueType::UPLOAD).mFamily);
 	//create pool for upload context
-	CVulkanResourceManager::get().create(mUploadContext.mCommandPool, uploadCommandPoolInfo);
+	CResourceManager::get().create(mUploadContext.mCommandPool, uploadCommandPoolInfo);
 
 	//allocate the default command buffer that we will use for the instant commands
 	mUploadContext.mCommandBuffer = SCommandBuffer(mUploadContext.mCommandPool);
 
 	VkFenceCreateInfo fenceCreateInfo = CVulkanInfo::createFenceInfo(VK_FENCE_CREATE_SIGNALED_BIT);
-	CVulkanResourceManager::get().create(mUploadContext.mUploadFence, fenceCreateInfo);
+	CResourceManager::get().create(mUploadContext.mUploadFence, fenceCreateInfo);
 
 	{
 		// Create a command pool for commands submitted to the graphics queue.
@@ -101,7 +98,7 @@ void CVulkanRenderer::init() {
 			CVulkanDevice::getQueue(EQueueType::GRAPHICS).mFamily, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
 		for (auto &frame: mFrames) {
-			CVulkanResourceManager::get().create(frame.mCommandPool, commandPoolInfo);
+			CResourceManager::get().create(frame.mCommandPool, commandPoolInfo);
 
 			// Allocate the default command buffer that we will use for rendering
 			frame.mMainCommandBuffer = SCommandBuffer(frame.mCommandPool);
@@ -110,12 +107,9 @@ void CVulkanRenderer::init() {
 		}
 	}
 
-	CVulkanResourceManager::get().create(mEngineTextures);
+	CResourceManager::get().create(mEngineTextures);
 
-	mSceneDataBuffer = CVulkanResourceManager::get().allocateGlobalBuffer(sizeof(SceneData), VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
-
-	// Setup Engine UI
-	SEngineUI::init(CVulkanDevice::getQueue(EQueueType::GRAPHICS).mQueue, mEngineTextures->mDrawImage->mImageFormat);
+	mSceneBuffer.get()->makeGlobal();
 
 	// Load textures and meshes
 	CEngineLoader::load();
@@ -125,15 +119,11 @@ void CVulkanRenderer::init() {
 
 void CVulkanRenderer::destroy() {
 
-	SEngineUI::destroy();
-
 	for (auto& frame : mFrames) {
 		TracyVkDestroy(frame.mTracyContext);
 
 		frame.mFrameResourceManager.flush();
 	}
-
-	CVulkanResourceManager::get().flush();
 
 	vkb::destroy_surface(vkInstance(), mVkSurface);//TODO: in instance?
 
@@ -182,8 +172,6 @@ void CVulkanRenderer::render() {
 	{
 		ZoneScopedN("Begin Frame");
 
-		SEngineUI::begin();
-
 		// Wait for the previous render to stop
 		if (!mEngineTextures->getSwapchain()->wait(getFrameIndex())) {
 			return;
@@ -221,34 +209,6 @@ void CVulkanRenderer::render() {
 		CVulkanUtils::transitionImage(cmd, mEngineTextures->mDrawImage, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 		CVulkanUtils::transitionImage(cmd, mEngineTextures->mDepthImage, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
-		//begin a render pass  connected to our draw image
-		VkRenderingAttachmentInfo colorAttachment = CVulkanUtils::createAttachmentInfo(mEngineTextures->mDrawImage->mImageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-		VkRenderingAttachmentInfo depthAttachment = CVulkanUtils::createDepthAttachmentInfo(mEngineTextures->mDepthImage->mImageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
-
-		/*  Each RenderAttachmentInfo has a few members
-			VkStructureType          sType; // Doesn't need to be changed
-		    const void*              pNext; // Should always be nullptr
-		    VkImageView              imageView; // Can be provided by images
-		    VkImageLayout            imageLayout; // Can be provided by images
-		    VkResolveModeFlagBits    resolveMode; // For MSAA, currently unused
-		    VkImageView              resolveImageView;
-		    VkImageLayout            resolveImageLayout;
-		    VkAttachmentLoadOp       loadOp; // Load and store can be a custom enum
-		    VkAttachmentStoreOp      storeOp;
-		    VkClearValue             clearValue;
-
-		    VkStructureType                     sType; // Doesn't need to be changed
-		    const void*                         pNext; // Should always be nullptr
-		    VkRenderingFlags                    flags;
-		    VkRect2D                            renderArea; // Determined by image
-		    uint32_t                            layerCount; // Determined by image
-		    uint32_t                            viewMask;
-		    uint32_t                            colorAttachmentCount; // Determined by vector of color attachements
-		    const VkRenderingAttachmentInfo*    pColorAttachments;
-		    const VkRenderingAttachmentInfo*    pDepthAttachment;
-		    const VkRenderingAttachmentInfo*    pStencilAttachment;
-		 */
-
 		VkExtent2D extent {
 			CEngineViewport::get().mExtent.x,
 			CEngineViewport::get().mExtent.y
@@ -277,10 +237,10 @@ void CVulkanRenderer::render() {
 			}
 
 			//write the buffer
-			auto* sceneUniformData = static_cast<SceneData*>(mSceneDataBuffer->getMappedData());
+			auto* sceneUniformData = static_cast<SceneData*>(mSceneBuffer.get()->getMappedData());
 			*sceneUniformData = mSceneData;
 
-			CVulkanResourceManager::updateGlobalBuffer(mSceneDataBuffer);
+			mSceneBuffer.get()->updateGlobal();
 		}
 
 		{
@@ -290,6 +250,11 @@ void CVulkanRenderer::render() {
 			CObjectRendererRegistry::forEach([](const std::string& inName, const std::shared_ptr<CObjectRenderer>& object) {
 				object->begin();
 			});
+
+			// Tell all passes that rendering has begun
+			for (const auto pass : getPasses()) {
+				pass->begin();
+			}
 
 			CEngineViewport::get().set(cmd);
 
@@ -320,17 +285,10 @@ void CVulkanRenderer::render() {
 				object->end();
 			});
 
-			VkRenderingInfo info = CVulkanUtils::createRenderingInfo(extent, &colorAttachment, &depthAttachment);
-			vkCmdBeginRendering(cmd, &info);
-
-			{
-				ZoneScopedN("Engine UI");
-
-				// Render Engine UI
-				SEngineUI::render(cmd);
+			// Tell all passes that rendering has begun
+			for (const auto pass : getPasses()) {
+				pass->end();
 			}
-
-			vkCmdEndRendering(cmd);
 		}
 	}
 
@@ -343,7 +301,7 @@ void CVulkanRenderer::render() {
 		CVulkanUtils::transitionImage(cmd, swapchainImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
 		// Execute a copy from the draw image into the swapchain
-		auto [width, height, depth] = mEngineTextures->mDrawImage->mImageExtent;
+		auto [width, height, depth] = mEngineTextures->mDrawImage->getExtent();
 		CVulkanUtils::copyImageToImage(cmd, mEngineTextures->mDrawImage->mImage, swapchainImage->mImage, {width, height}, mEngineTextures->getSwapchain()->mSwapchain->mInternalSwapchain->extent);
 
 		// Set swapchain image layout to Present so we can show it on the screen

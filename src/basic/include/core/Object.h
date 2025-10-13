@@ -5,7 +5,11 @@
 
 struct SClass;
 
-struct SObject {
+struct SBase {
+	virtual ~SBase() = default;
+};
+
+struct SObject : SBase {
 
 	virtual ~SObject() = default;
 

@@ -1,5 +1,6 @@
 ﻿#include "Pass.h"
 
+#include "BindlessResources.h"
 #include "Material.h"
 
 void CPass::beginRendering(VkCommandBuffer cmd, const Extent32u inExtent, const SImage_T* inColorImage, const SImage_T* inDepthImage, const SImage_T* inStencilImage) const {
@@ -44,10 +45,10 @@ void CPass::bindPipeline(const VkCommandBuffer cmd, CPipeline* inPipeline, const
 	// If the pipeline has changed, rebind pipeline data
 	//if (inPipeline != m_CurrentPipeline) {
 		m_CurrentPipeline = inPipeline;
-		CVulkanResourceManager::bindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, inPipeline->mPipeline);
-		CVulkanResourceManager::bindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, inPipeline->mLayout, 0, 1, CVulkanResourceManager::getBindlessDescriptorSet());
+		inPipeline->bind(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS);
+		CBindlessResources::getBindlessDescriptorSet()->bind(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, inPipeline->mLayout->mPipelineLayout, 0, 1);
 	//}
 
-	vkCmdPushConstants(cmd, inPipeline->mLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(SPushConstants), inConstants.data());
+	vkCmdPushConstants(cmd, inPipeline->mLayout->mPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(SPushConstants), inConstants.data());
 
 }

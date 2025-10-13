@@ -7,7 +7,6 @@
 
 #include "core/Paths.h"
 #include "StaticMesh.h"
-#include "VulkanResourceManager.h"
 
 struct SStaticMesh;
 class CMaterial;
@@ -174,7 +173,7 @@ struct SMeshData {
 	}
 };
 
-class CEngineLoader {
+class CEngineLoader : public SBase {
 
 	MAKE_SINGLETON(CEngineLoader)
 

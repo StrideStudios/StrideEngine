@@ -5,7 +5,7 @@
 
 #include "Singleton.h"
 
-struct SPaths {
+struct SPaths : SBase {
 
 	MAKE_SINGLETON(SPaths)
 

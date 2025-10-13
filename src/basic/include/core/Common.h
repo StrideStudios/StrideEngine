@@ -53,6 +53,22 @@
  * Category Comments should have thee lines of // like below
  */
 
+struct IDestroyable {
+	virtual ~IDestroyable() = default;
+
+	virtual void destroy() {}
+};
+
+struct SInitializable {};
+
+template <typename... TArgs>
+struct TInitializable : SInitializable {
+	virtual void init(TArgs... args) {}
+};
+
+// typedef which makes it easy to check if a class has an empty init function
+typedef TInitializable<> IInitializable;
+
 typedef unsigned char uint8;
 typedef signed char int8;
 typedef unsigned short uint16;

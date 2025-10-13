@@ -6,8 +6,7 @@
 #include <mutex>
 
 #include "Renderer.h"
-#include "VulkanResourceManager.h"
-#include "core/Singleton.h"
+#include "VulkanResources.h"
 
 // Forward declare vkb types
 namespace vkb {
@@ -58,7 +57,7 @@ public:
 		 * A resource allocator that is persistent for a single frame
 		 * Good for data that only needs to exist for a single frame
 		 */
-		CVulkanResourceManager mFrameResourceManager;
+		CResourceManager mFrameResourceManager;
 
 		tracy::VkCtx* mTracyContext;
 	};
@@ -121,7 +120,7 @@ public:
 
 	SceneData mSceneData{};
 
-	SBuffer_T* mSceneDataBuffer{};
+	SStaticBuffer<VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, sizeof(SceneData), 1> mSceneBuffer;
 
 	//
 	// Objects

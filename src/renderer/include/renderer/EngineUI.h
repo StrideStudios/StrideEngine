@@ -1,27 +1,19 @@
 ﻿#pragma once
 
-#include "vulkan/vulkan_core.h"
+#include "Pass.h"
 
-struct SEngineUI {
+class CEngineUIPass final : public CPass {
 
-	static void begin();
+	REGISTER_PASS(CEngineUIPass)
 
-	static void init(VkQueue inQueue, VkFormat format);
+public:
 
-	static void destroy();
+	EXPORT virtual void init() override;
 
-	static void renderSceneUI();
+	EXPORT virtual void begin() override;
 
-	static void renderFontUI();
+	EXPORT virtual void render(VkCommandBuffer cmd) override;
 
-	static void renderTextureUI();
-
-	static void renderMaterialUI();
-
-	static void renderSpriteUI();
-
-	static void renderMeshUI();
-
-	static void render(VkCommandBuffer cmd);
+	EXPORT virtual void destroy() override;
 
 };

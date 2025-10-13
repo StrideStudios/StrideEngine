@@ -1,5 +1,6 @@
 ﻿#include "passes/SpritePass.h"
 
+#include "BindlessResources.h"
 #include "renderer/EngineLoader.h"
 #include "renderer/EngineTextures.h"
 #include "renderer/VulkanRenderer.h"
@@ -20,18 +21,20 @@ void CSpritePass::init() {
 
 	CVulkanRenderer& renderer = *CVulkanRenderer::get();
 
-	CVulkanResourceManager manager;
+	CResourceManager manager;
 
-	const SShader frag = manager.getShader("material\\sprite.frag");
+	SShader* frag;
+	manager.create<SShader>(frag, "material\\sprite.frag");
 
-	const SShader vert = manager.getShader("material\\sprite.vert");
+	SShader* vert;
+	manager.create<SShader>(vert, "material\\sprite.vert");
 
 	const SPipelineCreateInfo createInfo {
-		.vertexModule = *vert.mModule,
-		.fragmentModule = *frag.mModule,
+		.vertexModule = vert->mModule,
+		.fragmentModule = frag->mModule,
 		.mDepthTestMode = EDepthTestMode::FRONT,
-		.mColorFormat = renderer.mEngineTextures->mDrawImage->mImageFormat,
-		.mDepthFormat = renderer.mEngineTextures->mDepthImage->mImageFormat
+		.mColorFormat = renderer.mEngineTextures->mDrawImage->getFormat(),
+		.mDepthFormat = renderer.mEngineTextures->mDepthImage->getFormat()
 	};
 
 	CVertexAttributeArchive attributes;
@@ -41,7 +44,7 @@ void CSpritePass::init() {
 	attributes << VK_FORMAT_R32G32B32A32_SFLOAT;
 	attributes << VK_FORMAT_R32G32B32A32_SFLOAT;
 
-	opaquePipeline = CVulkanResourceManager::get().allocatePipeline(createInfo, attributes, CVulkanResourceManager::getBasicPipelineLayout());
+	CResourceManager::get().create<CPipeline>(opaquePipeline, createInfo, attributes, CBindlessResources::getBasicPipelineLayout());
 
 	manager.flush();
 }

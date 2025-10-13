@@ -23,7 +23,7 @@
 
 constexpr static bool gUseOpenCL = false;
 
-SImage_T* loadImage(CVulkanResourceManager& allocator, const std::filesystem::path& path) {
+SImage_T* loadImage(CResourceManager& manager, const std::filesystem::path& path) {
 	const std::string& fileName = path.filename().string();
 
 	basisu::uint8_vec fileData;
@@ -47,7 +47,8 @@ SImage_T* loadImage(CVulkanResourceManager& allocator, const std::filesystem::pa
 	msgs("Texture dimensions: ({}x{}), levels: {}", width, height, numMips);
 
 	// Allocate image and transition to dst
-	SImage_T* image = allocator.allocateImage(fileName, imageSize, VK_FORMAT_BC7_SRGB_BLOCK, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_IMAGE_ASPECT_COLOR_BIT, numMips);
+	SImage_T* image;
+	manager.create<SImage_T>(image, fileName, imageSize, VK_FORMAT_BC7_SRGB_BLOCK, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_IMAGE_ASPECT_COLOR_BIT, numMips);
 
 	CVulkanRenderer::get()->immediateSubmit([&](SCommandBuffer& cmd) {
 		CVulkanUtils::transitionImage(cmd, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
@@ -74,10 +75,10 @@ SImage_T* loadImage(CVulkanResourceManager& allocator, const std::filesystem::pa
 		levelSize.depth = 1;
 
 		// Upload buffer is not needed outside of this function
-		CVulkanResourceManager manager;
-		const SBuffer_T* uploadBuffer = manager.allocateBuffer(image_size, VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
 
-		memcpy(uploadBuffer->getMappedData(), pImage, image_size);
+		SStaticBuffer<VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_TRANSFER_SRC_BIT> uploadBuffer{image_size};
+
+		memcpy(uploadBuffer.get()->getMappedData(), pImage, image_size);
 
 		CVulkanRenderer::get()->immediateSubmit([&](SCommandBuffer& cmd) {
 			//ZoneScopedAllocation(std::string("Copy Image from Upload Buffer"));
@@ -94,10 +95,11 @@ SImage_T* loadImage(CVulkanResourceManager& allocator, const std::filesystem::pa
 			copyRegion.imageExtent = levelSize;
 
 			// copy the buffer into the image
-			vkCmdCopyBufferToImage(cmd, uploadBuffer->buffer, image->mImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+			vkCmdCopyBufferToImage(cmd, uploadBuffer.get()->buffer, image->mImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
 		});
 
 		manager.flush();
+		uploadBuffer.destroy();
 	}
 
 	CVulkanRenderer::get()->immediateSubmit([&](SCommandBuffer& cmd) {
@@ -107,7 +109,7 @@ SImage_T* loadImage(CVulkanResourceManager& allocator, const std::filesystem::pa
 	return image;
 }
 
-std::shared_ptr<CFont> loadFont(CVulkanResourceManager& allocator, const std::filesystem::path& inPath) {
+std::shared_ptr<CFont> loadFont(CResourceManager& allocator, const std::filesystem::path& inPath) {
 	std::shared_ptr<CFont> font;
 	std::vector<uint8> atlasData;
 
@@ -117,7 +119,8 @@ std::shared_ptr<CFont> loadFont(CVulkanResourceManager& allocator, const std::fi
 	file.close();
 
 	const std::string label = font->mName + " Atlas";
-	font->mAtlasImage = allocator.allocateImage(atlasData.data(), atlasData.size(), label, {font->mAtlasSize.x, font->mAtlasSize.y, 1}, VK_FORMAT_R8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+	allocator.create<SImage_T>(font->mAtlasImage, label, VkExtent3D{font->mAtlasSize.x, font->mAtlasSize.y, 1}, VK_FORMAT_R8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+	font->mAtlasImage->push(atlasData.data(), atlasData.size());
 
 	return font;
 }
@@ -384,18 +387,18 @@ std::shared_ptr<SMeshData> readMeshData(const std::filesystem::path& path) {
 	return outSaveData;
 }
 
-SMeshBuffers_T uploadMesh(CVulkanResourceManager& inManager, std::span<uint32> indices, std::span<SVertex> vertices) {
+SMeshBuffers_T* uploadMesh(CResourceManager& inManager, std::span<uint32> indices, std::span<SVertex> vertices) {
 	const size_t vertexBufferSize = vertices.size() * sizeof(SVertex);
 	const size_t indexBufferSize = indices.size() * sizeof(uint32);
 
 	// Create buffers
-	SMeshBuffers_T meshBuffers = inManager.allocateMeshBuffer(indexBufferSize, vertexBufferSize);
+	SMeshBuffers_T* meshBuffers;
+	inManager.create<SMeshBuffers_T>(meshBuffers, indexBufferSize, vertexBufferSize);
 
 	// Staging is not needed outside of this function
-	CVulkanResourceManager manager;
-	const SBuffer_T* staging = manager.allocateBuffer(vertexBufferSize + indexBufferSize, VMA_MEMORY_USAGE_CPU_ONLY, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+	SStaticBuffer<VMA_MEMORY_USAGE_CPU_ONLY, VK_BUFFER_USAGE_TRANSFER_SRC_BIT> staging{vertexBufferSize + indexBufferSize};
 
-	void* data = staging->getMappedData();
+	void* data = staging.get()->getMappedData();
 
 	// copy vertex buffer
 	memcpy(data, vertices.data(), vertexBufferSize);
@@ -410,17 +413,17 @@ SMeshBuffers_T uploadMesh(CVulkanResourceManager& inManager, std::span<uint32> i
 		vertexCopy.srcOffset = 0;
 		vertexCopy.size = vertexBufferSize;
 
-		vkCmdCopyBuffer(cmd, staging->buffer, meshBuffers.vertexBuffer->buffer, 1, &vertexCopy);
+		vkCmdCopyBuffer(cmd, staging.get()->buffer, meshBuffers->vertexBuffer->buffer, 1, &vertexCopy);
 
 		VkBufferCopy indexCopy{};
 		indexCopy.dstOffset = 0;
 		indexCopy.srcOffset = vertexBufferSize;
 		indexCopy.size = indexBufferSize;
 
-		vkCmdCopyBuffer(cmd, staging->buffer, meshBuffers.indexBuffer->buffer, 1, &indexCopy);
+		vkCmdCopyBuffer(cmd, staging.get()->buffer, meshBuffers->indexBuffer->buffer, 1, &indexCopy);
 	});
 
-	manager.flush();
+	staging.destroy();
 
 	return meshBuffers;
 }
@@ -440,7 +443,7 @@ std::shared_ptr<SStaticMesh> toStaticMesh(const std::shared_ptr<SMeshData>& mesh
 		});
 	}
 
-	loadMesh->meshBuffers = uploadMesh(CVulkanResourceManager::get(), mesh->indices, mesh->vertices);
+	loadMesh->meshBuffers = uploadMesh(CResourceManager::get(), mesh->indices, mesh->vertices);
 	return loadMesh;
 }
 
@@ -485,13 +488,13 @@ void CEngineLoader::load() {
 
 	// Load textures
 	for (const auto& path : textures) {
-		SImage_T* image = loadImage(CVulkanResourceManager::get(), path);
+		SImage_T* image = loadImage(CResourceManager::get(), path);
 		get().mImages.emplace(pathToName(path), image);
 	}
 
 	// Load fonts
 	for (const auto& path : fonts) {
-		std::shared_ptr<CFont> font = loadFont(CVulkanResourceManager::get(), path);
+		std::shared_ptr<CFont> font = loadFont(CResourceManager::get(), path);
 		get().mFonts.emplace(pathToName(path), font);
 	}
 
@@ -542,7 +545,7 @@ void CEngineLoader::importTexture(const std::filesystem::path& inPath) {
 
 	basisu::basis_free_data(pKTX2_data);
 
-	SImage_T* loadedImage = loadImage(CVulkanResourceManager::get(), cachedPath);
+	SImage_T* loadedImage = loadImage(CResourceManager::get(), cachedPath);
 
 	get().mImages.emplace(loadedImage->mName, loadedImage);
 }
@@ -624,7 +627,8 @@ void CEngineLoader::importFont(const std::filesystem::path& inPath) {
 	cachedPath.replace_extension(".fnt");
 
 	const std::string label = font->mName + " Atlas";
-	font->mAtlasImage = CVulkanResourceManager::get().allocateImage(atlasData.data(), atlasData.size(), label, {FONT_ATLAS_SIZE, FONT_ATLAS_SIZE, 1}, VK_FORMAT_R8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+	CResourceManager::get().create<SImage_T>(font->mAtlasImage, label, VkExtent3D{FONT_ATLAS_SIZE, FONT_ATLAS_SIZE, 1}, VK_FORMAT_R8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+	font->mAtlasImage->push(atlasData.data(), atlasData.size());
 
 	// Write font and atlas data to file
 	CFileArchive file(cachedPath.string(), "wb");

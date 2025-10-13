@@ -9,7 +9,7 @@ class CScene;
 
 constexpr static auto gEngineName = text("Stride Engine");
 
-class CEngine {
+class CEngine : public SBase {
 
 	MAKE_SINGLETON(CEngine)
 

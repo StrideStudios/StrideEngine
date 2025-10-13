@@ -7,7 +7,7 @@
 class CGuiText;
 class CCommand;
 
-class CEngineSettings {
+class CEngineSettings : public SBase {
 
 	MAKE_SINGLETON(CEngineSettings)
 

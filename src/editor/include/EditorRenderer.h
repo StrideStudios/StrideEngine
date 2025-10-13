@@ -13,6 +13,8 @@ public:
 
 	EXPORT virtual void render(VkCommandBuffer cmd) override;
 
+	EXPORT virtual void destroy() override;
+
 	//
 	// Pipelines
 	//

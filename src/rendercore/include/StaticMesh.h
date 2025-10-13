@@ -43,7 +43,7 @@ struct SStaticMesh {
 
 	SBounds bounds;
 	std::vector<Surface> surfaces;
-	SMeshBuffers_T meshBuffers;
+	SMeshBuffers_T* meshBuffers;
 
 	friend uint32 getHash(const SStaticMesh& inMesh) {
 		return getHash(inMesh.name);

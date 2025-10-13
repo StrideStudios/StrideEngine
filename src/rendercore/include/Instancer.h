@@ -1,7 +1,7 @@
 #pragma once
 
+#include "VulkanResources.h"
 #include "core/Archive.h"
-#include "VulkanResourceManager.h"
 
 struct SInstance {
 	Matrix4f Transform = Matrix4f(1.f);
@@ -49,12 +49,13 @@ struct SInstancer {
 
 	EXPORT void reallocate(const Matrix4f& parentMatrix = Matrix4f(1.f));
 
+	//TODO: don't return SBuffer_T*
 	SBuffer_T* get(const Matrix4f& parentMatrix = Matrix4f(1.f)) {
 		if (isDirty()) {
 			mIsDirty = false;
 			reallocate(parentMatrix);
 		}
-		return instanceBuffer;
+		return instanceBuffer.get();
 	}
 
 	bool isDirty() const {
@@ -81,8 +82,6 @@ struct SInstancer {
 
 private:
 
-	CVulkanResourceManager m_ResourceManager;
-
-	SBuffer_T* instanceBuffer = nullptr;
+	SDynamicBuffer<VMA_MEMORY_USAGE_GPU_ONLY, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT> instanceBuffer;
 
 };

@@ -18,78 +18,11 @@
 #include "world/StaticMeshObject.h"
 #include "Viewport.h"
 #include "core/Threading.h"
+#include "renderer/EngineTextures.h"
+#include "renderer/VulkanDevice.h"
 #include "viewport/generic/Text.h"
 
-void SEngineUI::begin() {
-	// Start the Dear ImGui frame
-	ImGui_ImplVulkan_NewFrame();
-	ImGui_ImplSDL3_NewFrame();
-	ImGui::NewFrame();
-}
-
-void SEngineUI::init(VkQueue inQueue, VkFormat format) { //TODO: Global info for textures (depth is still hard-coded below)
-	CVulkanRenderer& renderer = *CVulkanRenderer::get();
-
-	// Setup Dear ImGui context
-	ImGui::CreateContext();
-
-	// 1: create descriptor pool for IMGUI
-	//  the size of the pool is very oversize, but it's copied from imgui demo
-	//  itself.
-	VkDescriptorPoolSize poolSizes[] = { { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
-		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
-		{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
-		{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
-		{ VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
-		{ VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
-		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
-		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
-		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
-		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
-		{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 } };
-
-	VkDescriptorPoolCreateInfo poolCreateInfo {
-		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-		.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
-		.maxSets = 1000,
-		.poolSizeCount = (uint32)std::size(poolSizes),
-		.pPoolSizes = poolSizes
-	};
-
-	CDescriptorPool* descriptorPool;
-	CVulkanResourceManager::get().create(descriptorPool, poolCreateInfo);
-
-	// this initializes imgui for Vulkan
-	ImGui_ImplVulkan_InitInfo initInfo {
-		.Instance = CRenderer::vkInstance(),
-		.PhysicalDevice = CRenderer::vkPhysicalDevice(),
-		.Device = CRenderer::vkDevice(),
-		.Queue = inQueue,
-		.DescriptorPool = *descriptorPool,
-		.MinImageCount = 3,
-		.ImageCount = 3,
-		.UseDynamicRendering = true
-	};
-
-	//dynamic rendering parameters for imgui to use
-	initInfo.PipelineRenderingCreateInfo = {.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};
-	initInfo.PipelineRenderingCreateInfo.colorAttachmentCount = 1;
-	initInfo.PipelineRenderingCreateInfo.pColorAttachmentFormats = &format;
-	initInfo.PipelineRenderingCreateInfo.depthAttachmentFormat = VK_FORMAT_D32_SFLOAT;
-
-	initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
-
-	ImGui_ImplVulkan_Init(&initInfo);
-	ImGui_ImplSDL3_InitForVulkan(CEngineViewport::get().mWindow);
-}
-
-void SEngineUI::destroy() {
-	ImGui_ImplVulkan_Shutdown();
-	ImGui_ImplSDL3_Shutdown();
-	ImGui::DestroyContext();
-}
-
-void SEngineUI::renderSceneUI() {
+void renderSceneUI() {
 	if (ImGui::Begin("Scene")) {
 		CScene& scene = CScene::get();
 		if (ImGui::Button("Add Mesh Object")) {
@@ -149,7 +82,7 @@ void SEngineUI::renderSceneUI() {
 	ImGui::End();
 }
 
-void SEngineUI::renderFontUI() {
+void renderFontUI() {
 	if (ImGui::Begin("Fonts")) {
 		if (ImGui::Button("Import Font")) {
 
@@ -194,7 +127,7 @@ void SEngineUI::renderFontUI() {
 	ImGui::End();
 }
 
-void SEngineUI::renderTextureUI() {
+void renderTextureUI() {
 	if (ImGui::Begin("Textures")) {
 		if (ImGui::Button("Import Texture")) {
 
@@ -219,7 +152,7 @@ void SEngineUI::renderTextureUI() {
 	ImGui::End();
 }
 
-void SEngineUI::renderMaterialUI() {
+void renderMaterialUI() {
 	static uint32 selected = 0;
 	if (ImGui::Begin("Materials")) {
 		ImGui::Text("Add Material");
@@ -309,7 +242,7 @@ void SEngineUI::renderMaterialUI() {
 	ImGui::End();
 }
 
-void SEngineUI::renderSpriteUI() {
+void renderSpriteUI() {
 	return;
 	if (ImGui::Begin("Sprites")) {
 		for (const auto& pass = CSpritePass::get(); const auto& sprite : pass.objects) {
@@ -364,7 +297,7 @@ void SEngineUI::renderSpriteUI() {
 	ImGui::End();
 }
 
-void SEngineUI::renderMeshUI() {
+void renderMeshUI() {
 	if (ImGui::Begin("Meshes")) {
 		if (ImGui::Button("Import Mesh")) {
 
@@ -419,7 +352,72 @@ void SEngineUI::renderMeshUI() {
 	ImGui::End();
 }
 
-void SEngineUI::render(VkCommandBuffer cmd) {
+void CEngineUIPass::init() {
+	CVulkanRenderer& renderer = *CVulkanRenderer::get();
+
+	// Setup Dear ImGui context
+	ImGui::CreateContext();
+
+	// 1: create descriptor pool for IMGUI
+	//  the size of the pool is very oversize, but it's copied from imgui demo
+	//  itself.
+	VkDescriptorPoolSize poolSizes[] = { { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
+		{ VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
+		{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 } };
+
+	VkDescriptorPoolCreateInfo poolCreateInfo {
+		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+		.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
+		.maxSets = 1000,
+		.poolSizeCount = (uint32)std::size(poolSizes),
+		.pPoolSizes = poolSizes
+	};
+
+	CDescriptorPool* descriptorPool;
+	CResourceManager::get().create(descriptorPool, poolCreateInfo);
+
+	// this initializes imgui for Vulkan
+	ImGui_ImplVulkan_InitInfo initInfo {
+		.Instance = CRenderer::vkInstance(),
+		.PhysicalDevice = CRenderer::vkPhysicalDevice(),
+		.Device = CRenderer::vkDevice(),
+		.Queue = CVulkanDevice::getQueue(EQueueType::GRAPHICS).mQueue,
+		.DescriptorPool = *descriptorPool,
+		.MinImageCount = 3,
+		.ImageCount = 3,
+		.UseDynamicRendering = true
+	};
+
+	const VkFormat format = CVulkanRenderer::get()->mEngineTextures->mDrawImage->getFormat();
+
+	//dynamic rendering parameters for imgui to use
+	initInfo.PipelineRenderingCreateInfo = {.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};
+	initInfo.PipelineRenderingCreateInfo.colorAttachmentCount = 1;
+	initInfo.PipelineRenderingCreateInfo.pColorAttachmentFormats = &format;
+	initInfo.PipelineRenderingCreateInfo.depthAttachmentFormat = VK_FORMAT_D32_SFLOAT;
+
+	initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+
+	ImGui_ImplVulkan_Init(&initInfo);
+	ImGui_ImplSDL3_InitForVulkan(CEngineViewport::get().mWindow);
+}
+
+void CEngineUIPass::begin() {
+	// Start the Dear ImGui frame
+	ImGui_ImplVulkan_NewFrame();
+	ImGui_ImplSDL3_NewFrame();
+	ImGui::NewFrame();
+}
+
+void CEngineUIPass::render(VkCommandBuffer cmd) {
 	// Render Engine Settings
 	CEngineSettings::render();
 
@@ -432,4 +430,10 @@ void SEngineUI::render(VkCommandBuffer cmd) {
 
 	ImGui::Render();
 	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
+}
+
+void CEngineUIPass::destroy() {
+	ImGui_ImplVulkan_Shutdown();
+	ImGui_ImplSDL3_Shutdown();
+	ImGui::DestroyContext();
 }

@@ -26,7 +26,7 @@
 	template class TDeferredFactory<n, n##DeferredFactory##Name>;
 
 template <typename TType, const char* TName>
-class TFactory {
+class TFactory : public SBase {
 
 	CUSTOM_SINGLETON(TFactory, TName)
 
@@ -55,7 +55,7 @@ public:
 };
 
 template <typename TType, const char* TName, typename... TArgs>
-class TDeferredFactory {
+class TDeferredFactory : public SBase {
 
 	CUSTOM_SINGLETON(TDeferredFactory, TName)
 

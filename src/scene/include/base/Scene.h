@@ -5,7 +5,7 @@
 
 #include "SceneObject.h"
 
-class CScene : public IInitializable, public IDestroyable {
+class CScene : public SBase, public IInitializable, public IDestroyable {
 
 	MAKE_SINGLETON(CScene)
 

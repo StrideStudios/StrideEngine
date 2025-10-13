@@ -3,11 +3,13 @@
 #include <memory>
 #include <random>
 
+#include "BindlessResources.h"
 #include "Material.h"
 #include "passes/MeshPass.h"
 #include "viewport/Sprite.h"
 #include "passes/SpritePass.h"
 #include "renderer/EngineTextures.h"
+#include "renderer/EngineUI.h"
 #include "tracy/Tracy.hpp"
 #include "viewport/generic/Text.h"
 
@@ -41,19 +43,21 @@ void CEditorSpritePass::init() {
 
 	CVulkanRenderer& renderer = *CVulkanRenderer::get();
 
-	CVulkanResourceManager manager;
+	CResourceManager manager;
 
-	const SShader frag = manager.getShader("material\\text.frag");
+	SShader* frag;
+	manager.create<SShader>(frag, "material\\text.frag");
 
-	const SShader vert = manager.getShader("material\\text.vert");
+	SShader* vert;
+	manager.create<SShader>(vert, "material\\text.vert");
 
 	const SPipelineCreateInfo createInfo {
-		.vertexModule = *vert.mModule,
-		.fragmentModule = *frag.mModule,
+		.vertexModule = vert->mModule,
+		.fragmentModule = frag->mModule,
 		.mBlendMode = EBlendMode::ALPHA_BLEND,
 		.mDepthTestMode = EDepthTestMode::FRONT,
-		.mColorFormat = renderer.mEngineTextures->mDrawImage->mImageFormat,
-		.mDepthFormat = renderer.mEngineTextures->mDepthImage->mImageFormat
+		.mColorFormat = renderer.mEngineTextures->mDrawImage->getFormat(),
+		.mDepthFormat = renderer.mEngineTextures->mDepthImage->getFormat()
 	};
 
 	CVertexAttributeArchive attributes;
@@ -65,7 +69,7 @@ void CEditorSpritePass::init() {
 	attributes << VK_FORMAT_R32G32B32A32_SFLOAT;
 	attributes << VK_FORMAT_R32G32B32A32_SFLOAT;
 
-	textPipeline = CVulkanResourceManager::get().allocatePipeline(createInfo, attributes, CVulkanResourceManager::getBasicPipelineLayout());
+	CResourceManager::get().create<CPipeline>(textPipeline, createInfo, attributes, CBindlessResources::getBasicPipelineLayout());
 
 	manager.flush();
 
@@ -79,7 +83,7 @@ void CEditorSpritePass::init() {
 	exampleText->material = textMaterial;
 }
 
-static CVulkanResourceManager gTextManager;
+static CResourceManager gTextManager;
 
 void CEditorSpritePass::render(VkCommandBuffer cmd) {
 	ZoneScopedN("Editor Sprite Pass");
@@ -95,13 +99,17 @@ void CEditorSpritePass::render(VkCommandBuffer cmd) {
 
 		vkDeviceWaitIdle(CRenderer::vkDevice());
 
+		//TODO: better buffer management so no vkDeviceWait is needed while rendering
 		gTextManager.flush();
 
 		if (auto textSprite = std::dynamic_pointer_cast<CTextSprite>(sprite); textSprite) {
 			if (CEngineLoader::getFonts().empty()) continue;
 			NumInstances = textSprite->getText().size();
+
 			uint32 bufferSize = NumInstances * (sizeof(Vector4f) + sizeof(SInstance));
-			SBuffer_T* buffer = gTextManager.allocateBuffer(bufferSize, VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+
+			SDynamicBuffer<VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT> buffer{gTextManager};
+			buffer.allocate(bufferSize);
 
 			struct SData {
 				Vector4f uv;
@@ -115,7 +123,7 @@ void CEditorSpritePass::render(VkCommandBuffer cmd) {
 			font->forEachLetter(textSprite->getText(), [&datas, &font](const Vector2f& pos, const Vector2f& uv0, const Vector2f& uv1) {
 				Transform2f t;
 				t.setPosition(pos);
-				t.setScale(glm::abs(uv1 - uv0) * (Vector2f)font->mAtlasSize);
+				t.setScale(glm::abs(uv1 - uv0) * Vector2f(font->mAtlasSize));
 				datas.push_back({
 					.uv = Vector4f{uv0, uv1},
 					.instance = {
@@ -124,10 +132,10 @@ void CEditorSpritePass::render(VkCommandBuffer cmd) {
 				});
 			});
 
-			memcpy(buffer->getMappedData(), datas.data(), bufferSize);
+			memcpy(buffer.get()->getMappedData(), datas.data(), bufferSize);
 
 			VkDeviceSize offset = 0u;
-			vkCmdBindVertexBuffers(cmd, 0, 1u, &buffer->buffer, &offset);
+			vkCmdBindVertexBuffers(cmd, 0, 1u, &buffer.get()->buffer, &offset);
 
 			SPushConstants constants = sprite->material->mConstants;
 			constants[0].x = font->mAtlasImage->mBindlessAddress;
@@ -148,6 +156,13 @@ void CEditorSpritePass::render(VkCommandBuffer cmd) {
 		drawCallCount++;
 		vertexCount += 6 * NumInstances;
 	}
+
+	//gTextManager.flush();
+}
+
+void CEditorSpritePass::destroy() {
+	CSpritePass::destroy();
+	gTextManager.flush();
 }
 
 void CEditorRenderer::init() {
@@ -157,7 +172,8 @@ void CEditorRenderer::init() {
 	addPasses(
 		&CMeshPass::get(),
 		&CSpritePass::get(),
-		&CEditorSpritePass::get()
+		//&CEditorSpritePass::get(),
+		&CEngineUIPass::get()
 	);
 
 	constexpr int32 numSprites = 250;
@@ -186,6 +202,5 @@ void CEditorRenderer::init() {
 }
 
 void CEditorRenderer::destroy() {
-	gTextManager.flush();
 	CVulkanRenderer::destroy();
 }

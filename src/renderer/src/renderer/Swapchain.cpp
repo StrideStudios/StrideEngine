@@ -1,7 +1,6 @@
 ﻿#include "renderer/Swapchain.h"
 #include "Viewport.h"
 #include "renderer/VulkanDevice.h"
-#include "VulkanResourceManager.h"
 #include "VulkanUtils.h"
 #include "Profiling.h"
 #include "VkBootstrap.h"
@@ -16,9 +15,9 @@
 		failedCall; \
     }
 
-static CVulkanResourceManager gSwapchainResourceManager;
+static CResourceManager gSwapchainResourceManager;
 
-static CVulkanResourceManager gFrameResourceManager;
+static CResourceManager gFrameResourceManager;
 
 void SSwapchainImage::destroy() {
 	vkDestroyImageView(CRenderer::vkDevice(), mImageView, nullptr);

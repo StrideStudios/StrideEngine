@@ -11,11 +11,6 @@ SInstancer::~SInstancer() {
 
 void SInstancer::destroy() {
 	//TODO: is happening at end of execution because of shared ptr.
-
-	//TODO: Temporary wait until proper destruction
-	vkDeviceWaitIdle(CRenderer::vkDevice());
-
-	m_ResourceManager.flush();
 	instances.clear();
 }
 
@@ -29,21 +24,12 @@ void SInstancer::reallocate(const Matrix4f& parentMatrix) {
 
 	const size_t bufferSize = inputData.size() * sizeof(SInstance);
 
-	// Reallocate if buffer size has changed
-	if (!instanceBuffer || instanceBuffer->info.size != bufferSize) {
-		//TODO: Temporary wait until proper destruction
-		vkDeviceWaitIdle(CRenderer::vkDevice());
-
-		m_ResourceManager.flush();
-
-		instanceBuffer = m_ResourceManager.allocateBuffer(bufferSize, VMA_MEMORY_USAGE_GPU_ONLY, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
-	}
+	instanceBuffer.allocate(bufferSize);
 
 	// Staging is not needed outside of this function
-	CVulkanResourceManager manager;
-	const SBuffer_T* staging = manager.allocateBuffer(bufferSize, VMA_MEMORY_USAGE_CPU_ONLY, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+	SStaticBuffer<VMA_MEMORY_USAGE_CPU_ONLY, VK_BUFFER_USAGE_TRANSFER_SRC_BIT> staging{bufferSize};
 
-	void* data = staging->getMappedData();
+	void* data = staging.get()->getMappedData();
 	memcpy(data, inputData.data(), bufferSize);
 
 	CRenderer::get()->immediateSubmit([&](SCommandBuffer& cmd) {
@@ -52,8 +38,8 @@ void SInstancer::reallocate(const Matrix4f& parentMatrix) {
 		vertexCopy.srcOffset = 0;
 		vertexCopy.size = bufferSize;
 
-		vkCmdCopyBuffer(cmd, staging->buffer, instanceBuffer->buffer, 1, &vertexCopy);
+		vkCmdCopyBuffer(cmd, staging.get()->buffer, instanceBuffer.get()->buffer, 1, &vertexCopy);
 	});
 
-	manager.flush();
+	staging.destroy();
 }
