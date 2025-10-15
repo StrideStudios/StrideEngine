@@ -64,10 +64,3 @@
 #endif
 
 #endif
-
-void CProfiler::StartupProfiler() {
-	//tracy::StartupProfiler();
-}
-void CProfiler::ShutdownProfiler() {
-	//tracy::ShutdownProfiler();
-}
