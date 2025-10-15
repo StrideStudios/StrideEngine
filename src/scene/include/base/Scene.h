@@ -7,7 +7,7 @@
 
 class CScene : public SBase, public IInitializable, public IDestroyable {
 
-	MAKE_SINGLETON(CScene)
+	MAKE_LAZY_SINGLETON(CScene)
 
 public:
 

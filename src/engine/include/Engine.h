@@ -9,9 +9,9 @@ class CScene;
 
 constexpr static auto gEngineName = text("Stride Engine");
 
-class CEngine : public SBase {
+class CEngine : public SBase, public IInitializable {
 
-	MAKE_SINGLETON(CEngine)
+	MAKE_LAZY_SINGLETON(CEngine)
 
 	struct Time {
 		int32 mAverageFrameRate = 0;
@@ -31,9 +31,7 @@ private:
 	// Make sure only main can access init and run functions
 	friend int main();
 
-	EXPORT void init();
-
-	EXPORT void end();
+	EXPORT virtual void init() override;
 
 	EXPORT void run();
 

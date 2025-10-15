@@ -27,17 +27,6 @@ void CEngine::init() {
 	CResourceManager::get().create(m_EngineViewport);
 }
 
-void CEngine::end() {
-
-	// Wait for the gpu to finish instructions
-	if (!CRenderer::get()->wait()) {
-		errs("Engine did not stop properly!");
-	}
-
-	// Stop 'main thread'
-	CThreading::getMainThread().stop();
-}
-
 void CEngine::run() {
 	auto previousTime = std::chrono::high_resolution_clock::now();
 	bool bPauseRendering = false;

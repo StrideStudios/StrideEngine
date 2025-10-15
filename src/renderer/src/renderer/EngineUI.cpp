@@ -96,13 +96,9 @@ void renderFontUI() {
 			//TODO: file query shouldnt be in viewport (also should be on background, but rendering thread crashes)
 			CEngineViewport::queryForFile(filters, [](std::vector<std::string> inFiles) {
 				for (const auto& file : inFiles) {
-
 					CThreading::getMainThread().add([file] {
 						CEngineLoader::importFont(file);
 					});
-					/*CThreading::runOnBackgroundThread([file] {
-						CEngineLoader::importFont(file);
-					});*/
 				}
 			});
 		}
