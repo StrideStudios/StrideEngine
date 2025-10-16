@@ -10,6 +10,7 @@
 #include "base/Scene.h"
 #include "renderer/EngineLoader.h"
 #include "renderer/object/StaticMeshObjectRenderer.h"
+#include "tracy/Tracy.hpp"
 
 #define SETTINGS_CATEGORY "Rendering"
 ADD_TEXT(Meshes, "Meshes: ");

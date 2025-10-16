@@ -50,7 +50,7 @@ SImage_T* loadImage(CResourceManager& manager, const std::filesystem::path& path
 	SImage_T* image;
 	manager.create<SImage_T>(image, fileName, imageSize, VK_FORMAT_BC7_SRGB_BLOCK, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_IMAGE_ASPECT_COLOR_BIT, numMips);
 
-	CVulkanRenderer::get()->immediateSubmit([&](SCommandBuffer& cmd) {
+	CRenderer::get()->immediateSubmit([&](SCommandBuffer& cmd) {
 		CVulkanUtils::transitionImage(cmd, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 	});
 
@@ -76,23 +76,26 @@ SImage_T* loadImage(CResourceManager& manager, const std::filesystem::path& path
 
 		// Upload buffer is not needed outside of this function
 
-		SStaticBuffer<VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_TRANSFER_SRC_BIT> uploadBuffer{image_size};
+		SStagingBuffer uploadBuffer{image_size}; //TODO: was CPU_TO_GPU, test if errors
 
-		memcpy(uploadBuffer.get()->getMappedData(), pImage, image_size);
+		uploadBuffer.push(pImage);
 
-		CVulkanRenderer::get()->immediateSubmit([&](SCommandBuffer& cmd) {
+		CRenderer::get()->immediateSubmit([&](SCommandBuffer& cmd) {
 			//ZoneScopedAllocation(std::string("Copy Image from Upload Buffer"));
 
-			VkBufferImageCopy copyRegion = {};
-			copyRegion.bufferOffset = 0;
-			copyRegion.bufferRowLength = 0;
-			copyRegion.bufferImageHeight = 0;
-
-			copyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-			copyRegion.imageSubresource.mipLevel = mipmap;
-			copyRegion.imageSubresource.baseArrayLayer = 0;
-			copyRegion.imageSubresource.layerCount = 1;
-			copyRegion.imageExtent = levelSize;
+			const VkBufferImageCopy copyRegion = {
+				.bufferOffset = 0,
+				.bufferRowLength = 0,
+				.bufferImageHeight = 0,
+				.imageSubresource = {
+					.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+					.mipLevel = mipmap,
+					.baseArrayLayer = 0,
+					.layerCount = 1
+				},
+				.imageOffset = {},
+				.imageExtent = levelSize
+			};
 
 			// copy the buffer into the image
 			vkCmdCopyBufferToImage(cmd, uploadBuffer.get()->buffer, image->mImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
@@ -102,7 +105,7 @@ SImage_T* loadImage(CResourceManager& manager, const std::filesystem::path& path
 		uploadBuffer.destroy();
 	}
 
-	CVulkanRenderer::get()->immediateSubmit([&](SCommandBuffer& cmd) {
+	CRenderer::get()->immediateSubmit([&](SCommandBuffer& cmd) {
 		CVulkanUtils::transitionImage(cmd, image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	});
 
@@ -396,18 +399,14 @@ SMeshBuffers_T* uploadMesh(CResourceManager& inManager, std::span<uint32> indice
 	inManager.create<SMeshBuffers_T>(meshBuffers, indexBufferSize, vertexBufferSize);
 
 	// Staging is not needed outside of this function
-	SStaticBuffer<VMA_MEMORY_USAGE_CPU_ONLY, VK_BUFFER_USAGE_TRANSFER_SRC_BIT> staging{vertexBufferSize + indexBufferSize};
+	SStagingBuffer staging{vertexBufferSize + indexBufferSize};
 
-	void* data = staging.get()->getMappedData();
-
-	// copy vertex buffer
-	memcpy(data, vertices.data(), vertexBufferSize);
-	// copy index buffer
-	memcpy((char*)data + vertexBufferSize, indices.data(), indexBufferSize);
+	// Copy vertex and Index Buffer
+	staging.push(vertices.data(), vertexBufferSize, indices.data(), indexBufferSize);
 
 	//TODO: slow, render thread?
 	// also from an older version of the tutorial, doesnt use sync2
-	CVulkanRenderer::get()->immediateSubmit([&](SCommandBuffer& cmd) {
+	CRenderer::get()->immediateSubmit([&](SCommandBuffer& cmd) {
 		VkBufferCopy vertexCopy{};
 		vertexCopy.dstOffset = 0;
 		vertexCopy.srcOffset = 0;

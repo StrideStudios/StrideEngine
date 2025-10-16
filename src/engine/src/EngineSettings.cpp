@@ -2,6 +2,7 @@
 
 #include "imgui.h"
 #include "Profiling.h"
+#include "tracy/Tracy.hpp"
 
 CCommand* CEngineSettings::getCommand(const std::string& inCommand) {
 

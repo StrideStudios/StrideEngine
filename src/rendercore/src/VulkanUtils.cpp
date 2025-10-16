@@ -5,6 +5,7 @@
 
 #include "VulkanResources.h"
 #include "Profiling.h"
+#include "tracy/Tracy.hpp"
 
 VkImageSubresourceRange CVulkanUtils::imageSubresourceRange(VkImageAspectFlags inAspectMask) {
 	return {

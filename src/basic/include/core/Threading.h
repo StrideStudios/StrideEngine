@@ -5,6 +5,7 @@
 #include <deque>
 
 #include "Profiling.h"
+#include "tracy/TracyC.h"
 
 class CWorker {
 public:

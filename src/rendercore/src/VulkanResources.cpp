@@ -624,7 +624,7 @@ void SImage_T::push(const void* inData, const uint32& inSize) {
 
 	// Upload buffer is not needed outside of this function
 	// TODO: Some way of doing an upload buffer generically
-	SStaticBuffer<VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_TRANSFER_SRC_BIT> uploadBuffer{inSize};
+	SStagingBuffer uploadBuffer{inSize}; //TODO: was CPU_TO_GPU, test if errors
 
 	memcpy(uploadBuffer.get()->getMappedData(), inData, inSize);
 

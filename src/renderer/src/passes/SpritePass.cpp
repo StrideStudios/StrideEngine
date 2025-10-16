@@ -7,6 +7,7 @@
 #include "renderer/VulkanDevice.h"
 #include "Profiling.h"
 #include "EngineSettings.h"
+#include "tracy/Tracy.hpp"
 #include "viewport/Sprite.h"
 
 #define SETTINGS_CATEGORY "Rendering/Sprite Pass"

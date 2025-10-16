@@ -4,6 +4,7 @@
 #include "VulkanUtils.h"
 #include "Profiling.h"
 #include "VkBootstrap.h"
+#include "tracy/Tracy.hpp"
 
 #include "vulkan/vk_enum_string_helper.h"
 

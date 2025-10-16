@@ -330,33 +330,98 @@ private:
 template <VmaMemoryUsage TMemoryUsage, VkBufferUsageFlags TBufferUsage, size_t TElementSize = 0, size_t TSize = 0>
 struct SStaticBuffer {
 
+	using StagingBufferType = SStaticBuffer<VMA_MEMORY_USAGE_CPU_ONLY, VK_BUFFER_USAGE_TRANSFER_SRC_BIT>;
+
 	SStaticBuffer() = default;
 
-	~SStaticBuffer() {
-		destroy();
+	virtual ~SStaticBuffer() {
+		SStaticBuffer::destroy();
 	}
 
 	// Since templated Static Buffers are resolved at compile time, the buffer will never change
 	// Thus, it should always be allocated globally
-	SBuffer_T* get() {
+	virtual SBuffer_T* get() {
 		if (!mAllocated) {
 			mAllocated = true;
-			itr = CResourceManager::get().create(mBuffer, TElementSize * TSize, TMemoryUsage, TBufferUsage);
+			itr = CResourceManager::get().create(mBuffer, getSize(), TMemoryUsage, TBufferUsage);
 		}
 		return mBuffer;
 	}
 
-	void destroy() {
+	virtual bool isValid() const {
+		return mAllocated;
+	}
+
+	virtual size_t getSize() const {
+		return TElementSize * TSize;
+	}
+
+	virtual void destroy() {
 		if (!mAllocated) return;
 		mAllocated = false;
 		CResourceManager::get().remove(itr);
 	}
 
+	template <typename... TArgs>
+	void push(const void* src, const size_t size = 0, TArgs... args) {
+		size_t totalSize = getTotalSize(src, size, args...);
+		if (totalSize > getSize()) {
+			errs("Tried to allocate more than available in Static Buffer!");
+		}
+
+		size_t usableSize = size <= 0 ? getSize() : size;
+
+		if constexpr (TMemoryUsage == VMA_MEMORY_USAGE_GPU_ONLY) {
+
+			static_assert(TBufferUsage & VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+
+			SStaticBuffer<VMA_MEMORY_USAGE_CPU_ONLY, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, TElementSize, TSize> staging;
+			staging.push(src, size, args...);
+
+			CRenderer::get()->immediateSubmit([&](SCommandBuffer& cmd) {
+				VkBufferCopy copy{};
+				copy.dstOffset = 0;
+				copy.srcOffset = 0;
+				copy.size = totalSize;
+
+				vkCmdCopyBuffer(cmd, staging->buffer, get()->buffer, 1, &copy);
+			});
+
+			staging.destroy();
+		} else {
+			memcpy(get()->getMappedData(), src, usableSize);
+			push(usableSize, args...);
+		}
+	}
+
 private:
+
+	template <typename... TArgs>
+	void push(const size_t offset = 0) {}
+
+	template <typename... TArgs>
+	void push(const size_t offset, const void* src, const size_t size = 0, TArgs... args) {
+		size_t usableSize = size <= 0 ? getSize() : size;
+		memcpy(static_cast<char*>(get()->getMappedData()) + offset, src, usableSize);
+		push(usableSize, args...);
+	}
+
+	template <typename... TArgs>
+	size_t getTotalSize() {
+		return 0;
+	}
+
+	template <typename... TArgs>
+	size_t getTotalSize(const void* src, const size_t size, TArgs... args) {
+		return size + getTotalSize(args...);
+	}
+
 	CResourceManager::Iterator itr;
 	bool mAllocated = false;
-	SBuffer_T* mBuffer;
+	SBuffer_T* mBuffer = nullptr;
 };
+
+typedef SStaticBuffer<VMA_MEMORY_USAGE_CPU_ONLY, VK_BUFFER_USAGE_TRANSFER_SRC_BIT> SStagingBuffer;
 
 template <VmaMemoryUsage TMemoryUsage, VkBufferUsageFlags TBufferUsage>
 struct SStaticBuffer<TMemoryUsage, TBufferUsage, 0, 0> {
@@ -368,11 +433,6 @@ struct SStaticBuffer<TMemoryUsage, TBufferUsage, 0, 0> {
 
 	SStaticBuffer(const size_t inAllocSize): SStaticBuffer(CResourceManager::get(), inAllocSize) {}
 	SStaticBuffer(const size_t inElementSize, const size_t inSize): SStaticBuffer(CResourceManager::get(), inElementSize, inSize) {}
-
-	// For safety, either destroyed when global resource manager is, or at end of scope, whichever comes first
-	~SStaticBuffer() {
-		destroy();
-	}
 
 	SBuffer_T* get() {
 		if (mAllocSize <= 0) {
@@ -399,7 +459,60 @@ struct SStaticBuffer<TMemoryUsage, TBufferUsage, 0, 0> {
 		mManager.remove(itr);
 	}
 
+	template <typename... TArgs>
+	void push(const void* src, const size_t size = 0, TArgs... args) {
+		size_t totalSize = getTotalSize(src, size, args...);
+		if (totalSize > getSize()) {
+			errs("Tried to allocate more than available in Static Buffer!");
+		}
+
+		size_t usableSize = size <= 0 ? getSize() : size;
+
+		if constexpr (TMemoryUsage == VMA_MEMORY_USAGE_GPU_ONLY) {
+
+			static_assert(TBufferUsage & VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+
+			SStagingBuffer staging{totalSize};
+			staging.push(src, size, args...);
+
+			CRenderer::get()->immediateSubmit([&](SCommandBuffer& cmd) {
+				VkBufferCopy copy{};
+				copy.dstOffset = 0;
+				copy.srcOffset = 0;
+				copy.size = totalSize;
+
+				vkCmdCopyBuffer(cmd, staging.get()->buffer, get()->buffer, 1, &copy);
+			});
+
+			staging.destroy();
+		} else {
+			memcpy(get()->getMappedData(), src, usableSize);
+			push(usableSize, args...);
+		}
+	}
+
 private:
+
+	template <typename... TArgs>
+	void push(const size_t offset = 0) {}
+
+	template <typename... TArgs>
+	void push(const size_t offset, const void* src, const size_t size = 0, TArgs... args) {
+		size_t usableSize = size <= 0 ? getSize() : size;
+		memcpy(static_cast<char*>(get()->getMappedData()) + offset, src, usableSize);
+		push(usableSize, args...);
+	}
+
+	template <typename... TArgs>
+	size_t getTotalSize() {
+		return 0;
+	}
+
+	template <typename... TArgs>
+	size_t getTotalSize(const void* src, const size_t size, TArgs... args) {
+		return size + getTotalSize(args...);
+	}
+
 	const size_t mAllocSize = 0;
 	CResourceManager& mManager;
 	CResourceManager::Iterator itr;
@@ -456,7 +569,57 @@ struct SDynamicBuffer {
 		mManager.remove(itr);
 	}
 
+	template <typename... TArgs>
+	void push(const void* src, const size_t size = 0, TArgs... args) {
+		size_t totalSize = getTotalSize(src, size, args...);
+		if (totalSize > getSize()) {
+			allocate(totalSize);
+		}
+
+		size_t usableSize = size <= 0 ? getSize() : size;
+
+		if constexpr (TMemoryUsage == VMA_MEMORY_USAGE_GPU_ONLY) {
+
+			static_assert(TBufferUsage & VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+
+			SStagingBuffer staging{totalSize};
+			staging.push(src, size, args...);
+
+			CRenderer::get()->immediateSubmit([&](SCommandBuffer& cmd) {
+				VkBufferCopy copy{};
+				copy.dstOffset = 0;
+				copy.srcOffset = 0;
+				copy.size = totalSize;
+
+				vkCmdCopyBuffer(cmd, staging.get()->buffer, get()->buffer, 1, &copy);
+			});
+
+			staging.destroy();
+		} else {
+			memcpy(get()->getMappedData(), src, usableSize);
+			push(usableSize, args...);
+		}
+	}
+
 private:
+
+	template <typename... TArgs>
+	void push(const size_t offset, const void* src, const size_t size = 0, TArgs... args) {
+		size_t usableSize = size <= 0 ? getSize() : size;
+		memcpy(static_cast<char*>(get()->getMappedData()) + offset, src, usableSize);
+		push(usableSize, args...);
+	}
+
+	template <typename... TArgs>
+	size_t getTotalSize() {
+		return 0;
+	}
+
+	template <typename... TArgs>
+	size_t getTotalSize(const void* src, const size_t size, TArgs... args) {
+		return size + getTotalSize(args...);
+	}
+
 	size_t mAllocSize = 0;
 	CResourceManager& mManager;
 	CResourceManager::Iterator itr;
@@ -468,7 +631,7 @@ private:
 struct SMeshBuffers_T : SBase, IDestroyable {
 
 	SMeshBuffers_T() = default;
-	EXPORT SMeshBuffers_T(const size_t indicesSize, const size_t verticesSize);
+	EXPORT SMeshBuffers_T(size_t indicesSize, size_t verticesSize);
 
 	SBuffer_T* indexBuffer = nullptr;
 	SBuffer_T* vertexBuffer = nullptr;
