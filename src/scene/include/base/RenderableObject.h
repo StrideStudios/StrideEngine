@@ -12,17 +12,14 @@ class CObjectRenderer;
 	} \
 	\
 	bool isDirty() const { \
-		return m_IsDirty; \
+		return m_Instancer.isDirty(); \
 	} \
 	\
 	void setDirty() { \
-		m_IsDirty = true; \
 		m_Instancer.setDirty(); \
 	} \
 	\
 private: \
-	\
-	bool m_IsDirty = true; \
 	\
 	SInstancer m_Instancer{1}; //TODO: bad, shouldnt have an instancer in a non-instanced widget (renderer?)
 

@@ -93,9 +93,9 @@ void CSpritePass::update() {
 }
 
 void CSpritePass::destroy() {
-	for (auto& sprite : objects) {
+	/*for (auto& sprite : objects) {
 		SInstancer& instancer = sprite->getInstancer();
 		instancer.destroy();
-	}
+	}*/ //TODO: objects.clear() is probably not needed.
 	objects.clear();
 }

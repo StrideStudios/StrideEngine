@@ -50,14 +50,6 @@ public:
 
 	EXPORT CVulkanSwapchain();
 
-	no_discard virtual bool isDirty() const override {
-		return m_Dirty;
-	}
-
-	virtual void setDirty() override {
-		m_Dirty = true;
-	}
-
 	virtual void init() override {
 		init(VK_NULL_HANDLE);
 	}
@@ -85,6 +77,4 @@ private:
 	FrameData m_Frames[gFrameOverlap];
 
 	bool m_VSync = true;
-
-	bool m_Dirty = true;
 };

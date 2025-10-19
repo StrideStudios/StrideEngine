@@ -17,13 +17,9 @@ struct SInstance {
 	}
 };
 
-struct SInstancer {
+struct SInstancer : SDirtyable {
 
 	EXPORT SInstancer(uint32 initialSize = 0);
-
-	EXPORT ~SInstancer();
-
-	EXPORT void destroy();
 
 	void append(const std::vector<SInstance>& inInstances) {
 		instances.append_range(inInstances);
@@ -52,18 +48,10 @@ struct SInstancer {
 	//TODO: don't return SBuffer_T*
 	SBuffer_T* get(const Matrix4f& parentMatrix = Matrix4f(1.f)) {
 		if (isDirty()) {
-			mIsDirty = false;
+			clean();
 			reallocate(parentMatrix);
 		}
 		return instanceBuffer.get();
-	}
-
-	bool isDirty() const {
-		return mIsDirty;
-	}
-
-	void setDirty() {
-		mIsDirty = true;
 	}
 
 	friend CArchive& operator<<(CArchive& inArchive, const SInstancer& inInstancer) {
@@ -75,8 +63,6 @@ struct SInstancer {
 		inArchive >> inInstancer.instances;
 		return inArchive;
 	}
-
-	bool mIsDirty = true;
 
 	std::vector<SInstance> instances;
 

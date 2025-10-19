@@ -94,7 +94,7 @@ void CVulkanSwapchain::recreate(bool inUseVSync) {
 
 	init(*mSwapchain->mInternalSwapchain, inUseVSync);
 
-	m_Dirty = false;
+	clean();
 }
 
 void CVulkanSwapchain::destroy() {

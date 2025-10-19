@@ -66,6 +66,22 @@ struct TInitializable : SInitializable {
 	virtual void init(TArgs... args) {}
 };
 
+struct SDirtyable {
+
+	bool isDirty() const { return m_Dirty; }
+
+	virtual void setDirty() { m_Dirty = true; }
+
+
+protected:
+
+	void clean() { m_Dirty = false; }
+
+private:
+
+	bool m_Dirty = false;
+};
+
 // typedef which makes it easy to check if a class has an empty init function
 typedef TInitializable<> IInitializable;
 
