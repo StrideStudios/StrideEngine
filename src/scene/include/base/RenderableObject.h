@@ -7,7 +7,7 @@ class CObjectRenderer;
 #define MAKE_RENDERABLE \
 	public: \
 	\
-	virtual SInstancer& getInstancer() { \
+	virtual IInstancer& getInstancer() { \
 		return m_Instancer; \
 	} \
 	\
@@ -21,7 +21,7 @@ class CObjectRenderer;
 	\
 private: \
 	\
-	SInstancer m_Instancer{1}; //TODO: bad, shouldnt have an instancer in a non-instanced widget (renderer?)
+	SSingleInstancer m_Instancer; //TODO: bad, shouldnt have an instancer in a non-instanced widget (renderer?)
 
 struct IRenderableClass {
 	virtual bool hasRenderer() const = 0;

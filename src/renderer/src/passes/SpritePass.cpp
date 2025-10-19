@@ -62,8 +62,8 @@ void CSpritePass::render(VkCommandBuffer cmd) {
 	uint64 vertexCount = 0;
 
 	for (auto& sprite : objects) {
-		SInstancer& instancer = sprite->getInstancer();
-		const size_t NumInstances = instancer.instances.size();
+		IInstancer& instancer = sprite->getInstancer();
+		const size_t NumInstances = instancer.getNumberOfInstances();
 
 		ZoneScoped;
 		ZoneName(sprite->mName.c_str(), sprite->mName.size());
@@ -87,7 +87,7 @@ void CSpritePass::render(VkCommandBuffer cmd) {
 
 void CSpritePass::update() {
 	for (auto& sprite : objects) {
-		SInstancer& instancer = sprite->getInstancer();
+		IInstancer& instancer = sprite->getInstancer();
 		instancer.setDirty();
 	}
 }

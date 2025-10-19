@@ -142,8 +142,8 @@ void CEditorSpritePass::render(VkCommandBuffer cmd) {
 
 			bindPipeline(cmd, textPipeline, constants);
 		} else {
-			SInstancer& instancer = sprite->getInstancer();
-			NumInstances = instancer.instances.size();
+			IInstancer& instancer = sprite->getInstancer();
+			NumInstances = instancer.getNumberOfInstances();
 
 			VkDeviceSize offset = 0u;
 			vkCmdBindVertexBuffers(cmd, 0, 1u, &instancer.get(sprite->getTransformMatrix())->buffer, &offset);

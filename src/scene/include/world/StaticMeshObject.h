@@ -52,34 +52,40 @@ class CInstancedStaticMeshObject : public CStaticMeshObject {
 
 public:
 
+	SInstancer instancer;
+
 	CInstancedStaticMeshObject() {
 		//m_Instances.clear();
 		CRenderableWorldObject::setDirty();
 	}
 
+	virtual IInstancer& getInstancer() override {
+		return instancer;
+	}
+
 	virtual uint32 addInstance(const Transform3f& inPosition) {
-		return getInstancer().push(SInstance{inPosition.toMatrix()});
+		return instancer.push(SInstance{inPosition.toMatrix()});
 	}
 
 	virtual void setInstance(const int32 inInstanceIndex, const Transform3f& inPosition) {
-		SInstance& instance = getInstancer().instances[inInstanceIndex];
+		SInstance& instance = instancer.instances[inInstanceIndex];
 		instance.Transform = inPosition.toMatrix();
-		getInstancer().setDirty();
+		instancer.setDirty();
 	}
 
 	virtual void removeInstance(const uint32 instance) {
-		getInstancer().remove(instance);
+		instancer.remove(instance);
 	}
 
 	virtual CArchive& save(CArchive& inArchive) override {
 		CStaticMeshObject::save(inArchive);
-		inArchive << getInstancer();
+		inArchive << instancer;
 		return inArchive;
 	}
 
 	virtual CArchive& load(CArchive& inArchive) override {
 		CStaticMeshObject::load(inArchive);
-		inArchive >> getInstancer();
+		inArchive >> instancer;
 		return inArchive;
 	}
 };

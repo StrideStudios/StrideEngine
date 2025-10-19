@@ -6,9 +6,9 @@
 #include "tracy/Tracy.hpp"
 
 void CStaticMeshObjectRenderer::render(CMeshPass* inPass, VkCommandBuffer cmd, CStaticMeshObject* inObject, uint32& outDrawCalls, uint64& outVertices) {
-	SInstancer& instancer = inObject->getInstancer();
+	IInstancer& instancer = inObject->getInstancer();
 	std::shared_ptr<SStaticMesh> mesh = inObject->getMesh();
-	const size_t NumInstances = instancer.instances.size();
+	const size_t NumInstances = instancer.getNumberOfInstances();
 
 	ZoneScoped;
 	ZoneName(inObject->mName.c_str(), inObject->mName.size());

@@ -363,13 +363,11 @@ struct SStaticBuffer {
 	}
 
 	template <typename... TArgs>
-	void push(const void* src, const size_t size = 0, TArgs... args) {
+	void push(const void* src, const size_t size, TArgs... args) {
 		size_t totalSize = getTotalSize(src, size, args...);
 		if (totalSize > getSize()) {
 			errs("Tried to allocate more than available in Static Buffer!");
 		}
-
-		size_t usableSize = size <= 0 ? getSize() : size;
 
 		if constexpr (TMemoryUsage == VMA_MEMORY_USAGE_GPU_ONLY) {
 
@@ -384,13 +382,13 @@ struct SStaticBuffer {
 				copy.srcOffset = 0;
 				copy.size = totalSize;
 
-				vkCmdCopyBuffer(cmd, staging->buffer, get()->buffer, 1, &copy);
+				vkCmdCopyBuffer(cmd, staging.get()->buffer, get()->buffer, 1, &copy);
 			});
 
 			staging.destroy();
 		} else {
-			memcpy(get()->getMappedData(), src, usableSize);
-			push(usableSize, args...);
+			memcpy(get()->getMappedData(), src, size);
+			push(size, args...);
 		}
 	}
 
@@ -400,10 +398,9 @@ private:
 	void push(const size_t offset = 0) {}
 
 	template <typename... TArgs>
-	void push(const size_t offset, const void* src, const size_t size = 0, TArgs... args) {
-		size_t usableSize = size <= 0 ? getSize() : size;
-		memcpy(static_cast<char*>(get()->getMappedData()) + offset, src, usableSize);
-		push(usableSize, args...);
+	void push(const size_t offset, const void* src, const size_t size, TArgs... args) {
+		memcpy(static_cast<char*>(get()->getMappedData()) + offset, src, size);
+		push(offset + size, args...);
 	}
 
 	template <typename... TArgs>
@@ -466,8 +463,6 @@ struct SStaticBuffer<TMemoryUsage, TBufferUsage, 0, 0> {
 			errs("Tried to allocate more than available in Static Buffer!");
 		}
 
-		size_t usableSize = size <= 0 ? getSize() : size;
-
 		if constexpr (TMemoryUsage == VMA_MEMORY_USAGE_GPU_ONLY) {
 
 			static_assert(TBufferUsage & VK_BUFFER_USAGE_TRANSFER_DST_BIT);
@@ -486,8 +481,8 @@ struct SStaticBuffer<TMemoryUsage, TBufferUsage, 0, 0> {
 
 			staging.destroy();
 		} else {
-			memcpy(get()->getMappedData(), src, usableSize);
-			push(usableSize, args...);
+			memcpy(get()->getMappedData(), src, size);
+			push(size, args...);
 		}
 	}
 
@@ -498,9 +493,8 @@ private:
 
 	template <typename... TArgs>
 	void push(const size_t offset, const void* src, const size_t size = 0, TArgs... args) {
-		size_t usableSize = size <= 0 ? getSize() : size;
-		memcpy(static_cast<char*>(get()->getMappedData()) + offset, src, usableSize);
-		push(usableSize, args...);
+		memcpy(static_cast<char*>(get()->getMappedData()) + offset, src, size);
+		push(offset + size, args...);
 	}
 
 	template <typename... TArgs>
@@ -576,8 +570,6 @@ struct SDynamicBuffer {
 			allocate(totalSize);
 		}
 
-		size_t usableSize = size <= 0 ? getSize() : size;
-
 		if constexpr (TMemoryUsage == VMA_MEMORY_USAGE_GPU_ONLY) {
 
 			static_assert(TBufferUsage & VK_BUFFER_USAGE_TRANSFER_DST_BIT);
@@ -596,8 +588,8 @@ struct SDynamicBuffer {
 
 			staging.destroy();
 		} else {
-			memcpy(get()->getMappedData(), src, usableSize);
-			push(usableSize, args...);
+			memcpy(get()->getMappedData(), src, size);
+			push(size, args...);
 		}
 	}
 
@@ -605,9 +597,8 @@ private:
 
 	template <typename... TArgs>
 	void push(const size_t offset, const void* src, const size_t size = 0, TArgs... args) {
-		size_t usableSize = size <= 0 ? getSize() : size;
-		memcpy(static_cast<char*>(get()->getMappedData()) + offset, src, usableSize);
-		push(usableSize, args...);
+		memcpy(static_cast<char*>(get()->getMappedData()) + offset, src, size);
+		push(offset + size, args...);
 	}
 
 	template <typename... TArgs>
