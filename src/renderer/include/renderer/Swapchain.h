@@ -3,7 +3,7 @@
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
-#include "VulkanResources.h"
+#include "rendercore/VulkanResources.h"
 
 // Forward declare vkb types
 namespace vkb {

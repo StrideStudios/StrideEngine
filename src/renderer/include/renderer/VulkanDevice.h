@@ -4,8 +4,8 @@
 #include <map>
 #include <vulkan/vulkan_core.h>
 
-#include "Renderer.h"
-#include "core/Class.h"
+#include "rendercore/Renderer.h"
+#include "basic/core/Class.h"
 
 enum class EQueueType : uint8 {
     GRAPHICS,

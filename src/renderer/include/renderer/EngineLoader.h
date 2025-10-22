@@ -5,8 +5,8 @@
 #include <string>
 #include <memory>
 
-#include "core/Paths.h"
-#include "StaticMesh.h"
+#include "basic/core/Paths.h"
+#include "rendercore/StaticMesh.h"
 
 struct SStaticMesh;
 class CMaterial;

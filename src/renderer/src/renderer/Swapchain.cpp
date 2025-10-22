@@ -1,8 +1,8 @@
 ﻿#include "renderer/Swapchain.h"
-#include "Viewport.h"
+#include "engine/Viewport.h"
 #include "renderer/VulkanDevice.h"
-#include "VulkanUtils.h"
-#include "Profiling.h"
+#include "rendercore/VulkanUtils.h"
+#include "basic/Profiling.h"
 #include "VkBootstrap.h"
 #include "tracy/Tracy.hpp"
 

@@ -5,8 +5,8 @@
 #include <memory>
 #include <mutex>
 
-#include "Renderer.h"
-#include "VulkanResources.h"
+#include "rendercore/Renderer.h"
+#include "rendercore/VulkanResources.h"
 
 // Forward declare vkb types
 namespace vkb {

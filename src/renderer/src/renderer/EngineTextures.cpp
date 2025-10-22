@@ -2,13 +2,13 @@
 
 #include <array>
 
-#include "BindlessResources.h"
-#include "Engine.h"
-#include "Material.h"
+#include "rendercore/BindlessResources.h"
+#include "engine/Engine.h"
+#include "rendercore/Material.h"
 #include "renderer/VulkanDevice.h"
 #include "renderer/VulkanRenderer.h"
 #include "renderer/Swapchain.h"
-#include "Viewport.h"
+#include "engine/Viewport.h"
 
 static CResourceManager gTexturesResourceManager;
 

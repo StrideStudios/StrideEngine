@@ -3,8 +3,8 @@
 #include <vulkan/vulkan_core.h>
 #include <type_traits>
 
-#include "core/Common.h"
-#include "core/Registry.h"
+#include "basic/core/Common.h"
+#include "basic/core/Registry.h"
 
 class CPass;
 class CSceneObject;

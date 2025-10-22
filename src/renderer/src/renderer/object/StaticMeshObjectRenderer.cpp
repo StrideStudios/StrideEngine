@@ -1,7 +1,7 @@
 #include "renderer/object/StaticMeshObjectRenderer.h"
 
-#include "Pass.h"
-#include "passes/MeshPass.h"
+#include "rendercore/Pass.h"
+#include "renderer/passes/MeshPass.h"
 #include "renderer/EngineLoader.h"
 #include "tracy/Tracy.hpp"
 

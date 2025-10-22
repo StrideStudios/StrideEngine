@@ -1,7 +1,7 @@
 ﻿#pragma once
 
-#include "Renderer.h"
-#include "core/Class.h"
+#include "rendercore/Renderer.h"
+#include "basic/core/Class.h"
 
 // Wrapper around vkb instance that can be destroyed
 class CVulkanInstance : public CInstance, public IDestroyable {

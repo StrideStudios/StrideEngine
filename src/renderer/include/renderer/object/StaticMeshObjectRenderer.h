@@ -1,8 +1,8 @@
 #pragma once
 
 #include "renderer/object/ObjectRenderer.h"
-#include "world/StaticMeshObject.h"
-#include "passes/MeshPass.h"
+#include "scene/world/StaticMeshObject.h"
+#include "renderer/passes/MeshPass.h"
 
 class CStaticMeshObjectRenderer : public CWorldObjectRenderer<CStaticMeshObject, CMeshPass> {
 

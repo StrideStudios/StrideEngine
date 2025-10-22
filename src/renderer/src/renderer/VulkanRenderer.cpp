@@ -6,21 +6,21 @@
 #include <tracy/Tracy.hpp>
 #include <tracy/TracyVulkan.hpp>
 
-#include "world/Camera.h"
+#include "scene/world/Camera.h"
 #include "renderer/VulkanDevice.h"
-#include "VulkanUtils.h"
+#include "rendercore/VulkanUtils.h"
 #include "vulkan/vk_enum_string_helper.h"
 #include "VkBootstrap.h"
 
-#include "EngineSettings.h"
+#include "engine/EngineSettings.h"
 #include "renderer/EngineLoader.h"
 #include "renderer/EngineTextures.h"
 #include "renderer/EngineUI.h"
-#include "passes/MeshPass.h"
-#include "base/Scene.h"
-#include "passes/SpritePass.h"
+#include "renderer/passes/MeshPass.h"
+#include "scene/base/Scene.h"
+#include "renderer/passes/SpritePass.h"
 #include "renderer/Swapchain.h"
-#include "Viewport.h"
+#include "engine/Viewport.h"
 #include "renderer/VulkanInstance.h"
 #include "renderer/object/ObjectRenderer.h"
 #include "SDL3/SDL_vulkan.h"

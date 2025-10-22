@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-#include "VulkanResources.h"
+#include "rendercore/VulkanResources.h"
 
 class CMaterial;
 class CVulkanSwapchain;

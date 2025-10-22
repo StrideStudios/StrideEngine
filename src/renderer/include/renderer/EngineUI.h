@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-#include "Pass.h"
+#include "rendercore/Pass.h"
 
 class CEngineUIPass final : public CPass {
 

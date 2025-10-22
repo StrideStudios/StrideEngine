@@ -16,10 +16,10 @@
 #include "transcoder/basisu_transcoder.h"
 #include "encoder/basisu_gpu_texture.h"
 
-#include "StaticMesh.h"
+#include "rendercore/StaticMesh.h"
 #include "renderer/VulkanRenderer.h"
-#include "VulkanUtils.h"
-#include "viewport/generic/Text.h"
+#include "rendercore/VulkanUtils.h"
+#include "scene/viewport/generic/Text.h"
 
 constexpr static bool gUseOpenCL = false;
 
