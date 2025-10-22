@@ -4,24 +4,9 @@
 
 class CObjectRenderer;
 
-#define MAKE_RENDERABLE \
-	public: \
-	\
-	virtual IInstancer& getInstancer() { \
-		return m_Instancer; \
-	} \
-	\
-	bool isDirty() const { \
-		return m_Instancer.isDirty(); \
-	} \
-	\
-	void setDirty() { \
-		m_Instancer.setDirty(); \
-	} \
-	\
-private: \
-	\
-	SSingleInstancer m_Instancer; //TODO: bad, shouldnt have an instancer in a non-instanced widget (renderer?)
+struct IRenderable {
+	virtual IInstancer& getInstancer() = 0;
+};
 
 struct IRenderableClass {
 	virtual bool hasRenderer() const = 0;
@@ -59,14 +44,33 @@ struct TClass<TCurrentClass, TParentClasses...> : TGenericClass<TCurrentClass, T
 
 };
 
-class CRenderableViewportObject : public CViewportObject {
+class CRenderableViewportObject : public CViewportObject, public IRenderable {
+
 	REGISTER_CLASS(CRenderableViewportObject, CViewportObject)
-	MAKE_RENDERABLE
+
+public:
+
+	virtual IInstancer& getInstancer() override {
+		return m_Instancer;
+	}
+
+private:
+
+	SSingleInstancer m_Instancer;
 };
 
-class CRenderableWorldObject : public CWorldObject {
+class CRenderableWorldObject : public CWorldObject, public IRenderable {
 	REGISTER_CLASS(CRenderableWorldObject, CWorldObject)
-	MAKE_RENDERABLE
+
+public:
+
+	virtual IInstancer& getInstancer() override {
+		return m_Instancer;
+	}
+
+private:
+
+	SSingleInstancer m_Instancer;
 };
 
 #undef MAKE_RENDERABLE

@@ -6,7 +6,7 @@ class CVulkanRenderer;
 
 class CMeshPass : public CPass {
 
-	REGISTER_PASS(CMeshPass)
+	REGISTER_PASS(CMeshPass, CPass)
 
 public:
 

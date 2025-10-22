@@ -19,7 +19,7 @@ struct SInstance {
 	}
 };
 
-struct IInstancer : SDirtyable {
+struct IInstancer : TDirtyable<true> {
 	virtual size_t getNumberOfInstances() = 0;
 	virtual SBuffer_T* get(const Matrix4f& parentMatrix = Matrix4f(1.f)) = 0;
 };
@@ -88,7 +88,7 @@ struct SStaticInstancer : IInstancer {
 
 	SStaticInstancer() {
 		m_Instances.fill(SInstance{});
-		SDirtyable::setDirty();
+		setDirty();
 	}
 
 	virtual size_t getNumberOfInstances() override {
@@ -144,7 +144,7 @@ template <>
 struct SStaticInstancer<1> : IInstancer {
 
 	SStaticInstancer() {
-		SDirtyable::setDirty();
+		setDirty();
 	}
 
 	virtual size_t getNumberOfInstances() override {

@@ -9,7 +9,7 @@ class CSprite;
 
 class CSpritePass : public CPass {
 
-	REGISTER_PASS(CSpritePass)
+	REGISTER_PASS(CSpritePass, CPass)
 
 public:
 

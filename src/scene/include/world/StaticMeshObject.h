@@ -54,10 +54,7 @@ public:
 
 	SInstancer instancer;
 
-	CInstancedStaticMeshObject() {
-		//m_Instances.clear();
-		CRenderableWorldObject::setDirty();
-	}
+	CInstancedStaticMeshObject() {}
 
 	virtual IInstancer& getInstancer() override {
 		return instancer;

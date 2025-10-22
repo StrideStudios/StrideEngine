@@ -12,17 +12,18 @@
  * For these to work properly, an empty constructor needs to be provided, and it needs to inherit from SObject
  */
 
-#define REGISTER_STRUCT(n, ...) \
+#define REGISTER_STRUCT(n, parent, ...) \
 	private: \
-		typedef TClass<n, __VA_ARGS__> Class; \
+		typedef TClass<n, parent, ##__VA_ARGS__> Class; \
 		inline static std::shared_ptr<Class> c = nullptr; \
 		STATIC_C_BLOCK( c = makeClass<Class>(#n); ) \
 	public: \
+		typedef parent Super; \
 		virtual std::shared_ptr<SClass> getClass() const override { return c; } \
 		static std::shared_ptr<Class> staticClass() { return c; } \
 
-#define REGISTER_CLASS(n, ...) \
-	REGISTER_STRUCT(n, __VA_ARGS__) \
+#define REGISTER_CLASS(n, parent, ...) \
+	REGISTER_STRUCT(n, parent, __VA_ARGS__) \
 	private:
 
 // Represents a object's class

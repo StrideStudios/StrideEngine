@@ -38,7 +38,7 @@ public:
 
 };
 
-class CSwapchain : public SObject, public SDirtyable {};
+class CSwapchain : public SObject, public TDirtyable<> {};
 
 class CRenderer : public SObject, public IInitializable, public IDestroyable {
 

@@ -2,7 +2,7 @@
 
 SInstancer::SInstancer(const uint32 initialSize) {
 	instances.resize(initialSize);
-	SDirtyable::setDirty();
+	setDirty();
 }
 
 void SInstancer::reallocate(const Matrix4f& parentMatrix) {

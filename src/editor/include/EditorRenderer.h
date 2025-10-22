@@ -5,7 +5,7 @@
 
 class CEditorSpritePass : public CSpritePass {
 
-	REGISTER_PASS(CEditorSpritePass)
+	REGISTER_PASS(CEditorSpritePass, CSpritePass)
 
 public:
 

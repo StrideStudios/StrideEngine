@@ -4,7 +4,7 @@
 
 class CEngineUIPass final : public CPass {
 
-	REGISTER_PASS(CEngineUIPass)
+	REGISTER_PASS(CEngineUIPass, CPass)
 
 public:
 
