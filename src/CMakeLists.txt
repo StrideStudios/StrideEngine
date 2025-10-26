@@ -72,13 +72,15 @@ function(add_dependencies TARGET_NAME)
         # Link with other target
         target_link_libraries(${TARGET_NAME} ${ACCESS_LEVEL} ${arg})
 
-        # Get other target's source directory and create an include directory for it
-        get_target_property(TARGET_DIR ${arg} CMAKE_CURRENT_SOURCE_DIR)
-        set(TARGET_INCLUDE_DIR "${TARGET_DIR}/include")
+        if (TARGET ${arg})
+            # Get other target's source directory and create an include directory for it
+            get_target_property(TARGET_DIR ${arg} CMAKE_CURRENT_SOURCE_DIR)
+            set(TARGET_INCLUDE_DIR "${TARGET_DIR}/include")
 
-        # if it finds an include directory, include it
-        if(EXISTS ${TARGET_INCLUDE_DIR})
-            target_include_directories(${TARGET_NAME} ${ACCESS_LEVEL} ${TARGET_INCLUDE_DIR})
+            # if it finds an include directory, include it
+            if(EXISTS ${TARGET_INCLUDE_DIR})
+                target_include_directories(${TARGET_NAME} ${ACCESS_LEVEL} ${TARGET_INCLUDE_DIR})
+            endif()
         endif()
     endforeach()
 endfunction()

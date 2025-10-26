@@ -1,35 +1,45 @@
-﻿#version 460
+﻿#include "material\scene_data.hlsl"
+#include "material\material_constants.hlsl"
 
-#include "material\scene_data.glsl"
-#include "material\material_constants.glsl"
+struct VSInput {
+    [[vk::location(0)]] float2 UV0 : TEXCOORD0;
+    [[vk::location(1)]] float2 UV1 : TEXCOORD1;
+    [[vk::location(2)]] float4x4 Transform : POSITION0;
+};
 
-layout (location = 0) in vec2 inUV0;
-layout (location = 1) in vec2 inUV1;
+struct VSOutput {
+    float4 Position : SV_POSITION;
+    [[vk::location(0)]] float2 UV0 : TEXCOORD0;
+};
 
-layout(location = 2) in mat4 inTransform;
+static const float2 spriteCoords[6] = {
+    float2(0,0),
+    float2(0,1),
+    float2(1,1),
+    float2(1,1),
+    float2(1,0),
+    float2(0,0)
+};
 
-layout (location = 0) out vec2 outUV;
+VSOutput main(VSInput input, uint VertexIndex : SV_VertexID) {
+    VSOutput output = (VSOutput)0;
 
-void main() {
-    uint vertexID = 1 << (gl_VertexIndex % 6);
-    vec2 texCoord = vec2((0x1Cu & vertexID) != 0, (0xEu & vertexID) != 0);
+    float2 texCoord = spriteCoords[VertexIndex % 6u];
 
     // Construct an orthogonal projection matrix
-    mat4 viewProj = mat4(
-        2 / sceneData.screenSize.x, 0, 0, 0,
-        0, 2 / sceneData.screenSize.y, 0, 0,
-        0, 0, -2, 0,
-        -1, -1, 0, 1
+    float4x4 viewProj = float4x4(
+        2.0 / sceneData.screenSize.x, 0.0, 0.0, 0.0,
+        0.0, 2.0 / sceneData.screenSize.y, 0.0, 0.0,
+        0.0, 0.0, -2.0, 0.0,
+        -1.0, -1.0, 0.0, 1.0
     );
 
-    /*uint u1 = uint(PushConstants[0].x);
-    uint u2 = uint(PushConstants[0].y);
+    // TODO: unfortunately, input.Transform is column major because of glm
+    // Its also possible that texCoord isn't multiplied properly in standard format
+    output.Position = mul(mul(float4(texCoord, 0.0, 1.0), input.Transform), viewProj);
+    // was: gl_Position = viewProj * inTransform * vec4(texCoord, 0.f, 1.f);
 
-    uint64_t unsignedKey = (uint64_t(u1) << 32) | uint64_t(u2);
-    SpriteBuffer buf = SpriteBuffer(unsignedKey);
+    output.UV0 = (1.f - texCoord) * input.UV0 + texCoord * input.UV1;
 
-    Sprite sprite = buf.sprites[gl_InstanceIndex];*/ //TODO: buffer address can be made from uint64
-
-    gl_Position = viewProj * inTransform * vec4(texCoord, 0.f, 1.f);
-    outUV = (1.f - texCoord) * inUV0 + texCoord * inUV1;
+    return output;
 }

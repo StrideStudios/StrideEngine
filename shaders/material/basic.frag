@@ -1,9 +1,13 @@
-﻿#version 460
+﻿struct PSInput {
+    [[vk::location(0)]] float4 Color : COLOR0;
+};
 
-layout (location = 0) in vec4 vertexColor;
+struct PSOutput {
+    float4 Color : SV_TARGET0;
+};
 
-layout (location = 0) out vec4 outColor;
-
-void main() {
-    outColor = vertexColor;
+PSOutput main(PSInput input) {
+    PSOutput output = (PSOutput)0;
+    output.Color = input.Color;
+    return output;
 }

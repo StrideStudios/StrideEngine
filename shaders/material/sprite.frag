@@ -1,19 +1,23 @@
-﻿#version 460
+﻿#include "material\material_constants.hlsl"
+#include "material\texturing.hlsl"
 
-#extension GL_EXT_nonuniform_qualifier : enable
+struct PSInput {
+    [[vk::location(0)]] float2 UV0 : TEXCOORD0;
+};
 
-#include "material\material_constants.glsl"
-#include "material\texturing.glsl"
+struct PSOutput {
+    float4 Color : SV_TARGET0;
+};
 
-layout (location = 0) in vec2 uv0;
+PSOutput main(PSInput input) {
+    PSOutput output = (PSOutput)0;
 
-layout (location = 0) out vec4 outColor;
-
-void main() {
-    vec4 color = sampleTexture2DNearest(uint(PushConstants[0].x), uv0);
+    float4 color = sampleTexture2DNearest(uint(PushConstants[0].x), input.UV0);
 
     // Masked Alpha
     if (color.a < 0.1) discard;
 
-    outColor = color;
+    output.Color = color;
+
+    return output;
 }

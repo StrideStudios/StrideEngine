@@ -1,22 +1,26 @@
-﻿#version 460
+﻿#include "material\scene_data.hlsl"
+#include "material\material_constants.hlsl"
+#include "material\texturing.hlsl"
 
-#extension GL_EXT_nonuniform_qualifier : enable
+struct PSInput {
+    [[vk::location(0)]] float3 VertexNormal : NORMAL0;
+    [[vk::location(1)]] float4 VertexColor : COLOR0;
+    [[vk::location(2)]] float2 UV0 : TEXCOORD0;
+};
 
-#include "material\scene_data.glsl"
-#include "material\material_constants.glsl"
-#include "material\texturing.glsl"
+struct PSOutput {
+    float4 Color : SV_TARGET0;
+};
 
-layout (location = 0) in vec3 vertexNormal;
-layout (location = 1) in vec4 vertexColor;
-layout (location = 2) in vec2 uv0;
+PSOutput main(PSInput input) {
+    PSOutput output = (PSOutput)0;
 
-layout (location = 0) out vec4 outColor;
+    float lightValue = max(dot(input.VertexNormal, sceneData.sunlightDirection.xyz), 0.1f);
 
-void main() {
-    float lightValue = max(dot(vertexNormal, sceneData.sunlightDirection.xyz), 0.1f);
+    float3 color = input.VertexColor.xyz * sampleTexture2DLinear(uint(PushConstants[0].x),input.UV0).xyz;
+    float3 ambient = color *  sceneData.ambientColor.xyz;
 
-    vec3 color = vertexColor.xyz * sampleTexture2DLinear(uint(PushConstants[0].x),uv0).xyz;
-    vec3 ambient = color *  sceneData.ambientColor.xyz;
+    output.Color = float4(color * lightValue * sceneData.sunlightColor.w + ambient, 1.f);
 
-    outColor = vec4(color * lightValue *  sceneData.sunlightColor.w + ambient, 1.f);
+    return output;
 }

@@ -46,7 +46,7 @@ void CStaticMeshObjectRenderer::render(CMeshPass* inPass, VkCommandBuffer cmd, C
 
 	//TODO: If Render Bounds
 
-	/*if (CEngineLoader::getMeshes().contains("CubeBounds") && CEngineLoader::getMeshes().contains("SphereBounds")) {
+	if (CEngineLoader::getMeshes().contains("CubeBounds") && CEngineLoader::getMeshes().contains("SphereBounds")) {
 		const std::shared_ptr<SStaticMesh> cubeBoundsMesh = CEngineLoader::getMeshes()["CubeBounds"];
 		const std::shared_ptr<SStaticMesh> sphereBoundsMesh = CEngineLoader::getMeshes()["SphereBounds"];
 
@@ -78,16 +78,16 @@ void CStaticMeshObjectRenderer::render(CMeshPass* inPass, VkCommandBuffer cmd, C
 		// Render Bounds cube
 		{
 			// Bind Wireframe mesh data
-			if (m_LastIndexBuffer != cubeBoundsMesh->meshBuffers.indexBuffer->buffer) {
-				m_LastIndexBuffer = cubeBoundsMesh->meshBuffers.indexBuffer->buffer;
-				vkCmdBindIndexBuffer(cmd, cubeBoundsMesh->meshBuffers.indexBuffer->buffer, 0, VK_INDEX_TYPE_UINT32);
+			if (m_LastIndexBuffer != cubeBoundsMesh->meshBuffers->indexBuffer->buffer) {
+				m_LastIndexBuffer = cubeBoundsMesh->meshBuffers->indexBuffer->buffer;
+				vkCmdBindIndexBuffer(cmd, cubeBoundsMesh->meshBuffers->indexBuffer->buffer, 0, VK_INDEX_TYPE_UINT32);
 				const auto offset = {
 					VkDeviceSize { 0 },
 					VkDeviceSize { 0 }
 				};
 
 				const auto buffers = {
-					cubeBoundsMesh->meshBuffers.vertexBuffer->buffer,
+					cubeBoundsMesh->meshBuffers->vertexBuffer->buffer,
 					instancer.get(inObject->getTransformMatrix())->buffer
 				};
 				vkCmdBindVertexBuffers(cmd, 0, static_cast<uint32>(buffers.size()), buffers.begin(), offset.begin());
@@ -95,7 +95,7 @@ void CStaticMeshObjectRenderer::render(CMeshPass* inPass, VkCommandBuffer cmd, C
 
 			for (const auto& surface : cubeBoundsMesh->surfaces) {
 
-				inPass->bindPipeline(cmd, wireframePipeline, boxPcs);
+				inPass->bindPipeline(cmd, inPass->wireframePipeline, boxPcs);
 
 				vkCmdDrawIndexed(cmd, surface.count, (uint32)NumInstances, surface.startIndex, 0, 0);
 			}
@@ -104,16 +104,16 @@ void CStaticMeshObjectRenderer::render(CMeshPass* inPass, VkCommandBuffer cmd, C
 		// Render Bounds sphere
 		{
 			// Bind Wireframe mesh data
-			if (m_LastIndexBuffer != sphereBoundsMesh->meshBuffers.indexBuffer->buffer) {
-				m_LastIndexBuffer = sphereBoundsMesh->meshBuffers.indexBuffer->buffer;
-				vkCmdBindIndexBuffer(cmd, sphereBoundsMesh->meshBuffers.indexBuffer->buffer, 0, VK_INDEX_TYPE_UINT32);
+			if (m_LastIndexBuffer != sphereBoundsMesh->meshBuffers->indexBuffer->buffer) {
+				m_LastIndexBuffer = sphereBoundsMesh->meshBuffers->indexBuffer->buffer;
+				vkCmdBindIndexBuffer(cmd, sphereBoundsMesh->meshBuffers->indexBuffer->buffer, 0, VK_INDEX_TYPE_UINT32);
 				const auto offset = {
 					VkDeviceSize { 0 },
 					VkDeviceSize { 0 }
 				};
 
 				const auto buffers = {
-					sphereBoundsMesh->meshBuffers.vertexBuffer->buffer,
+					sphereBoundsMesh->meshBuffers->vertexBuffer->buffer,
 					instancer.get(inObject->getTransformMatrix())->buffer
 				};
 				vkCmdBindVertexBuffers(cmd, 0, static_cast<uint32>(buffers.size()), buffers.begin(), offset.begin());
@@ -121,10 +121,10 @@ void CStaticMeshObjectRenderer::render(CMeshPass* inPass, VkCommandBuffer cmd, C
 
 			for (const auto& surface : sphereBoundsMesh->surfaces) {
 
-				inPass->bindPipeline(cmd, wireframePipeline, spherePcs);
+				inPass->bindPipeline(cmd, inPass->wireframePipeline, spherePcs);
 
 				vkCmdDrawIndexed(cmd, surface.count, (uint32)NumInstances, surface.startIndex, 0, 0);
 			}
 		}
-	}*/
+	}
 }

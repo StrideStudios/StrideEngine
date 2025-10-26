@@ -1,6 +1,6 @@
 ﻿#include "rendercore/VulkanResources.h"
-
 #include "rendercore/BindlessResources.h"
+#include "basic/core/Paths.h"
 
 #define VMA_IMPLEMENTATION
 #include <vma/vk_mem_alloc.h>
@@ -8,75 +8,97 @@
 #include "glslang/Include/glslang_c_interface.h"
 #include "glslang/Public/resource_limits_c.h"
 
-uint32 SShader::compile() {
+#include <combaseapi.h>
+#include <filesystem>
 
-	glslang_stage_t stage;
+#include "dxc/dxcapi.h"
+#include <wrl.h>
+
+using namespace Microsoft::WRL;
+
+#define DXC_CHECK(n) \
+	if (FAILED(n)) { \
+		errs("Error compiling shader at {}", #n); \
+	}
+
+uint32 SShader::compile() {
+	// Initialize DXC utils
+	ComPtr<IDxcUtils> pUtils;
+	DXC_CHECK(DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(pUtils.GetAddressOf())));
+
+	// Initialize DXC compiler
+	ComPtr<IDxcCompiler3> pCompiler;
+	DXC_CHECK(DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(pCompiler.GetAddressOf())));
+
+	// Load the HLSL text shader from disk
+	ComPtr<IDxcBlobEncoding> pSourceBlob;
+	DXC_CHECK(pUtils->CreateBlob(mShaderCode.data(), mShaderCode.size(), CP_UTF8, pSourceBlob.GetAddressOf()));
+
+	// Select correct compile target type
+	LPCWSTR targetProfile;
 	switch (mStage) {
 		case EShaderStage::VERTEX:
-			stage = GLSLANG_STAGE_VERTEX;
+			targetProfile = L"vs_6_6";
 			break;
 		case EShaderStage::FRAGMENT:
-			stage = GLSLANG_STAGE_FRAGMENT;
+			targetProfile = L"ps_6_6";
 			break;
 		case EShaderStage::COMPUTE:
-			stage = GLSLANG_STAGE_COMPUTE;
+			targetProfile = L"cs_6_6";
 			break;
 		default:
-			return 0;
+			errs("Could not find shader type for shader {}", mFileName);
 	}
 
-	const glslang_input_t input = {
-		.language = GLSLANG_SOURCE_GLSL,
-		.stage = stage,
-		.client = GLSLANG_CLIENT_VULKAN,
-		.client_version = GLSLANG_TARGET_VULKAN_1_3,
-		.target_language = GLSLANG_TARGET_SPV,
-		.target_language_version = GLSLANG_TARGET_SPV_1_6,
-		.code = mShaderCode.c_str(),
-		.default_version = 460,
-		.default_profile = GLSLANG_NO_PROFILE,
-		.force_default_version_and_profile = false,
-		.forward_compatible = false,
-		.messages = GLSLANG_MSG_DEFAULT_BIT,
-		.resource = glslang_default_resource(),
+	/*std::wstring ws;
+	ws.resize(inShader.mFileName.size(), L'#');
+
+	size_t outsize;
+	mbstowcs_s(&outsize, &ws[0], inShader.mFileName.size(), inShader.mFileName.c_str(), inShader.mFileName.size());
+*/
+	// Tell it to start at main function, with a target type defined above, to SPIRV
+	std::vector<LPCWSTR> arguments{
+		L"Temp Filename", //ws.c_str(),
+		L"-E", L"main",
+		L"-T", targetProfile,
+		L"-spirv"
 	};
 
-	glslang_initialize_process();
+	// Compile shader
+	DxcBuffer buffer{
+		.Ptr = pSourceBlob->GetBufferPointer(),
+		.Size = pSourceBlob->GetBufferSize(),
+		.Encoding = DXC_CP_ACP
+	};
 
-	glslang_shader_t* shader = glslang_shader_create(&input);
+	ComPtr<IDxcResult> result{ nullptr };
+	HRESULT hres = pCompiler->Compile(
+		&buffer,
+		arguments.data(),
+		static_cast<uint32_t>(arguments.size()),
+		nullptr,
+		IID_PPV_ARGS(result.GetAddressOf()));
 
-	if (!glslang_shader_preprocess(shader, &input)) {
-		errs("Error Processing Shader. Log: {}. Debug Log: {}.",
-			glslang_shader_get_info_log(shader),
-			glslang_shader_get_info_debug_log(shader));
+	if (SUCCEEDED(hres)) {
+		result->GetStatus(&hres);
 	}
 
-	if (!glslang_shader_parse(shader, &input)) {
-		errs("Error Parsing Shader. Log: {}. Debug Log: {}.",
-			glslang_shader_get_info_log(shader),
-			glslang_shader_get_info_debug_log(shader));
+	// Output error if compilation failed
+	if (FAILED(hres) && (result)) {
+		ComPtr<IDxcBlobEncoding> errorBlob;
+		hres = result->GetErrorBuffer(errorBlob.GetAddressOf());
+		if (SUCCEEDED(hres) && errorBlob) {
+			errs("Shader Compilation Failed! Reason:\n\n {}", static_cast<const char*>(errorBlob->GetBufferPointer()));
+		}
+		errs("Shader Compilation Failed for Unknown Reason!");
 	}
 
-	glslang_program_t* program = glslang_program_create();
-	glslang_program_add_shader(program, shader);
+	// Get compiled code and set mCompiledShader to the result
+	ComPtr<IDxcBlob> code;
+	DXC_CHECK(result->GetResult(code.GetAddressOf()));
 
-	if (!glslang_program_link(program, GLSLANG_MSG_SPV_RULES_BIT | GLSLANG_MSG_VULKAN_RULES_BIT)) {
-		errs("Error Linking Shader. Log: {}. Debug Log: {}.",
-			glslang_shader_get_info_log(shader),
-			glslang_shader_get_info_debug_log(shader));
-	}
-
-	glslang_program_SPIRV_generate(program, input.stage);
-
-	mCompiledShader.resize(glslang_program_SPIRV_get_size(program));
-	glslang_program_SPIRV_get(program, mCompiledShader.data());
-
-	if (glslang_program_SPIRV_get_messages(program)) {
-		msgs("{}", glslang_program_SPIRV_get_messages(program));
-	}
-
-	glslang_program_delete(program);
-	glslang_shader_delete(shader);
+	mCompiledShader.resize(code->GetBufferSize() / sizeof(uint32));
+	memcpy(mCompiledShader.data(), code->GetBufferPointer(), code->GetBufferSize());
 
 	return mCompiledShader.size();
 }
@@ -549,7 +571,7 @@ SImage_T::SImage_T(const std::string& inDebugName, const VkExtent3D inExtent, co
 }
 
 void generateMipmaps(SCommandBuffer cmd, SImage_T* image) {
-	int mipLevels = int(std::floor(std::log2(std::max(image->getExtent().width, image->getExtent().height)))) + 1;
+	int mipLevels = int(std::floor(std::log2(max(image->getExtent().width, image->getExtent().height)))) + 1;
 	VkExtent2D extent = {image->getExtent().width, image->getExtent().height};
 	for (int mip = 0; mip < mipLevels; mip++) {
 

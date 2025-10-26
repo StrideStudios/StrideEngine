@@ -1,41 +1,46 @@
-﻿#version 460
+﻿#include "material\scene_data.hlsl"
+#include "material\material_constants.hlsl"
 
-#include "material\scene_data.glsl"
-#include "material\material_constants.glsl"
+struct VSInput {
+    [[vk::location(0)]] float3 Position : POSITION0;
+    [[vk::location(1)]] uint UV0 : TEXCOORD0;
+    [[vk::location(2)]] float3 Normal : NORMAL0;
+    [[vk::location(3)]] uint Color : COLOR0;
+    [[vk::location(4)]] float4x4 Transform : POSITION1;
+};
 
-layout(location = 0) in vec3 inPos;
-layout(location = 1) in uint inUV;
-layout(location = 2) in vec3 inNormal;
-layout(location = 3) in uint inColor;
-
-layout(location = 4) in mat4 inTransform;
-
-layout (location = 0) out vec3 outNormal;
-layout (location = 1) out vec4 outColor;
-layout (location = 2) out vec2 outUV;
+struct VSOutput {
+    float4 Position : SV_POSITION;
+    [[vk::location(0)]] float3 Normal : NORMAL0;
+    [[vk::location(1)]] float4 Color : COLOR0;
+    [[vk::location(2)]] float2 UV0 : TEXCOORD0;
+};
 
 // Seems complicated and slow, but bit operations are very quick
 float convertUintHalvesToFloat(uint inValue) {
     const uint e = (inValue & 0x7C00u) >> 10u;
     const uint m = (inValue & 0x03FFu) << 13u;
-    const uint v = floatBitsToUint(float(m)) >> 23u;
-    return uintBitsToFloat((inValue & 0x8000u) << 16u | (e != 0u ? 1 : 0) * ((e + 112u) << 23u | m) | ((e == 0u ? 1 : 0) & (m != 0u ? 1 : 0)) * ((v - 37u) << 23u|((m << (150u - v)) & 0x007FE000u)));
+    const uint v = asuint(float(m)) >> 23u;
+    return asfloat((inValue & 0x8000u) << 16u | (e != 0u ? 1 : 0) * ((e + 112u) << 23u | m) | ((e == 0u ? 1 : 0) & (m != 0u ? 1 : 0)) * ((v - 37u) << 23u|((m << (150u - v)) & 0x007FE000u)));
 }
 
-void main() {
-    vec4 position = vec4(inPos, 1.f);
-    outNormal = inNormal;
+VSOutput main(VSInput input, uint VertexIndex : SV_VertexID) {
+    VSOutput output = (VSOutput)0;
 
-    gl_Position = sceneData.viewproj * inTransform * position;
+    output.Normal = input.Normal;
 
-    outColor = vec4(
-        float(inColor & 0xffu) / 255.f,
-        float((inColor & 0xff00u) >> 8) / 255.f,
-        float((inColor & 0xff0000u) >> 16) / 255.f,
-        float(inColor >> 24) / 255.f
+    output.Position = mul(sceneData.viewproj, mul(input.Transform, float4(input.Position.xyz, 1.0)));
+
+    output.Color = float4(
+        float(input.Color & 0xffu) / 255.f,
+        float((input.Color & 0xff00u) >> 8) / 255.f,
+        float((input.Color & 0xff0000u) >> 16) / 255.f,
+        float(input.Color >> 24) / 255.f
     );
 
     // UVs are halves, packed into a single int
-    outUV.x = convertUintHalvesToFloat(inUV & 0xffffu);
-    outUV.y = convertUintHalvesToFloat(inUV >> 16u);
+    output.UV0.x = convertUintHalvesToFloat(input.UV0 & 0xffffu);
+    output.UV0.y = convertUintHalvesToFloat(input.UV0 >> 16u);
+
+    return output;
 }

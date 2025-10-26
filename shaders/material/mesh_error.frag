@@ -1,19 +1,23 @@
-﻿#version 460
+﻿#include "material\scene_data.hlsl"
+#include "material\material_constants.hlsl"
+#include "material\texturing.hlsl"
 
-#extension GL_EXT_nonuniform_qualifier : enable
+struct PSInput {
+    [[vk::location(0)]] float3 Normal : NORMAL0;
+    [[vk::location(1)]] float4 Color : COLOR0;
+    [[vk::location(2)]] float2 UV0 : TEXCOORD0;
+};
 
-#include "material\scene_data.glsl"
-#include "material\material_constants.glsl"
-#include "material\texturing.glsl"
+struct PSOutput {
+    float4 Color : SV_TARGET0;
+};
 
-layout (location = 0) in vec3 vertexNormal;
-layout (location = 1) in vec4 vertexColor;
-layout (location = 2) in vec2 uv0;
+PSOutput main(PSInput input) {
+    PSOutput output = (PSOutput)0;
 
-layout (location = 0) out vec4 outColor;
+    float3 color = sampleTexture2DNearest(0,input.UV0).xyz;
 
-void main() {
-    vec3 color = sampleTexture2DNearest(0,uv0).xyz;
+    output.Color = float4(color, 1.f);
 
-    outColor = vec4(color, 1.f);
+    return output;
 }

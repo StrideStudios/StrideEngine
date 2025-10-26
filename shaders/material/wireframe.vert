@@ -1,28 +1,29 @@
-﻿#version 460
+﻿#include "material\scene_data.hlsl"
+#include "material\material_constants.hlsl"
 
-#include "material\scene_data.glsl"
-#include "material\material_constants.glsl"
+struct VSInput {
+    [[vk::location(0)]] float3 Position : POSITION0;
+    [[vk::location(4)]] float4x4 InTransform : POSITION1;
+};
 
-layout(location = 0) in vec3 inPos;
-layout(location = 1) in uint inUV;
-layout(location = 2) in vec3 inNormal;
-layout(location = 3) in uint inColor;
+struct VSOutput {
+    float4 Position : SV_POSITION;
+    [[vk::location(0)]] float4 Color : COLOR0;
+};
 
-layout(location = 4) in mat4 inTransform;
+VSOutput main(VSInput input, uint VertexIndex : SV_VertexID) {
+    VSOutput output = (VSOutput)0;
 
-layout (location = 0) out vec4 outColor;
-
-void main() {
-    vec4 position = vec4(inPos, 1.f);
-
-    mat4 constructedMatrix = mat4(
+    float4x4 constructedMatrix = float4x4(
         PushConstants[0],
         PushConstants[1],
         PushConstants[2],
         PushConstants[3]
     );
 
-    gl_Position = sceneData.viewproj * inTransform * constructedMatrix * position;
+    // TODO: unfortunately, constructedMatrix is column major because of glm
+    output.Position = mul(sceneData.viewproj, mul(mul(input.InTransform, float4(input.Position.xyz, 1.0)), constructedMatrix));
+    // was: gl_Position = sceneData.viewproj * inTransform * constructedMatrix * position;
 
     /*outColor = vec4(
     float(inColor & 0xffu) / 255.f,
@@ -31,5 +32,7 @@ void main() {
     float(inColor >> 24) / 255.f
     );*/
 
-    outColor = PushConstants[4];
+    output.Color = PushConstants[4];
+
+    return output;
 }

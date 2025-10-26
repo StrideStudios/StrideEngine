@@ -174,6 +174,7 @@ struct SShader : SBase, IDestroyable {
 
 	virtual void destroy() override { vkDestroyShaderModule(CRenderer::vkDevice(), mModule, nullptr); }
 
+	std::string mFileName = "";
 	VkShaderModule mModule = nullptr;
 	EShaderStage mStage = EShaderStage::VERTEX;
 	std::string mShaderCode = "";

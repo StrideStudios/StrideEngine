@@ -172,7 +172,7 @@ void CEditorRenderer::init() {
 	addPasses(
 		&CMeshPass::get(),
 		&CSpritePass::get(),
-		//&CEditorSpritePass::get(),
+		&CEditorSpritePass::get(),
 		&CEngineUIPass::get()
 	);
 
