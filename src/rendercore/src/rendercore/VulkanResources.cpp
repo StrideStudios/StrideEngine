@@ -5,9 +5,6 @@
 #define VMA_IMPLEMENTATION
 #include <vma/vk_mem_alloc.h>
 
-#include "glslang/Include/glslang_c_interface.h"
-#include "glslang/Public/resource_limits_c.h"
-
 #include <combaseapi.h>
 #include <filesystem>
 
