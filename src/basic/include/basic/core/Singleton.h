@@ -23,13 +23,13 @@
 #define MAKE_LAZY_SINGLETON(n) \
 	public: \
 		static n& get() { \
-			return (*cb)(); \
+			return (*singletonCallback)(); \
 		} \
 	private: \
 	typedef n& FSingletonCallback(); \
-	inline static FSingletonCallback* cb = nullptr; \
+	inline static FSingletonCallback* singletonCallback = nullptr; \
 	STATIC_C_BLOCK( \
-		n::cb = [] -> n& { \
+		singletonCallback = [] -> n& { \
 			if (!doesSingletonExist(#n)) { \
 				n* object = new n(); \
 				CResourceManager::get().push(object); \
@@ -38,8 +38,8 @@
 					object->init(); \
 				} \
 			} \
-			n::cb = [] -> n& {return *static_cast<n*>(getSingleton(#n));}; \
-			return *static_cast<n*>(getSingleton(#n)); \
+			singletonCallback = [] -> n& {return *static_cast<n*>(getSingleton(#n));}; \
+			return (*singletonCallback)(); \
 		}; \
 	)
 
