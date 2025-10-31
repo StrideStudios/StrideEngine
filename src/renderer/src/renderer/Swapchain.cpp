@@ -51,6 +51,9 @@ void SSwapchain::destroy() {
 }
 
 CVulkanSwapchain::CVulkanSwapchain() {
+
+	m_Frames.resize(CRenderer::get()->getBufferingType().getFrameOverlap());
+
 	// Create one fence to control when the gpu has finished rendering the frame,
 	// And 2 semaphores to synchronize rendering with swapchain
 	VkFenceCreateInfo fenceCreateInfo = CVulkanInfo::createFenceInfo(VK_FENCE_CREATE_SIGNALED_BIT);

@@ -21,6 +21,7 @@
 #include "renderer/passes/SpritePass.h"
 #include "renderer/Swapchain.h"
 #include "engine/Viewport.h"
+#include "rendercore/BufferedResourceManager.h"
 #include "renderer/VulkanInstance.h"
 #include "renderer/object/ObjectRenderer.h"
 #include "SDL3/SDL_vulkan.h"
@@ -97,14 +98,14 @@ void CVulkanRenderer::init() {
 		const VkCommandPoolCreateInfo commandPoolInfo = CVulkanInfo::createCommandPoolInfo(
 			CVulkanDevice::getQueue(EQueueType::GRAPHICS).mFamily, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
-		for (auto &frame: mFrames) {
+		mBuffering.forEach([commandPoolInfo](FrameData& frame) {
 			CResourceManager::get().create(frame.mCommandPool, commandPoolInfo);
 
 			// Allocate the default command buffer that we will use for rendering
 			frame.mMainCommandBuffer = SCommandBuffer(frame.mCommandPool);
 
 			frame.mTracyContext = TracyVkContext(vkPhysicalDevice(), vkDevice(), CVulkanDevice::getQueue(EQueueType::GRAPHICS).mQueue, frame.mMainCommandBuffer);
-		}
+		});
 	}
 
 	CResourceManager::get().create(mEngineTextures);
@@ -119,11 +120,9 @@ void CVulkanRenderer::init() {
 
 void CVulkanRenderer::destroy() {
 
-	for (auto& frame : mFrames) {
+	mBuffering.forEach([](const FrameData& frame) {
 		TracyVkDestroy(frame.mTracyContext);
-
-		frame.mFrameResourceManager.flush();
-	}
+	});
 
 	vkb::destroy_surface(vkInstance(), mVkSurface);//TODO: in instance?
 
@@ -165,7 +164,7 @@ void CVulkanRenderer::render() {
 	swapchainDirtyCheck();
 
 	// Get command buffer from current frame
-	SCommandBuffer cmd = getCurrentFrame().mMainCommandBuffer;
+	SCommandBuffer cmd = mBuffering.getCurrentFrame().mMainCommandBuffer;
 
 	SSwapchainImage* swapchainImage;
 
@@ -173,17 +172,17 @@ void CVulkanRenderer::render() {
 		ZoneScopedN("Begin Frame");
 
 		// Wait for the previous render to stop
-		if (!mEngineTextures->getSwapchain()->wait(getFrameIndex())) {
+		if (!mEngineTextures->getSwapchain()->wait(mBuffering.getFrameIndex())) {
 			return;
 		}
 
 		cmd.begin();
 
 		// Get the current swapchain image
-		swapchainImage = mEngineTextures->getSwapchain()->getSwapchainImage(getFrameIndex());
+		swapchainImage = mEngineTextures->getSwapchain()->getSwapchainImage(mBuffering.getFrameIndex());
 
 		// Reset the current fences, done here so the swapchain acquire doesn't stall the engine
-		mEngineTextures->getSwapchain()->reset(getFrameIndex());
+		mEngineTextures->getSwapchain()->reset(mBuffering.getFrameIndex());
 
 		// Clear the draw image
 		CVulkanUtils::transitionImage(cmd, mEngineTextures->mDrawImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
@@ -195,8 +194,8 @@ void CVulkanRenderer::render() {
 		// Make the swapchain image into writeable mode before rendering
 		CVulkanUtils::transitionImage(cmd, mEngineTextures->mDrawImage, VK_IMAGE_LAYOUT_GENERAL);
 
-		// Flush temporary frame data before it is used
-		getCurrentFrame().mFrameResourceManager.flush();
+		// Flush previous frame data
+		CBufferedResourceManager::get().getCurrentResourceManager().flush();
 	}
 
 	{
@@ -310,10 +309,10 @@ void CVulkanRenderer::render() {
 		//finalize the command buffer (we can no longer add commands, but it can now be executed)
 		cmd.end();
 
-		mEngineTextures->getSwapchain()->submit(cmd, CVulkanDevice::getQueue(EQueueType::GRAPHICS).mQueue, getFrameIndex(), swapchainImage->mBindlessAddress);
+		mEngineTextures->getSwapchain()->submit(cmd, CVulkanDevice::getQueue(EQueueType::GRAPHICS).mQueue, mBuffering.getFrameIndex(), swapchainImage->mBindlessAddress);
 
 		//increase the number of frames drawn
-		mFrameNumber++;
+		getBufferingType().incrementFrame();
 
 		// Tell tracy we just rendered a frame
 		FrameMark;
@@ -324,7 +323,7 @@ bool CVulkanRenderer::wait() {
 	// Make sure the gpu is not working
 	vkDeviceWaitIdle(vkDevice());
 
-	return mEngineTextures->getSwapchain()->wait(getFrameIndex());
+	return mEngineTextures->getSwapchain()->wait(mBuffering.getFrameIndex());
 }
 
 void CNullRenderer::render(VkCommandBuffer cmd) {

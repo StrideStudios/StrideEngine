@@ -74,7 +74,7 @@ public:
 
 private:
 
-	FrameData m_Frames[gFrameOverlap];
+	std::vector<FrameData> m_Frames;
 
 	bool m_VSync = true;
 };

@@ -53,12 +53,6 @@ public:
 		CCommandPool* mCommandPool = nullptr;
 		SCommandBuffer mMainCommandBuffer{};
 
-		/*
-		 * A resource allocator that is persistent for a single frame
-		 * Good for data that only needs to exist for a single frame
-		 */
-		CResourceManager mFrameResourceManager;
-
 		tracy::VkCtx* mTracyContext;
 	};
 
@@ -70,13 +64,7 @@ public:
 
 	EXPORT virtual void destroy() override;
 
-	force_inline uint32 getFrameNumber() const { return mFrameNumber; }
-
-	force_inline uint32 getFrameIndex() const { return mFrameNumber % gFrameOverlap; }
-
-	force_inline FrameData& getCurrentFrame() { return mFrames[getFrameIndex()]; }
-
-	force_inline const FrameData& getCurrentFrame() const { return mFrames[getFrameIndex()]; }
+	virtual IBuffering& getBufferingType() override { return mBuffering; }
 
 	EXPORT virtual CInstance* getInstance() override;
 
@@ -108,9 +96,7 @@ public:
 
 	bool mVSync;
 
-	uint64 mFrameNumber = 0;
-
-	FrameData mFrames[gFrameOverlap]{};
+	CDoubleBuffering<FrameData> mBuffering;
 
 	SUploadContext mUploadContext;
 

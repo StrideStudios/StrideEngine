@@ -40,6 +40,57 @@ public:
 
 class CSwapchain : public SObject, public TDirtyable<> {};
 
+class IBuffering {
+
+public:
+
+	void incrementFrame() { m_FrameNumber++; }
+
+	size_t getFrameNumber() const { return m_FrameNumber; };
+
+	size_t getFrameIndex() const { return getFrameNumber() % getFrameOverlap(); }
+
+	virtual size_t getFrameOverlap() const = 0;
+
+private:
+
+	size_t m_FrameNumber = 0;
+
+};
+
+template <typename TType, size_t TFrameOverlap>
+class TBuffering : public SBase, public IBuffering {
+
+public:
+
+	virtual size_t getFrameOverlap() const override { return TFrameOverlap; }
+
+	TType& getFrame(size_t inFrameIndex) { return m_FrameData[inFrameIndex]; }
+
+	const TType& getFrame(size_t inFrameIndex) const { return m_FrameData[inFrameIndex]; }
+
+	TType& getCurrentFrame() { return getFrame(getFrameIndex()); }
+
+	const TType& getCurrentFrame() const { return getFrame(getFrameIndex()); }
+
+	void forEach(const std::function<void(TType&)>& inFunc) {
+		for (auto& frame : m_FrameData) {
+			inFunc(frame);
+		}
+	}
+
+private:
+
+	TType m_FrameData[TFrameOverlap];
+
+};
+
+template <typename TType>
+class CSingleBuffering final : public TBuffering<TType, 1> {};
+
+template <typename TType>
+class CDoubleBuffering final : public TBuffering<TType, 2> {};
+
 class CRenderer : public SObject, public IInitializable, public IDestroyable {
 
 public:
@@ -68,6 +119,8 @@ public:
 	static const vkb::Device& device() { return get()->getDevice()->getDevice(); }
 
 	EXPORT static const VkDevice& vkDevice();
+
+	no_discard virtual IBuffering& getBufferingType() = 0;
 
 	no_discard virtual CInstance* getInstance() = 0;
 

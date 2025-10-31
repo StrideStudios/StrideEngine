@@ -76,7 +76,7 @@ public:
 	}
 
 	// Calls the function when it is indicated to be destroyed
-	Iterator callback(std::function<void()> inFunction) {
+	Iterator callback(const std::function<void()>& inFunction) {
 		Callback* cb;
 		return create(cb, inFunction);
 	}
@@ -114,6 +114,11 @@ public:
 			destroyable->destroy();
 		}
 		delete object;
+	}
+
+	void ignore(const Iterator& itr) {
+		if (itr._Myproxy == nullptr || itr._Getcont() == nullptr) return; // Ensure itr is valid
+		m_Objects.erase(itr);
 	}
 
 private:

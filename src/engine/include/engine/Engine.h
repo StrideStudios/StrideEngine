@@ -22,6 +22,8 @@ class CEngine : public SBase, public IInitializable {
 
 public:
 
+	EXPORT virtual void init() override;
+
 	no_discard Time& getTime() { return m_Time; }
 
 	no_discard const CEngineViewport& getViewport() const { return *m_EngineViewport; }
@@ -30,8 +32,6 @@ private:
 
 	// Make sure only main can access init and run functions
 	friend int main();
-
-	EXPORT virtual void init() override;
 
 	EXPORT void run();
 

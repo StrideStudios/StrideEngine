@@ -280,8 +280,6 @@ typedef const char* SChar;
 		return EnumName##Map[(inType)inValue]; \
 	}
 
-constexpr static uint8 gFrameOverlap = 2;
-
 //
 // Ugly c++ replacement Macros
 //

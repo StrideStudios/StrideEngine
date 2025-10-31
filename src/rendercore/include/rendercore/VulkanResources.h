@@ -5,6 +5,7 @@
 #include <vulkan/vk_enum_string_helper.h>
 #include <vulkan/vulkan_core.h>
 
+#include "BufferedResourceManager.h"
 #include "rendercore/Renderer.h"
 #include "rendercore/VulkanUtils.h"
 #include "basic/core/Common.h"
@@ -561,7 +562,10 @@ struct SDynamicBuffer {
 	void destroy() {
 		if (!mAllocated) return;
 		mAllocated = false;
-		mManager.remove(itr);
+
+		// Remove when it is guaranteed the buffer is no longer used
+		mManager.ignore(itr);
+		CBufferedResourceManager::get().getCurrentResourceManager().push(mBuffer);
 	}
 
 	template <typename... TArgs>

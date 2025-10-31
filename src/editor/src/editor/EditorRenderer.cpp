@@ -4,6 +4,7 @@
 #include <random>
 
 #include "rendercore/BindlessResources.h"
+#include "rendercore/BufferedResourceManager.h"
 #include "rendercore/Material.h"
 #include "renderer/passes/MeshPass.h"
 #include "scene/viewport/Sprite.h"
@@ -83,8 +84,6 @@ void CEditorSpritePass::init() {
 	exampleText->material = textMaterial;
 }
 
-static CResourceManager gTextManager;
-
 void CEditorSpritePass::render(VkCommandBuffer cmd) {
 	ZoneScopedN("Editor Sprite Pass");
 
@@ -99,16 +98,15 @@ void CEditorSpritePass::render(VkCommandBuffer cmd) {
 
 		vkDeviceWaitIdle(CRenderer::vkDevice());
 
-		//TODO: better buffer management so no vkDeviceWait is needed while rendering
-		gTextManager.flush();
-
 		if (auto textSprite = std::dynamic_pointer_cast<CTextSprite>(sprite); textSprite) {
 			if (CEngineLoader::getFonts().empty()) continue;
 			NumInstances = textSprite->getText().size();
 
 			uint32 bufferSize = NumInstances * (sizeof(Vector4f) + sizeof(SInstance));
 
-			SDynamicBuffer<VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT> buffer{gTextManager};
+			SDynamicBuffer<VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT> buffer{
+				CBufferedResourceManager::get().getCurrentResourceManager()
+			};
 			buffer.allocate(bufferSize);
 
 			struct SData {
@@ -162,7 +160,6 @@ void CEditorSpritePass::render(VkCommandBuffer cmd) {
 
 void CEditorSpritePass::destroy() {
 	CSpritePass::destroy();
-	gTextManager.flush();
 }
 
 void CEditorRenderer::init() {
