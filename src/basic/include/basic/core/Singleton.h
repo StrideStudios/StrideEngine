@@ -23,6 +23,13 @@
 #define MAKE_LAZY_SINGLETON(n) \
 	public: \
 		static n& get() { \
+			return (*cb)(); \
+		} \
+	private: \
+	typedef n& FSingletonCallback(); \
+	inline static FSingletonCallback* cb = nullptr; \
+	STATIC_C_BLOCK( \
+		n::cb = [] -> n& { \
 			if (!doesSingletonExist(#n)) { \
 				n* object = new n(); \
 				CResourceManager::get().push(object); \
@@ -31,9 +38,10 @@
 					object->init(); \
 				} \
 			} \
+			n::cb = [] -> n& {return *static_cast<n*>(getSingleton(#n));}; \
 			return *static_cast<n*>(getSingleton(#n)); \
-		} \
-	private:
+		}; \
+	)
 
 #define CUSTOM_SINGLETON(n, ...) \
 	private: \
