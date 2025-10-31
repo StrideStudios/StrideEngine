@@ -57,6 +57,7 @@ struct SInstancer : IInstancer {
 	EXPORT void reallocate(const Matrix4f& parentMatrix = Matrix4f(1.f));
 
 	//TODO: don't return SBuffer_T*
+	//TODO: reallocate causes issues when dirtying
 	virtual SBuffer_T* get(const Matrix4f& parentMatrix = Matrix4f(1.f)) override {
 		if (isDirty()) {
 			clean();

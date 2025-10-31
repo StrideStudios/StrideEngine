@@ -86,10 +86,10 @@ void CSpritePass::render(VkCommandBuffer cmd) {
 }
 
 void CSpritePass::update() {
-	for (auto& sprite : objects) {
+	/*for (auto& sprite : objects) {
 		IInstancer& instancer = sprite->getInstancer();
 		instancer.setDirty();
-	}
+	}*/
 }
 
 void CSpritePass::destroy() {
