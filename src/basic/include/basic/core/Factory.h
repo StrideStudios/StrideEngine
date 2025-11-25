@@ -2,7 +2,6 @@
 
 #include <map>
 
-#include "basic/control/ResourceManager.h"
 #include "basic/core/Common.h"
 #include "basic/core/Singleton.h"
 
@@ -26,7 +25,7 @@
 	template class TDeferredFactory<n, n##DeferredFactory##Name>;
 
 template <typename TType, const char* TName>
-class TFactory : public SBase {
+class TFactory {
 
 	CUSTOM_SINGLETON(TFactory, TName)
 
@@ -55,7 +54,7 @@ public:
 };
 
 template <typename TType, const char* TName, typename... TArgs>
-class TDeferredFactory : public SBase {
+class TDeferredFactory {
 
 	CUSTOM_SINGLETON(TDeferredFactory, TName)
 

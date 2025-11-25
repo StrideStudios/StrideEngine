@@ -1,15 +1,13 @@
 #pragma once
 
-// A simple base class for all objects
-// If a derived class does not register itself, it will always be abstract
+/*
+ * A simple base class for all objects
+ * If a derived class does not register itself, it will always be abstract
+ */
 
 struct SClass;
 
-struct SBase {
-	virtual ~SBase() = default;
-};
-
-struct SObject : SBase {
+struct SObject {
 
 	virtual ~SObject() = default;
 
@@ -19,4 +17,6 @@ struct SObject : SBase {
 
 	EXPORT static std::shared_ptr<SClass> staticClass();
 
+	// An iterator the parent uses to remove and modify its child
+	std::list<SObject*>::iterator itr;
 };

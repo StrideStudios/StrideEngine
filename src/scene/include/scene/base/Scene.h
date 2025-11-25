@@ -5,8 +5,9 @@
 
 #include "SceneObject.h"
 
-class CScene : public SBase, public IInitializable, public IDestroyable {
+class CScene : public SObject, public THierarchy<CWorldObject>, public IInitializable, public IDestroyable {
 
+	REGISTER_CLASS(CScene, SObject)
 	MAKE_LAZY_SINGLETON(CScene)
 
 public:
@@ -18,20 +19,4 @@ public:
 	EXPORT virtual void update();
 
 	class CCamera* mMainCamera = nullptr;
-
-	struct Data {
-		std::vector<std::shared_ptr<CWorldObject>> objects{};
-	};
-
-	Data data{};
-
-	friend CArchive& operator<<(CArchive& inArchive, const CScene& inScene) {
-		inArchive << inScene.data.objects;
-		return inArchive;
-	}
-
-	friend CArchive& operator>>(CArchive& inArchive, CScene& inScene) {
-		inArchive >> inScene.data.objects;
-		return inArchive;
-	}
 };

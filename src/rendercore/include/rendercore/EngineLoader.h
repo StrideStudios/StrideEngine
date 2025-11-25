@@ -173,8 +173,9 @@ struct SMeshData {
 	}
 };
 
-class CEngineLoader : public SBase {
+class CEngineLoader : public SObject {
 
+	REGISTER_CLASS(CEngineLoader, SObject)
 	MAKE_SINGLETON(CEngineLoader)
 
 	template <typename TType>
@@ -202,15 +203,15 @@ public:
 
 	CEngineLoader() = default;
 
-	static void save();
+	EXPORT static void save();
 
-	static void load();
+	EXPORT static void load();
 
 	//
 	// Textures
 	//
 
-	static void importTexture(const std::filesystem::path& inPath);
+	EXPORT static void importTexture(const std::filesystem::path& inPath);
 
 	static std::map<std::string, SImage_T*>& getImages() { return get().mImages; }
 
@@ -220,7 +221,7 @@ public:
 	// Fonts
 	//
 
-	static void importFont(const std::filesystem::path& inPath);
+	EXPORT static void importFont(const std::filesystem::path& inPath);
 
 	static std::map<std::string, std::shared_ptr<CFont>>& getFonts() { return get().mFonts; }
 
@@ -230,7 +231,7 @@ public:
 	// Materials
 	//
 
-	static void createMaterial(const std::string& inMaterialName);
+	EXPORT static void createMaterial(const std::string& inMaterialName);
 
 	static std::map<std::string, std::shared_ptr<CMaterial>>& getMaterials() { return get().mMaterials; }
 
@@ -240,7 +241,7 @@ public:
 	// Meshes
 	//
 
-	static void importMesh(const std::filesystem::path& inPath);
+	EXPORT static void importMesh(const std::filesystem::path& inPath);
 
 	static std::map<std::string, std::shared_ptr<SStaticMesh>>& getMeshes() { return get().mMeshes; }
 

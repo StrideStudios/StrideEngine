@@ -7,8 +7,9 @@
 class CGuiText;
 class CCommand;
 
-class CEngineSettings : public SBase {
+class CEngineSettings : public SObject {
 
+	REGISTER_CLASS(CEngineSettings, SObject)
 	MAKE_SINGLETON(CEngineSettings)
 
 public:

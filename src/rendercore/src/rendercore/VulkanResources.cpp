@@ -11,6 +11,10 @@
 #include "dxc/dxcapi.h"
 #include <wrl.h>
 
+#include "VkBootstrap.h"
+#include "rendercore/VulkanDevice.h"
+#include "rendercore/VulkanInstance.h"
+
 using namespace Microsoft::WRL;
 
 #define DXC_CHECK(n) \
@@ -210,7 +214,7 @@ SShader::SShader(const char* inFilePath) {
 	}
 
 	// Check for written SPIRV files
-	if (loadShader(CRenderer::vkDevice(), SPIRVpath.c_str(), Hash)) {
+	if (loadShader(CVulkanDevice::vkDevice(), SPIRVpath.c_str(), Hash)) {
 		return;
 	}
 
@@ -226,7 +230,7 @@ SShader::SShader(const char* inFilePath) {
 		errs("Shader file {} failed to compile!", inFilePath);
 	}
 
-	if (loadShader(CRenderer::vkDevice(), SPIRVpath.c_str(), Hash)) {
+	if (loadShader(CVulkanDevice::vkDevice(), SPIRVpath.c_str(), Hash)) {
 		return;
 	}
 
@@ -403,7 +407,7 @@ CPipeline::CPipeline(const SPipelineCreateInfo& inCreateInfo, CVertexAttributeAr
 		.layout = inLayout->mPipelineLayout
 	};
 
-	if (vkCreateGraphicsPipelines(CRenderer::vkDevice(), VK_NULL_HANDLE, 1, &pipelineInfo,nullptr, &mPipeline) != VK_SUCCESS) {
+	if (vkCreateGraphicsPipelines(CVulkanDevice::vkDevice(), VK_NULL_HANDLE, 1, &pipelineInfo,nullptr, &mPipeline) != VK_SUCCESS) {
 		msgs("Failed to create pipeline!");
 	}
 }
@@ -452,7 +456,7 @@ VkRenderingAttachmentInfo SRenderAttachment::get(const SImage_T* inImage) const 
 	return info;
 }
 
-SBuffer_T::SBuffer_T(const uint32 inBufferSize, const VmaMemoryUsage inMemoryUsage, const VkBufferUsageFlags inBufferUsage): mBindlessAddress(0) {
+SBuffer_T::SBuffer_T(const size_t inBufferSize, const VmaMemoryUsage inMemoryUsage, const VkBufferUsageFlags inBufferUsage): mBindlessAddress(0) {
 	// allocate buffer
 	const VkBufferCreateInfo bufferCreateInfo = {
 		.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
@@ -467,7 +471,7 @@ SBuffer_T::SBuffer_T(const uint32 inBufferSize, const VmaMemoryUsage inMemoryUsa
 	};
 
 	// allocate the buffer
-	VK_CHECK(vmaCreateBuffer(SVulkanAllocator::get().getAllocator(), &bufferCreateInfo, &vmaallocInfo, &buffer, &allocation, &info));
+	VK_CHECK(vmaCreateBuffer(CVulkanAllocator::get().getAllocator(), &bufferCreateInfo, &vmaallocInfo, &buffer, &allocation, &info));
 }
 
 void SBuffer_T::makeGlobal() {
@@ -498,11 +502,13 @@ void SBuffer_T::updateGlobal() const {
 		.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
 		.pBufferInfo = &bufferDescriptorInfo,
 	};
-	vkUpdateDescriptorSets(CRenderer::vkDevice(), 1, &writeSet, 0, nullptr);
+	vkUpdateDescriptorSets(CVulkanDevice::vkDevice(), 1, &writeSet, 0, nullptr);
 }
 
 void SBuffer_T::destroy() {
-	vmaDestroyBuffer(SVulkanAllocator::get().getAllocator(), buffer, allocation);
+	msgs("Destroy Buffer");
+	vmaDestroyBuffer(CVulkanAllocator::get().getAllocator(), buffer, allocation);
+	allocation = nullptr;
 }
 
 void* SBuffer_T::getMappedData() const {
@@ -510,16 +516,16 @@ void* SBuffer_T::getMappedData() const {
 }
 
 void SBuffer_T::mapData(void** data) const {
-	vmaMapMemory(SVulkanAllocator::get().getAllocator(), allocation, data);
+	vmaMapMemory(CVulkanAllocator::get().getAllocator(), allocation, data);
 }
 
 void SBuffer_T::unMapData() const {
-	vmaUnmapMemory(SVulkanAllocator::get().getAllocator(), allocation);
+	vmaUnmapMemory(CVulkanAllocator::get().getAllocator(), allocation);
 }
 
 SMeshBuffers_T::SMeshBuffers_T(const size_t indicesSize, const size_t verticesSize) {
-	CResourceManager::get().create(indexBuffer, indicesSize, VMA_MEMORY_USAGE_GPU_ONLY, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
-	CResourceManager::get().create(vertexBuffer, verticesSize, VMA_MEMORY_USAGE_GPU_ONLY, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+	CVulkanAllocator::allocate(indexBuffer, indicesSize, VMA_MEMORY_USAGE_GPU_ONLY, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+	CVulkanAllocator::allocate(vertexBuffer, verticesSize, VMA_MEMORY_USAGE_GPU_ONLY, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
 }
 
 SImage_T::SImage_T(const std::string& inDebugName, const VkExtent3D inExtent, const VkFormat inFormat, const VkImageUsageFlags inFlags, const VkImageAspectFlags inViewFlags, const uint32 inNumMips):
@@ -534,13 +540,13 @@ SImage_T::SImage_T(const std::string& inDebugName, const VkExtent3D inExtent, co
 		.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
 	};
 
-	vmaCreateImage(SVulkanAllocator::get().getAllocator(), &mImageInfo, &imageAllocationInfo, &mImage, &mAllocation, nullptr);
+	vmaCreateImage(CVulkanAllocator::get().getAllocator(), &mImageInfo, &imageAllocationInfo, &mImage, &mAllocation, nullptr);
 
 	//build a image-view for the draw image to use for rendering
 	mImageViewInfo = CVulkanInfo::createImageViewInfo(inFormat, mImage, inViewFlags);
 	mImageViewInfo.subresourceRange.levelCount = mImageInfo.mipLevels;
 
-	VK_CHECK(vkCreateImageView(CRenderer::vkDevice(), &mImageViewInfo, nullptr, &mImageView));
+	VK_CHECK(vkCreateImageView(CVulkanDevice::vkDevice(), &mImageViewInfo, nullptr, &mImageView));
 
 	// Update descriptors with new image
 	if ((inFlags & VK_IMAGE_USAGE_SAMPLED_BIT) != 0) { //TODO: VK_IMAGE_USAGE_SAMPLED_BIT is not a permanent solution
@@ -563,7 +569,7 @@ SImage_T::SImage_T(const std::string& inDebugName, const VkExtent3D inExtent, co
 			.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
 			.pImageInfo = &imageDescriptorInfo,
 		};
-		vkUpdateDescriptorSets(CRenderer::vkDevice(), 1, &writeSet, 0, nullptr);
+		vkUpdateDescriptorSets(CVulkanDevice::vkDevice(), 1, &writeSet, 0, nullptr);
 	}
 }
 
@@ -670,26 +676,35 @@ void SImage_T::push(const void* inData, const uint32& inSize) {
 			CVulkanUtils::transitionImage(cmd, this, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 		}
 	});
-
-	uploadBuffer.destroy();
 }
 
 void SImage_T::destroy() {
-	vmaDestroyImage(SVulkanAllocator::get().getAllocator(), mImage, mAllocation);
-	vkDestroyImageView(CRenderer::vkDevice(), mImageView, nullptr);
+	vmaDestroyImage(CVulkanAllocator::get().getAllocator(), mImage, mAllocation);
+	vkDestroyImageView(CVulkanDevice::vkDevice(), mImageView, nullptr);
 }
 
-void SVulkanAllocator::init() {
+void CVulkanAllocator::init() {
+	msgs("Creating Vulkan Allocator.");
 	const VmaAllocatorCreateInfo allocatorInfo {
 		.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT,
-		.physicalDevice = CRenderer::vkPhysicalDevice(),
-		.device = CRenderer::vkDevice(),
-		.instance = CRenderer::vkInstance()
+		.physicalDevice = CVulkanDevice::physicalDevice().physical_device,
+		.device = CVulkanDevice::device(),
+		.instance = CVulkanInstance::instance()
 	};
 
 	VK_CHECK(vmaCreateAllocator(&allocatorInfo, &mAllocator));
+
+	// Set amount to the number of frame overlaps
+	m_BufferedManagers.resize(CRenderer::get()->getBufferingType().getFrameOverlap());
 }
 
-void SVulkanAllocator::destroy() {
+void CVulkanAllocator::destroy() {
+	msgs("Destroying Vulkan Allocator.");
+
+	mDestroyed = true;
+
+	// Destroy all objects marked for removal first
+	for (auto& manager : m_BufferedManagers) { manager.flush(); }
+	m_Manager.flush();
 	vmaDestroyAllocator(mAllocator);
 }

@@ -7,10 +7,9 @@ class CVulkanRenderer;
 class CEngineViewport;
 class CScene;
 
-constexpr static auto gEngineName = text("Stride Engine");
+class CEngine : public SObject, public IInitializable {
 
-class CEngine : public SBase, public IInitializable {
-
+	REGISTER_CLASS(CEngine, SObject)
 	MAKE_LAZY_SINGLETON(CEngine)
 
 	struct Time {

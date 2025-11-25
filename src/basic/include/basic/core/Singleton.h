@@ -7,12 +7,7 @@
 #define MAKE_SINGLETON(n) \
 	private: \
 		STATIC_C_BLOCK( \
-			if (!doesSingletonExist(#n)) { \
-				n* object = new n(); \
-				CResourceManager::get().push(object); \
-				addSingleton(#n, object); \
-				initSingleton<n>(object); \
-			} \
+			initSingleton<n>(#n); \
 		) \
 	public: \
 		static n& get() { \
@@ -27,12 +22,7 @@
 		inline static FSingletonCallback* singletonCallback = nullptr; \
 		STATIC_C_BLOCK( \
 			singletonCallback = [] -> n& { \
-				if (!doesSingletonExist(#n)) { \
-					n* object = new n(); \
-					CResourceManager::get().push(object); \
-					addSingleton(#n, object); \
-					initSingleton<n>(object); \
-				} \
+				initSingleton<n>(#n); \
 				/*
 				Sets itself to a simple getter so that there is no branching at runtime
 				Since Functions are just memory addresses anyway, it should be nearly as quick as a direct call
@@ -51,12 +41,7 @@
 	private: \
 		inline static std::string __singleton_name = (std::string(#n) + __VA_ARGS__); \
 		STATIC_C_BLOCK( \
-			if (!doesSingletonExist(__singleton_name)) { \
-				n* object = new n(); \
-				CResourceManager::get().push(object); \
-				addSingleton(__singleton_name, object); \
-				initSingleton<n>(object); \
-			} \
+			initSingleton<n>(__singleton_name); \
 		) \
 	public: \
 		static n& get() { \
@@ -71,8 +56,15 @@ EXPORT void* getSingleton(const std::string& inName);
 EXPORT void addSingleton(const std::string& inName, void* inValue);
 
 template <typename TType>
-void initSingleton(TType* object) {
-	if constexpr (std::is_base_of_v<IInitializable, TType>) {
-		object->init();
+void initSingleton(const std::string& inName) {
+	if (!doesSingletonExist(inName)) {
+		TType* object = new TType();
+		if constexpr (std::is_base_of_v<SObject, TType>) {
+			CResourceManager::get().push(object);
+		}
+		addSingleton(inName, object);
+		if constexpr (std::is_base_of_v<IInitializable, TType>) {
+			object->init();
+		}
 	}
 }

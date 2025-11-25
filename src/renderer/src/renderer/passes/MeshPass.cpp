@@ -2,13 +2,11 @@
 
 #include "rendercore/BindlessResources.h"
 #include "renderer/EngineTextures.h"
-#include "renderer/VulkanDevice.h"
+#include "rendercore/VulkanDevice.h"
 #include "renderer/VulkanRenderer.h"
 #include "rendercore/StaticMesh.h"
-#include "basic/Profiling.h"
 #include "engine/EngineSettings.h"
 #include "scene/base/Scene.h"
-#include "renderer/EngineLoader.h"
 #include "renderer/object/StaticMeshObjectRenderer.h"
 #include "tracy/Tracy.hpp"
 
@@ -20,10 +18,10 @@ ADD_TEXT(Triangles, "Triangles: ");
 #undef SETTINGS_CATEGORY
 
 //TODO: for now this is hard coded base pass, dont need anything else for now
-void CMeshPass::init() {
-	CPass::init();
+void CMeshPass::init(CRenderer* inRenderer) {
+	CPass::init(inRenderer);
 
-	CVulkanRenderer& renderer = *CVulkanRenderer::get();
+	const CVulkanRenderer& renderer = *static_cast<CVulkanRenderer*>(inRenderer);
 
 	CResourceManager manager;
 
@@ -131,12 +129,12 @@ void CMeshPass::render(const VkCommandBuffer cmd) {
 
 	CVulkanRenderer& renderer = *CVulkanRenderer::get();
 
-	std::vector<std::shared_ptr<CStaticMeshObject>> renderObjects;
+	std::vector<CStaticMeshObject*> renderObjects;
 	{
 		ZoneScopedN("Frustum Culling");
-		for (const auto& renderable : CScene::get().data.objects) {
+		for (const auto& renderable : CScene::get().getChildren()) {
 			if (renderable) {
-				if (auto renderableObject = std::dynamic_pointer_cast<CStaticMeshObject>(renderable); renderableObject && renderableObject->getMesh() && isVisible(renderer.mSceneData.mViewProj, renderableObject->getTransformMatrix(), renderableObject->getMesh()->bounds)) {
+				if (auto renderableObject = dynamic_cast<CStaticMeshObject*>(renderable); renderableObject && renderableObject->getMesh() && isVisible(renderer.mSceneData.mViewProj, renderableObject->getTransformMatrix(), renderableObject->getMesh()->bounds)) {
 					renderObjects.push_back(renderableObject);
 				}
 			}
@@ -151,7 +149,7 @@ void CMeshPass::render(const VkCommandBuffer cmd) {
 
 	for (auto& object : renderObjects) { //TODO: renderer object with object member, so it can keep track of instancer?
 		if (const auto rendererClass = std::dynamic_pointer_cast<IRenderableClass>(object->getClass())) {
-			rendererClass->getRenderer()->render(this, cmd, object.get(), drawCallCount, vertexCount);
+			rendererClass->getRenderer()->render(this, cmd, object, drawCallCount, vertexCount);
 		}
 	}
 

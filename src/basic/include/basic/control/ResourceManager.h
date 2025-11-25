@@ -1,41 +1,34 @@
 ﻿#pragma once
 
-#include <deque>
+#include <forward_list>
 
 #include "basic/core/Common.h"
 #include "basic/core/Object.h"
-#include "basic/core/Singleton.h"
 
 /*
  * Stores pointers to CObject so they can be automatically deallocated when flush is called
  * This means initialization can be done in a local context to remove clutter
  */
-//TODO: allow CResourceManager to add itself for recursive flushing (Specifically with CEditorSpritePass)
-class CResourceManager : public SBase, public IDestroyable {
+
+template <typename TRequiredType>
+class TResourceManager : public IDestroyable {
 
 public:
 
-	// Gives the ability to call a function from a specific destruction point
-	// std::function is pretty slow, so use with caution (so not at runtime)
-	struct Callback final : SBase, IDestroyable {
-		Callback() = delete;
-		Callback(const std::function<void()>& inCallback): mCallback(inCallback) {}
-		virtual void destroy() override { mCallback(); }
-		std::function<void()> mCallback;
-	};
-
-	using Storage = std::deque<SBase*>;
+	using Storage = std::list<TRequiredType*>;
 	using Iterator = Storage::iterator;
 
-	EXPORT static CResourceManager& get();
-
 	// Flush resources if out of scope
-	virtual ~CResourceManager() override {
-		CResourceManager::flush();
+	virtual ~TResourceManager() override {
+		TResourceManager::flush();
+	}
+
+	const Storage& getObjects() const {
+		return m_Objects;
 	}
 
 	template <typename TType>
-	requires std::is_base_of_v<SBase, TType>
+	requires std::is_base_of_v<TRequiredType, TType>
 	Iterator create(TType*& outType) {
 		outType = new TType();
 		if constexpr (std::is_base_of_v<IInitializable, TType>) {
@@ -45,40 +38,42 @@ public:
 	}
 
 	template <typename TTargetType, typename TType>
-	requires (!std::is_same_v<TTargetType, TType>) and std::is_base_of_v<SBase, TTargetType>
+	requires (!std::is_same_v<TTargetType, TType>) and std::is_base_of_v<TRequiredType, TTargetType>
 	Iterator create(TType*& outType) {
 		return create<TTargetType>(reinterpret_cast<TTargetType*&>(outType));
 	}
 
 	template <typename TType, typename... TArgs>
-	requires std::is_base_of_v<SBase, TType>
+	requires std::is_base_of_v<TRequiredType, TType> and std::is_constructible_v<TType, TArgs...>
 	Iterator create(TType*& outType, TArgs&&... args) {
+		outType = new TType(args...);
 		if constexpr (std::is_base_of_v<SInitializable, TType>) {
-			outType = new TType();
-			outType->init(args...);
-		} else {
-			outType = new TType(args...);
+			outType->init();
 		}
 		return push(outType);
 	}
 
+	template <typename TType, typename... TArgs>
+	requires std::is_base_of_v<TRequiredType, TType> and std::is_base_of_v<SInitializable, TType> and (not std::is_constructible_v<TType, TArgs...>)
+	Iterator create(TType*& outType, TArgs&&... args) {
+		outType = new TType();
+		outType->init(args...);
+		return push(outType);
+	}
+
 	template <typename TTargetType, typename TType, typename... TArgs>
-	requires (!std::is_same_v<TTargetType, TType>) and std::is_base_of_v<SBase, TTargetType>
+	requires (!std::is_same_v<TTargetType, TType>) and std::is_base_of_v<TRequiredType, TTargetType>
 	Iterator create(TType*& outType, TArgs&&... args) {
 		return create<TTargetType, TArgs...>(reinterpret_cast<TTargetType*&>(outType), args...);
 	}
 
 	template <typename TType>
-	requires std::is_base_of_v<SBase, TType>
+	requires std::is_base_of_v<TRequiredType, TType>
 	Iterator push(TType* inType) {
 		m_Objects.push_back(inType);
-		return m_Objects.begin() + (m_Objects.size() - 1);
-	}
-
-	// Calls the function when it is indicated to be destroyed
-	Iterator callback(const std::function<void()>& inFunction) {
-		Callback* cb;
-		return create(cb, inFunction);
+		inType->itr = m_Objects.begin();
+		std::advance(inType->itr, (m_Objects.size() - 1));
+		return inType->itr;
 	}
 
 	// Reverse iterate and destroy
@@ -93,20 +88,13 @@ public:
 	}
 
 	template <typename TType>
-	requires std::is_base_of_v<SBase, TType>
-	void remove(TType*& inType) {
+	requires std::is_base_of_v<TRequiredType, TType>
+	void remove(TType* inType) {
 		if (inType == nullptr) return;
-
-		for (auto itr = m_Objects.begin(); itr != m_Objects.end(); ++itr) {
-			if (*itr == nullptr) continue;
-			if (*itr == inType) {
-				remove(itr);
-				inType = nullptr;
-			}
-		}
+		remove(inType->itr);
 	}
 
-	void remove(const Iterator& itr) {
+	virtual void remove(const Iterator& itr) {
 		if (itr._Myproxy == nullptr || itr._Getcont() == nullptr) return; // Ensure itr is valid
 		const auto object = *itr;
 		m_Objects.erase(itr);
@@ -116,16 +104,56 @@ public:
 		delete object;
 	}
 
-	void ignore(const Iterator& itr) {
+	template <typename TType>
+	requires std::is_base_of_v<TRequiredType, TType>
+	void ignore(TType*& inType) {
+		ignore(inType->itr);
+	}
+
+	virtual void ignore(const Iterator& itr) {
 		if (itr._Myproxy == nullptr || itr._Getcont() == nullptr) return; // Ensure itr is valid
 		m_Objects.erase(itr);
 	}
 
-private:
+	TRequiredType*& operator[](size_t index) {
+		Iterator itr = m_Objects.begin();
+		std::advance(itr, index);
+		return *itr;
+	}
+
+	const TRequiredType*& operator[](size_t index) const {
+		Iterator itr = m_Objects.begin();
+		std::advance(itr, index);
+		return *itr;
+	}
+
+protected:
 
 	virtual void destroy() override {
 		flush();
 	}
 
 	Storage m_Objects;
+};
+
+class CResourceManager : public TResourceManager<SObject> {
+
+public:
+
+	// Gives the ability to call a function from a specific destruction point
+	// std::function is pretty slow, so use with caution (so not at runtime)
+	struct Callback final : SObject, IDestroyable {
+		Callback() = delete;
+		Callback(const std::function<void()>& inCallback): mCallback(inCallback) {}
+		virtual void destroy() override { mCallback(); }
+		std::function<void()> mCallback;
+	};
+
+	EXPORT static CResourceManager& get();
+
+	// Calls the function when it is indicated to be destroyed
+	Iterator callback(const std::function<void()>& inFunction) {
+		Callback* cb;
+		return create(cb, inFunction);
+	}
 };

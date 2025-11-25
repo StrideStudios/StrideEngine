@@ -1,8 +1,9 @@
-﻿#include "renderer/VulkanDevice.h"
+﻿#include "rendercore/VulkanDevice.h"
 
-#include "VkBootstrap.h"
-#include "renderer/VulkanInstance.h"
-#include "renderer/VulkanRenderer.h"
+#include <VkBootstrap.h>
+#include <SDL3/SDL_vulkan.h>
+
+#include "rendercore/VulkanInstance.h"
 
 // Define how to create queues
 static std::map<vkb::QueueType, std::map<EQueueType, float>> queueFamilies {
@@ -16,10 +17,11 @@ static std::map<vkb::QueueType, std::map<EQueueType, float>> queueFamilies {
     };
 
 SQueue CVulkanDevice::getQueue(const EQueueType inType) {
-    return CVulkanRenderer::get()->m_Device->mQueues[inType];
+    return mQueues[inType];
 }
 
-void CVulkanDevice::init(CVulkanInstance* inInstance, VkSurfaceKHR inSurface) {
+void CVulkanDevice::init(VkSurfaceKHR inSurface) {
+
     // Swapchain Maintenance features
     VkPhysicalDeviceSwapchainMaintenance1FeaturesEXT swapchainMaintenance1Features{
         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SWAPCHAIN_MAINTENANCE_1_FEATURES_EXT,
@@ -62,7 +64,7 @@ void CVulkanDevice::init(CVulkanInstance* inInstance, VkSurfaceKHR inSurface) {
     };
 
     //TODO: send out a simple error window telling the user why vulkan crashed (SimpleErrorReporter or something)
-    vkb::PhysicalDeviceSelector selector{inInstance->getInstance()};
+    vkb::PhysicalDeviceSelector selector{CVulkanInstance::instance()};
     auto physicalDevice = selector
             .set_minimum_version(1, 3)
             .set_required_features(features)
@@ -104,14 +106,15 @@ void CVulkanDevice::init(CVulkanInstance* inInstance, VkSurfaceKHR inSurface) {
     for (const auto&[type, map] : queueFamilies) {
         uint32 family = m_Device->get_queue_index(type).value();
         int32 index = 0;
-        for (const auto& queueType : map) {
-            VkQueue queue; vkGetDeviceQueue(*m_Device, family, index, &queue);
+        for (const auto& [queueType, _] : map) {
+            VkQueue queue;
+            vkGetDeviceQueue(*m_Device, family, index, &queue);
             index++;
             SQueue inQueue {
                 .mQueue = queue,
                 .mFamily = family
             };
-            mQueues.emplace(queueType.first, inQueue);
+            mQueues.emplace(queueType, inQueue);
         }
     }
 }
@@ -124,6 +127,14 @@ const vkb::PhysicalDevice& CVulkanDevice::getPhysicalDevice() const {
     return *m_PhysicalDevice;
 }
 
+const VkPhysicalDevice& CVulkanDevice::vkPhysicalDevice() {
+    return physicalDevice().physical_device;
+}
+
 const vkb::Device& CVulkanDevice::getDevice() const {
     return *m_Device;
+}
+
+const VkDevice& CVulkanDevice::vkDevice() {
+    return device().device;
 }

@@ -9,7 +9,7 @@ void CScene::init() {
 
 	if (std::filesystem::exists(path)) {
 		CFileArchive file(path.string(), "rb");
-		file >> data.objects;
+		file >> *this;
 		file.close();
 	}
 
@@ -22,10 +22,8 @@ void CScene::destroy() {
 	std::filesystem::path path = SPaths::get().mAssetPath.string() + "Scene.scn";
 
 	CFileArchive file(path.string(), "wb");
-	file << data.objects;
+	file << *this;
 	file.close();
-
-	data.objects.clear();
 }
 
 void CScene::update() {

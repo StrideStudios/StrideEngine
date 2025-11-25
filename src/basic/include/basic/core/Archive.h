@@ -8,6 +8,7 @@
 #include <vector>
 #include <string>
 #include <memory>
+#include <stack>
 
 #include "Class.h"
 #include "Object.h"
@@ -261,6 +262,59 @@ public:
 	}
 
 	//
+	// Stacks
+	//
+
+	template <typename TType>
+	friend CArchive& operator<<(CArchive& inArchive, const std::stack<TType>& inValue) {
+		std::stack<TType> stack = inValue;
+		inArchive << stack.size();
+		while (stack.size()) {
+			inArchive << stack.top();
+			stack.pop();
+		}
+		return inArchive;
+	}
+
+	// Vector assumes a default constructor and save overloads
+	template <typename TType>
+	friend CArchive& operator>>(CArchive& inArchive, std::stack<TType>& inValue) {
+		size_t size;
+		inArchive >> size;
+		for (size_t i = 0; i < size; ++i) {
+			TType object;
+			inArchive >> object;
+			inValue.push(object);
+		}
+		return inArchive;
+	}
+
+	//
+	// Deque
+	//
+
+	template <typename TType>
+	friend CArchive& operator<<(CArchive& inArchive, const std::deque<TType>& inValue) {
+		inArchive << inValue.size();
+		for (const auto& value : inValue) {
+			inArchive << value;
+		}
+		return inArchive;
+	}
+
+	// Vector assumes a default constructor and save overloads
+	template <typename TType>
+	friend CArchive& operator>>(CArchive& inArchive, std::deque<TType>& inValue) {
+		size_t size;
+		inArchive >> size;
+		inValue.resize(size);
+		for (size_t i = 0; i < size; ++i) {
+			inArchive >> inValue[i];
+		}
+		return inArchive;
+	}
+
+	//
 	// Arrays
 	//
 
@@ -321,6 +375,42 @@ public:
 	friend CArchive& operator>>(CArchive& inArchive, std::unique_ptr<TType>& inValue) {
 		inValue = std::make_unique<TType>();
 		inArchive >> *inValue;
+		return inArchive;
+	}
+
+	//
+	// Resource Managers
+	// Due to the runtime nature of these, the objects saved have to be both
+	// CObject and ISerializable, for classes and virtual serialization respectively
+	//
+
+	friend CArchive& operator<<(CArchive& inArchive, const CResourceManager& inValue) {
+		std::vector<SObject*> objects;
+		for (const auto object : inValue.getObjects()) {
+			if (const auto obj = dynamic_cast<SObject*>(object)) {
+				if (dynamic_cast<ISerializable*>(object)) {
+					objects.push_back(obj);
+				}
+			}
+		}
+
+		inArchive << objects.size();
+		for (const auto object : objects) {
+			inArchive << object->getClass()->getName();
+			dynamic_cast<ISerializable*>(object)->save(inArchive);
+		}
+		return inArchive;
+	}
+
+	friend CArchive& operator>>(CArchive& inArchive, CResourceManager& inValue) {
+		size_t size;
+		inArchive >> size;
+		for (size_t i = 0; i < size; ++i) {
+			std::string className;
+			inArchive >> className;
+			SObject* obj = SClassRegistry::get(className.c_str())->construct(inValue);
+			dynamic_cast<ISerializable*>(obj)->load(inArchive);
+		}
 		return inArchive;
 	}
 

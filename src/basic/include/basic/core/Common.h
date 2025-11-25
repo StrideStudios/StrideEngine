@@ -266,6 +266,8 @@ private:
 #define text(x) x
 typedef const char* SChar;
 
+constexpr static auto gEngineName = text("Stride Engine");
+
 // Gives the enum some convenience operators
 #define ENUM_OPERATORS(EnumName, inType) \
 	inline E##EnumName to##EnumName(const inType& inValue) { return static_cast<E##EnumName>(inValue); } \

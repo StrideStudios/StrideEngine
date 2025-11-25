@@ -5,8 +5,9 @@
 
 #include "Singleton.h"
 
-struct SPaths : SBase {
+struct SPaths : SObject {
 
+	REGISTER_CLASS(SPaths, SObject)
 	MAKE_SINGLETON(SPaths)
 
 private:

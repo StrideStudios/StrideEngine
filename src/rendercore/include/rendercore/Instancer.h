@@ -2,11 +2,12 @@
 
 #include <array>
 
+#include "rendercore/RenderStack.h"
 #include "rendercore/VulkanResources.h"
 #include "basic/core/Archive.h"
 
 struct SInstance {
-	Matrix4f Transform = Matrix4f(1.f);
+	Matrix4f Transform{1.f};
 
 	friend CArchive& operator<<(CArchive& inArchive, const SInstance& inInstance) {
 		inArchive << inInstance.Transform;
@@ -92,6 +93,11 @@ struct SStaticInstancer : IInstancer {
 		setDirty();
 	}
 
+	~SStaticInstancer() {
+		msgs("Destroyed SStaticInstancer.");
+		m_InstanceBuffer.destroy();
+	}
+
 	virtual size_t getNumberOfInstances() override {
 		return m_Instances.size();
 	}
@@ -99,7 +105,7 @@ struct SStaticInstancer : IInstancer {
 	void reallocate(const Matrix4f& parentMatrix = Matrix4f(1.f)) {
 
 		for (auto& instance : m_Instances) {
-			instance.Transform = parentMatrix * instance.Transform;
+			instance.Transform = parentMatrix * instance.Transform; //TODO use RenderStack
 		}
 
 		m_InstanceBuffer.push(m_Instances.data());
@@ -144,8 +150,9 @@ typedef SStaticInstancer<1> SSingleInstancer;
 template <>
 struct SStaticInstancer<1> : IInstancer {
 
-	SStaticInstancer() {
-		setDirty();
+	~SStaticInstancer() {
+		msgs("Destroyed SSingleInstancer.");
+		m_InstanceBuffer.destroy();
 	}
 
 	virtual size_t getNumberOfInstances() override {

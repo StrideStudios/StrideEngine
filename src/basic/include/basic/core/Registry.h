@@ -4,7 +4,6 @@
 
 #include "basic/core/Common.h"
 #include "basic/core/Factory.h"
-#include "basic/control/ResourceManager.h"
 
 #define REGISTER_OBJ(registryType, n) \
 	private: \
@@ -14,7 +13,7 @@
 	public: \
 		static n& get() { return *registryType::get<n>(#n); } \
 	private:
-
+//TODO: remove? Kinda useless with singletons
 #define DEFINE_REGISTRY(n, ...) \
 	inline static constexpr char n##Registry##Name[] = #n __VA_ARGS__; \
 	typedef TRegistry<n, n##Registry##Name> n##Registry; \
@@ -29,7 +28,7 @@
 
 template <typename TType, const char* TName>
 //requires std::is_base_of_v<SObject, TType>
-class TRegistry : public SBase {
+class TRegistry {
 
 	CUSTOM_SINGLETON(TRegistry, TName)
 
@@ -41,8 +40,8 @@ public:
 		if (contains(inName)) return nullptr;
 		auto object = std::make_shared<TChildType>();
 		get().m_Objects.insert(std::make_pair(inName, object));
-		if (const auto& initializable = std::dynamic_pointer_cast<IInitializable>(object)) {
-			initializable->init();
+		if constexpr (std::is_base_of_v<TChildType, IInitializable>) {
+			object->init();
 		}
 		return object;
 	}
@@ -52,8 +51,8 @@ public:
 	static void registerObject(const char* inName, const std::shared_ptr<TChildType>& inObject) {
 		if (contains(inName)) return;
 		get().m_Objects.insert(std::make_pair(inName, inObject));
-		if (const auto& initializable = std::dynamic_pointer_cast<IInitializable>(inObject)) {
-			initializable->init();
+		if constexpr (std::is_base_of_v<TChildType, IInitializable>) {
+			inObject->init();
 		}
 	}
 
@@ -85,7 +84,7 @@ public:
 // It does this by storing registration, and doing it all at once at any point
 template <typename TType, const char* TName, typename... TArgs>
 //requires std::is_base_of_v<SObject, TType>
-class TDeferredRegistry : public SBase {
+class TDeferredRegistry {
 
 	CUSTOM_SINGLETON(TDeferredRegistry, TName)
 
@@ -93,7 +92,7 @@ class TDeferredRegistry : public SBase {
 
 public:
 
-	static void init(CResourceManager& inResourceManager, TArgs... args) {
+	static void init(class CResourceManager& inResourceManager, TArgs... args) {
 		for (auto& [name, object] : TTypeDeferredFactory::get().m_Objects) {
 			get().m_Objects.insert(std::make_pair(name, TTypeDeferredFactory::construct(name.c_str(), inResourceManager, args...)));
 		}

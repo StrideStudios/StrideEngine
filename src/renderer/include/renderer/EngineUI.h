@@ -8,7 +8,7 @@ class CEngineUIPass final : public CPass {
 
 public:
 
-	EXPORT virtual void init() override;
+	EXPORT virtual void init(CRenderer* inRenderer) override;
 
 	EXPORT virtual void begin() override;
 

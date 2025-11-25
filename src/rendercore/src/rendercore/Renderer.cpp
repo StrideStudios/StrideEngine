@@ -1,6 +1,5 @@
 ﻿#include "rendercore/Renderer.h"
-
-#include "VkBootstrap.h"
+#include "rendercore/Pass.h"
 
 static CRenderer* gRenderer;
 
@@ -8,16 +7,10 @@ CRenderer* CRenderer::get() {
 	return gRenderer;
 }
 
-const VkInstance& CRenderer::vkInstance() {
-	return instance().instance;
-}
-
-const VkPhysicalDevice& CRenderer::vkPhysicalDevice() {
-	return physicalDevice().physical_device;
-}
-
-const VkDevice& CRenderer::vkDevice() {
-	return device().device;
+void CRenderer::initPasses(const std::initializer_list<CPass*> inPasses) {
+	for (const auto pass : inPasses) {
+		pass->init(gRenderer);
+	}
 }
 
 void CRenderer::set(CRenderer* inRenderer) {

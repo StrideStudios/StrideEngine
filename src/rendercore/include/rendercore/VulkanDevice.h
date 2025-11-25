@@ -19,21 +19,30 @@ struct SQueue {
     uint32 mFamily;
 };
 
-class CVulkanDevice : public CDevice, public TInitializable<class CVulkanInstance*, VkSurfaceKHR>, public IDestroyable {
+class CVulkanDevice final : public SObject, public TInitializable<VkSurfaceKHR>, public IDestroyable {
 
-    REGISTER_CLASS(CVulkanDevice, CDevice)
+	REGISTER_CLASS(CVulkanDevice, SObject)
+    MAKE_LAZY_SINGLETON(CVulkanDevice)
 
 public:
 
-    EXPORT static SQueue getQueue(EQueueType inType);
+    EXPORT SQueue getQueue(EQueueType inType);
 
-    EXPORT virtual void init(CVulkanInstance* inInstance, VkSurfaceKHR inSurface) override;
+    EXPORT virtual void init(VkSurfaceKHR inSurface) override;
 
     EXPORT virtual void destroy() override;
 
-    no_discard EXPORT virtual const vkb::PhysicalDevice& getPhysicalDevice() const override;
+    static const vkb::PhysicalDevice& physicalDevice() { return get().getPhysicalDevice(); }
 
-    no_discard EXPORT virtual const vkb::Device& getDevice() const override;
+    EXPORT static const VkPhysicalDevice& vkPhysicalDevice();
+
+    static const vkb::Device& device() { return get().getDevice(); }
+
+    EXPORT static const VkDevice& vkDevice();
+
+    no_discard EXPORT const vkb::PhysicalDevice& getPhysicalDevice() const;
+
+    no_discard EXPORT const vkb::Device& getDevice() const;
 
 private:
 

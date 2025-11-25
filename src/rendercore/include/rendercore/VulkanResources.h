@@ -5,8 +5,7 @@
 #include <vulkan/vk_enum_string_helper.h>
 #include <vulkan/vulkan_core.h>
 
-#include "BufferedResourceManager.h"
-#include "rendercore/Renderer.h"
+#include "rendercore/VulkanDevice.h"
 #include "rendercore/VulkanUtils.h"
 #include "basic/core/Common.h"
 
@@ -101,16 +100,78 @@ private:
 	std::map<VkVertexInputRate, std::vector<VkFormat>> m_Formats;
 };
 
+class CVulkanAllocator final : public SObject, public IDestroyable {
+
+	REGISTER_CLASS(CVulkanAllocator, SObject)
+
+	// Allocator may be called at any point, especially by static buffers, so it needs to be lazy
+	MAKE_LAZY_SINGLETON(CVulkanAllocator)
+
+public:
+
+	struct Resource : IDestroyable {
+		virtual bool isAllocated() = 0;
+		TResourceManager<Resource>::Iterator itr;
+	};
+
+	template <typename TType, typename... TArgs>
+	requires std::is_base_of_v<Resource, TType> and std::is_constructible_v<TType, TArgs...>
+	static void allocate(TType*& inResource, TArgs... args) {
+		if (get().mDestroyed) {
+			errs("Attempted to allocate a resource after Vulkan Allocator was Destroyed!");
+		}
+		get().m_Manager.create(inResource, args...);
+	}
+
+	template <typename TType>
+	requires std::is_base_of_v<Resource, TType>
+	static void remove(TType*& inResource) {
+		if (get().mDestroyed) return;
+		get().m_Manager.ignore(inResource->itr);
+		get().getCurrentResourceManager().push(inResource);
+	}
+
+	VmaAllocator& getAllocator() {
+		return mAllocator;
+	}
+
+	EXPORT void init();
+
+	EXPORT virtual void destroy() override;
+
+	static void flushFrameData() {
+		get().getCurrentResourceManager().flush();
+	}
+
+private:
+
+	force_inline TResourceManager<Resource>& getCurrentResourceManager() {
+		return m_BufferedManagers[CRenderer::get()->getBufferingType().getFrameIndex()];
+	}
+
+	force_inline const TResourceManager<Resource>& getCurrentResourceManager() const {
+		return m_BufferedManagers[CRenderer::get()->getBufferingType().getFrameIndex()];
+	}
+
+	bool mDestroyed = false;
+
+	VmaAllocator mAllocator = nullptr;
+
+	TResourceManager<Resource> m_Manager;
+	std::vector<TResourceManager<Resource>> m_BufferedManagers;
+};
+
 // Create wrappers around Vulkan types that can be destroyed
 #define CREATE_VK_TYPE(inName) \
-	struct C##inName final : SBase, IDestroyable { \
+	struct C##inName final : SObject, IDestroyable { \
+		REGISTER_STRUCT(C##inName, SObject) \
 		C##inName() = default; \
 		C##inName(Vk##inName inType): m##inName(inType) {} \
 		C##inName(const C##inName& in##inName): m##inName(in##inName.m##inName) {} \
 		C##inName(Vk##inName##CreateInfo inCreateInfo) { \
-			VK_CHECK(vkCreate##inName(CRenderer::vkDevice(), &inCreateInfo, nullptr, &m##inName)); \
+			VK_CHECK(vkCreate##inName(CVulkanDevice::vkDevice(), &inCreateInfo, nullptr, &m##inName)); \
 		} \
-		virtual void destroy() override { vkDestroy##inName(CRenderer::vkDevice(), m##inName, nullptr); } \
+		virtual void destroy() override { vkDestroy##inName(CVulkanDevice::vkDevice(), m##inName, nullptr); } \
 		Vk##inName operator->() const { return m##inName; } \
 		operator Vk##inName() const { return m##inName; } \
 		Vk##inName m##inName = nullptr; \
@@ -122,14 +183,16 @@ CREATE_VK_TYPE(DescriptorSetLayout);
 CREATE_VK_TYPE(Fence);
 CREATE_VK_TYPE(PipelineLayout);
 
-struct CPipeline final : SBase, IDestroyable {
+struct CPipeline final : SObject, IDestroyable {
+
+	REGISTER_STRUCT(CPipeline, SObject)
 
 	CPipeline() = default;
 	EXPORT CPipeline(const SPipelineCreateInfo& inCreateInfo, CVertexAttributeArchive& inAttributes, CPipelineLayout* inLayout);
 
 	EXPORT void bind(VkCommandBuffer cmd, const VkPipelineBindPoint inBindPoint) const;
 
-	virtual void destroy() override { vkDestroyPipeline(CRenderer::vkDevice(), mPipeline, nullptr); }
+	virtual void destroy() override { vkDestroyPipeline(CVulkanDevice::vkDevice(), mPipeline, nullptr); }
 
 	VkPipeline operator->() const { return mPipeline; }
 
@@ -146,7 +209,9 @@ CREATE_VK_TYPE(Sampler);
 CREATE_VK_TYPE(Semaphore);
 CREATE_VK_TYPE(ShaderModule); //TODO: remove
 
-struct CDescriptorSet final : SBase {
+struct CDescriptorSet final : SObject {
+
+	REGISTER_STRUCT(CDescriptorSet, SObject)
 
 	CDescriptorSet() = default;
 
@@ -155,7 +220,7 @@ struct CDescriptorSet final : SBase {
 	CDescriptorSet(const CDescriptorSet& inDescriptorSet): mDescriptorSet(inDescriptorSet.mDescriptorSet) {}
 
 	CDescriptorSet(const VkDescriptorSetAllocateInfo& inCreateInfo) {
-		VK_CHECK(vkAllocateDescriptorSets(CRenderer::vkDevice(), &inCreateInfo, &mDescriptorSet));
+		VK_CHECK(vkAllocateDescriptorSets(CVulkanDevice::vkDevice(), &inCreateInfo, &mDescriptorSet));
 	}
 
 	void bind(VkCommandBuffer cmd, VkPipelineBindPoint inBindPoint, VkPipelineLayout inPipelineLayout, uint32 inFirstSet, uint32 inDescriptorSetCount) const {
@@ -168,12 +233,14 @@ struct CDescriptorSet final : SBase {
 	VkDescriptorSet mDescriptorSet = nullptr;
 };
 
-struct SShader : SBase, IDestroyable {
+struct SShader : SObject, IDestroyable {
+
+	REGISTER_STRUCT(SShader, SObject)
 
 	SShader() = default;
 	EXPORT SShader(const char* inFilePath);
 
-	virtual void destroy() override { vkDestroyShaderModule(CRenderer::vkDevice(), mModule, nullptr); }
+	virtual void destroy() override { vkDestroyShaderModule(CVulkanDevice::vkDevice(), mModule, nullptr); }
 
 	std::string mFileName = "";
 	VkShaderModule mModule = nullptr;
@@ -233,7 +300,9 @@ struct SRenderAttachment {
 	}
 };
 
-struct SImage_T : SBase, IDestroyable {
+struct SImage_T : SObject, IDestroyable {
+
+	REGISTER_STRUCT(SImage_T, SObject)
 
 	SImage_T() = default;
 	EXPORT SImage_T(const std::string& inDebugName, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags = 0, VkImageAspectFlags inViewFlags = 0, uint32 inNumMips = 1);
@@ -263,10 +332,10 @@ struct SImage_T : SBase, IDestroyable {
 
 };
 
-struct SBuffer_T : SBase, IDestroyable {
+struct SBuffer_T : CVulkanAllocator::Resource {
 
-	SBuffer_T() = default;
-	EXPORT SBuffer_T(uint32 inBufferSize, VmaMemoryUsage inMemoryUsage, VkBufferUsageFlags inBufferUsage = 0);
+	SBuffer_T() = delete;
+	EXPORT SBuffer_T(size_t inBufferSize, VmaMemoryUsage inMemoryUsage, VkBufferUsageFlags inBufferUsage = 0);
 
 	EXPORT void makeGlobal(); //TODO: alternate way of doing this
 	EXPORT void updateGlobal() const; // TODO: not global but instead 'dynamic' (address should be separate?)
@@ -279,115 +348,75 @@ struct SBuffer_T : SBase, IDestroyable {
 
 	EXPORT void unMapData() const;
 
+	virtual bool isAllocated() override {
+		return allocation != nullptr;
+	}
+
+	template <typename... TArgs>
+	void push(const void* src, const size_t size, TArgs... args) {
+		memcpy(getMappedData(), src, size);
+		push(size, args...);
+	}
+
 	VkBuffer buffer = nullptr;
 
 	VmaAllocation allocation = nullptr;
 	VmaAllocationInfo info = {};
 
 	uint32 mBindlessAddress = 0;
-};
-/*
-// A class that automatically removes itself from the Resource Manager once it's deleted
-// Also supports replacement
-template <typename TType>
-requires std::is_base_of_v<SBase, TType>
-struct TRemovable {
-
-	~TRemovable() {
-		destroy();
-	}
-
-	template <typename... TArgs>
-	requires std::is_constructible_v<TType, TArgs...>
-	void construct(CResourceManager& manager, TArgs... args) {
-		destroy();
-
-		mManager = &manager;
-		itr = mManager->create<TType>(mObject, args...);
-
-		mManager->callback([&] {
-			destroy();
-		});
-	}
-
-	TType* get() const { return mObject; }
-
-	bool isValid() const { return mObject != nullptr; }
-
-	void destroy() {
-		if (mObject && mManager) {
-			mManager->remove(itr);
-			mObject = nullptr;
-		}
-	}
 
 private:
-	CResourceManager* mManager = nullptr;
-	CResourceManager::Iterator itr;
-	TType* mObject = nullptr;
-};*/
-
-// Static Buffers are initialized when needed
-// Can be done either through templates or constructors for flexibility
-template <VmaMemoryUsage TMemoryUsage, VkBufferUsageFlags TBufferUsage, size_t TElementSize = 0, size_t TSize = 0>
-struct SStaticBuffer {
-
-	using StagingBufferType = SStaticBuffer<VMA_MEMORY_USAGE_CPU_ONLY, VK_BUFFER_USAGE_TRANSFER_SRC_BIT>;
-
-	SStaticBuffer() = default;
-
-	virtual ~SStaticBuffer() {
-		SStaticBuffer::destroy();
-	}
-
-	// Since templated Static Buffers are resolved at compile time, the buffer will never change
-	// Thus, it should always be allocated globally
-	virtual SBuffer_T* get() {
-		if (!mAllocated) {
-			mAllocated = true;
-			itr = CResourceManager::get().create(mBuffer, getSize(), TMemoryUsage, TBufferUsage);
-		}
-		return mBuffer;
-	}
-
-	virtual bool isValid() const {
-		return mAllocated;
-	}
-
-	virtual size_t getSize() const {
-		return TElementSize * TSize;
-	}
-
-	virtual void destroy() {
-		if (!mAllocated) return;
-		mAllocated = false;
-		CResourceManager::get().remove(itr);
-	}
 
 	template <typename... TArgs>
-	void push(const void* src, const size_t size, TArgs... args) {
+	void push(const size_t offset = 0) {}
+
+	template <typename... TArgs>
+	void push(const size_t offset, const void* src, const size_t size, TArgs... args) {
+		memcpy(static_cast<char*>(getMappedData()) + offset, src, size);
+		push(offset + size, args...);
+	}
+};
+//TODO: local buffer and maybe base class
+
+template <VmaMemoryUsage TMemoryUsage, VkBufferUsageFlags TBufferUsage>
+struct SPushableBuffer {
+	virtual ~SPushableBuffer() = default;
+
+	virtual SBuffer_T* get() = 0;
+
+	virtual size_t getSize() const = 0;
+
+	template <typename... TArgs>
+	void push(const void* src, const size_t size = 0, TArgs... args) {
 		size_t totalSize = getTotalSize(src, size, args...);
 		if (totalSize > getSize()) {
-			errs("Tried to allocate more than available in Static Buffer!");
+			errs("Tried to allocate more than available in Buffer!");
 		}
 
 		if constexpr (TMemoryUsage == VMA_MEMORY_USAGE_GPU_ONLY) {
 
 			static_assert(TBufferUsage & VK_BUFFER_USAGE_TRANSFER_DST_BIT);
 
-			SStaticBuffer<VMA_MEMORY_USAGE_CPU_ONLY, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, TElementSize, TSize> staging;
-			staging.push(src, size, args...);
+			SBuffer_T* buffer;
+			CVulkanAllocator::allocate(buffer,
+				getSize(),
+				VMA_MEMORY_USAGE_CPU_ONLY,
+				VK_BUFFER_USAGE_TRANSFER_SRC_BIT
+			);
 
-			CRenderer::get()->immediateSubmit([&](SCommandBuffer& cmd) {
-				VkBufferCopy copy{};
-				copy.dstOffset = 0;
-				copy.srcOffset = 0;
-				copy.size = totalSize;
+			buffer->push(src, size, args...);
 
-				vkCmdCopyBuffer(cmd, staging.get()->buffer, get()->buffer, 1, &copy);
+			CRenderer::get()->immediateSubmit([this, totalSize, buffer](SCommandBuffer& cmd) {
+				VkBufferCopy copy {
+					.srcOffset = 0,
+					.dstOffset = 0,
+					.size = totalSize
+				};
+
+				vkCmdCopyBuffer(cmd, buffer->buffer, get()->buffer, 1, &copy);
 			});
 
-			staging.destroy();
+			CVulkanAllocator::remove(buffer);
 		} else {
 			memcpy(get()->getMappedData(), src, size);
 			push(size, args...);
@@ -414,118 +443,92 @@ private:
 	size_t getTotalSize(const void* src, const size_t size, TArgs... args) {
 		return size + getTotalSize(args...);
 	}
-
-	CResourceManager::Iterator itr;
-	bool mAllocated = false;
-	SBuffer_T* mBuffer = nullptr;
 };
 
-typedef SStaticBuffer<VMA_MEMORY_USAGE_CPU_ONLY, VK_BUFFER_USAGE_TRANSFER_SRC_BIT> SStagingBuffer;
 
-template <VmaMemoryUsage TMemoryUsage, VkBufferUsageFlags TBufferUsage>
-struct SStaticBuffer<TMemoryUsage, TBufferUsage, 0, 0> {
+// Local Buffers are initialized upon creation
+// They do not use the Vulkan Allocator, so are allocated and deallocated based on scope
+// This requires that they do not interact with the GPU, or else the GPU will complain about it's destruction when double buffering
+// Best used for staging buffers
+template <VkBufferUsageFlags TBufferUsage>
+struct SLocalBuffer final : SPushableBuffer<VMA_MEMORY_USAGE_CPU_ONLY, TBufferUsage> {
 
-	SStaticBuffer() = delete; // Static Buffer needs to explicitly know it's size at construction
+	SLocalBuffer() = delete;
 
-	SStaticBuffer(CResourceManager& inManager, const size_t inAllocSize): mAllocSize(inAllocSize), mManager(inManager) {}
-	SStaticBuffer(CResourceManager& inManager, const size_t inElementSize, const size_t inSize): SStaticBuffer(inManager, inElementSize * inSize) {}
+	SLocalBuffer(const size_t inAllocSize):
+	mBuffer(inAllocSize, VMA_MEMORY_USAGE_CPU_ONLY, TBufferUsage){}
 
-	SStaticBuffer(const size_t inAllocSize): SStaticBuffer(CResourceManager::get(), inAllocSize) {}
-	SStaticBuffer(const size_t inElementSize, const size_t inSize): SStaticBuffer(CResourceManager::get(), inElementSize, inSize) {}
+	SLocalBuffer(const size_t inElementSize, const size_t inSize): SLocalBuffer(inElementSize * inSize) {}
 
-	SBuffer_T* get() {
-		if (mAllocSize <= 0) {
-			errs("Static Buffer has not been given a size!");
-		}
+	virtual ~SLocalBuffer() override {
+		msgs("Destroyed Local Buffer.");
+		mBuffer.destroy();
+	}
+
+	virtual SBuffer_T* get() override { return &mBuffer; }
+
+	virtual size_t getSize() const override { return mBuffer.info.size; }
+
+private:
+
+	SBuffer_T mBuffer;
+
+};
+
+typedef SLocalBuffer<VK_BUFFER_USAGE_TRANSFER_SRC_BIT> SStagingBuffer;
+
+// Static Buffers are initialized when needed
+// They use the Vulkan Allocator, so they persist until the gpu is finished using them
+// Best used for non-changing GPU Buffers like scene data
+template <VmaMemoryUsage TMemoryUsage, VkBufferUsageFlags TBufferUsage, size_t TElementSize, size_t TSize>
+struct SStaticBuffer : SPushableBuffer<TMemoryUsage, TBufferUsage>, IDestroyable {
+
+	virtual ~SStaticBuffer() override {
+		if (!mAllocated) return;
+		msgs("WARNING: Static Buffer was not destroyed!");
+	}
+
+	// Since templated Static Buffers are resolved at compile time, the buffer will never change
+	// Thus, it should always be allocated globally
+	virtual SBuffer_T* get() override {
 		if (!mAllocated) {
 			mAllocated = true;
-			itr = mManager.create(mBuffer, mAllocSize, TMemoryUsage, TBufferUsage);
+			CVulkanAllocator::allocate(mBuffer, getSize(), TMemoryUsage, TBufferUsage);
 		}
 		return mBuffer;
 	}
 
-	size_t getSize() const {
-		return mAllocSize;
+	virtual size_t getSize() const override {
+		return TElementSize * TSize;
 	}
 
-	bool isValid() const {
-		return mAllocated && mAllocSize > 0;
-	}
-
-	void destroy() {
+	virtual void destroy() override {
 		if (!mAllocated) return;
+		msgs("Destroyed Static Buffer.");
 		mAllocated = false;
-		mManager.remove(itr);
-	}
-
-	template <typename... TArgs>
-	void push(const void* src, const size_t size = 0, TArgs... args) {
-		size_t totalSize = getTotalSize(src, size, args...);
-		if (totalSize > getSize()) {
-			errs("Tried to allocate more than available in Static Buffer!");
-		}
-
-		if constexpr (TMemoryUsage == VMA_MEMORY_USAGE_GPU_ONLY) {
-
-			static_assert(TBufferUsage & VK_BUFFER_USAGE_TRANSFER_DST_BIT);
-
-			SStagingBuffer staging{totalSize};
-			staging.push(src, size, args...);
-
-			CRenderer::get()->immediateSubmit([&](SCommandBuffer& cmd) {
-				VkBufferCopy copy{};
-				copy.dstOffset = 0;
-				copy.srcOffset = 0;
-				copy.size = totalSize;
-
-				vkCmdCopyBuffer(cmd, staging.get()->buffer, get()->buffer, 1, &copy);
-			});
-
-			staging.destroy();
-		} else {
-			memcpy(get()->getMappedData(), src, size);
-			push(size, args...);
-		}
+		CVulkanAllocator::remove(mBuffer);
 	}
 
 private:
 
-	template <typename... TArgs>
-	void push(const size_t offset = 0) {}
-
-	template <typename... TArgs>
-	void push(const size_t offset, const void* src, const size_t size = 0, TArgs... args) {
-		memcpy(static_cast<char*>(get()->getMappedData()) + offset, src, size);
-		push(offset + size, args...);
-	}
-
-	template <typename... TArgs>
-	size_t getTotalSize() {
-		return 0;
-	}
-
-	template <typename... TArgs>
-	size_t getTotalSize(const void* src, const size_t size, TArgs... args) {
-		return size + getTotalSize(args...);
-	}
-
-	const size_t mAllocSize = 0;
-	CResourceManager& mManager;
-	CResourceManager::Iterator itr;
 	bool mAllocated = false;
-	SBuffer_T* mBuffer = nullptr;
+	SBuffer_T* mBuffer = nullptr; //TODO: move buffer stuff locally (MAYBE parent class)
 };
 
 // Dynamic Buffers are initialized when their size changes
+// They use the Vulkan Allocator, so they persist until the gpu is finished using them
+// Best used for changing GPU Buffers like instance data or vertex data
 template <VmaMemoryUsage TMemoryUsage, VkBufferUsageFlags TBufferUsage = 0>
-struct SDynamicBuffer {
+struct SDynamicBuffer : SPushableBuffer<TMemoryUsage, TBufferUsage>, IDestroyable {
 
-	SDynamicBuffer(CResourceManager& inManager): mManager(inManager) {}
+	SDynamicBuffer() = default;
 
-	// By default, use global manager
-	SDynamicBuffer(): SDynamicBuffer(CResourceManager::get()) {}
+	virtual ~SDynamicBuffer() override {
+		if (!mAllocated) return;
+		msgs("WARNING: Dynamic Buffer was not destroyed!");
+	}
 
-	SBuffer_T* get() const {
+	virtual SBuffer_T* get() override {
 		if (mAllocSize <= 0 || !mAllocated) {
 			errs("Dynamic Buffer has not been allocated!");
 		}
@@ -547,84 +550,32 @@ struct SDynamicBuffer {
 		if (!mAllocated) {
 			mAllocated = true;
 			mAllocSize = inAllocSize;
-			itr = mManager.create(mBuffer, mAllocSize, TMemoryUsage, TBufferUsage);
+			CVulkanAllocator::allocate(mBuffer, mAllocSize, TMemoryUsage, TBufferUsage);
 		}
 	}
 
-	size_t getSize() const {
+	virtual size_t getSize() const override {
 		return mAllocSize;
 	}
 
-	bool isValid() const {
-		return mAllocated;
-	}
-
-	void destroy() {
+	virtual void destroy() override {
 		if (!mAllocated) return;
+		msgs("Destroyed Dynamic Buffer.");
 		mAllocated = false;
-
-		// Remove when it is guaranteed the buffer is no longer used
-		mManager.ignore(itr);
-		CBufferedResourceManager::get().getCurrentResourceManager().push(mBuffer);
-	}
-
-	template <typename... TArgs>
-	void push(const void* src, const size_t size = 0, TArgs... args) {
-		size_t totalSize = getTotalSize(src, size, args...);
-		if (totalSize > getSize()) {
-			allocate(totalSize);
-		}
-
-		if constexpr (TMemoryUsage == VMA_MEMORY_USAGE_GPU_ONLY) {
-
-			static_assert(TBufferUsage & VK_BUFFER_USAGE_TRANSFER_DST_BIT);
-
-			SStagingBuffer staging{totalSize};
-			staging.push(src, size, args...);
-
-			CRenderer::get()->immediateSubmit([&](SCommandBuffer& cmd) {
-				VkBufferCopy copy{};
-				copy.dstOffset = 0;
-				copy.srcOffset = 0;
-				copy.size = totalSize;
-
-				vkCmdCopyBuffer(cmd, staging.get()->buffer, get()->buffer, 1, &copy);
-			});
-
-			staging.destroy();
-		} else {
-			memcpy(get()->getMappedData(), src, size);
-			push(size, args...);
-		}
+		CVulkanAllocator::remove(mBuffer);
 	}
 
 private:
 
-	template <typename... TArgs>
-	void push(const size_t offset, const void* src, const size_t size = 0, TArgs... args) {
-		memcpy(static_cast<char*>(get()->getMappedData()) + offset, src, size);
-		push(offset + size, args...);
-	}
-
-	template <typename... TArgs>
-	size_t getTotalSize() {
-		return 0;
-	}
-
-	template <typename... TArgs>
-	size_t getTotalSize(const void* src, const size_t size, TArgs... args) {
-		return size + getTotalSize(args...);
-	}
-
 	size_t mAllocSize = 0;
-	CResourceManager& mManager;
-	CResourceManager::Iterator itr;
 	bool mAllocated = false;
 	SBuffer_T* mBuffer = nullptr;
 };
 
 // Holds the resources needed for mesh rendering
-struct SMeshBuffers_T : SBase, IDestroyable {
+struct SMeshBuffers_T : SObject, IDestroyable {
+
+	REGISTER_STRUCT(SMeshBuffers_T, SObject)
 
 	SMeshBuffers_T() = default;
 	EXPORT SMeshBuffers_T(size_t indicesSize, size_t verticesSize);
@@ -635,13 +586,15 @@ struct SMeshBuffers_T : SBase, IDestroyable {
 
 // A command buffer that stores some temporary data to be removed/changed at end of rendering
 // Ex: contains info for image transitions
-struct SCommandBuffer : SBase {
+struct SCommandBuffer : SObject {
+
+	REGISTER_STRUCT(SCommandBuffer, SObject)
 
 	SCommandBuffer() = default;
 
 	SCommandBuffer(const CCommandPool* inCmdPool) {
 		VkCommandBufferAllocateInfo frameCmdAllocInfo = CVulkanInfo::createCommandAllocateInfo(*inCmdPool, 1);
-		VK_CHECK(vkAllocateCommandBuffers(CRenderer::vkDevice(), &frameCmdAllocInfo, &cmd));
+		VK_CHECK(vkAllocateCommandBuffers(CVulkanDevice::vkDevice(), &frameCmdAllocInfo, &cmd));
 	}
 
 	SCommandBuffer(VkCommandBuffer inCmd): cmd(inCmd) {}
@@ -672,26 +625,4 @@ struct SCommandBuffer : SBase {
 
 	VkCommandBuffer cmd = nullptr;
 	std::forward_list<SImage_T*> imageTransitions;
-};
-
-struct SVulkanAllocator final : SObject, IInitializable, IDestroyable {
-
-	REGISTER_STRUCT(SVulkanAllocator, SObject)
-
-	// Allocator may be called at any point, especially by static buffers, so it needs to be lazy
-	MAKE_LAZY_SINGLETON(SVulkanAllocator)
-
-public:
-
-	VmaAllocator& getAllocator() {
-		return mAllocator;
-	}
-
-	EXPORT virtual void init() override;
-
-	EXPORT virtual void destroy() override;
-
-private:
-
-	VmaAllocator mAllocator = nullptr;
 };

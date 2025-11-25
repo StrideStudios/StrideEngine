@@ -66,10 +66,6 @@ public:
 
 	virtual IBuffering& getBufferingType() override { return mBuffering; }
 
-	EXPORT virtual CInstance* getInstance() override;
-
-	EXPORT virtual CDevice* getDevice() override;
-
 	EXPORT virtual CSwapchain* getSwapchain() override;
 
 	// Draw to the screen
@@ -89,10 +85,6 @@ public:
 
 	// Vulkan window surface
 	VkSurfaceKHR mVkSurface;
-
-	CVulkanInstance* m_Instance = nullptr;
-
-    CVulkanDevice* m_Device = nullptr;
 
 	bool mVSync;
 

@@ -1,6 +1,7 @@
 ﻿#pragma once
 
-#include "rendercore/VulkanResources.h"
+//TODO: engine shouldn't have
+#include <vulkan/vulkan_core.h>
 
 class CEngineViewport : public SObject, public IInitializable, public IDestroyable {
 

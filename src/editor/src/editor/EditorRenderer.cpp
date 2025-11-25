@@ -4,8 +4,9 @@
 #include <random>
 
 #include "rendercore/BindlessResources.h"
-#include "rendercore/BufferedResourceManager.h"
+#include "rendercore/Font.h"
 #include "rendercore/Material.h"
+#include "rendercore/VulkanDevice.h"
 #include "renderer/passes/MeshPass.h"
 #include "scene/viewport/Sprite.h"
 #include "renderer/passes/SpritePass.h"
@@ -14,8 +15,8 @@
 #include "tracy/Tracy.hpp"
 #include "scene/viewport/generic/Text.h"
 
-void CEditorSpritePass::init() {
-	CSpritePass::init();
+void CEditorSpritePass::init(CRenderer* inRenderer) {
+	CSpritePass::init(inRenderer);
 
 	/*{
 		const auto sprite = std::make_shared<CInstancedSprite>();
@@ -96,7 +97,7 @@ void CEditorSpritePass::render(VkCommandBuffer cmd) {
 		ZoneScoped;
 		ZoneName(sprite->mName.c_str(), sprite->mName.size());
 
-		vkDeviceWaitIdle(CRenderer::vkDevice());
+		vkDeviceWaitIdle(CVulkanDevice::vkDevice());
 
 		if (auto textSprite = std::dynamic_pointer_cast<CTextSprite>(sprite); textSprite) {
 			if (CEngineLoader::getFonts().empty()) continue;
@@ -104,9 +105,9 @@ void CEditorSpritePass::render(VkCommandBuffer cmd) {
 
 			uint32 bufferSize = NumInstances * (sizeof(Vector4f) + sizeof(SInstance));
 
-			SDynamicBuffer<VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT> buffer{
+			SDynamicBuffer<VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT> buffer;/*{
 				CBufferedResourceManager::get().getCurrentResourceManager()
-			};
+			};*/
 			buffer.allocate(bufferSize);
 
 			struct SData {
@@ -119,6 +120,11 @@ void CEditorSpritePass::render(VkCommandBuffer cmd) {
 			std::vector<SData> datas;
 
 			font->forEachLetter(textSprite->getText(), [&datas, &font](const Vector2f& pos, const Vector2f& uv0, const Vector2f& uv1) {
+				/*SRenderStack stack;
+				stack.push();
+				stack.translate(pos);
+				stack.scale(glm::abs(uv1 - uv0) * Vector2f(font->mAtlasSize));*/
+
 				Transform2f t;
 				t.setPosition(pos);
 				t.setScale(glm::abs(uv1 - uv0) * Vector2f(font->mAtlasSize));
@@ -168,34 +174,36 @@ void CEditorRenderer::init() {
 
 	addPasses(
 		&CMeshPass::get(),
-		&CSpritePass::get(),
-		&CEditorSpritePass::get(),
+		//&CSpritePass::get(),
+		//&CEditorSpritePass::get(),
 		&CEngineUIPass::get()
 	);
 
-	constexpr int32 numSprites = 250;
+	if (hasPass(&CSpritePass::get())) {
+		constexpr int32 numSprites = 250;
 
-	std::random_device rd;
-	std::mt19937 gen(rd());
+		std::random_device rd;
+		std::mt19937 gen(rd());
 
-	std::uniform_int_distribution distribx(0, 100);
-	std::uniform_int_distribution distriby(0, 100);
-	std::uniform_int_distribution distribr(0, 360);
+		std::uniform_int_distribution distribx(0, 100);
+		std::uniform_int_distribution distriby(0, 100);
+		std::uniform_int_distribution distribr(0, 360);
 
-	const auto sprite = std::make_shared<CInstancedSprite>();
-	sprite->mName = fmts("Instanced Sprite");
-	sprite->material = mEngineTextures->mErrorMaterial;
+		const auto sprite = std::make_shared<CInstancedSprite>();
+		sprite->mName = fmts("Instanced Sprite");
+		sprite->material = mEngineTextures->mErrorMaterial;
 
-	for (int32 i = 0; i < numSprites; ++i) {
-		Transform2f transform;
-		transform.setPosition(Vector2f{(float)distribx(gen) / 100.f, (float)distriby(gen) / 100.f});
-		transform.setScale(Vector2f{0.025f, 0.05f});
-		//transform.setScale(Vector2f{50.f, 50.f});
-		transform.setRotation((float)distribr(gen));
-		sprite->addInstance(transform);
+		for (int32 i = 0; i < numSprites; ++i) {
+			Transform2f transform;
+			transform.setPosition(Vector2f{(float)distribx(gen) / 100.f, (float)distriby(gen) / 100.f});
+			transform.setScale(Vector2f{0.025f, 0.05f});
+			//transform.setScale(Vector2f{50.f, 50.f});
+			transform.setRotation((float)distribr(gen));
+			sprite->addInstance(transform);
+		}
+
+		CSpritePass::get().push(sprite);
 	}
-
-	CSpritePass::get().push(sprite);
 }
 
 void CEditorRenderer::destroy() {

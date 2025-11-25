@@ -21,8 +21,9 @@ static uint32 gUBOBinding = 2;
 static uint32 gSSBOBinding = 3;
 
 // A simple holder for bindless resources
-class CBindlessResources final : public SBase, public IInitializable {
+class CBindlessResources final : public SObject, public IInitializable {
 
+	REGISTER_CLASS(CBindlessResources, SObject)
 	MAKE_LAZY_SINGLETON(CBindlessResources)
 
 public:

@@ -9,7 +9,7 @@
 #include "renderer/VulkanRenderer.h"
 #include "VkBootstrap.h"
 
-#include "renderer/EngineLoader.h"
+#include "rendercore/EngineLoader.h"
 #include "rendercore/Material.h"
 #include "scene/base/Scene.h"
 #include "scene/viewport/Sprite.h"
@@ -19,17 +19,19 @@
 #include "engine/Viewport.h"
 #include "basic/core/Threading.h"
 #include "renderer/EngineTextures.h"
-#include "renderer/VulkanDevice.h"
+#include "rendercore/VulkanDevice.h"
+#include "rendercore/VulkanInstance.h"
 #include "scene/viewport/generic/Text.h"
 
 void renderSceneUI() {
 	if (ImGui::Begin("Scene")) {
 		CScene& scene = CScene::get();
 		if (ImGui::Button("Add Mesh Object")) {
-			scene.data.objects.push_back(std::make_shared<CStaticMeshObject>());
+			CStaticMeshObject* obj;
+			scene.createChild(obj);
 		}
-		for (uint32 objectNum = 0; objectNum < scene.data.objects.size(); ++objectNum) {
-			auto& object = scene.data.objects[objectNum];
+		for (size_t objectNum = 0; objectNum < scene.getChildren().size(); ++objectNum) {
+			auto object = scene[objectNum];
 			if (!object) continue;
 			ImGui::PushID(fmts("{}", objectNum).c_str());
 
@@ -38,7 +40,7 @@ void renderSceneUI() {
 				ImGui::InputText("Name", &object->mName);
 
 				if (ImGui::Button("Remove")) {
-					scene.data.objects.erase(scene.data.objects.begin() + objectNum);
+					scene.removeChild(object);
 				} else {
 					Vector3f position = object->getPosition();
 					ImGui::InputFloat3("Position", reinterpret_cast<float*>(&position));
@@ -348,8 +350,8 @@ void renderMeshUI() {
 	ImGui::End();
 }
 
-void CEngineUIPass::init() {
-	CVulkanRenderer& renderer = *CVulkanRenderer::get();
+void CEngineUIPass::init(CRenderer* inRenderer) {
+	CPass::init(inRenderer);
 
 	// Setup Dear ImGui context
 	ImGui::CreateContext();
@@ -382,10 +384,10 @@ void CEngineUIPass::init() {
 
 	// this initializes imgui for Vulkan
 	ImGui_ImplVulkan_InitInfo initInfo {
-		.Instance = CRenderer::vkInstance(),
-		.PhysicalDevice = CRenderer::vkPhysicalDevice(),
-		.Device = CRenderer::vkDevice(),
-		.Queue = CVulkanDevice::getQueue(EQueueType::GRAPHICS).mQueue,
+		.Instance = CVulkanInstance::instance(),
+		.PhysicalDevice = CVulkanDevice::physicalDevice(),
+		.Device = CVulkanDevice::device(),
+		.Queue = CVulkanDevice::get().getQueue(EQueueType::GRAPHICS).mQueue,
 		.DescriptorPool = *descriptorPool,
 		.MinImageCount = 3,
 		.ImageCount = 3,

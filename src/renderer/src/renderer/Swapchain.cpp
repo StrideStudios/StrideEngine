@@ -1,6 +1,6 @@
 ﻿#include "renderer/Swapchain.h"
 #include "engine/Viewport.h"
-#include "renderer/VulkanDevice.h"
+#include "rendercore/VulkanDevice.h"
 #include "rendercore/VulkanUtils.h"
 #include "basic/Profiling.h"
 #include "VkBootstrap.h"
@@ -21,7 +21,7 @@ static CResourceManager gSwapchainResourceManager;
 static CResourceManager gFrameResourceManager;
 
 void SSwapchainImage::destroy() {
-	vkDestroyImageView(CRenderer::vkDevice(), mImageView, nullptr);
+	vkDestroyImageView(CVulkanDevice::vkDevice(), mImageView, nullptr);
 }
 
 void SSwapchain::init(const vkb::Result<vkb::Swapchain>& inSwapchainBuilder) {
@@ -74,7 +74,7 @@ void CVulkanSwapchain::init(const VkSwapchainKHR oldSwapchain, const bool inUseV
 
 	m_VSync = inUseVSync;
 
-	const auto& vkbSwapchain = vkb::SwapchainBuilder{CRenderer::device()} //TODO: remove usage of device
+	const auto& vkbSwapchain = vkb::SwapchainBuilder{CVulkanDevice::device()} //TODO: remove usage of device
 		.set_old_swapchain(oldSwapchain)
 		.set_desired_format(VkSurfaceFormatKHR{ .format = mFormat, .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR })
 		.set_desired_present_mode(m_VSync ? VK_PRESENT_MODE_FIFO_KHR : VK_PRESENT_MODE_IMMEDIATE_KHR)
@@ -112,7 +112,7 @@ SSwapchainImage* CVulkanSwapchain::getSwapchainImage(const uint32 inCurrentFrame
 	ZoneName(zoneName.c_str(), zoneName.size());
 
 	uint32 swapchainImageIndex = 0;
-	SWAPCHAIN_CHECK(vkAcquireNextImageKHR(CRenderer::vkDevice(), *mSwapchain->mInternalSwapchain, 1000000000, *m_Frames[inCurrentFrameIndex].mSwapchainSemaphore, nullptr, &swapchainImageIndex), setDirty());
+	SWAPCHAIN_CHECK(vkAcquireNextImageKHR(CVulkanDevice::vkDevice(), *mSwapchain->mInternalSwapchain, 1000000000, *m_Frames[inCurrentFrameIndex].mSwapchainSemaphore, nullptr, &swapchainImageIndex), setDirty());
 
 	return mSwapchain->mSwapchainImages[swapchainImageIndex];
 }
@@ -124,8 +124,8 @@ bool CVulkanSwapchain::wait(const uint32 inCurrentFrameIndex) const {
 	ZoneName(zoneName.c_str(), zoneName.size());
 
 	auto& frame = m_Frames[inCurrentFrameIndex];
-	VK_CHECK(vkWaitForFences(CRenderer::vkDevice(), 1, &frame.mRenderFence->mFence, true, 1000000000));
-	//VK_CHECK(vkWaitForFences(CRenderer::vkDevice(), 1, &frame.mPresentFence, true, 1000000000));
+	VK_CHECK(vkWaitForFences(CVulkanDevice::vkDevice(), 1, &frame.mRenderFence->mFence, true, 1000000000));
+	//VK_CHECK(vkWaitForFences(CVulkanDevice::vkDevice(), 1, &frame.mPresentFence, true, 1000000000));
 
 	return true;
 }
@@ -137,8 +137,8 @@ void CVulkanSwapchain::reset(const uint32 inCurrentFrameIndex) const {
 	ZoneName(zoneName.c_str(), zoneName.size());
 
 	auto& frame = m_Frames[inCurrentFrameIndex];
-	VK_CHECK(vkResetFences(CRenderer::vkDevice(), 1, &frame.mRenderFence->mFence));
-	//VK_CHECK(vkResetFences(CRenderer::vkDevice(), 1, &frame.mPresentFence));
+	VK_CHECK(vkResetFences(CVulkanDevice::vkDevice(), 1, &frame.mRenderFence->mFence));
+	//VK_CHECK(vkResetFences(CVulkanDevice::vkDevice(), 1, &frame.mPresentFence));
 }
 
 void CVulkanSwapchain::submit(const VkCommandBuffer inCmd, const VkQueue inGraphicsQueue, uint32 inCurrentFrameIndex, const uint32 inSwapchainImageIndex) {

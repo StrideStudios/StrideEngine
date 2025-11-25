@@ -11,11 +11,13 @@ class CObjectRenderer;
 	REGISTER_STRUCT(className, parentName)\
 	REGISTER_OBJ(CPassDeferredRegistry, className)
 
-class CPass : public SObject, public IInitializable, public IDestroyable {
+class CPass : public SObject, public TInitializable<CRenderer*>, public IDestroyable {
 
 public:
 
 	CPass() {}
+
+	virtual void onAdded() {}
 
 	virtual void begin() {}
 

@@ -3,15 +3,7 @@
 add_dependencies(StrideEngine-renderer
     PRIVATE
         vk-bootstrap::vk-bootstrap
-
         SDL3::SDL3
-
-        freetype
-
-        fastgltf::fastgltf
-        meshoptimizer
-
-        basisu_encoder
 
         StrideEngine-imgui
     PUBLIC

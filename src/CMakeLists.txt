@@ -20,10 +20,8 @@ function(create_module TARGET_NAME LIBRARY_TYPE)
     # Ensure target is using CXX
     set_target_properties(${TARGET_NAME} PROPERTIES LINKER_LANGUAGE CXX)
 
-    # If it finds an include directory, include it
-    if(EXISTS "include")
-        target_include_directories(${TARGET_NAME} PUBLIC "include")
-    endif()
+    # Include Headers for this module
+    target_include_directories(${TARGET_NAME} PUBLIC "include")
 endfunction()
 
 # Function for creating precompiled modules in subdirectories
@@ -49,10 +47,8 @@ function(create_precompiled_module TARGET_NAME LIBRARY_TYPE)
     # Ensure target is using CXX
     set_target_properties(${TARGET_NAME} PROPERTIES LINKER_LANGUAGE CXX)
 
-    # If it finds an include directory, include it
-    if(EXISTS "include")
-        target_include_directories(${TARGET_NAME} PUBLIC "include")
-    endif()
+    # Include Headers for this module
+    target_include_directories(${TARGET_NAME} PUBLIC "include")
 endfunction()
 
 function(add_dependencies TARGET_NAME)

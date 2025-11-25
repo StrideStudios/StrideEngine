@@ -1,10 +1,10 @@
 ﻿#include "renderer/passes/SpritePass.h"
 
 #include "rendercore/BindlessResources.h"
-#include "renderer/EngineLoader.h"
+#include "rendercore/EngineLoader.h"
 #include "renderer/EngineTextures.h"
 #include "renderer/VulkanRenderer.h"
-#include "renderer/VulkanDevice.h"
+#include "rendercore/VulkanDevice.h"
 #include "basic/Profiling.h"
 #include "engine/EngineSettings.h"
 #include "tracy/Tracy.hpp"
@@ -17,10 +17,10 @@ ADD_TEXT(SpriteVertices, "Vertices: ");
 ADD_TEXT(SpriteTriangles, "Triangles: ");
 #undef SETTINGS_CATEGORY
 
-void CSpritePass::init() {
-	CPass::init();
+void CSpritePass::init(CRenderer* inRenderer) {
+	CPass::init(inRenderer);
 
-	CVulkanRenderer& renderer = *CVulkanRenderer::get();
+	const CVulkanRenderer& renderer = *static_cast<CVulkanRenderer*>(inRenderer);
 
 	CResourceManager manager;
 

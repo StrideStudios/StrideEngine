@@ -1,4 +1,4 @@
-﻿#include "renderer/EngineLoader.h"
+﻿#include "rendercore/EngineLoader.h"
 
 #include <fastgltf/glm_element_traits.hpp>
 #include <fastgltf/tools.hpp>
@@ -11,15 +11,13 @@
 #include <meshoptimizer.h>
 
 #include "freetype/freetype.h"
-#include "renderer/EngineTextures.h"
 #include "encoder/basisu_comp.h"
 #include "transcoder/basisu_transcoder.h"
 #include "encoder/basisu_gpu_texture.h"
+#include "rendercore/Font.h"
 
 #include "rendercore/StaticMesh.h"
-#include "renderer/VulkanRenderer.h"
 #include "rendercore/VulkanUtils.h"
-#include "scene/viewport/generic/Text.h"
 
 constexpr static bool gUseOpenCL = false;
 
@@ -78,7 +76,7 @@ SImage_T* loadImage(CResourceManager& manager, const std::filesystem::path& path
 
 		SStagingBuffer uploadBuffer{image_size}; //TODO: was CPU_TO_GPU, test if errors
 
-		uploadBuffer.push(pImage);
+		uploadBuffer.push(pImage, image_size);
 
 		CRenderer::get()->immediateSubmit([&](SCommandBuffer& cmd) {
 			//ZoneScopedAllocation(std::string("Copy Image from Upload Buffer"));
@@ -102,7 +100,6 @@ SImage_T* loadImage(CResourceManager& manager, const std::filesystem::path& path
 		});
 
 		manager.flush();
-		uploadBuffer.destroy();
 	}
 
 	CRenderer::get()->immediateSubmit([&](SCommandBuffer& cmd) {
@@ -171,7 +168,7 @@ void optimizeMesh(std::vector<uint32>& indices, std::vector<SVertex>& vertices) 
 
 //TODO: each glb/gltf mesh will be combined into one with different surfaces, this should lower draw calls to ONLY be the number of surfaces
 // and give flexibility to creators of meshes
-MeshData loadGLTF_Internal(CVulkanRenderer* renderer, std::filesystem::path path) {
+MeshData loadGLTF_Internal(std::filesystem::path path) {
 
 	std::string fileName = path.filename().string();
 
@@ -254,7 +251,7 @@ MeshData loadGLTF_Internal(CVulkanRenderer* renderer, std::filesystem::path path
 			if (gltf.accessors[p.indicesAccessor.value()].count <= 0) continue;
 
 			SStaticMesh::Surface newSurface;
-			newSurface.material = renderer->mEngineTextures->mErrorMaterial;
+			newSurface.material = nullptr;
 			newSurface.startIndex = (uint32)indices.size();
 			newSurface.count = (uint32)gltf.accessors[p.indicesAccessor.value()].count;
 
@@ -422,21 +419,17 @@ SMeshBuffers_T* uploadMesh(CResourceManager& inManager, std::span<uint32> indice
 		vkCmdCopyBuffer(cmd, staging.get()->buffer, meshBuffers->indexBuffer->buffer, 1, &indexCopy);
 	});
 
-	staging.destroy();
-
 	return meshBuffers;
 }
 
 std::shared_ptr<SStaticMesh> toStaticMesh(const std::shared_ptr<SMeshData>& mesh, const std::string& fileName) {
-	CVulkanRenderer& renderer = *CVulkanRenderer::get();
-
 	auto loadMesh = std::make_shared<SStaticMesh>();
 	loadMesh->name = fileName;
 	loadMesh->bounds = mesh->bounds;
 	for (auto& [name, startIndex, count] : mesh->surfaces) {
 		loadMesh->surfaces.push_back({
 			.name = name,
-			.material = renderer.mEngineTextures->mErrorMaterial,
+			.material = nullptr,
 			.startIndex = startIndex,
 			.count = count
 		});
@@ -664,12 +657,10 @@ void CEngineLoader::createMaterial(const std::string& inMaterialName) {
 }
 
 void CEngineLoader::importMesh(const std::filesystem::path& inPath) {
-	CVulkanRenderer& renderer = *CVulkanRenderer::get();
-
 	const std::string fileName = inPath.filename().string();
 
 	// Load the GLTF into Mesh Data
-	const auto meshData = loadGLTF_Internal(&renderer, inPath);
+	const auto meshData = loadGLTF_Internal(inPath);
 
 	// If failed, do not write data
 	if (meshData.empty()) {

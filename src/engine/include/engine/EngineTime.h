@@ -2,8 +2,9 @@
 
 #include "basic/core/Common.h"
 
-struct SEngineTime : SBase {
+struct SEngineTime : SObject {
 
+	REGISTER_CLASS(SEngineTime, SObject)
 	MAKE_SINGLETON(SEngineTime)
 
 public:

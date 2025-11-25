@@ -2,7 +2,9 @@
 
 #include "rendercore/Pass.h"
 #include "renderer/passes/MeshPass.h"
-#include "renderer/EngineLoader.h"
+#include "rendercore/EngineLoader.h"
+#include "renderer/EngineTextures.h"
+#include "renderer/VulkanRenderer.h"
 #include "tracy/Tracy.hpp"
 
 void CStaticMeshObjectRenderer::render(CMeshPass* inPass, VkCommandBuffer cmd, CStaticMeshObject* inObject, uint32& outDrawCalls, uint64& outVertices) {
@@ -34,9 +36,15 @@ void CStaticMeshObjectRenderer::render(CMeshPass* inPass, VkCommandBuffer cmd, C
 	// Loop through surfaces and render
 	for (const auto& surface : mesh->surfaces) {
 
+
+		std::shared_ptr<CMaterial> material = CVulkanRenderer::get()->mEngineTextures->mErrorMaterial;
+		if (surface.material) {
+			material = surface.material;
+		}
+
 		//TODO: auto pipeline rebind (or something)
 		// If the materials arent the same, rebind material data
-		inPass->bindPipeline(cmd, inPass->opaquePipeline, surface.material->mConstants);
+		inPass->bindPipeline(cmd, inPass->opaquePipeline, material->mConstants);
 		//surface.material->getPipeline(renderer) TODO: pipelines
 		vkCmdDrawIndexed(cmd, surface.count, (uint32)NumInstances, surface.startIndex, 0, 0);
 

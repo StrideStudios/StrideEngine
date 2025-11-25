@@ -32,7 +32,7 @@ public:
 
 };
 
-class CViewportObject : public CSceneObject {
+class CViewportObject : public CSceneObject, public THierarchy<CViewportObject> {
 
 	REGISTER_CLASS(CViewportObject, CSceneObject)
 
@@ -87,7 +87,7 @@ private:
 	Transform2f m_Transform;
 };
 
-class CWorldObject : public CSceneObject {
+class CWorldObject : public CSceneObject, public THierarchy<CWorldObject> {
 public:
 
 	REGISTER_CLASS(CWorldObject, CSceneObject)

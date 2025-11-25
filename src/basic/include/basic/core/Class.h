@@ -5,7 +5,7 @@
 
 #include "Registry.h"
 #include "basic/core/Object.h"
-#include "basic/core/Factory.h"
+#include "basic/control/ResourceManager.h"
 
 /*
  * Simple registration for classes and structs
@@ -44,6 +44,8 @@ struct SClass {
 
 	virtual std::shared_ptr<SObject> construct() const = 0;
 
+	virtual SObject* construct(CResourceManager& inResourceManager) const = 0;
+
 	virtual std::shared_ptr<SClass> getParent() const = 0;
 
 	virtual bool doesInherit(const std::shared_ptr<SClass>& inClass) = 0;
@@ -64,6 +66,10 @@ struct TClass : SClass {
 	TClass(): SClass("None") {}
 
 	virtual std::shared_ptr<SObject> construct() const override {
+		return nullptr;
+	}
+
+	virtual SObject* construct(CResourceManager& inResourceManager) const override {
 		return nullptr;
 	}
 
@@ -99,6 +105,16 @@ struct TGenericClass : SClass {
 			return nullptr;
 		} else {
 			return std::make_shared<TCurrentClass>();
+		}
+	}
+
+	virtual SObject* construct(CResourceManager& inResourceManager) const override {
+		if constexpr (std::is_abstract_v<TCurrentClass>) {
+			return nullptr;
+		} else {
+			TCurrentClass* obj;
+			inResourceManager.create(obj);
+			return obj;
 		}
 	}
 

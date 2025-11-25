@@ -20,24 +20,6 @@ class CPass;
  * Base classes for engine access
  */
 
-class CInstance : public SObject {
-
-public:
-
-	no_discard virtual const vkb::Instance& getInstance() const = 0;
-
-};
-
-class CDevice : public SObject {
-
-public:
-
-	no_discard virtual const vkb::PhysicalDevice& getPhysicalDevice() const = 0;
-
-	no_discard virtual const vkb::Device& getDevice() const = 0;
-
-};
-
 class CSwapchain : public SObject, public TDirtyable<> {};
 
 class IBuffering {
@@ -59,7 +41,7 @@ private:
 };
 
 template <typename TType, size_t TFrameOverlap>
-class TBuffering : public SBase, public IBuffering {
+class TBuffering : public IBuffering {
 
 public:
 
@@ -103,28 +85,25 @@ public:
 		set(renderer);
 	}
 
+	EXPORT static void initPasses(std::initializer_list<CPass*> inPasses);
+
 	template <typename... TPasses>
 	static void addPasses(TPasses... passes) {
 		get()->m_Passes.append_range(std::initializer_list<CPass*>{passes...});
+		initPasses({passes...});
 	}
 
-	static const vkb::Instance& instance() { return get()->getInstance()->getInstance(); }
-
-	EXPORT static const VkInstance& vkInstance();
-
-	static const vkb::PhysicalDevice& physicalDevice() { return get()->getDevice()->getPhysicalDevice(); }
-
-	EXPORT static const VkPhysicalDevice& vkPhysicalDevice();
-
-	static const vkb::Device& device() { return get()->getDevice()->getDevice(); }
-
-	EXPORT static const VkDevice& vkDevice();
+	template <typename TPass>
+	static bool hasPass(TPass* inPass) {
+		for (auto pass : get()->m_Passes) {
+			if (pass == inPass) {
+				return true;
+			}
+		}
+		return false;
+	}
 
 	no_discard virtual IBuffering& getBufferingType() = 0;
-
-	no_discard virtual CInstance* getInstance() = 0;
-
-	no_discard virtual CDevice* getDevice() = 0;
 
 	no_discard virtual CSwapchain* getSwapchain() = 0;
 

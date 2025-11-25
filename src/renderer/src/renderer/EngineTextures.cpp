@@ -2,10 +2,11 @@
 
 #include <array>
 
+#include "VkBootstrap.h"
 #include "rendercore/BindlessResources.h"
 #include "engine/Engine.h"
 #include "rendercore/Material.h"
-#include "renderer/VulkanDevice.h"
+#include "rendercore/VulkanDevice.h"
 #include "renderer/VulkanRenderer.h"
 #include "renderer/Swapchain.h"
 #include "engine/Viewport.h"
@@ -68,7 +69,7 @@ void CEngineTextures::init() {
 
 		const auto sets = {writeSet, writeSet2};
 
-		vkUpdateDescriptorSets(CRenderer::vkDevice(), (uint32)sets.size(), sets.begin(), 0, nullptr);
+		vkUpdateDescriptorSets(CVulkanDevice::vkDevice(), (uint32)sets.size(), sets.begin(), 0, nullptr);
 	}
 
 	// Error checkerboard image

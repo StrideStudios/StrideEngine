@@ -2,7 +2,7 @@
 
 #include "rendercore/StaticMesh.h"
 #include "scene/base/RenderableObject.h"
-#include "renderer/EngineLoader.h"
+#include "rendercore/EngineLoader.h"
 
 // A scene object that has the capability to render static meshes
 class CStaticMeshObject : public CRenderableWorldObject {
