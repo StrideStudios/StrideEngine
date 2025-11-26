@@ -27,13 +27,15 @@ struct SBounds {
 	}
 };
 
-struct SStaticMesh {
+struct SStaticMesh : public SObject {
+
+	REGISTER_STRUCT(SStaticMesh, SObject)
 
 	struct Surface {
 
 		std::string name;
 
-		std::shared_ptr<CMaterial> material;
+		CMaterial* material;
 
 		uint32 startIndex;
 		uint32 count;

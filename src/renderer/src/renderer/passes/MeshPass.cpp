@@ -2,7 +2,6 @@
 
 #include "rendercore/BindlessResources.h"
 #include "renderer/EngineTextures.h"
-#include "rendercore/VulkanDevice.h"
 #include "renderer/VulkanRenderer.h"
 #include "rendercore/StaticMesh.h"
 #include "engine/EngineSettings.h"
@@ -18,10 +17,10 @@ ADD_TEXT(Triangles, "Triangles: ");
 #undef SETTINGS_CATEGORY
 
 //TODO: for now this is hard coded base pass, dont need anything else for now
-void CMeshPass::init(CRenderer* inRenderer) {
-	CPass::init(inRenderer);
+void CMeshPass::init() {
+	CPass::init();
 
-	const CVulkanRenderer& renderer = *static_cast<CVulkanRenderer*>(inRenderer);
+	const CVulkanRenderer* renderer = CVulkanRenderer::get();
 
 	CResourceManager manager;
 
@@ -43,8 +42,8 @@ void CMeshPass::init(CRenderer* inRenderer) {
 	SPipelineCreateInfo createInfo {
 		.vertexModule = vert->mModule,
 		.fragmentModule = frag->mModule,
-		.mColorFormat = renderer.mEngineTextures->mDrawImage->getFormat(),
-		.mDepthFormat = renderer.mEngineTextures->mDepthImage->getFormat()
+		.mColorFormat = renderer->mEngineTextures->mDrawImage->getFormat(),
+		.mDepthFormat = renderer->mEngineTextures->mDepthImage->getFormat()
 	};
 
 	//TODO: could probably read from shader and do automatically...
@@ -148,7 +147,7 @@ void CMeshPass::render(const VkCommandBuffer cmd) {
 	uint64 vertexCount = 0;
 
 	for (auto& object : renderObjects) { //TODO: renderer object with object member, so it can keep track of instancer?
-		if (const auto rendererClass = std::dynamic_pointer_cast<IRenderableClass>(object->getClass())) {
+		if (const auto rendererClass = dynamic_cast<IRenderableClass*>(object->getClass())) {
 			rendererClass->getRenderer()->render(this, cmd, object, drawCallCount, vertexCount);
 		}
 	}

@@ -15,8 +15,8 @@
 #include "tracy/Tracy.hpp"
 #include "scene/viewport/generic/Text.h"
 
-void CEditorSpritePass::init(CRenderer* inRenderer) {
-	CSpritePass::init(inRenderer);
+void CEditorSpritePass::init() {
+	CSpritePass::init();
 
 	/*{
 		const auto sprite = std::make_shared<CInstancedSprite>();
@@ -75,7 +75,8 @@ void CEditorSpritePass::init(CRenderer* inRenderer) {
 
 	manager.flush();
 
-	const auto textMaterial = std::make_shared<CMaterial>();
+	CMaterial* textMaterial;
+	CResourceManager::get().create(textMaterial);
 	textMaterial->mShouldSave = false;
 	textMaterial->mName = "Error";
 	textMaterial->mPassType = EMaterialPass::ERROR;
@@ -105,21 +106,18 @@ void CEditorSpritePass::render(VkCommandBuffer cmd) {
 
 			uint32 bufferSize = NumInstances * (sizeof(Vector4f) + sizeof(SInstance));
 
-			SDynamicBuffer<VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT> buffer;/*{
-				CBufferedResourceManager::get().getCurrentResourceManager()
-			};*/
-			buffer.allocate(bufferSize);
+			tempTextBuffer.allocate(bufferSize);
 
 			struct SData {
 				Vector4f uv;
 				SInstance instance;
 			};
 
-			std::shared_ptr<CFont> font = CEngineLoader::getFonts().begin()->second;
+			SFont font = CEngineLoader::getFonts().begin()->second;
 
 			std::vector<SData> datas;
 
-			font->forEachLetter(textSprite->getText(), [&datas, &font](const Vector2f& pos, const Vector2f& uv0, const Vector2f& uv1) {
+			font.forEachLetter(textSprite->getText(), [&datas, &font](const Vector2f& pos, const Vector2f& uv0, const Vector2f& uv1) {
 				/*SRenderStack stack;
 				stack.push();
 				stack.translate(pos);
@@ -127,7 +125,7 @@ void CEditorSpritePass::render(VkCommandBuffer cmd) {
 
 				Transform2f t;
 				t.setPosition(pos);
-				t.setScale(glm::abs(uv1 - uv0) * Vector2f(font->mAtlasSize));
+				t.setScale(glm::abs(uv1 - uv0) * Vector2f(font.mAtlasSize));
 				datas.push_back({
 					.uv = Vector4f{uv0, uv1},
 					.instance = {
@@ -136,13 +134,13 @@ void CEditorSpritePass::render(VkCommandBuffer cmd) {
 				});
 			});
 
-			memcpy(buffer.get()->getMappedData(), datas.data(), bufferSize);
+			memcpy(tempTextBuffer.get()->getMappedData(), datas.data(), bufferSize);
 
 			VkDeviceSize offset = 0u;
-			vkCmdBindVertexBuffers(cmd, 0, 1u, &buffer.get()->buffer, &offset);
+			vkCmdBindVertexBuffers(cmd, 0, 1u, &tempTextBuffer.get()->buffer, &offset);
 
 			SPushConstants constants = sprite->material->mConstants;
-			constants[0].x = font->mAtlasImage->mBindlessAddress;
+			constants[0].x = font.mAtlasImage->mBindlessAddress;
 
 			bindPipeline(cmd, textPipeline, constants);
 		} else {
@@ -166,19 +164,16 @@ void CEditorSpritePass::render(VkCommandBuffer cmd) {
 
 void CEditorSpritePass::destroy() {
 	CSpritePass::destroy();
+	tempTextBuffer.destroy();
 }
 
 void CEditorRenderer::init() {
 
 	CVulkanRenderer::init();
 
-	addPasses(
-		&CMeshPass::get(),
-		//&CSpritePass::get(),
-		//&CEditorSpritePass::get(),
-		&CEngineUIPass::get()
-	);
+	addPasses<CMeshPass,CEditorSpritePass>();
 
+	//CEngineUIPass::get();
 	if (hasPass(&CSpritePass::get())) {
 		constexpr int32 numSprites = 250;
 

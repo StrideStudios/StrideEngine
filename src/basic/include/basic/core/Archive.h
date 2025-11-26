@@ -337,41 +337,51 @@ public:
 
 	//
 	// Pointers need to be dereferenced on write and constructed on read
-	// Polymorphic types for shared_ptr must use REGISTER_CLASS so the type can be created
+	// Saved pointers must be of a registered class
 	//
 
 	template <typename TType>
-	requires (not std::is_polymorphic_v<TType>) or std::is_base_of_v<SObject, TType>
-	friend CArchive& operator<<(CArchive& inArchive, const std::shared_ptr<TType>& inValue) {
-		if constexpr (std::is_base_of_v<SObject, TType>) {
-			inArchive << inValue->getClass()->getName();
-		}
+	requires std::is_base_of_v<SObject, TType>
+	friend CArchive& operator<<(CArchive& inArchive, TType* inValue) {
+		inArchive << inValue->getClass()->getName();
 		inArchive << *inValue;
 		return inArchive;
 	}
 
 	template <typename TType>
-	requires std::is_default_constructible_v<TType> and ((not std::is_polymorphic_v<TType>) or std::is_base_of_v<SObject, TType>)
-	friend CArchive& operator>>(CArchive& inArchive, std::shared_ptr<TType>& inValue) {
-		if constexpr (std::is_base_of_v<SObject, TType>) {
-			std::string className;
-			inArchive >> className;
-			inValue = std::dynamic_pointer_cast<TType>(SClassRegistry::get(className.c_str())->construct());
-		} else {
-			inValue = std::make_shared<TType>();
-		}
+	requires std::is_default_constructible_v<TType> and std::is_base_of_v<SObject, TType>
+	friend CArchive& operator>>(CArchive& inArchive, TType*& inValue) {
+		std::string className;
+		inArchive >> className;
+		inValue = dynamic_cast<TType*>(SClassRegistry::get(className.c_str())->construct());
 		inArchive >> *inValue;
 		return inArchive;
 	}
 
 	template <typename TType>
+	requires (not std::is_polymorphic_v<TType>)
+	friend CArchive& operator<<(CArchive& inArchive, const std::shared_ptr<TType>& inValue) {
+		inArchive << *inValue;
+		return inArchive;
+	}
+
+	template <typename TType>
+	requires std::is_default_constructible_v<TType> and (not std::is_polymorphic_v<TType>)
+	friend CArchive& operator>>(CArchive& inArchive, std::shared_ptr<TType>& inValue) {
+		inValue = std::make_shared<TType>();
+		inArchive >> *inValue;
+		return inArchive;
+	}
+
+	template <typename TType>
+	requires (not std::is_polymorphic_v<TType>)
 	friend CArchive& operator<<(CArchive& inArchive, const std::unique_ptr<TType>& inValue) {
 		inArchive << *inValue;
 		return inArchive;
 	}
 
 	template <typename TType>
-	requires std::is_default_constructible_v<TType>
+	requires std::is_default_constructible_v<TType> and (not std::is_polymorphic_v<TType>)
 	friend CArchive& operator>>(CArchive& inArchive, std::unique_ptr<TType>& inValue) {
 		inValue = std::make_unique<TType>();
 		inArchive >> *inValue;

@@ -34,14 +34,14 @@ class TFactory {
 public:
 
 	template <typename TChildType = TType>
-	//requires std::is_base_of_v<TType, TChildType>
+	requires std::is_base_of_v<TType, TChildType>
 	static void addToFactory(const char* inName) {
 		if (get().m_Objects.contains(inName)) return;
 		get().m_Objects.insert(std::make_pair(inName, [] -> std::shared_ptr<TType> { return std::make_shared<TChildType>(); }));
 	}
 
 	template <typename TChildType = TType>
-	//requires std::is_base_of_v<TType, TChildType>
+	requires std::is_base_of_v<TType, TChildType>
 	static std::shared_ptr<TChildType> construct(const char* inName) {
 		if (!get().m_Objects.contains(inName)) {
 			errs("Could not construct object {}", inName);
@@ -63,7 +63,7 @@ class TDeferredFactory {
 public:
 
 	template <typename TChildType = TType>
-	//requires std::is_base_of_v<TType, TChildType>
+	requires std::is_base_of_v<TType, TChildType>
 	static void addToFactory(const char* inName) {
 		if (get().m_Objects.contains(inName)) return;
 		get().m_Objects.insert(std::make_pair(inName, [](CResourceManager& inResourceManager, TArgs... args) -> TType* {
@@ -74,10 +74,10 @@ public:
 	}
 
 	template <typename TChildType = TType>
-	//requires std::is_base_of_v<TType, TChildType>
+	requires std::is_base_of_v<TType, TChildType>
 	static TChildType* construct(const char* inName, CResourceManager& inResourceManager, TArgs... args) {
 		if (!get().m_Objects.contains(inName)) {
-			errs("Could not get registry object {}", inName);
+			errs("Could not get factory object {}", inName);
 		}
 		return dynamic_cast<TChildType*>((*get().m_Objects[inName])(inResourceManager, args...));
 	}

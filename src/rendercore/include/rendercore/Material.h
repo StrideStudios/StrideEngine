@@ -29,13 +29,11 @@ struct SPushConstants : std::array<Vector4f, 8> {
 	}
 };
 
-class CMaterial {
-public:
+class CMaterial : public SObject {
 
-	static std::vector<std::shared_ptr<CMaterial>>& getMaterials() {
-		static std::vector<std::shared_ptr<CMaterial>> materials;
-		return materials;
-	}
+	REGISTER_CLASS(CMaterial, SObject)
+
+public:
 
 	CMaterial() = default;
 

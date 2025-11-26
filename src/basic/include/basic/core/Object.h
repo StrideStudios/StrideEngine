@@ -11,11 +11,11 @@ struct SObject {
 
 	virtual ~SObject() = default;
 
-	virtual std::shared_ptr<SClass> getClass() const {
+	virtual SClass* getClass() const {
 		return staticClass();
 	}
 
-	EXPORT static std::shared_ptr<SClass> staticClass();
+	EXPORT static SClass* staticClass();
 
 	// An iterator the parent uses to remove and modify its child
 	std::list<SObject*>::iterator itr;

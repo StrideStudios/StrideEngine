@@ -7,7 +7,7 @@
 
 #define REGISTER_OBJ(registryType, n) \
 	private: \
-		STATIC_BLOCK( \
+		STATIC_C_BLOCK( \
 			registryType::registerObject<n>(#n); \
 		) \
 	public: \
@@ -27,36 +27,30 @@
 	template class TDeferredFactory<n, n##DeferredRegistry##Name>;
 
 template <typename TType, const char* TName>
-//requires std::is_base_of_v<SObject, TType>
 class TRegistry {
 
 	CUSTOM_SINGLETON(TRegistry, TName)
 
 public:
 
-	template <typename TChildType = TType>
-	//requires std::is_base_of_v<TType, TChildType>
-	static std::shared_ptr<TChildType> registerObject(const char* inName) {
+	template <typename TChildType = TType, typename... TArgs>
+	requires std::is_base_of_v<TType, TChildType>
+	static TChildType* registerObject(const char* inName, TArgs... args) {
 		if (contains(inName)) return nullptr;
-		auto object = std::make_shared<TChildType>();
+		TChildType* object;
+		CResourceManager::get().create(object, args...);
 		get().m_Objects.insert(std::make_pair(inName, object));
-		if constexpr (std::is_base_of_v<TChildType, IInitializable>) {
-			object->init();
-		}
 		return object;
 	}
 
 	template <typename TChildType = TType>
-	//requires std::is_base_of_v<TType, TChildType>
-	static void registerObject(const char* inName, const std::shared_ptr<TChildType>& inObject) {
+	requires std::is_base_of_v<TType, TChildType>
+	static void registerObject(const char* inName, TChildType* inObject) {
 		if (contains(inName)) return;
 		get().m_Objects.insert(std::make_pair(inName, inObject));
-		if constexpr (std::is_base_of_v<TChildType, IInitializable>) {
-			inObject->init();
-		}
 	}
 
-	static void forEach(const std::function<void(const std::string&, const std::shared_ptr<TType>&)>& inFunction) {
+	static void forEach(const std::function<void(const std::string&, TType*)>& inFunction) {
 		for (const auto& pair : get().m_Objects) {
 			inFunction(pair.first, pair.second);
 		}
@@ -67,15 +61,15 @@ public:
 	}
 
 	template <typename TChildType = TType>
-	//requires std::is_base_of_v<TType, TChildType>
-	static std::shared_ptr<TChildType> get(const char* inName) {
+	requires std::is_base_of_v<TType, TChildType>
+	static TChildType* get(const char* inName) {
 		if (!contains(inName)) {
 			errs("Could not get registry object {}", inName);
 		}
-		return std::dynamic_pointer_cast<TChildType>(get().m_Objects[inName]);
+		return dynamic_cast<TChildType*>(get().m_Objects[inName]);
 	}
 
-	std::map<std::string, std::shared_ptr<TType>> m_Objects;
+	std::map<std::string, TType*> m_Objects;
 
 };
 
@@ -83,7 +77,6 @@ public:
 // This can be done at any point the user wishes
 // It does this by storing registration, and doing it all at once at any point
 template <typename TType, const char* TName, typename... TArgs>
-//requires std::is_base_of_v<SObject, TType>
 class TDeferredRegistry {
 
 	CUSTOM_SINGLETON(TDeferredRegistry, TName)
@@ -92,14 +85,14 @@ class TDeferredRegistry {
 
 public:
 
-	static void init(class CResourceManager& inResourceManager, TArgs... args) {
+	/*static void init(class CResourceManager& inResourceManager, TArgs... args) {
 		for (auto& [name, object] : TTypeDeferredFactory::get().m_Objects) {
 			get().m_Objects.insert(std::make_pair(name, TTypeDeferredFactory::construct(name.c_str(), inResourceManager, args...)));
 		}
-	}
+	}*/
 
 	template <typename TChildType = TType>
-	//requires std::is_base_of_v<TType, TChildType>
+	requires std::is_base_of_v<TType, TChildType>
 	static void registerObject(const char* inName) {
 		if (contains(inName)) return;
 		TTypeDeferredFactory::template addToFactory<TChildType>(inName);
@@ -116,10 +109,10 @@ public:
 	}
 
 	template <typename TChildType = TType>
-	//requires std::is_base_of_v<TType, TChildType>
-	static TChildType* get(const char* inName) {
+	requires std::is_base_of_v<TType, TChildType>
+	static TChildType* get(const char* inName, TArgs... args) {
 		if (!contains(inName)) {
-			errs("Could not get registry object {}", inName);
+			get().m_Objects.insert(std::make_pair(inName, TTypeDeferredFactory::construct(inName, CResourceManager::get(), args...)));
 		}
 		return dynamic_cast<TChildType*>(get().m_Objects[inName]);
 	}

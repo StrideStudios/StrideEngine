@@ -59,12 +59,12 @@ struct IDestroyable {
 	virtual void destroy() {}
 };
 
-struct SInitializable {};
-
 template <typename... TArgs>
-struct TInitializable : SInitializable {
+struct TInitializable {
 	virtual void init(TArgs... args) {}
 };
+
+typedef TInitializable<> IInitializable;
 
 template <bool TDefaultDirty = false>
 struct TDirtyable {
@@ -91,9 +91,6 @@ private:
 
 	bool m_Dirty = TDefaultDirty;
 };
-
-// typedef which makes it easy to check if a class has an empty init function
-typedef TInitializable<> IInitializable;
 
 typedef unsigned char uint8;
 typedef signed char int8;

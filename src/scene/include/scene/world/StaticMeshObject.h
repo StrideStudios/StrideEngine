@@ -13,13 +13,13 @@ public:
 
 	CStaticMeshObject() = default;
 
-	CStaticMeshObject(const std::shared_ptr<SStaticMesh>& inMesh): mesh(inMesh) {}
+	CStaticMeshObject(SStaticMesh* inMesh): mesh(inMesh) {}
 
-	no_discard virtual const std::shared_ptr<SStaticMesh>& getMesh() const {
+	no_discard virtual SStaticMesh* getMesh() const {
 		return mesh;
 	}
 
-	std::shared_ptr<SStaticMesh> mesh;
+	SStaticMesh* mesh;
 
 	virtual CArchive& save(CArchive& inArchive) override {
 		CWorldObject::save(inArchive);

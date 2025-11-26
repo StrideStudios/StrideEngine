@@ -17,10 +17,10 @@ ADD_TEXT(SpriteVertices, "Vertices: ");
 ADD_TEXT(SpriteTriangles, "Triangles: ");
 #undef SETTINGS_CATEGORY
 
-void CSpritePass::init(CRenderer* inRenderer) {
-	CPass::init(inRenderer);
+void CSpritePass::init() {
+	CPass::init();
 
-	const CVulkanRenderer& renderer = *static_cast<CVulkanRenderer*>(inRenderer);
+	const CVulkanRenderer* renderer = CVulkanRenderer::get();
 
 	CResourceManager manager;
 
@@ -34,8 +34,8 @@ void CSpritePass::init(CRenderer* inRenderer) {
 		.vertexModule = vert->mModule,
 		.fragmentModule = frag->mModule,
 		.mDepthTestMode = EDepthTestMode::FRONT,
-		.mColorFormat = renderer.mEngineTextures->mDrawImage->getFormat(),
-		.mDepthFormat = renderer.mEngineTextures->mDepthImage->getFormat()
+		.mColorFormat = renderer->mEngineTextures->mDrawImage->getFormat(),
+		.mDepthFormat = renderer->mEngineTextures->mDepthImage->getFormat()
 	};
 
 	CVertexAttributeArchive attributes;

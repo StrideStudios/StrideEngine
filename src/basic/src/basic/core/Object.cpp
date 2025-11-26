@@ -7,8 +7,8 @@
 // This is a workaround so class can still be provided
 
 typedef TClass<SObject> Class;
-inline static std::shared_ptr<Class> c = makeClass<Class>("SObject");
+inline static SClass* c = makeClass<Class>("SObject");
 
-std::shared_ptr<SClass> SObject::staticClass() {
+SClass* SObject::staticClass() {
 	return c;
 }

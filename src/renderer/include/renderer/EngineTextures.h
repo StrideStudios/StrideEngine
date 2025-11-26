@@ -39,7 +39,7 @@ public:
 
 	SImage_T* mErrorCheckerboardImage;
 
-	std::shared_ptr<CMaterial> mErrorMaterial = nullptr;
+	CMaterial* mErrorMaterial = nullptr;
 
 private:
 

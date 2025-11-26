@@ -47,14 +47,14 @@ public:
 	requires std::is_base_of_v<TRequiredType, TType> and std::is_constructible_v<TType, TArgs...>
 	Iterator create(TType*& outType, TArgs&&... args) {
 		outType = new TType(args...);
-		if constexpr (std::is_base_of_v<SInitializable, TType>) {
+		if constexpr (std::is_base_of_v<IInitializable, TType>) {
 			outType->init();
 		}
 		return push(outType);
 	}
 
 	template <typename TType, typename... TArgs>
-	requires std::is_base_of_v<TRequiredType, TType> and std::is_base_of_v<SInitializable, TType> and (not std::is_constructible_v<TType, TArgs...>)
+	requires std::is_base_of_v<TRequiredType, TType> and std::is_base_of_v<TInitializable<TArgs...>, TType> and (not std::is_constructible_v<TType, TArgs...>)
 	Iterator create(TType*& outType, TArgs&&... args) {
 		outType = new TType();
 		outType->init(args...);

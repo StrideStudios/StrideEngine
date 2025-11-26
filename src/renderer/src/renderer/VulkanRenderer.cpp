@@ -130,7 +130,7 @@ void CVulkanRenderer::init() {
 	// Load textures and meshes
 	CEngineLoader::load();
 
-	CPassDeferredRegistry::init(CResourceManager::get());
+	//CPassDeferredRegistry::init(CResourceManager::get());
 }
 
 void CVulkanRenderer::destroy() {
@@ -249,7 +249,7 @@ void CVulkanRenderer::render() {
 			ZoneScopedN("Render");
 
 			// Tell all renderers that rendering has begun
-			CObjectRendererRegistry::forEach([](const std::string& inName, const std::shared_ptr<CObjectRenderer>& object) {
+			CObjectRendererRegistry::forEach([](const std::string& inName, CObjectRenderer* object) {
 				object->begin();
 			});
 
@@ -283,7 +283,7 @@ void CVulkanRenderer::render() {
 			vkCmdEndRendering(cmd);
 
 			// Tell all renderers that rendering has ended
-			CObjectRendererRegistry::forEach([](const std::string& inName, const std::shared_ptr<CObjectRenderer>& object) {
+			CObjectRendererRegistry::forEach([](const std::string& inName, CObjectRenderer* object) {
 				object->end();
 			});
 

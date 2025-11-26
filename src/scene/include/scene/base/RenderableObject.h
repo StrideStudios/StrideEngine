@@ -10,8 +10,8 @@ struct IRenderable {
 
 struct IRenderableClass {
 	virtual bool hasRenderer() const = 0;
-	virtual std::shared_ptr<CObjectRenderer> getRenderer() const = 0;
-	virtual void setRenderer(const std::shared_ptr<CObjectRenderer>&) = 0;
+	virtual CObjectRenderer* getRenderer() const = 0;
+	virtual void setRenderer(CObjectRenderer*) = 0;
 };
 
 class CRenderableWorldObject;
@@ -26,7 +26,7 @@ struct TClass<TCurrentClass, TParentClasses...> : TGenericClass<TCurrentClass, T
 		// Initially set renderer to the same as the parent renderer
 		// This can be overridden via specialization
 		if (auto parentClass = TClass::getParent()) {
-			if (auto renderableParentClass = std::dynamic_pointer_cast<IRenderableClass>(parentClass)) {
+			if (auto renderableParentClass = dynamic_cast<IRenderableClass*>(parentClass)) {
 				TClass::setRenderer(renderableParentClass->getRenderer());
 			}
 		}
@@ -34,13 +34,13 @@ struct TClass<TCurrentClass, TParentClasses...> : TGenericClass<TCurrentClass, T
 
 	virtual bool hasRenderer() const override { return mRenderer != nullptr; }
 
-	virtual std::shared_ptr<CObjectRenderer> getRenderer() const override { return mRenderer; }
+	virtual CObjectRenderer* getRenderer() const override { return mRenderer; }
 
-	virtual void setRenderer(const std::shared_ptr<CObjectRenderer>& inRenderer) override {
+	virtual void setRenderer(CObjectRenderer* inRenderer) override {
 		mRenderer = inRenderer;
 	}
 
-	std::shared_ptr<CObjectRenderer> mRenderer = nullptr;
+	CObjectRenderer* mRenderer = nullptr;
 
 };
 

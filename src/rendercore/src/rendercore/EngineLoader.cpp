@@ -109,8 +109,8 @@ SImage_T* loadImage(CResourceManager& manager, const std::filesystem::path& path
 	return image;
 }
 
-std::shared_ptr<CFont> loadFont(CResourceManager& allocator, const std::filesystem::path& inPath) {
-	std::shared_ptr<CFont> font;
+SFont loadFont(CResourceManager& allocator, const std::filesystem::path& inPath) {
+	SFont font;
 	std::vector<uint8> atlasData;
 
 	CFileArchive file(inPath.string(), "rb");
@@ -118,9 +118,9 @@ std::shared_ptr<CFont> loadFont(CResourceManager& allocator, const std::filesyst
 	file >> atlasData;
 	file.close();
 
-	const std::string label = font->mName + " Atlas";
-	allocator.create<SImage_T>(font->mAtlasImage, label, VkExtent3D{font->mAtlasSize.x, font->mAtlasSize.y, 1}, VK_FORMAT_R8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
-	font->mAtlasImage->push(atlasData.data(), atlasData.size());
+	const std::string label = font.mName + " Atlas";
+	allocator.create<SImage_T>(font.mAtlasImage, label, VkExtent3D{font.mAtlasSize.x, font.mAtlasSize.y, 1}, VK_FORMAT_R8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+	font.mAtlasImage->push(atlasData.data(), atlasData.size());
 
 	return font;
 }
@@ -370,7 +370,7 @@ MeshData loadGLTF_Internal(std::filesystem::path path) {
 	return savedMeshes;
 }
 
-std::shared_ptr<SMeshData> readMeshData(const std::filesystem::path& path) {
+SMeshData readMeshData(const std::filesystem::path& path) {
 	CFileArchive file(path.string(), "rb");
 
 	if (!file.isOpen()) {
@@ -378,7 +378,7 @@ std::shared_ptr<SMeshData> readMeshData(const std::filesystem::path& path) {
 		return {};
 	}
 
-	std::shared_ptr<SMeshData> outSaveData;
+	SMeshData outSaveData;
 
 	file >> outSaveData;
 
@@ -422,11 +422,12 @@ SMeshBuffers_T* uploadMesh(CResourceManager& inManager, std::span<uint32> indice
 	return meshBuffers;
 }
 
-std::shared_ptr<SStaticMesh> toStaticMesh(const std::shared_ptr<SMeshData>& mesh, const std::string& fileName) {
-	auto loadMesh = std::make_shared<SStaticMesh>();
+SStaticMesh* toStaticMesh(SMeshData mesh, const std::string& fileName) {
+	SStaticMesh* loadMesh;
+	CResourceManager::get().create(loadMesh);
 	loadMesh->name = fileName;
-	loadMesh->bounds = mesh->bounds;
-	for (auto& [name, startIndex, count] : mesh->surfaces) {
+	loadMesh->bounds = mesh.bounds;
+	for (auto& [name, startIndex, count] : mesh.surfaces) {
 		loadMesh->surfaces.push_back({
 			.name = name,
 			.material = nullptr,
@@ -435,14 +436,14 @@ std::shared_ptr<SStaticMesh> toStaticMesh(const std::shared_ptr<SMeshData>& mesh
 		});
 	}
 
-	loadMesh->meshBuffers = uploadMesh(CResourceManager::get(), mesh->indices, mesh->vertices);
+	loadMesh->meshBuffers = uploadMesh(CResourceManager::get(), mesh.indices, mesh.vertices);
 	return loadMesh;
 }
 
 void CEngineLoader::save() {
 	// Only materials need to be saved (as they are the only thing created at runtime)
 	for (const auto& [name, material] : get().mMaterials) {
-		save(name, material);
+		save<CMaterial*>(name, material);
 	}
 }
 
@@ -486,19 +487,19 @@ void CEngineLoader::load() {
 
 	// Load fonts
 	for (const auto& path : fonts) {
-		std::shared_ptr<CFont> font = loadFont(CResourceManager::get(), path);
+		SFont font = loadFont(CResourceManager::get(), path);
 		get().mFonts.emplace(pathToName(path), font);
 	}
 
 	// Load materials
 	for (const auto& path : materials) {
-		auto material = load<std::shared_ptr<CMaterial>>(path);
+		auto material = load<CMaterial*>(path);
 		get().mMaterials.emplace(pathToName(path), material);
 	}
 
 	// Load meshes
 	for (const auto& path : meshes) {
-		auto mesh = load<std::shared_ptr<SMeshData>>(path);
+		auto mesh = load<SMeshData>(path);
 		get().mMeshes.emplace(pathToName(path), toStaticMesh(mesh, pathToName(path)));
 	}
 }
@@ -564,16 +565,16 @@ void CEngineLoader::importFont(const std::filesystem::path& inPath) {
 
     uint32 maxHeightInRow = 0;
 
-    auto font = std::make_shared<CFont>();
-    font->mSize = FONT_MAX_SIZE;
-    font->mName = inPath.stem().string();
-	font->mAtlasSize = Extent32u{FONT_ATLAS_SIZE, FONT_ATLAS_SIZE};
+    SFont font;
+    font.mSize = FONT_MAX_SIZE;
+    font.mName = inPath.stem().string();
+	font.mAtlasSize = Extent32u{FONT_ATLAS_SIZE, FONT_ATLAS_SIZE};
 
-    font->mLineSpacing = face->size->metrics.height / 64.f;
-    font->mAscenderPx = face->size->metrics.ascender / 64.f;
-    font->mDescenderPx = face->size->metrics.descender / 64.f;
+    font.mLineSpacing = face->size->metrics.height / 64.f;
+    font.mAscenderPx = face->size->metrics.ascender / 64.f;
+    font.mDescenderPx = face->size->metrics.descender / 64.f;
 
-    get().mFonts.emplace(font->mName, font);
+    get().mFonts.emplace(font.mName, font);
 
 	// Do all standard ASCII characters
     for (uint8 character = 0; character < std::numeric_limits<uint8>::max(); ++character) {
@@ -598,14 +599,14 @@ void CEngineLoader::importFont(const std::filesystem::path& inPath) {
     		}
     	}
 
-        auto letter = CFont::Letter{
+        auto letter = SFont::Letter{
             .mUV0 = {cursor.x / FONT_ATLAS_SIZE, cursor.y / FONT_ATLAS_SIZE},
             .mUV1 = {(cursor.x + bitmap.width) / FONT_ATLAS_SIZE, (cursor.y + bitmap.rows) / FONT_ATLAS_SIZE},
             .mBearing = {face->glyph->bitmap_left, face->glyph->bitmap_top},
             .mAdvance = face->glyph->advance.x >> 6u,
         };
 
-        font->letters.emplace(character, std::move(letter));
+        font.letters.emplace(character, std::move(letter));
 
         cursor.x += bitmap.width;
         if (bitmap.rows > maxHeightInRow) {
@@ -613,14 +614,14 @@ void CEngineLoader::importFont(const std::filesystem::path& inPath) {
         }
     }
 
-    msgs("Created font {} with {} letters.", font->mName.c_str(), font->letters.size());
+    msgs("Created font {} with {} letters.", font.mName.c_str(), font.letters.size());
 
-	std::filesystem::path cachedPath = SPaths::get().mAssetPath.string() + font->mName;
+	std::filesystem::path cachedPath = SPaths::get().mAssetPath.string() + font.mName;
 	cachedPath.replace_extension(".fnt");
 
-	const std::string label = font->mName + " Atlas";
-	CResourceManager::get().create<SImage_T>(font->mAtlasImage, label, VkExtent3D{FONT_ATLAS_SIZE, FONT_ATLAS_SIZE, 1}, VK_FORMAT_R8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
-	font->mAtlasImage->push(atlasData.data(), atlasData.size());
+	const std::string label = font.mName + " Atlas";
+	CResourceManager::get().create<SImage_T>(font.mAtlasImage, label, VkExtent3D{FONT_ATLAS_SIZE, FONT_ATLAS_SIZE, 1}, VK_FORMAT_R8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+	font.mAtlasImage->push(atlasData.data(), atlasData.size());
 
 	// Write font and atlas data to file
 	CFileArchive file(cachedPath.string(), "wb");
@@ -640,8 +641,8 @@ void CEngineLoader::createMaterial(const std::string& inMaterialName) {
 	while (contains) {
 		name = fmts("material {}", materialNumber);
 		contains = false;
-		for (const auto& material : CMaterial::getMaterials()) {
-			if (material->mName == name) {
+		for (const auto& material : getMaterials()) {
+			if (material.second->mName == name) {
 				contains = true;
 				break;
 			}
@@ -649,9 +650,9 @@ void CEngineLoader::createMaterial(const std::string& inMaterialName) {
 		materialNumber++;
 	}
 
-	const auto material = std::make_shared<CMaterial>();
+	CMaterial* material;
+	CResourceManager::get().create(material);
 	material->mName = name;
-	CMaterial::getMaterials().push_back(material);
 
 	get().mMaterials.emplace(name, material);
 }
@@ -669,15 +670,15 @@ void CEngineLoader::importMesh(const std::filesystem::path& inPath) {
 	}
 
 	// Save the mesh data
-	for (const auto& [fileName, data] : meshData) {
+	for (const auto& [name, data] : meshData) {
 
 		// Create an asset path with the appropriate name
 		std::filesystem::path path = SPaths::get().mAssetPath;
-		path.append(fileName + ".msh");
+		path.append(name + ".msh");
 
 		// Ensure .msh doesn't already exist
 		if (std::filesystem::exists(path)) {
-			msgs("File {} already exists!", fileName);
+			msgs("File {} already exists!", name);
 			return;
 		}
 
@@ -689,6 +690,6 @@ void CEngineLoader::importMesh(const std::filesystem::path& inPath) {
 
 		const auto mesh = readMeshData(path);
 
-		get().mMeshes.emplace(fileName, toStaticMesh(mesh, fileName));
+		get().mMeshes.emplace(name, toStaticMesh(mesh, name));
 	}
 }

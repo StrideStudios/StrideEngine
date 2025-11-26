@@ -12,7 +12,7 @@ class CSprite : public CRenderableViewportObject {
 public:
 
 	// Surface Data
-	std::shared_ptr<CMaterial> material;
+	CMaterial* material;
 };
 
 class CInstancedSprite : public CSprite {

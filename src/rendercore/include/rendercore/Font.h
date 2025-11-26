@@ -2,8 +2,7 @@
 
 #include "VulkanResources.h"
 
-class CFont {
-public:
+struct SFont {
 
 	struct Letter {
 		Vector2f mUV0, mUV1;
@@ -39,7 +38,7 @@ public:
 	float mAscenderPx = 0.f;
 	float mDescenderPx = 0.f;
 
-	friend CArchive& operator<<(CArchive& inArchive, const CFont& inFont) {
+	friend CArchive& operator<<(CArchive& inArchive, const SFont& inFont) {
 		inArchive << inFont.mName;
 		inArchive << inFont.mAtlasSize;
 		inArchive << inFont.mSize;
@@ -50,7 +49,7 @@ public:
 		return inArchive;
 	}
 
-	friend CArchive& operator>>(CArchive& inArchive, CFont& inFont) {
+	friend CArchive& operator>>(CArchive& inArchive, SFont& inFont) {
 		inArchive >> inFont.mName;
 		inArchive >> inFont.mAtlasSize;
 		inArchive >> inFont.mSize;

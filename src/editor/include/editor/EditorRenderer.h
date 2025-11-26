@@ -9,7 +9,7 @@ class CEditorSpritePass : public CSpritePass {
 
 public:
 
-	EXPORT virtual void init(CRenderer* inRenderer) override;
+	EXPORT virtual void init() override;
 
 	EXPORT virtual void render(VkCommandBuffer cmd) override;
 
@@ -20,6 +20,8 @@ public:
 	//
 
 	CPipeline* textPipeline = nullptr;
+
+	SDynamicBuffer<VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT> tempTextBuffer;
 };
 
 class CEditorRenderer :public CVulkanRenderer {

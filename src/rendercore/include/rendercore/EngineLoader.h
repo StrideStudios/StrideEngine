@@ -5,12 +5,12 @@
 #include <string>
 #include <memory>
 
+#include "Font.h"
 #include "basic/core/Paths.h"
 #include "rendercore/StaticMesh.h"
 
 struct SStaticMesh;
 class CMaterial;
-class CFont;
 
 // Represents a vertex
 struct SVertex {
@@ -179,7 +179,7 @@ class CEngineLoader : public SObject {
 	MAKE_SINGLETON(CEngineLoader)
 
 	template <typename TType>
-	static void save(const std::string& inFileName, const TType& inValue) {
+	static void save(const std::string& inFileName, TType inValue) {
 		std::filesystem::path path = SPaths::get().mAssetPath;
 		path.append(inFileName);
 
@@ -223,9 +223,9 @@ public:
 
 	EXPORT static void importFont(const std::filesystem::path& inPath);
 
-	static std::map<std::string, std::shared_ptr<CFont>>& getFonts() { return get().mFonts; }
+	static std::map<std::string, SFont>& getFonts() { return get().mFonts; }
 
-	std::map<std::string, std::shared_ptr<CFont>> mFonts{};
+	std::map<std::string, SFont> mFonts{};
 
 	//
 	// Materials
@@ -233,9 +233,9 @@ public:
 
 	EXPORT static void createMaterial(const std::string& inMaterialName);
 
-	static std::map<std::string, std::shared_ptr<CMaterial>>& getMaterials() { return get().mMaterials; }
+	static std::map<std::string, CMaterial*>& getMaterials() { return get().mMaterials; }
 
-	std::map<std::string, std::shared_ptr<CMaterial>> mMaterials{};
+	std::map<std::string, CMaterial*> mMaterials{};
 
 	//
 	// Meshes
@@ -243,8 +243,8 @@ public:
 
 	EXPORT static void importMesh(const std::filesystem::path& inPath);
 
-	static std::map<std::string, std::shared_ptr<SStaticMesh>>& getMeshes() { return get().mMeshes; }
+	static std::map<std::string, SStaticMesh*>& getMeshes() { return get().mMeshes; }
 
-	std::map<std::string, std::shared_ptr<SStaticMesh>> mMeshes{};
+	std::map<std::string, SStaticMesh*> mMeshes{};
 
 };

@@ -9,7 +9,7 @@
 
 void CStaticMeshObjectRenderer::render(CMeshPass* inPass, VkCommandBuffer cmd, CStaticMeshObject* inObject, uint32& outDrawCalls, uint64& outVertices) {
 	IInstancer& instancer = inObject->getInstancer();
-	std::shared_ptr<SStaticMesh> mesh = inObject->getMesh();
+	SStaticMesh* mesh = inObject->getMesh();
 	const size_t NumInstances = instancer.getNumberOfInstances();
 
 	ZoneScoped;
@@ -37,7 +37,7 @@ void CStaticMeshObjectRenderer::render(CMeshPass* inPass, VkCommandBuffer cmd, C
 	for (const auto& surface : mesh->surfaces) {
 
 
-		std::shared_ptr<CMaterial> material = CVulkanRenderer::get()->mEngineTextures->mErrorMaterial;
+		const CMaterial* material = CVulkanRenderer::get()->mEngineTextures->mErrorMaterial;
 		if (surface.material) {
 			material = surface.material;
 		}
@@ -55,8 +55,8 @@ void CStaticMeshObjectRenderer::render(CMeshPass* inPass, VkCommandBuffer cmd, C
 	//TODO: If Render Bounds
 
 	if (CEngineLoader::getMeshes().contains("CubeBounds") && CEngineLoader::getMeshes().contains("SphereBounds")) {
-		const std::shared_ptr<SStaticMesh> cubeBoundsMesh = CEngineLoader::getMeshes()["CubeBounds"];
-		const std::shared_ptr<SStaticMesh> sphereBoundsMesh = CEngineLoader::getMeshes()["SphereBounds"];
+		const SStaticMesh* cubeBoundsMesh = CEngineLoader::getMeshes()["CubeBounds"];
+		const SStaticMesh* sphereBoundsMesh = CEngineLoader::getMeshes()["SphereBounds"];
 
 		// Fill with matrix transform for bounds
 		SPushConstants boxPcs;

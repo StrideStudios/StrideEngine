@@ -85,12 +85,9 @@ public:
 		set(renderer);
 	}
 
-	EXPORT static void initPasses(std::initializer_list<CPass*> inPasses);
-
 	template <typename... TPasses>
-	static void addPasses(TPasses... passes) {
-		get()->m_Passes.append_range(std::initializer_list<CPass*>{passes...});
-		initPasses({passes...});
+	static void addPasses() {
+		(get()->m_Passes.push_back(&TPasses::get()), ...);
 	}
 
 	template <typename TPass>

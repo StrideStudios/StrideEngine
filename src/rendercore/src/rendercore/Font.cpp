@@ -1,6 +1,6 @@
 #include "rendercore/Font.h"
 
-void CFont::forEachLetter(const std::string& text, std::function<void(const Vector2f& pos, const Vector2f& uv0, const Vector2f& uv1)> f) {
+void SFont::forEachLetter(const std::string& text, std::function<void(const Vector2f& pos, const Vector2f& uv0, const Vector2f& uv1)> f) {
 	float x = 0.0f;
 	int lineNum = 0;
 

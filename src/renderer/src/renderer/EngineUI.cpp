@@ -151,7 +151,7 @@ void renderTextureUI() {
 }
 
 void renderMaterialUI() {
-	static uint32 selected = 0;
+	static std::string selected = "";
 	if (ImGui::Begin("Materials")) {
 		ImGui::Text("Add Material");
 		ImGui::SameLine();
@@ -165,8 +165,8 @@ void renderMaterialUI() {
 				testName = fmts("material {}", materialNumber);
 
 				contains = false;
-				for (const auto& material : CMaterial::getMaterials()) {
-					if (material->mName == testName) {
+				for (const auto& material : CEngineLoader::getMaterials()) {
+					if (material.second->mName == testName) {
 						contains = true;
 						break;
 					}
@@ -175,29 +175,31 @@ void renderMaterialUI() {
 				materialNumber++;
 			}
 
-			const auto material = std::make_shared<CMaterial>();
+			CMaterial* material;
+			CResourceManager::get().create(material);
 			material->mName = testName;
-			CMaterial::getMaterials().push_back(material);
-			selected = CMaterial::getMaterials().size() - 1;
+			CEngineLoader::getMaterials().emplace(testName, material);
+			selected = testName;
 		}
 
-		if (!CMaterial::getMaterials().empty()) {
+		if (!CEngineLoader::getMaterials().empty()) {
 			ImGui::SameLine();
 			if (ImGui::SmallButton("-")) {
-				CMaterial::getMaterials().erase(CMaterial::getMaterials().begin() + selected);
-				selected = std::min(static_cast<uint32>(CMaterial::getMaterials().size() - 1), selected);
+				auto itr = std::prev(CEngineLoader::getMaterials().find(selected));
+				selected = itr == CEngineLoader::getMaterials().end() ? "" : itr->first;
+				CEngineLoader::getMaterials().erase(selected);
 			}
 		}
 
-		if (!CMaterial::getMaterials().empty()) {
-			const std::shared_ptr<CMaterial> material = CMaterial::getMaterials()[selected];
+		if (!CEngineLoader::getMaterials().empty()) {
+			CMaterial* material = CEngineLoader::getMaterials()[selected];
 
 			if (material) {
 				if (ImGui::BeginCombo("Material", material->mName.c_str(), ImGuiComboFlags_HeightRegular)) {
-					for (int32 i = 0; i < CMaterial::getMaterials().size(); ++i) {
-						const bool isSelected = selected == i;
-						if (ImGui::Selectable(CMaterial::getMaterials()[i]->mName.c_str(), isSelected))
-							selected = i;
+					for (auto itr = CEngineLoader::getMaterials().begin(); itr != CEngineLoader::getMaterials().end(); ++itr) {
+						const bool isSelected = selected == itr->first;
+						if (ImGui::Selectable(CEngineLoader::getMaterials()[itr->first]->mName.c_str(), isSelected))
+							selected = itr->first;
 
 						// Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
 						if (isSelected)
@@ -266,12 +268,12 @@ void renderSpriteUI() {
 
 
 
-					if (!CMaterial::getMaterials().empty()) {
+					if (!CEngineLoader::getMaterials().empty()) {
 						if (ImGui::BeginCombo("Surface Material", sprite->material->mName.c_str(), ImGuiComboFlags_HeightRegular)) {
-							for (const auto& material : CMaterial::getMaterials()) {
-								const bool isSelected = sprite->material == material;
-								if (ImGui::Selectable(material->mName.c_str(), isSelected)) {
-									sprite->material = material;
+							for (const auto& material : CEngineLoader::getMaterials()) {
+								const bool isSelected = sprite->material == material.second;
+								if (ImGui::Selectable(material.first.c_str(), isSelected)) {
+									sprite->material = material.second;
 								}
 
 								// Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
@@ -318,12 +320,12 @@ void renderMeshUI() {
 					for (auto& surface : snd->surfaces) {
 						ImGui::PushID(surface.name.c_str());
 						if (ImGui::CollapsingHeader(surface.name.c_str())) {
-							if (!CMaterial::getMaterials().empty()) {
+							if (!CEngineLoader::getMaterials().empty()) {
 								if (ImGui::BeginCombo("Surface Material", surface.material->mName.c_str(), ImGuiComboFlags_HeightRegular)) {
-									for (const auto& material : CMaterial::getMaterials()) {
-										const bool isSelected = surface.material == material;
-										if (ImGui::Selectable(material->mName.c_str(), isSelected)) {
-											surface.material = material;
+									for (const auto& material : CEngineLoader::getMaterials()) {
+										const bool isSelected = surface.material == material.second;
+										if (ImGui::Selectable(material.first.c_str(), isSelected)) {
+											surface.material = material.second;
 										}
 
 										// Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
@@ -350,8 +352,8 @@ void renderMeshUI() {
 	ImGui::End();
 }
 
-void CEngineUIPass::init(CRenderer* inRenderer) {
-	CPass::init(inRenderer);
+void CEngineUIPass::init() {
+	CPass::init();
 
 	// Setup Dear ImGui context
 	ImGui::CreateContext();
@@ -406,6 +408,8 @@ void CEngineUIPass::init(CRenderer* inRenderer) {
 
 	ImGui_ImplVulkan_Init(&initInfo);
 	ImGui_ImplSDL3_InitForVulkan(CEngineViewport::get().mWindow);
+
+	msgs("INIT UI PASS");
 }
 
 void CEngineUIPass::begin() {
@@ -434,4 +438,7 @@ void CEngineUIPass::destroy() {
 	ImGui_ImplVulkan_Shutdown();
 	ImGui_ImplSDL3_Shutdown();
 	ImGui::DestroyContext();
+
+	msgs("DESTROY UI PASS");
+
 }

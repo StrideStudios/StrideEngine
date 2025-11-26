@@ -10,7 +10,7 @@ class CMeshPass : public CPass {
 
 public:
 
-	EXPORT virtual void init(CRenderer* inRenderer) override;
+	EXPORT virtual void init() override;
 
 	EXPORT virtual void render(VkCommandBuffer cmd) override;
 

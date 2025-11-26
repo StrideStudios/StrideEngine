@@ -88,7 +88,7 @@ void CEngineTextures::init() {
 	mErrorCheckerboardImage->push(pixels.data(), size);
 
 	{
-		mErrorMaterial = std::make_shared<CMaterial>();
+		CResourceManager::get().create(mErrorMaterial);
 		mErrorMaterial->mShouldSave = false;
 		mErrorMaterial->mName = "Error";
 		mErrorMaterial->mPassType = EMaterialPass::ERROR;
