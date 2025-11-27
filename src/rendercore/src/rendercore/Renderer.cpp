@@ -13,3 +13,21 @@ void CRenderer::set(CRenderer* inRenderer) {
 	CResourceManager::get().push(gRenderer);
 	gRenderer->init();
 }
+
+CPass* CRenderer::getPass(const SClass* cls) {
+	for (const auto pass : get()->m_Passes) {
+		if (pass->getClass() == cls) {
+			return pass;
+		}
+	}
+	return nullptr;
+}
+
+bool CRenderer::hasPass(const SClass* cls) {
+	for (const auto pass : get()->m_Passes) {
+		if (pass->getClass() == cls) {
+			return true;
+		}
+	}
+	return false;
+}

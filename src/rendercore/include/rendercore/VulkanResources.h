@@ -386,12 +386,16 @@ struct SPushableBuffer {
 
 	virtual size_t getSize() const = 0;
 
+	virtual void checkSize(const size_t size) {
+		if (size > getSize()) {
+			errs("Tried to allocate more than available in Buffer!");
+		}
+	}
+
 	template <typename... TArgs>
 	void push(const void* src, const size_t size = 0, TArgs... args) {
 		size_t totalSize = getTotalSize(src, size, args...);
-		if (totalSize > getSize()) {
-			errs("Tried to allocate more than available in Buffer!");
-		}
+		checkSize(totalSize);
 
 		if constexpr (TMemoryUsage == VMA_MEMORY_USAGE_GPU_ONLY) {
 
@@ -535,9 +539,22 @@ struct SDynamicBuffer : SPushableBuffer<TMemoryUsage, TBufferUsage>, IDestroyabl
 		return mBuffer;
 	}
 
-	void allocate(const size_t inElementSize, const size_t inSize) {
-		return allocate(inElementSize * inSize);
+	virtual void checkSize(const size_t size) override {
+		allocate(size);
 	}
+
+	virtual size_t getSize() const override {
+		return mAllocSize;
+	}
+
+	virtual void destroy() override {
+		if (!mAllocated) return;
+		msgs("Destroyed Dynamic Buffer.");
+		mAllocated = false;
+		CVulkanAllocator::remove(mBuffer);
+	}
+
+private:
 
 	void allocate(const size_t inAllocSize) {
 		if (inAllocSize <= 0) {
@@ -553,19 +570,6 @@ struct SDynamicBuffer : SPushableBuffer<TMemoryUsage, TBufferUsage>, IDestroyabl
 			CVulkanAllocator::allocate(mBuffer, mAllocSize, TMemoryUsage, TBufferUsage);
 		}
 	}
-
-	virtual size_t getSize() const override {
-		return mAllocSize;
-	}
-
-	virtual void destroy() override {
-		if (!mAllocated) return;
-		msgs("Destroyed Dynamic Buffer.");
-		mAllocated = false;
-		CVulkanAllocator::remove(mBuffer);
-	}
-
-private:
 
 	size_t mAllocSize = 0;
 	bool mAllocated = false;

@@ -85,19 +85,31 @@ public:
 		set(renderer);
 	}
 
+	template <typename TPass>
+	static void addPass() {
+		if (hasPass<TPass>()) return;
+		TPass* pass;
+		CResourceManager::get().create(pass);
+		get()->m_Passes.push_back(pass);
+	}
+
 	template <typename... TPasses>
 	static void addPasses() {
-		(get()->m_Passes.push_back(&TPasses::get()), ...);
+		(addPass<TPasses>(), ...);
+	}
+
+	EXPORT static CPass* getPass(const SClass* cls);
+
+	EXPORT static bool hasPass(const SClass* cls);
+
+	template <typename TPass>
+	static bool hasPass() {
+		return hasPass(TPass::staticClass());
 	}
 
 	template <typename TPass>
-	static bool hasPass(TPass* inPass) {
-		for (auto pass : get()->m_Passes) {
-			if (pass == inPass) {
-				return true;
-			}
-		}
-		return false;
+	static TPass* getPass() {
+		return static_cast<TPass*>(getPass(TPass::staticClass()));
 	}
 
 	no_discard virtual IBuffering& getBufferingType() = 0;

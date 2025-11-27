@@ -106,8 +106,6 @@ void CEditorSpritePass::render(VkCommandBuffer cmd) {
 
 			uint32 bufferSize = NumInstances * (sizeof(Vector4f) + sizeof(SInstance));
 
-			tempTextBuffer.allocate(bufferSize);
-
 			struct SData {
 				Vector4f uv;
 				SInstance instance;
@@ -134,7 +132,7 @@ void CEditorSpritePass::render(VkCommandBuffer cmd) {
 				});
 			});
 
-			memcpy(tempTextBuffer.get()->getMappedData(), datas.data(), bufferSize);
+			tempTextBuffer.push(datas.data(), bufferSize);
 
 			VkDeviceSize offset = 0u;
 			vkCmdBindVertexBuffers(cmd, 0, 1u, &tempTextBuffer.get()->buffer, &offset);
@@ -171,10 +169,14 @@ void CEditorRenderer::init() {
 
 	CVulkanRenderer::init();
 
-	addPasses<CMeshPass,CEditorSpritePass>();
+	addPasses<
+		CMeshPass,
+		CSpritePass,
+		CEditorSpritePass,
+		CEngineUIPass
+	>();
 
-	//CEngineUIPass::get();
-	if (hasPass(&CSpritePass::get())) {
+	if (CSpritePass* pass = getPass<CSpritePass>()) {
 		constexpr int32 numSprites = 250;
 
 		std::random_device rd;
@@ -197,7 +199,7 @@ void CEditorRenderer::init() {
 			sprite->addInstance(transform);
 		}
 
-		CSpritePass::get().push(sprite);
+		pass->push(sprite);
 	}
 }
 

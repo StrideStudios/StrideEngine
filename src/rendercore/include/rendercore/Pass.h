@@ -8,8 +8,7 @@
 class CObjectRenderer;
 
 #define REGISTER_PASS(className, parentName) \
-	REGISTER_STRUCT(className, parentName) \
-	REGISTER_OBJ(CPassDeferredRegistry, className)
+	REGISTER_STRUCT(className, parentName)
 
 class CPass : public SObject, public IInitializable, public IDestroyable {
 

@@ -245,7 +245,7 @@ void CVulkanRenderer::render() {
 			mSceneBuffer.get()->updateGlobal();
 		}
 
-		{
+		if (!getPasses().empty()) {
 			ZoneScopedN("Render");
 
 			// Tell all renderers that rendering has begun
