@@ -22,7 +22,7 @@ struct SInstance {
 
 struct IInstancer : TDirtyable<true> {
 	virtual size_t getNumberOfInstances() = 0;
-	virtual SBuffer_T* get(const SRenderStack& stack) = 0;
+	virtual SBuffer_T* get(SRenderStack& stack) = 0;
 	virtual void flush() = 0;
 };
 
@@ -42,17 +42,19 @@ struct SStaticInstancer : IInstancer {
 		return m_Instances.size();
 	}
 
-	void reallocate(const SRenderStack& stack) {
+	void reallocate(SRenderStack& stack) {
 
 		for (auto& instance : m_Instances) {
-			instance.Transform = stack.get(); //TODO use RenderStack
+			stack.push(instance.Transform);
+			instance.Transform = stack.get();
+			stack.pop();
 		}
 
 		m_InstanceBuffer.push(m_Instances.data());
 	}
 
 	//TODO: don't return SBuffer_T*
-	virtual SBuffer_T* get(const SRenderStack& stack) override {
+	virtual SBuffer_T* get(SRenderStack& stack) override {
 		if (isDirty()) {
 			clean();
 			reallocate(stack);
@@ -102,15 +104,17 @@ struct SSingleInstancer : IInstancer {
 		return 1;
 	}
 
-	void reallocate(const SRenderStack& stack) {
+	void reallocate(SRenderStack& stack) {
 
+		stack.push(m_Instance.Transform);
 		m_Instance.Transform = stack.get();
+		stack.pop();
 
 		m_InstanceBuffer.push(&m_Instance, sizeof(m_Instance));
 	}
 
 	//TODO: don't return SBuffer_T*
-	virtual SBuffer_T* get(const SRenderStack& stack) override {
+	virtual SBuffer_T* get(SRenderStack& stack) override {
 		if (isDirty()) {
 			clean();
 			reallocate(stack);
@@ -155,10 +159,12 @@ struct SDynamicInstancer : IInstancer {
 		return m_Instances.size();
 	}
 
-	void reallocate(const SRenderStack& stack) {
+	void reallocate(SRenderStack& stack) {
 
 		for (auto& instance : m_Instances) {
-			instance.Transform = stack.get(); //TODO use RenderStack
+			stack.push(instance.Transform);
+			instance.Transform = stack.get();
+			stack.pop();
 		}
 
 		const size_t bufferSize = m_Instances.size() * sizeof(SInstance);
@@ -167,7 +173,7 @@ struct SDynamicInstancer : IInstancer {
 	}
 
 	//TODO: don't return SBuffer_T*
-	virtual SBuffer_T* get(const SRenderStack& stack) override {
+	virtual SBuffer_T* get(SRenderStack& stack) override {
 		if (isDirty()) {
 			clean();
 			reallocate(stack);

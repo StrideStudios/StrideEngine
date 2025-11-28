@@ -7,7 +7,7 @@
 #include "renderer/VulkanRenderer.h"
 #include "tracy/Tracy.hpp"
 
-void CStaticMeshObjectRenderer::render(CMeshPass* inPass, VkCommandBuffer cmd, const SRenderStack3f& stack, CStaticMeshObject* inObject, size_t& outDrawCalls, size_t& outVertices) {
+void CStaticMeshObjectRenderer::render(CMeshPass* inPass, VkCommandBuffer cmd, SRenderStack3f& stack, CStaticMeshObject* inObject, size_t& outDrawCalls, size_t& outVertices) {
 	IInstancer& instancer = inObject->getInstancer();
 	SStaticMesh* mesh = inObject->getMesh();
 	const size_t NumInstances = instancer.getNumberOfInstances();

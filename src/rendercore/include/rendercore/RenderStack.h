@@ -6,6 +6,11 @@
 
 struct SRenderStack {
 
+	~SRenderStack() noexcept(false) {
+		if (m_MatrixStack.empty()) return;
+		errs("Render Stack was not fully destroyed!");
+	}
+
 	const Matrix4f& get() const { return m_MatrixStack.top(); }
 
 	void push(const Matrix4f& inMatrix) {
