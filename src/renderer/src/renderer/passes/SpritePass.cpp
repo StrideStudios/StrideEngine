@@ -68,8 +68,13 @@ void CSpritePass::render(VkCommandBuffer cmd) {
 		ZoneScoped;
 		ZoneName(sprite->mName.c_str(), sprite->mName.size());
 
+		SRenderStack2f stack;
+		stack.push(sprite->getTransformMatrix());
+
 		VkDeviceSize offset = 0u;
-		vkCmdBindVertexBuffers(cmd, 0, 1u, &instancer.get(sprite->getTransformMatrix())->buffer, &offset);
+		vkCmdBindVertexBuffers(cmd, 0, 1u, &instancer.get(stack)->buffer, &offset);
+
+		stack.pop();
 
 		bindPipeline(cmd, opaquePipeline, sprite->material->mConstants);
 

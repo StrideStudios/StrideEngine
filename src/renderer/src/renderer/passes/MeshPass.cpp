@@ -126,33 +126,27 @@ bool isVisible(const Matrix4f& inViewProj, const Matrix4f& inTransformMatrix, co
 void CMeshPass::render(const VkCommandBuffer cmd) {
 	ZoneScopedN("Base Pass");
 
-	CVulkanRenderer& renderer = *CVulkanRenderer::get();
+	size_t meshCount = 0;
+	size_t drawCallCount = 0;
+	size_t vertexCount = 0;
 
-	std::vector<CStaticMeshObject*> renderObjects;
-	{
-		ZoneScopedN("Frustum Culling");
-		for (const auto& renderable : CScene::get().getChildren()) {
-			if (renderable) {
-				if (auto renderableObject = dynamic_cast<CStaticMeshObject*>(renderable); renderableObject && renderableObject->getMesh() && isVisible(renderer.mSceneData.mViewProj, renderableObject->getTransformMatrix(), renderableObject->getMesh()->bounds)) {
-					renderObjects.push_back(renderableObject);
-				}
+	for (auto& object : CScene::get().getChildren()) {
+		if (const auto staticMesh = dynamic_cast<CStaticMeshObject*>(object)) {
+			if (const auto rendererClass = dynamic_cast<IRenderableClass*>(staticMesh->getClass())) {
+				SRenderStack3f stack;
+				stack.push(staticMesh->getTransformMatrix());
+
+				rendererClass->getRenderer()->render(this, cmd, stack, staticMesh, drawCallCount, vertexCount);
+
+				stack.pop();
+
+				meshCount++;
 			}
 		}
 	}
 
-	// Set number of meshes being drawn
-	Meshes.setText(fmts("Meshes: {}", renderObjects.size()));
-
-	uint32 drawCallCount = 0;
-	uint64 vertexCount = 0;
-
-	for (auto& object : renderObjects) { //TODO: renderer object with object member, so it can keep track of instancer?
-		if (const auto rendererClass = dynamic_cast<IRenderableClass*>(object->getClass())) {
-			rendererClass->getRenderer()->render(this, cmd, object, drawCallCount, vertexCount);
-		}
-	}
-
-	// Set number of drawcalls, vertices, and triangles
+	// Set number of meshes, drawcalls, vertices, and triangles
+	Meshes.setText(fmts("Meshes: {}", meshCount));
 	Drawcalls.setText(fmts("Draw Calls: {}", drawCallCount));
 	Vertices.setText(fmts("Vertices: {}", vertexCount));
 	Triangles.setText(fmts("Triangles: {}", vertexCount / 3));

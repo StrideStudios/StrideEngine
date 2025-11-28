@@ -29,18 +29,18 @@ public:
 		return m_Instancer;
 	}
 
-	virtual uint32 addInstance(const Transform2f& inPosition) {
-		return m_Instancer.push(SInstance{inPosition.toMatrix()});
+	virtual size_t addInstance(const Transform2f& inTransform) {
+		return m_Instancer.addInstance(SInstance{inTransform.toMatrix()});
 	}
 
-	virtual void setInstance(const int32 inInstanceIndex, const Transform2f& inPosition) {
-		SInstance& instance = m_Instancer.instances[inInstanceIndex];
-		instance.Transform = inPosition.toMatrix();
+	virtual void setInstance(const size_t inInstanceIndex, const Transform2f& inTransform) {
+		SInstance& instance = m_Instancer.getInstance(inInstanceIndex);
+		instance.Transform = inTransform.toMatrix();
 		m_Instancer.setDirty();
 	}
 
-	virtual void removeInstance(const uint32 instance) {
-		m_Instancer.remove(instance);
+	virtual void removeInstance(const size_t instance) {
+		m_Instancer.removeInstance(instance);
 	}
 
 	virtual CArchive& save(CArchive& inArchive) override {
@@ -57,6 +57,6 @@ public:
 
 private:
 
-	SInstancer m_Instancer;
+	SDynamicInstancer m_Instancer;
 
 };

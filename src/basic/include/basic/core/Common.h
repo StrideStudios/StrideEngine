@@ -68,6 +68,7 @@ typedef TInitializable<> IInitializable;
 
 template <bool TDefaultDirty = false>
 struct TDirtyable {
+	virtual ~TDirtyable() = default;
 
 	bool isDirty() const { return m_Dirty; }
 

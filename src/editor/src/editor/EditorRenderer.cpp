@@ -116,11 +116,6 @@ void CEditorSpritePass::render(VkCommandBuffer cmd) {
 			std::vector<SData> datas;
 
 			font.forEachLetter(textSprite->getText(), [&datas, &font](const Vector2f& pos, const Vector2f& uv0, const Vector2f& uv1) {
-				/*SRenderStack stack;
-				stack.push();
-				stack.translate(pos);
-				stack.scale(glm::abs(uv1 - uv0) * Vector2f(font->mAtlasSize));*/
-
 				Transform2f t;
 				t.setPosition(pos);
 				t.setScale(glm::abs(uv1 - uv0) * Vector2f(font.mAtlasSize));
@@ -145,8 +140,13 @@ void CEditorSpritePass::render(VkCommandBuffer cmd) {
 			IInstancer& instancer = sprite->getInstancer();
 			NumInstances = instancer.getNumberOfInstances();
 
+			SRenderStack2f stack;
+			stack.push(sprite->getTransformMatrix());
+
 			VkDeviceSize offset = 0u;
-			vkCmdBindVertexBuffers(cmd, 0, 1u, &instancer.get(sprite->getTransformMatrix())->buffer, &offset);
+			vkCmdBindVertexBuffers(cmd, 0, 1u, &instancer.get(stack)->buffer, &offset);
+
+			stack.pop();
 
 			bindPipeline(cmd, opaquePipeline, sprite->material->mConstants);
 		}
@@ -156,8 +156,6 @@ void CEditorSpritePass::render(VkCommandBuffer cmd) {
 		drawCallCount++;
 		vertexCount += 6 * NumInstances;
 	}
-
-	//gTextManager.flush();
 }
 
 void CEditorSpritePass::destroy() {

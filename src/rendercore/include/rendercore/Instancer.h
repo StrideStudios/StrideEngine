@@ -22,67 +22,8 @@ struct SInstance {
 
 struct IInstancer : TDirtyable<true> {
 	virtual size_t getNumberOfInstances() = 0;
-	virtual SBuffer_T* get(const Matrix4f& parentMatrix = Matrix4f(1.f)) = 0;
-};
-
-struct SInstancer : IInstancer {
-
-	EXPORT SInstancer(uint32 initialSize = 0);
-
-	virtual size_t getNumberOfInstances() override {
-		return instances.size();
-	}
-
-	void append(const std::vector<SInstance>& inInstances) {
-		instances.append_range(inInstances);
-		setDirty();
-	}
-
-	uint32 push(const SInstance& inInstance) {
-		instances.push_back(inInstance);
-		setDirty();
-		return static_cast<uint32>(instances.size()) - 1;
-	}
-
-	SInstance remove(const uint32 inInstance) {
-		const auto& instance = instances.erase(instances.begin() + inInstance);
-		setDirty();
-		return *instance;
-	}
-
-	void flush() {
-		instances.clear();
-		setDirty();
-	}
-
-	EXPORT void reallocate(const Matrix4f& parentMatrix = Matrix4f(1.f));
-
-	//TODO: don't return SBuffer_T*
-	//TODO: reallocate causes issues when dirtying
-	virtual SBuffer_T* get(const Matrix4f& parentMatrix = Matrix4f(1.f)) override {
-		if (isDirty()) {
-			clean();
-			reallocate(parentMatrix);
-		}
-		return instanceBuffer.get();
-	}
-
-	friend CArchive& operator<<(CArchive& inArchive, const SInstancer& inInstancer) {
-		inArchive << inInstancer.instances;
-		return inArchive;
-	}
-
-	friend CArchive& operator>>(CArchive& inArchive, SInstancer& inInstancer) {
-		inArchive >> inInstancer.instances;
-		return inArchive;
-	}
-
-	std::vector<SInstance> instances;
-
-private:
-
-	SDynamicBuffer<VMA_MEMORY_USAGE_GPU_ONLY, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT> instanceBuffer;
-
+	virtual SBuffer_T* get(const SRenderStack& stack) = 0;
+	virtual void flush() = 0;
 };
 
 template <size_t TInstances>
@@ -90,10 +31,9 @@ struct SStaticInstancer : IInstancer {
 
 	SStaticInstancer() {
 		m_Instances.fill(SInstance{});
-		setDirty();
 	}
 
-	~SStaticInstancer() {
+	virtual ~SStaticInstancer() override {
 		msgs("Destroyed SStaticInstancer.");
 		m_InstanceBuffer.destroy();
 	}
@@ -102,22 +42,27 @@ struct SStaticInstancer : IInstancer {
 		return m_Instances.size();
 	}
 
-	void reallocate(const Matrix4f& parentMatrix = Matrix4f(1.f)) {
+	void reallocate(const SRenderStack& stack) {
 
 		for (auto& instance : m_Instances) {
-			instance.Transform = parentMatrix * instance.Transform; //TODO use RenderStack
+			instance.Transform = stack.get(); //TODO use RenderStack
 		}
 
 		m_InstanceBuffer.push(m_Instances.data());
 	}
 
 	//TODO: don't return SBuffer_T*
-	virtual SBuffer_T* get(const Matrix4f& parentMatrix = Matrix4f(1.f)) override {
+	virtual SBuffer_T* get(const SRenderStack& stack) override {
 		if (isDirty()) {
 			clean();
-			reallocate(parentMatrix);
+			reallocate(stack);
 		}
 		return m_InstanceBuffer.get();
+	}
+
+	virtual void flush() override {
+		m_Instances.clear();
+		setDirty();
 	}
 
 	SInstance& getInstance(const size_t index = 0) {
@@ -145,12 +90,10 @@ private:
 
 };
 
-typedef SStaticInstancer<1> SSingleInstancer;
 
-template <>
-struct SStaticInstancer<1> : IInstancer {
+struct SSingleInstancer : IInstancer {
 
-	~SStaticInstancer() {
+	virtual ~SSingleInstancer() override {
 		msgs("Destroyed SSingleInstancer.");
 		m_InstanceBuffer.destroy();
 	}
@@ -159,32 +102,36 @@ struct SStaticInstancer<1> : IInstancer {
 		return 1;
 	}
 
-	void reallocate(const Matrix4f& parentMatrix = Matrix4f(1.f)) {
+	void reallocate(const SRenderStack& stack) {
 
-		m_Instance.Transform = parentMatrix * m_Instance.Transform;
+		m_Instance.Transform = stack.get();
 
 		m_InstanceBuffer.push(&m_Instance, sizeof(m_Instance));
 	}
 
 	//TODO: don't return SBuffer_T*
-	virtual SBuffer_T* get(const Matrix4f& parentMatrix = Matrix4f(1.f)) override {
+	virtual SBuffer_T* get(const SRenderStack& stack) override {
 		if (isDirty()) {
 			clean();
-			reallocate(parentMatrix);
+			reallocate(stack);
 		}
 		return m_InstanceBuffer.get();
+	}
+
+	virtual void flush() override {
+		setDirty();
 	}
 
 	SInstance& getInstance() {
 		return m_Instance;
 	}
 
-	friend CArchive& operator<<(CArchive& inArchive, const SStaticInstancer& inInstancer) {
+	friend CArchive& operator<<(CArchive& inArchive, const SSingleInstancer& inInstancer) {
 		inArchive << inInstancer.m_Instance;
 		return inArchive;
 	}
 
-	friend CArchive& operator>>(CArchive& inArchive, SStaticInstancer& inInstancer) {
+	friend CArchive& operator>>(CArchive& inArchive, SSingleInstancer& inInstancer) {
 		inArchive >> inInstancer.m_Instance;
 		return inArchive;
 	}
@@ -194,5 +141,75 @@ private:
 	SInstance m_Instance{};
 
 	SStaticBuffer<VMA_MEMORY_USAGE_GPU_ONLY, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(SInstance), 1> m_InstanceBuffer;
+
+};
+
+struct SDynamicInstancer : IInstancer {
+
+	virtual ~SDynamicInstancer() override {
+		msgs("Destroyed SDynamicInstancer.");
+		m_InstanceBuffer.destroy();
+	}
+
+	virtual size_t getNumberOfInstances() override {
+		return m_Instances.size();
+	}
+
+	void reallocate(const SRenderStack& stack) {
+
+		for (auto& instance : m_Instances) {
+			instance.Transform = stack.get(); //TODO use RenderStack
+		}
+
+		const size_t bufferSize = m_Instances.size() * sizeof(SInstance);
+
+		m_InstanceBuffer.push(m_Instances.data(), bufferSize);
+	}
+
+	//TODO: don't return SBuffer_T*
+	virtual SBuffer_T* get(const SRenderStack& stack) override {
+		if (isDirty()) {
+			clean();
+			reallocate(stack);
+		}
+		return m_InstanceBuffer.get();
+	}
+
+	virtual void flush() override {
+		m_Instances.clear();
+		setDirty();
+	}
+
+	size_t addInstance(const SInstance& inInstance) {
+		m_Instances.push_back(inInstance);
+		return m_Instances.size() - 1;
+	}
+
+	void removeInstance(const size_t index) {
+		m_Instances.erase(m_Instances.begin() + index);
+	}
+
+	SInstance& getInstance(const size_t index = 0) {
+		if (index >= m_Instances.size()) {
+			errs("Invalid Instance Index {} in dynamic instancer of size {}!", index, m_Instances.size());
+		}
+		return m_Instances[index];
+	}
+
+	friend CArchive& operator<<(CArchive& inArchive, const SDynamicInstancer& inInstancer) {
+		inArchive << inInstancer.m_Instances;
+		return inArchive;
+	}
+
+	friend CArchive& operator>>(CArchive& inArchive, SDynamicInstancer& inInstancer) {
+		inArchive >> inInstancer.m_Instances;
+		return inArchive;
+	}
+
+private:
+
+	std::vector<SInstance> m_Instances;
+
+	SDynamicBuffer<VMA_MEMORY_USAGE_GPU_ONLY, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT> m_InstanceBuffer;
 
 };

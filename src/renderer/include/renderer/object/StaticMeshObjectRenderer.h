@@ -14,7 +14,7 @@ public:
 		m_LastIndexBuffer = VK_NULL_HANDLE;
 	}
 
-	EXPORT virtual void render(CMeshPass* inPass, VkCommandBuffer cmd, CStaticMeshObject* inObject, uint32& outDrawCalls, uint64& outVertices) override;
+	EXPORT virtual void render(CMeshPass* inPass, VkCommandBuffer cmd, const SRenderStack3f& stack, CStaticMeshObject* inObject, size_t& outDrawCalls, size_t& outVertices) override;
 
 private:
 

@@ -248,15 +248,16 @@ void CVulkanRenderer::render() {
 		if (!getPasses().empty()) {
 			ZoneScopedN("Render");
 
-			// Tell all renderers that rendering has begun
-			CObjectRendererRegistry::forEach([](const std::string& inName, CObjectRenderer* object) {
-				object->begin();
-			});
-
 			// Tell all passes that rendering has begun
 			for (const auto pass : getPasses()) {
 				pass->begin();
 			}
+
+			//TODO: personal ObjectRenderer for passes instead
+			// Tell all renderers that rendering has begun
+			CObjectRendererRegistry::forEach([](const std::string& inName, CObjectRenderer* object) {
+				object->begin();
+			});
 
 			CEngineViewport::get().set(cmd);
 

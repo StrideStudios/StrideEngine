@@ -98,10 +98,6 @@ public:
 		(addPass<TPasses>(), ...);
 	}
 
-	EXPORT static CPass* getPass(const SClass* cls);
-
-	EXPORT static bool hasPass(const SClass* cls);
-
 	template <typename TPass>
 	static bool hasPass() {
 		return hasPass(TPass::staticClass());
@@ -125,6 +121,10 @@ public:
 	std::list<CPass*> getPasses() const { return m_Passes; }
 
 private:
+
+	EXPORT static CPass* getPass(const SClass* cls);
+
+	EXPORT static bool hasPass(const SClass* cls);
 
 	EXPORT static void set(CRenderer* inRenderer);
 

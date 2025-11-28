@@ -52,7 +52,7 @@ class CInstancedStaticMeshObject : public CStaticMeshObject {
 
 public:
 
-	SInstancer instancer;
+	SDynamicInstancer instancer;
 
 	CInstancedStaticMeshObject() {}
 
@@ -60,18 +60,18 @@ public:
 		return instancer;
 	}
 
-	virtual uint32 addInstance(const Transform3f& inPosition) {
-		return instancer.push(SInstance{inPosition.toMatrix()});
+	virtual size_t addInstance(const Transform3f& inPosition) {
+		return instancer.addInstance(SInstance{inPosition.toMatrix()});
 	}
 
-	virtual void setInstance(const int32 inInstanceIndex, const Transform3f& inPosition) {
-		SInstance& instance = instancer.instances[inInstanceIndex];
+	virtual void setInstance(const size_t inInstanceIndex, const Transform3f& inPosition) {
+		SInstance& instance = instancer.getInstance(inInstanceIndex);
 		instance.Transform = inPosition.toMatrix();
 		instancer.setDirty();
 	}
 
-	virtual void removeInstance(const uint32 instance) {
-		instancer.remove(instance);
+	virtual void removeInstance(const size_t instance) {
+		instancer.removeInstance(instance);
 	}
 
 	virtual CArchive& save(CArchive& inArchive) override {
