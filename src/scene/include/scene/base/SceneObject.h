@@ -16,7 +16,7 @@ public:
 
 	no_discard virtual Matrix4f getTransformMatrix() const = 0;
 
-	virtual CArchive& save(CArchive& inArchive) override {
+	virtual CArchive& save(CArchive& inArchive) const override {
 		inArchive << mName;
 		return inArchive;
 	}
@@ -42,7 +42,7 @@ public:
 
 	no_discard EXPORT virtual Matrix4f getTransformMatrix() const override;
 
-	virtual CArchive& save(CArchive& inArchive) override {
+	virtual CArchive& save(CArchive& inArchive) const override {
 		CSceneObject::save(inArchive);
 		inArchive << m_Transform;
 		return inArchive;
@@ -100,7 +100,7 @@ public:
 		return m_Transform.toMatrix();
 	}
 
-	virtual CArchive& save(CArchive& inArchive) override {
+	virtual CArchive& save(CArchive& inArchive) const override {
 		CSceneObject::save(inArchive);
 		inArchive << m_Transform;
 		return inArchive;

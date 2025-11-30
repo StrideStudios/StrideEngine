@@ -21,7 +21,7 @@ public:
 
 	SStaticMesh* mesh;
 
-	virtual CArchive& save(CArchive& inArchive) override {
+	virtual CArchive& save(CArchive& inArchive) const override {
 		CWorldObject::save(inArchive);
 		const bool hasMesh = mesh != nullptr;
 		// Save the mesh's name
@@ -74,7 +74,7 @@ public:
 		instancer.removeInstance(instance);
 	}
 
-	virtual CArchive& save(CArchive& inArchive) override {
+	virtual CArchive& save(CArchive& inArchive) const override {
 		CStaticMeshObject::save(inArchive);
 		inArchive << instancer;
 		return inArchive;

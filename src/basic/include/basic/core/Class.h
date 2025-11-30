@@ -99,7 +99,8 @@ struct TGenericClass : SClass {
 	}
 
 	virtual SObject* construct() const override {
-		return construct(CResourceManager::get());
+		return new SObject();
+		//return construct(CResourceManager::get());
 	}
 
 	virtual SObject* construct(CResourceManager& inResourceManager) const override {

@@ -43,7 +43,7 @@ public:
 		m_Instancer.removeInstance(instance);
 	}
 
-	virtual CArchive& save(CArchive& inArchive) override {
+	virtual CArchive& save(CArchive& inArchive) const override {
 		CSprite::save(inArchive);
 		inArchive << m_Instancer;
 		return inArchive;

@@ -18,7 +18,7 @@ class CArchive;
 // A serializable function that can be passed down
 class ISerializable {
 public:
-	virtual CArchive& save(CArchive& inArchive) = 0;
+	virtual CArchive& save(CArchive& inArchive) const = 0;
 
 	virtual CArchive& load(CArchive& inArchive) = 0;
 };
@@ -354,6 +354,7 @@ public:
 		std::string className;
 		inArchive >> className;
 		inValue = dynamic_cast<TType*>(SClassRegistry::get(className.c_str())->construct());
+		CResourceManager::get().push(inValue);
 		inArchive >> *inValue;
 		return inArchive;
 	}
@@ -391,10 +392,12 @@ public:
 	//
 	// Resource Managers
 	// Due to the runtime nature of these, the objects saved have to be both
-	// CObject and ISerializable, for classes and virtual serialization respectively
+	// SObject and ISerializable, for classes and virtual serialization respectively
 	//
 
-	friend CArchive& operator<<(CArchive& inArchive, const CResourceManager& inValue) {
+	template <typename TType>
+	requires std::is_base_of_v<SObject, TType>
+	friend CArchive& operator<<(CArchive& inArchive, const TResourceManager<TType>& inValue) {
 		std::vector<SObject*> objects;
 		for (const auto object : inValue.getObjects()) {
 			if (const auto obj = dynamic_cast<SObject*>(object)) {
@@ -412,14 +415,59 @@ public:
 		return inArchive;
 	}
 
-	friend CArchive& operator>>(CArchive& inArchive, CResourceManager& inValue) {
+	template <typename TType>
+	requires std::is_base_of_v<SObject, TType>
+	friend CArchive& operator>>(CArchive& inArchive, TResourceManager<TType>& inValue) {
 		size_t size;
 		inArchive >> size;
 		for (size_t i = 0; i < size; ++i) {
 			std::string className;
 			inArchive >> className;
-			SObject* obj = SClassRegistry::get(className.c_str())->construct(inValue);
-			dynamic_cast<ISerializable*>(obj)->load(inArchive);
+			TType* obj = dynamic_cast<TType*>(SClassRegistry::get(className.c_str())->construct());
+			inValue.push(obj);
+			dynamic_cast<ISerializable*>(obj)->load(inArchive); //TODO fix issues, test Application.cpp
+		}
+		return inArchive;
+	}
+
+	//
+	// Containers
+	// Can have contiguous or non-contiguous memory, and can be a set size or dynamically sized
+	// SObject and ISerializable, for classes and virtual serialization respectively
+	//
+
+	template <typename TType, size_t TSize = 0>
+	friend CArchive& operator<<(CArchive& inArchive, const TContainer<TType, TSize>& inValue) {
+		if constexpr (TSize <= 0) {
+			inArchive << inValue.getSize();
+		}
+		for (const auto object : inValue) {
+			if constexpr (std::is_base_of_v<SObject, TType>) {
+				inArchive << object->getClass()->getName();
+				dynamic_cast<const ISerializable*>(object)->save(inArchive);
+			} else {
+				inArchive << object;
+			}
+		}
+		return inArchive;
+	}
+
+	template <typename TType, size_t TSize = 0>
+	friend CArchive& operator>>(CArchive& inArchive, TContainer<TType, TSize>& inValue) {
+		size_t size = TSize;
+		if constexpr (TSize <= 0) {
+			inArchive >> size;
+		}
+		inValue.reserve(size);
+		for (size_t i = 0; i < size; ++i) {
+			if constexpr (std::is_base_of_v<SObject, TType>) {
+				std::string className;
+				inArchive >> className;
+				SObject* obj = SClassRegistry::get(className.c_str())->construct(inValue);
+				dynamic_cast<ISerializable*>(obj)->load(inArchive);
+			} else {
+				inArchive >> inValue.addDefaulted();
+			}
 		}
 		return inArchive;
 	}
