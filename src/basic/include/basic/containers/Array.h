@@ -29,6 +29,18 @@ struct TArray : TContainer<TType, TSize> {
 		m_Container[index] = std::move(obj);
 	}
 
+	virtual void forEach(const std::function<void(TType&)>& func) override {
+		for (auto itr = m_Container.begin(); itr != m_Container.end(); ++itr) {
+			func(*itr);
+		}
+	}
+
+	virtual void forEachReverse(const std::function<void(TType&)>& func) override {
+		for (auto itr = m_Container.rbegin(); itr != m_Container.rend(); ++itr) {
+			func(*itr);
+		}
+	}
+
 private:
 
 	virtual void reserve(size_t index) override {

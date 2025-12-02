@@ -3,6 +3,7 @@
 // Without it, the linker might drop symbols that need to run before main (like factory registration)
 #include "Sources.h"
 #include "basic/containers/Array.h"
+#include "basic/containers/List.h"
 
 struct SHello : SObject {
 	REGISTER_STRUCT(SHello, SObject)
@@ -12,7 +13,7 @@ struct SHello : SObject {
 	SHello(const std::string& name): name(name) {}
 
 	void print() {
-		msgs("Name: {}", name);
+		std::cout << name;
 }
 
 	std::string name = "None";
@@ -35,42 +36,66 @@ int main() {
 
 	CResourceManager::get().flush();*/
 
+	constexpr size_t amt = 100000;
+
 	{
-		TArray<TUnique<SHello>, 10> v;
-		v.fill(SHello{"Arrayg"});
-		v.set(0, SHello{"Arrayg1"});
+		auto previousTime = std::chrono::high_resolution_clock::now();
+		TArray<TUnique<SHello>, amt> v;
+		v.fill(SHello{"Unique Array"});
 		v.forEachReverse([](TUnique<SHello>& object) {
-			object->print();
+			//object->print();
 		});
+		std::cout << std::endl;
+		msgs("Unique Array Time Taken: {}", std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - previousTime).count());
 	}
 
 	{
+		auto previousTime = std::chrono::high_resolution_clock::now();
+		TList<TUnique<SHello>> v;
+		for (int i = 0; i < amt; ++i)
+			v.add(SHello{"Unique List"});
+		v.forEachReverse([](TUnique<SHello>& object) {
+			//object->print();
+		});
+		std::cout << std::endl;
+		msgs("Unique List Time Taken: {}", std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - previousTime).count());
+	}
+
+	{
+		auto previousTime = std::chrono::high_resolution_clock::now();
 		TVector<TUnique<SHello>> v;
-		v.add(SHello{"Unique One"});
-		v.add(SHello{"Unique Two"});
+		for (int i = 0; i < amt; ++i)
+			v.add(SHello{"Unique Vector"});
 		v.forEachReverse([](TUnique<SHello>& object) {
-			object->print();
+			//object->print();
 		});
+		std::cout << std::endl;
+		msgs("Unique Vector Time Taken: {}", std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - previousTime).count());
 	}
 
 	{
+		auto previousTime = std::chrono::high_resolution_clock::now();
 		TVector<TShared<SHello>> v;
-		v.add(SHello{"Shared One"});
-		v.add(SHello{"Shared Two"});
+		for (int i = 0; i < amt; ++i)
+			v.add(SHello{"Shared Vector"});
 		v.forEachReverse([](TShared<SHello>& object) {
-			object->print();
+			//object->print();
 		});
+		std::cout << std::endl;
+		msgs("Shared Vector Time Taken: {}", std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - previousTime).count());
 	}
 
-	{
+	/*{
+		auto previousTime = std::chrono::high_resolution_clock::now();
 		TVector<SHello> v;
-		v.add(SHello{
-			"Hello One"
-		});
+		for (int i = 0; i < amt; ++i)
+			v.add(SHello{"NA Vector"});
 		v.forEachReverse([](SHello& object) {
-			object.print();
+			//object.print();
 		});
-	}
+		std::cout << std::endl;
+		msgs("NA Vector Time Taken: {}", std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - previousTime).count());
+	}*/
 
 	return 0;
 }

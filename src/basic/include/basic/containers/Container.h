@@ -34,32 +34,10 @@ struct TContainer {
 
 	// TODO: data, begin, and end implies contiguous memory, unlike a list, set, map, queue, or stack
 	// Perhaps wrappers around non-contiguous memory could use a Node<> template (with a pointer to the next address, of course)
-	Storage* data() { return begin(); }
-	const Storage* data() const { return begin(); }
+	Storage* data() { return &get(0); }
+	const Storage* data() const { return &get(0); }
 
-	Storage* begin() { return &get(0); }
-	const Storage* begin() const { return &get(0); }
+	virtual void forEach(const std::function<void(TType&)>& func) = 0;
 
-	Storage* end() { return &get(getSize() - 1) + 1; }
-	const Storage* end() const { return &get(getSize() - 1) + 1; }
-
-	Storage* rbegin() { return &get(getSize() - 1); }
-	const Storage* rbegin() const { return &get(getSize() - 1); }
-
-	Storage* rend() { return &get(0) - 1; }
-	const Storage* rend() const { return &get(0) - 1; }
-
-	template <typename TFunc>
-	void forEach(TFunc&& func) {
-		for (auto itr = begin(); itr != end(); ++itr) {
-			func(*itr);
-		}
-	}
-
-	template <typename TFunc>
-	void forEachReverse(TFunc&& func) {
-		for (auto itr = rbegin(); itr != rend(); --itr) {
-			func(*itr);
-		}
-	}
+	virtual void forEachReverse(const std::function<void(TType&)>& func) = 0;
 };
