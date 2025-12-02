@@ -2,78 +2,12 @@
 
 #include "basic/core/Common.h"
 
-template <typename TType>
-struct TNode {
-
-	TNode() = default;
-
-	TNode(const TType& inValue): m_Value(inValue) {}
-
-	template <typename... TArgs>
-	requires std::is_constructible_v<TType, TArgs...>
-	TNode(const TArgs... args): m_Value(args...) {}
-
-	TType* get() { return &m_Value; }
-
-	const TType* get() const { return &m_Value; }
-
-private:
-
-	TType m_Value;
-};
-
-template <typename TType>
-struct TNode<TUnique<TType>> {
-
-	TNode(): m_Value(std::make_unique<TType>()) {}
-
-	TNode(const TType& inValue): m_Value(std::make_unique<TType>(inValue)) {}
-
-	template <typename... TArgs>
-	requires std::is_constructible_v<TType, TArgs...>
-	TNode(const TArgs... args): m_Value(std::make_unique<TType>(args...)) {}
-
-	TType* get() { return m_Value.get(); }
-
-	const TType* get() const { return m_Value.get(); }
-
-private:
-
-	TUnique<TType> m_Value;
-};
-
-template <typename TType>
-struct TNode<TShared<TType>> {
-
-	TNode(): m_Value(std::make_shared<TType>()) {}
-
-	TNode(const TShared<TType>& inValue): m_Value(inValue) {}
-
-	TNode(const TType& inValue): m_Value(std::make_unique<TType>(inValue)) {}
-
-	template <typename... TArgs>
-	requires std::is_constructible_v<TType, TArgs...>
-	TNode(const TArgs... args): m_Value(std::make_unique<TType>(args...)) {}
-
-	TType* get() { return m_Value.get(); }
-
-	const TType* get() const { return m_Value.get(); }
-
-	TShared<TType>& getShared() { return m_Value; }
-
-	const TShared<TType>& getShared() const { return m_Value; }
-
-private:
-
-	TShared<TType> m_Value;
-};
-
 // A basic container of any amount of objects
 // A size of 0 implies a dynamic array
 template <typename TType, size_t TSize = 0>
 struct TContainer {
 
-	using Storage = TNode<TType>;
+	using Storage = TType;
 
 	virtual ~TContainer() = default;
 
@@ -118,14 +52,14 @@ struct TContainer {
 	template <typename TFunc>
 	void forEach(TFunc&& func) {
 		for (auto itr = begin(); itr != end(); ++itr) {
-			func(*itr->get());
+			func(*itr);
 		}
 	}
 
 	template <typename TFunc>
 	void forEachReverse(TFunc&& func) {
 		for (auto itr = rbegin(); itr != rend(); --itr) {
-			func(*itr->get());
+			func(*itr);
 		}
 	}
 };

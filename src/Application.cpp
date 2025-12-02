@@ -39,8 +39,8 @@ int main() {
 		TArray<TUnique<SHello>, 10> v;
 		v.fill(SHello{"Arrayg"});
 		v.set(0, SHello{"Arrayg1"});
-		v.forEachReverse([](SHello& object) {
-			object.print();
+		v.forEachReverse([](TUnique<SHello>& object) {
+			object->print();
 		});
 	}
 
@@ -48,8 +48,8 @@ int main() {
 		TVector<TUnique<SHello>> v;
 		v.add(SHello{"Unique One"});
 		v.add(SHello{"Unique Two"});
-		v.forEachReverse([](SHello& object) {
-			object.print();
+		v.forEachReverse([](TUnique<SHello>& object) {
+			object->print();
 		});
 	}
 
@@ -57,8 +57,8 @@ int main() {
 		TVector<TShared<SHello>> v;
 		v.add(SHello{"Shared One"});
 		v.add(SHello{"Shared Two"});
-		v.forEachReverse([](SHello& object) {
-			object.print();
+		v.forEachReverse([](TShared<SHello>& object) {
+			object->print();
 		});
 	}
 

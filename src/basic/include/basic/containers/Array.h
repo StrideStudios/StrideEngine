@@ -13,19 +13,19 @@ struct TArray : TContainer<TType, TSize> {
 	template <typename... TArgs>
 	void fill(TArgs&&... args) {
 		for (auto& obj : m_Container) {
-			obj = TNode<TType>(args...);
+			obj = TType(args...);
 		}
 	}
 
-	virtual TNode<TType>& get(size_t index) override {
+	virtual TType& get(size_t index) override {
 		return m_Container[index];
 	}
 
-	virtual const TNode<TType>& get(size_t index) const override {
+	virtual const TType& get(size_t index) const override {
 		return m_Container[index];
 	}
 
-	virtual void set(const size_t index, TNode<TType>&& obj) override {
+	virtual void set(const size_t index, TType&& obj) override {
 		m_Container[index] = std::move(obj);
 	}
 
@@ -39,17 +39,17 @@ private:
 		errs("TArray cannot be allocated after creation!");
 	}
 
-	virtual TNode<TType>& addDefaulted() override {
+	virtual TType& addDefaulted() override {
 		errs("TArray cannot be allocated after creation!");
 	}
 
-	virtual size_t add(TNode<TType>&& obj) override {
+	virtual size_t add(TType&& obj) override {
 		errs("TArray cannot be allocated after creation!");
 	}
 
-	virtual TNode<TType>& remove(const size_t index) override {
+	virtual TType& remove(const size_t index) override {
 		errs("TArray cannot be allocated after creation!");
 	}
 
-	std::array<TNode<TType>, TSize> m_Container;
+	std::array<TType, TSize> m_Container;
 };

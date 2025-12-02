@@ -54,10 +54,62 @@
  */
 
 template <typename TType>
-using TUnique = std::unique_ptr<TType>;
+struct TUnique {
+
+	TUnique(): m_ptr(std::make_unique<TType>()) {}
+
+	TUnique(const TType& inValue): m_ptr(std::make_unique<TType>(inValue)) {}
+
+	template <typename... TArgs>
+	requires std::is_constructible_v<TType, TArgs...>
+	TUnique(const TArgs... args): m_ptr(std::make_unique<TType>(args...)) {}
+
+	TType* operator->() {
+		return m_ptr.get();
+	}
+
+	TType& operator*() {
+		return *m_ptr;
+	}
+
+	TType* get() { return m_ptr.get(); }
+
+	const TType* get() const { return m_ptr.get(); }
+
+private:
+
+	std::unique_ptr<TType> m_ptr;
+
+};
 
 template <typename TType>
-using TShared = std::shared_ptr<TType>;
+struct TShared {
+
+	TShared(): m_ptr(std::make_shared<TType>()) {}
+
+	TShared(const TType& inValue): m_ptr(std::make_unique<TType>(inValue)) {}
+
+	template <typename... TArgs>
+	requires std::is_constructible_v<TType, TArgs...>
+	TShared(const TArgs... args): m_ptr(std::make_unique<TType>(args...)) {}
+
+	TType* operator->() {
+		return m_ptr.get();
+	}
+
+	TType& operator*() {
+		return *m_ptr;
+	}
+
+	TType* get() { return m_ptr.get(); }
+
+	const TType* get() const { return m_ptr.get(); }
+
+private:
+
+	std::shared_ptr<TType> m_ptr;
+
+};
 
 struct IDestroyable {
 	virtual ~IDestroyable() = default;
