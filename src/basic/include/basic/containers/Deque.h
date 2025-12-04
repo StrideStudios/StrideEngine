@@ -1,10 +1,10 @@
 ﻿#pragma once
 
-#include <list>
+#include <deque>
 #include "basic/containers/Container.h"
 
 template <typename TType>
-struct TList : TContainer<TType> {
+struct TDeque : TContainer<TType> {
 
 	virtual const size_t getSize() const override {
 		return m_Container.size();
@@ -15,15 +15,11 @@ struct TList : TContainer<TType> {
 	}
 
 	virtual TType& get(size_t index) override {
-		auto itr = m_Container.begin();
-		std::advance(itr, index);
-		return *itr;
+		return m_Container[index];
 	}
 
 	virtual const TType& get(size_t index) const override {
-		auto itr = m_Container.begin();
-		std::advance(itr, index);
-		return *itr;
+		return m_Container[index];
 	}
 
 	virtual TType& addDefaulted() override {
@@ -52,9 +48,7 @@ struct TList : TContainer<TType> {
 	virtual void set(const size_t index, const TType& obj) override {
 		if constexpr (is_copyable_v<TType>) {
 			remove(index);
-			auto itr = m_Container.begin();
-			std::advance(itr, index);
-			m_Container.insert(itr, obj);
+			m_Container.insert(m_Container.begin() + index, obj);
 		} else {
 			errs("Type is not copyable!");
 		}
@@ -63,9 +57,7 @@ struct TList : TContainer<TType> {
 	virtual void set(const size_t index, TType&& obj) override {
 		if constexpr (is_moveable_v<TType>) {
 			remove(index);
-			auto itr = m_Container.begin();
-			std::advance(itr, index);
-			m_Container.insert(itr, std::move(obj));
+			m_Container.insert(m_Container.begin() + index, std::move(obj));
 		} else {
 			errs("Type is not moveable!");
 		}
@@ -73,20 +65,18 @@ struct TList : TContainer<TType> {
 
 	virtual TType& remove(const size_t index) override {
 		auto& obj = get(index);
-		auto itr = m_Container.begin();
-		std::advance(itr, index);
-		m_Container.erase(itr);
+		m_Container.erase(m_Container.begin() + index);
 		return obj;
 	}
 
 	virtual void forEach(const std::function<void(TType&)>& func) override {
-		for (auto itr = m_Container.begin(); itr != m_Container.end(); std::advance(itr, 1)) {
+		for (auto itr = m_Container.begin(); itr != m_Container.end(); ++itr) {
 			func(*itr);
 		}
 	}
 
 	virtual void forEachReverse(const std::function<void(TType&)>& func) override {
-		for (auto itr = m_Container.rbegin(); itr != m_Container.rend(); std::advance(itr, 1)) {
+		for (auto itr = m_Container.rbegin(); itr != m_Container.rend(); ++itr) {
 			func(*itr);
 		}
 	}
@@ -94,8 +84,8 @@ struct TList : TContainer<TType> {
 private:
 
 	virtual void reserve(size_t index) override {
-		errs("TList does not have contiguous memory!");
+		errs("TDeque does not have contiguous memory!");
 	}
 
-	std::list<TType> m_Container;
+	std::deque<TType> m_Container;
 };

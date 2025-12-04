@@ -19,4 +19,16 @@ struct SObject {
 
 	// An iterator the parent uses to remove and modify its child
 	std::list<SObject*>::iterator itr;
+
+	friend bool operator<(const SObject& fst, const SObject& snd) {
+		return true;
+	}
+
+	friend bool operator==(const SObject& fst, const SObject& snd) {
+		return true;
+	}
+
+	friend size_t getHash(const SObject& object) {
+		return 0;
+	}
 };

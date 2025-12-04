@@ -31,14 +31,44 @@ struct TVector : TContainer<TType> {
 		return get(getSize() - 1);
 	}
 
+	//TODO: currently static_asserts like this always fail, regardless if the functions is called
+	// is supposedly a defect: https://cplusplus.github.io/CWG/issues/2518.html
+	virtual size_t add(const TType& obj) override {
+		//static_assert(is_copyable_v<TType>, "Type is not copyable!");
+		if constexpr (is_copyable_v<TType>) {
+			m_Container.emplace_back(obj);
+			return getSize() - 1;
+		} else {
+			errs("Type is not copyable");
+		}
+	}
+
 	virtual size_t add(TType&& obj) override {
-		m_Container.emplace_back(std::move(obj));
-		return getSize() - 1;
+		//static_assert(is_moveable_v<TType>, "Type is not moveable!");
+		if constexpr (is_moveable_v<TType>) {
+			m_Container.emplace_back(std::move(obj));
+			return getSize() - 1;
+		} else {
+			errs("Type is not moveable");
+		}
+	}
+
+	virtual void set(const size_t index, const TType& obj) override {
+		if constexpr (is_copyable_v<TType>) {
+			remove(index);
+			m_Container.insert(m_Container.begin() + index, obj);
+		} else {
+			errs("Type is not copyable!");
+		}
 	}
 
 	virtual void set(const size_t index, TType&& obj) override {
-		remove(index);
-		m_Container.insert(m_Container.begin() + index, std::move(obj));
+		if constexpr (is_moveable_v<TType>) {
+			remove(index);
+			m_Container.insert(m_Container.begin() + index, std::move(obj));
+		} else {
+			errs("Type is not moveable!");
+		}
 	}
 
 	virtual TType& remove(const size_t index) override {

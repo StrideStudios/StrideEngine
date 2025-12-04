@@ -76,6 +76,18 @@ struct TUnique {
 
 	const TType* get() const { return m_ptr.get(); }
 
+	friend bool operator<(const TUnique& fst, const TUnique& snd) {
+		return *fst.get() < *snd.get();
+	}
+
+	friend bool operator==(const TUnique& fst, const TUnique& snd) {
+		return *fst.get() == *snd.get();
+	}
+
+	friend size_t getHash(const TUnique& obj) {
+		return getHash(*obj.get());
+	}
+
 private:
 
 	std::unique_ptr<TType> m_ptr;
@@ -87,11 +99,11 @@ struct TShared {
 
 	TShared(): m_ptr(std::make_shared<TType>()) {}
 
-	TShared(const TType& inValue): m_ptr(std::make_unique<TType>(inValue)) {}
+	TShared(const TType& inValue): m_ptr(std::make_shared<TType>(inValue)) {}
 
 	template <typename... TArgs>
 	requires std::is_constructible_v<TType, TArgs...>
-	TShared(const TArgs... args): m_ptr(std::make_unique<TType>(args...)) {}
+	TShared(const TArgs... args): m_ptr(std::make_shared<TType>(args...)) {}
 
 	TType* operator->() {
 		return m_ptr.get();
@@ -104,6 +116,18 @@ struct TShared {
 	TType* get() { return m_ptr.get(); }
 
 	const TType* get() const { return m_ptr.get(); }
+
+	friend bool operator<(const TShared& fst, const TShared& snd) {
+		return *fst.get() < *snd.get();
+	}
+
+	friend bool operator==(const TShared& fst, const TShared& snd) {
+		return *fst.get() == *snd.get();
+	}
+
+	friend size_t getHash(const TShared& obj) {
+		return getHash(*obj.get());
+	}
 
 private:
 

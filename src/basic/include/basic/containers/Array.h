@@ -5,7 +5,6 @@
 
 template <typename TType, size_t TSize>
 struct TArray : TContainer<TType, TSize> {
-
 	virtual const size_t getSize() const override {
 		return m_Container.size();
 	}
@@ -25,8 +24,20 @@ struct TArray : TContainer<TType, TSize> {
 		return m_Container[index];
 	}
 
+	virtual void set(const size_t index, const TType& obj) override {
+		if constexpr (is_copyable_v<TType>) {
+			m_Container[index] = obj;
+		} else {
+			errs("Type is not copyable!");
+		}
+	}
+
 	virtual void set(const size_t index, TType&& obj) override {
-		m_Container[index] = std::move(obj);
+		if constexpr (is_moveable_v<TType>) {
+			m_Container[index] = std::move(obj);
+		} else {
+			errs("Type is not moveable!");
+		}
 	}
 
 	virtual void forEach(const std::function<void(TType&)>& func) override {
@@ -52,6 +63,10 @@ private:
 	}
 
 	virtual TType& addDefaulted() override {
+		errs("TArray cannot be allocated after creation!");
+	}
+
+	virtual size_t add(const TType& obj) override {
 		errs("TArray cannot be allocated after creation!");
 	}
 
