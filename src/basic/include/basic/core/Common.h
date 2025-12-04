@@ -53,6 +53,9 @@
  * Category Comments should have thee lines of // like below
  */
 
+template <typename TKeyType, typename TValueType>
+using TPair = std::pair<TKeyType, TValueType>;
+
 template <typename TType>
 struct TUnique {
 

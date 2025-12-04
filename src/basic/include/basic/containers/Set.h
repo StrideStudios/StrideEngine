@@ -1,11 +1,7 @@
 ﻿#pragma once
 
-#include <set>
+#include <unordered_set>
 #include "basic/containers/Container.h"
-
-#include "basic/core/Object.h"
-
-//typedef SObject TType;
 
 template <typename TType>
 struct TSet : TContainer<TType> {
@@ -71,6 +67,12 @@ struct TSet : TContainer<TType> {
 		}
 	}
 
+	virtual void replace(const TType& tgt, TType&& obj) override {
+		// Since this container is unordered, replacing doesn't need to set at the same index
+		remove(tgt);
+		m_Container.insert(std::move(obj));
+	}
+
 	virtual TType& remove(const size_t index) override {
 		auto& obj = get(index);
 		auto itr = m_Container.begin();
@@ -79,27 +81,36 @@ struct TSet : TContainer<TType> {
 		return obj;
 	}
 
-	virtual void forEach(const std::function<void(TType&)>& func) override {
-		for (auto itr = m_Container.begin(); itr != m_Container.end(); ++itr) {
-			func(const_cast<TType&>(*itr));
-		}
+	virtual void remove(const TType& obj) override {
+		m_Container.erase(obj);
 	}
 
-	virtual void forEachReverse(const std::function<void(TType&)>& func) override {
-		for (auto itr = m_Container.rbegin(); itr != m_Container.rend(); ++itr) {
-			func(const_cast<TType&>(*itr));
+	virtual void forEach(const std::function<void(size_t, TType&)>& func) override {
+		size_t i = 0;
+		for (auto itr = m_Container.begin(); itr != m_Container.end(); ++itr, ++i) {
+			func(i, const_cast<TType&>(*itr));
 		}
 	}
 
 private:
 
 	virtual void reserve(size_t index) override {
-		errs("TSet does not have indexing!");
+		errs("TUnorderedSet does not have indexing!");
 	}
 
 	virtual void resize(size_t index) override {
-		errs("TSet does not have indexing!");
+		errs("TUnorderedSet does not have indexing!");
 	}
 
-	std::set<TType> m_Container;
+	virtual void forEachReverse(const std::function<void(size_t, TType&)>& func) override {
+		errs("TUnorderedSet cannot be iterated in reverse!");
+	}
+
+	struct Hasher {
+		size_t operator()(const TType& p) const noexcept {
+			return getHash(p);
+		}
+	};
+
+	std::unordered_set<TType, Hasher> m_Container;
 };

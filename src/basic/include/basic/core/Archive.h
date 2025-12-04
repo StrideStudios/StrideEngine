@@ -436,8 +436,8 @@ public:
 	// SObject and ISerializable, for classes and virtual serialization respectively
 	//
 
-	template <typename TType, size_t TSize = 0>
-	friend CArchive& operator<<(CArchive& inArchive, const TContainer<TType, TSize>& inValue) {
+	template <typename TType, typename TValueType, size_t TSize = 0>
+	friend CArchive& operator<<(CArchive& inArchive, const TContainer<TType, TValueType, TSize>& inValue) {
 		if constexpr (TSize <= 0) {
 			inArchive << inValue.getSize();
 		}
@@ -452,8 +452,8 @@ public:
 		return inArchive;
 	}
 
-	template <typename TType, size_t TSize = 0>
-	friend CArchive& operator>>(CArchive& inArchive, TContainer<TType, TSize>& inValue) {
+	template <typename TType, typename TValueType, size_t TSize = 0>
+	friend CArchive& operator>>(CArchive& inArchive, TContainer<TType, TValueType, TSize>& inValue) {
 		size_t size = TSize;
 		if constexpr (TSize <= 0) {
 			inArchive >> size;

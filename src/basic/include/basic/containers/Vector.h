@@ -77,15 +77,17 @@ struct TVector : TContainer<TType> {
 		return obj;
 	}
 
-	virtual void forEach(const std::function<void(TType&)>& func) override {
-		for (auto itr = m_Container.begin(); itr != m_Container.end(); ++itr) {
-			func(*itr);
+	virtual void forEach(const std::function<void(size_t, TType&)>& func) override {
+		size_t i = 0;
+		for (auto itr = m_Container.begin(); itr != m_Container.end(); ++itr, ++i) {
+			func(i, *itr);
 		}
 	}
 
-	virtual void forEachReverse(const std::function<void(TType&)>& func) override {
-		for (auto itr = m_Container.rbegin(); itr != m_Container.rend(); ++itr) {
-			func(*itr);
+	virtual void forEachReverse(const std::function<void(size_t, TType&)>& func) override {
+		size_t i = getSize() - 1;
+		for (auto itr = m_Container.rbegin(); itr != m_Container.rend(); ++itr, --i) {
+			func(i, *itr);
 		}
 	}
 

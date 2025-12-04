@@ -59,15 +59,17 @@ struct TStack : TContainer<TType> {
 		}
 	}
 
-	virtual void forEach(const std::function<void(TType&)>& func) override {
-		for (auto itr = m_Container.getContainer().begin(); itr != m_Container.getContainer().end(); ++itr) {
-			func(*itr);
+	virtual void forEach(const std::function<void(size_t, TType&)>& func) override {
+		size_t i = 0;
+		for (auto itr = m_Container.getContainer().begin(); itr != m_Container.getContainer().end(); ++itr, ++i) {
+			func(i, *itr);
 		}
 	}
 
-	virtual void forEachReverse(const std::function<void(TType&)>& func) override {
-		for (auto itr = m_Container.getContainer().rbegin(); itr != m_Container.getContainer().rend(); ++itr) {
-			func(*itr);
+	virtual void forEachReverse(const std::function<void(size_t, TType&)>& func) override {
+		size_t i = getSize() - 1;
+		for (auto itr = m_Container.getContainer().rbegin(); itr != m_Container.getContainer().rend(); ++itr, --i) {
+			func(i, *itr);
 		}
 	}
 

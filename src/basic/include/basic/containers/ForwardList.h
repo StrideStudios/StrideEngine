@@ -90,9 +90,10 @@ struct TForwardList : TContainer<TType> {
 		return obj;
 	}
 
-	virtual void forEach(const std::function<void(TType&)>& func) override {
-		for (auto itr = m_Container.begin(); itr != m_Container.end(); std::advance(itr, 1)) {
-			func(*itr);
+	virtual void forEach(const std::function<void(size_t, TType&)>& func) override {
+		size_t i = 0;
+		for (auto itr = m_Container.begin(); itr != m_Container.end(); std::advance(itr, 1), ++i) {
+			func(i, *itr);
 		}
 	}
 
@@ -102,7 +103,7 @@ private:
 		errs("TForwardList does not have contiguous memory!");
 	}
 
-	virtual void forEachReverse(const std::function<void(TType&)>& func) override {
+	virtual void forEachReverse(const std::function<void(size_t, TType&)>& func) override {
 		errs("TForwardList cannot be iterated in reverse!");
 	}
 
