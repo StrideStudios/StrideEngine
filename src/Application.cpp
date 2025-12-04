@@ -236,6 +236,89 @@ int main() {
 
 	{
 		auto previousTime = std::chrono::high_resolution_clock::now();
+		TPriorityMultiSet<TShared<SHello>> v;
+
+		TShared val = SHello{50, fmts("Unique Priority MultiSet {}", 50)};
+
+		v.add(val);
+		v.add(val);
+
+		for (size_t i = 0; i < amt; ++i)
+			v.add(SHello{i, fmts("Unique Priority MultiSet {}", i)});
+
+		v.get(0)->print();
+		v.remove(0);
+		msgs("");
+
+		v.forEach([](size_t index, TShared<SHello>& object) {
+			std::cout << "Index: " << index << " ";
+			object->print();
+		});
+		std::cout << std::endl;
+		msgs("Unique Priority MultiSet Time Taken: {}", std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - previousTime).count());
+	}
+
+	{
+		auto previousTime = std::chrono::high_resolution_clock::now();
+		TMultiSet<TShared<SHello>> v;
+
+		TShared val = SHello{50, fmts("Unique Priority MultiSet {}", 50)};
+
+		v.add(val);
+		v.add(val);
+
+		for (size_t i = 0; i < amt; ++i)
+			v.add(SHello{i, fmts("Shared MultiSet {}", i)});
+
+		v.get(0)->print();
+		v.remove(0);
+		msgs("");
+
+		v.forEach([](size_t index, TShared<SHello>& object) {
+			object->print();
+		});
+		std::cout << std::endl;
+		msgs("Shared MultiSet Time Taken: {}", std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - previousTime).count());
+	}
+
+	{
+		auto previousTime = std::chrono::high_resolution_clock::now();
+		TPriorityMultiMap<char, TUnique<SHello>> v;
+
+		v.set('C', SHello{3, fmts("Unique Priority MultiMap {}", 3)});
+		v.set('C', SHello{4, fmts("Unique Priority MultiMap {}", 4)});
+		v.set('F', SHello{1, fmts("Unique Priority MultiMap {}", 1)});
+		v.set('A', SHello{2, fmts("Unique Priority MultiMap {}", 2)});
+		v.set('P', SHello{0, fmts("Unique Priority MultiMap {}", 0)});
+
+		v.forEach([](const char& index, TUnique<SHello>& object) {
+			std::cout << "Index: " << index << " ";
+			object->print();
+		});
+		std::cout << std::endl;
+		msgs("Unique MultiMap Time Taken: {}", std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - previousTime).count());
+	}
+
+	{
+		auto previousTime = std::chrono::high_resolution_clock::now();
+		TMultiMap<char, TUnique<SHello>> v;
+
+		v.set('C', SHello{3, fmts("Unique MultiMap {}", 3)});
+		v.set('C', SHello{4, fmts("Unique MultiMap {}", 4)});
+		v.set('F', SHello{1, fmts("Unique MultiMap {}", 1)});
+		v.set('A', SHello{2, fmts("Unique MultiMap {}", 2)});
+		v.set('P', SHello{0, fmts("Unique MultiMap {}", 0)});
+
+		v.forEach([](const char& index, TUnique<SHello>& object) {
+			std::cout << "Index: " << index << " ";
+			object->print();
+		});
+		std::cout << std::endl;
+		msgs("Unique Unordered MultiMap Time Taken: {}", std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - previousTime).count());
+	}
+
+	{
+		auto previousTime = std::chrono::high_resolution_clock::now();
 		TVector<TUnique<SHello>> v;
 
 		TUnique hello = SHello{0, "Unique Vector"};

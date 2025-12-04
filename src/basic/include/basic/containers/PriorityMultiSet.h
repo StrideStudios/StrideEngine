@@ -1,10 +1,10 @@
 ﻿#pragma once
 
-#include <unordered_set>
+#include <set>
 #include "basic/containers/Container.h"
 
 template <typename TType>
-struct TSet : TContainer<TType> {
+struct TPriorityMultiSet : TContainer<TType> {
 
 	virtual const size_t getSize() const override {
 		return m_Container.size();
@@ -67,12 +67,6 @@ struct TSet : TContainer<TType> {
 		}
 	}
 
-	virtual void replace(const TType& tgt, TType&& obj) override {
-		// Since this container is unordered, replacing doesn't need to set at the same index
-		remove(tgt);
-		m_Container.insert(std::move(obj));
-	}
-
 	virtual TType& remove(const size_t index) override {
 		auto& obj = get(index);
 		auto itr = m_Container.begin();
@@ -81,12 +75,14 @@ struct TSet : TContainer<TType> {
 		return obj;
 	}
 
-	virtual void remove(const TType& obj) override {
-		m_Container.erase(obj);
-	}
-
 	virtual void forEach(const std::function<void(size_t, TType&)>& func) override {
 		for (auto itr = m_Container.begin(); itr != m_Container.end(); ++itr) {
+			func(0, const_cast<TType&>(*itr));
+		}
+	}
+
+	virtual void forEachReverse(const std::function<void(size_t, TType&)>& func) override {
+		for (auto itr = m_Container.rbegin(); itr != m_Container.rend(); ++itr) {
 			func(0, const_cast<TType&>(*itr));
 		}
 	}
@@ -94,22 +90,12 @@ struct TSet : TContainer<TType> {
 private:
 
 	virtual void reserve(size_t index) override {
-		errs("TUnorderedSet does not have indexing!");
+		errs("TSet does not have indexing!");
 	}
 
 	virtual void resize(size_t index) override {
-		errs("TUnorderedSet does not have indexing!");
+		errs("TSet does not have indexing!");
 	}
 
-	virtual void forEachReverse(const std::function<void(size_t, TType&)>& func) override {
-		errs("TUnorderedSet cannot be iterated in reverse!");
-	}
-
-	struct Hasher {
-		size_t operator()(const TType& p) const noexcept {
-			return getHash(p);
-		}
-	};
-
-	std::unordered_set<TType, Hasher> m_Container;
+	std::multiset<TType> m_Container;
 };

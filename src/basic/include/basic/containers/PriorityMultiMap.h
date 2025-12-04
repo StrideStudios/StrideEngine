@@ -1,21 +1,21 @@
 ﻿#pragma once
 
-#include <unordered_map>
+#include <map>
 #include "basic/containers/Container.h"
 
 template <typename TKeyType, typename TValueType>
-struct TMap : TContainer<TValueType, const TKeyType&> {
+struct TPriorityMultiMap : TContainer<TValueType, const TKeyType&> {
 
 	virtual const size_t getSize() const override {
 		return m_Container.size();
 	}
 
 	virtual TValueType& get(const TKeyType& index) override {
-		return m_Container.at(index);
+		return m_Container.find(index)->second;
 	}
 
 	virtual const TValueType& get(const TKeyType& index) const override {
-		return m_Container.at(index);
+		return m_Container.find(index)->second;
 	}
 
 	TValueType& addDefaulted(const TKeyType& index) {
@@ -51,37 +51,33 @@ struct TMap : TContainer<TValueType, const TKeyType&> {
 		}
 	}
 
+	virtual void forEachReverse(const std::function<void(const TKeyType&, TValueType&)>& func) override {
+		for (auto itr = m_Container.rbegin(); itr != m_Container.rend(); ++itr) {
+			func(itr->first, itr->second);
+		}
+	}
+
 private:
 
 	virtual void reserve(size_t index) override {
-		errs("TUnorderedMap does not have indexing!");
+		errs("TMap does not have indexing!");
 	}
 
 	virtual void resize(size_t index) override {
-		errs("TUnorderedMap does not have indexing!");
+		errs("TMap does not have indexing!");
 	}
 
 	virtual TValueType& addDefaulted() override {
-		errs("TUnorderedMap cannot be default constructed without a key!");
+		errs("TMap cannot be default constructed without a key!");
 	}
 
 	virtual const TKeyType& add(const TValueType& obj) override {
-		errs("TUnorderedMap cannot be added to!");
+		errs("TMap cannot be added to!");
 	}
 
 	virtual const TKeyType& add(TValueType&& obj) override {
-		errs("TUnorderedMap cannot be added to!");
+		errs("TMap cannot be added to!");
 	}
 
-	virtual void forEachReverse(const std::function<void(const TKeyType&, TValueType&)>& func) override {
-		errs("TUnorderedMap cannot be iterated in reverse!");
-	}
-
-	struct Hasher {
-		size_t operator()(const TKeyType& p) const noexcept {
-			return getHash(p);
-		}
-	};
-
-	std::unordered_map<TKeyType, TValueType, Hasher> m_Container;
+	std::multimap<TKeyType, TValueType> m_Container;
 };

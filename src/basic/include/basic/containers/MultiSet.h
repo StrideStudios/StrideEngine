@@ -4,7 +4,7 @@
 #include "basic/containers/Container.h"
 
 template <typename TType>
-struct TSet : TContainer<TType> {
+struct TMultiSet : TContainer<TType> {
 
 	virtual const size_t getSize() const override {
 		return m_Container.size();
@@ -111,5 +111,5 @@ private:
 		}
 	};
 
-	std::unordered_set<TType, Hasher> m_Container;
+	std::unordered_multiset<TType, Hasher> m_Container;
 };

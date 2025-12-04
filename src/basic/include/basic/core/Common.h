@@ -53,6 +53,10 @@
  * Category Comments should have thee lines of // like below
  */
 
+inline size_t getHash(const char c) {
+	return c;
+}
+
 template <typename TKeyType, typename TValueType>
 using TPair = std::pair<TKeyType, TValueType>;
 

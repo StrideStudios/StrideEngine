@@ -4,18 +4,18 @@
 #include "basic/containers/Container.h"
 
 template <typename TKeyType, typename TValueType>
-struct TMap : TContainer<TValueType, const TKeyType&> {
+struct TMultiMap : TContainer<TValueType, const TKeyType&> {
 
 	virtual const size_t getSize() const override {
 		return m_Container.size();
 	}
 
 	virtual TValueType& get(const TKeyType& index) override {
-		return m_Container.at(index);
+		return m_Container.find(index)->second;
 	}
 
 	virtual const TValueType& get(const TKeyType& index) const override {
-		return m_Container.at(index);
+		return m_Container.find(index)->second;
 	}
 
 	TValueType& addDefaulted(const TKeyType& index) {
@@ -83,5 +83,5 @@ private:
 		}
 	};
 
-	std::unordered_map<TKeyType, TValueType, Hasher> m_Container;
+	std::unordered_multimap<TKeyType, TValueType, Hasher> m_Container;
 };
