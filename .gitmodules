@@ -25,3 +25,6 @@
 [submodule "third_party/freetype"]
 	path = third_party/freetype
 	url = https://github.com/freetype/freetype
+[submodule "third_party/simplestl"]
+	path = third_party/simplestl
+	url = https://github.com/StrideStudios/SimpleSTL

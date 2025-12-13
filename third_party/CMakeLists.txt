@@ -1,4 +1,6 @@
-﻿add_subdirectory(glm)
+﻿add_subdirectory(simplestl)
+
+add_subdirectory(glm)
 add_subdirectory(fmt)
 add_subdirectory(sdl)
 

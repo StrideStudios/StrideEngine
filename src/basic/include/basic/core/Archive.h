@@ -12,6 +12,8 @@
 
 #include "Class.h"
 #include "Object.h"
+#include "sstl/Container.h"
+#include "sstl/Memory.h"
 
 class CArchive;
 
@@ -436,39 +438,102 @@ public:
 	// SObject and ISerializable, for classes and virtual serialization respectively
 	//
 
-	template <typename TType, typename TValueType, size_t TSize = 0>
-	friend CArchive& operator<<(CArchive& inArchive, const TContainer<TType, TValueType, TSize>& inValue) {
+	template <typename TType, size_t TSize = 0>
+	friend CArchive& operator<<(CArchive& inArchive, const TSequenceContainer<TType, TSize>& inValue) {
 		if constexpr (TSize <= 0) {
 			inArchive << inValue.getSize();
 		}
-		for (const auto object : inValue) {
-			if constexpr (std::is_base_of_v<SObject, TType>) {
-				inArchive << object->getClass()->getName();
-				dynamic_cast<const ISerializable*>(object)->save(inArchive);
+		inValue.forEach([&](size_t index, TType& obj) {
+			if constexpr (std::is_base_of_v<SObject, typename TUnfurled<TType>::Type>) {
+				inArchive << obj->getClass()->getName();
+				dynamic_cast<const ISerializable*>(obj)->save(inArchive);
 			} else {
-				inArchive << object;
+				inArchive << obj;
 			}
-		}
+		});
 		return inArchive;
 	}
 
-	template <typename TType, typename TValueType, size_t TSize = 0>
-	friend CArchive& operator>>(CArchive& inArchive, TContainer<TType, TValueType, TSize>& inValue) {
+	template <typename TType, size_t TSize = 0>
+	friend CArchive& operator>>(CArchive& inArchive, TSequenceContainer<TType, TSize>& inValue) {
 		size_t size = TSize;
 		if constexpr (TSize <= 0) {
 			inArchive >> size;
 		}
-		inValue.reserve(size);
-		for (size_t i = 0; i < size; ++i) {
-			if constexpr (std::is_base_of_v<SObject, TType>) {
+		inValue.resize(size, [&](TType& obj, size_t) {
+			if constexpr (std::is_base_of_v<SObject, typename TUnfurled<TType>::Type>) {
 				std::string className;
 				inArchive >> className;
-				SObject* obj = SClassRegistry::get(className.c_str())->construct(inValue);
+				obj = SClassRegistry::get(className.c_str())->construct(inValue);
 				dynamic_cast<ISerializable*>(obj)->load(inArchive);
 			} else {
-				inArchive >> inValue.addDefaulted();
+				inArchive >> obj;
 			}
-		}
+		});
+		return inArchive;
+	}
+
+	template <typename TType>
+	friend CArchive& operator<<(CArchive& inArchive, const TSingleAssociativeContainer<TType>& inValue) {
+		inArchive << inValue.getSize();
+		inValue.forEach([&](const TType& obj) {
+			if constexpr (std::is_base_of_v<SObject, typename TUnfurled<TType>::Type>) {
+				inArchive << obj->getClass()->getName();
+				dynamic_cast<const ISerializable*>(obj)->save(inArchive);
+			} else {
+				inArchive << obj;
+			}
+		});
+		return inArchive;
+	}
+
+	template <typename TType>
+	friend CArchive& operator>>(CArchive& inArchive, TSingleAssociativeContainer<TType>& inValue) {
+		size_t size;
+		inArchive >> size;
+		inValue.resize(size, [&](TType& obj) {
+			if constexpr (std::is_base_of_v<SObject, typename TUnfurled<TType>::Type>) {
+				std::string className;
+				inArchive >> className;
+				obj = SClassRegistry::get(className.c_str())->construct(inValue);
+				dynamic_cast<ISerializable*>(obj)->load(inArchive);
+			} else {
+				inArchive >> obj;
+			}
+		});
+		return inArchive;
+	}
+
+	template <typename TKeyType, typename TValueType>
+	friend CArchive& operator<<(CArchive& inArchive, const TAssociativeContainer<TKeyType, TValueType>& inValue) {
+		inArchive << inValue.getSize();
+		inValue.forEach([&](TPair<TKeyType, const TValueType&> pair) {
+			inArchive << pair.key;
+			if constexpr (std::is_base_of_v<SObject, typename TUnfurled<TValueType>::Type>) {
+				inArchive << pair.value->getClass()->getName();
+				dynamic_cast<const ISerializable*>(pair.value)->save(inArchive);
+			} else {
+				inArchive << pair.value;
+			}
+		});
+		return inArchive;
+	}
+
+	template <typename TKeyType, typename TValueType>
+	friend CArchive& operator>>(CArchive& inArchive, TAssociativeContainer<TKeyType, TValueType>& inValue) {
+		size_t size;
+		inArchive >> size;
+		inValue.resize(size, [&](TPair<TKeyType, TValueType>& pair) {
+			inArchive >> pair.key;
+			if constexpr (std::is_base_of_v<SObject, typename TUnfurled<TValueType>::Type>) {
+				std::string className;
+				inArchive >> className;
+				pair.value = SClassRegistry::get(className.c_str())->construct(inValue);
+				dynamic_cast<ISerializable*>(pair.value)->load(inArchive);
+			} else {
+				inArchive >> pair.value;
+			}
+		});
 		return inArchive;
 	}
 
@@ -477,7 +542,7 @@ public:
 	// Useful because save and load are virtual
 	//
 
-	friend CArchive& operator<<(CArchive& inArchive, ISerializable& inValue) {
+	friend CArchive& operator<<(CArchive& inArchive, const ISerializable& inValue) {
 		return inValue.save(inArchive);
 	}
 

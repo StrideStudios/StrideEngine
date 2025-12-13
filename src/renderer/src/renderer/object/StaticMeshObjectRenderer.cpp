@@ -10,6 +10,7 @@
 void CStaticMeshObjectRenderer::render(CMeshPass* inPass, VkCommandBuffer cmd, SRenderStack3f& stack, CStaticMeshObject* inObject, size_t& outDrawCalls, size_t& outVertices) {
 	IInstancer& instancer = inObject->getInstancer();
 	SStaticMesh* mesh = inObject->getMesh();
+	if (!mesh) return;
 	const size_t NumInstances = instancer.getNumberOfInstances();
 
 	ZoneScoped;
