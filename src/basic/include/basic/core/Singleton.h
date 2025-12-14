@@ -1,6 +1,7 @@
 #pragma once
 
-#include <map>
+#include "sstl/Map.h"
+#include "sstl/Memory.h"
 
 #include "basic/core/Common.h"
 
@@ -11,7 +12,7 @@
 		) \
 	public: \
 		static n& get() { \
-			return *static_cast<n*>(getSingleton(#n)); \
+			return *dynamic_cast<n*>(getSingletons().get(#n).get()); \
 		} \
 	private:
 
@@ -27,7 +28,7 @@
 				Sets itself to a simple getter so that there is no branching at runtime
 				Since Functions are just memory addresses anyway, it should be nearly as quick as a direct call
 				*/ \
-				singletonCallback = [] -> n& {return *static_cast<n*>(getSingleton(#n));}; \
+				singletonCallback = [] -> n& {return *dynamic_cast<n*>(getSingletons().get(#n).get());}; \
 				return (*singletonCallback)(); \
 			}; \
 		) \
@@ -45,26 +46,25 @@
 		) \
 	public: \
 		static n& get() { \
-			return *static_cast<n*>(getSingleton(__singleton_name)); \
+			return *dynamic_cast<n*>(getSingletons().get(__singleton_name).get()); \
 		} \
 	private:
 
-EXPORT bool doesSingletonExist(const std::string& inName);
-
-EXPORT void* getSingleton(const std::string& inName);
-
-EXPORT void addSingleton(const std::string& inName, void* inValue);
+EXPORT TMap<std::string, TUnique<SObject>>& getSingletons();
 
 template <typename TType>
+requires std::is_base_of_v<SObject, TType>
 void initSingleton(const std::string& inName) {
-	if (!doesSingletonExist(inName)) {
-		TType* object = new TType();
-		if constexpr (std::is_base_of_v<SObject, TType>) {
-			CResourceManager::get().push(object);
+	if (!getSingletons().contains(inName)) {
+		getSingletons().push(inName, TUnique<TType>{});
+		if constexpr (std::is_base_of_v<IDestroyable, TType>) {
+			auto destroyable = dynamic_cast<IDestroyable*>(getSingletons().get(inName).get());
+			CResourceManager::get().callback([destroyable] {
+				destroyable->destroy();
+			});
 		}
-		addSingleton(inName, object);
 		if constexpr (std::is_base_of_v<IInitializable, TType>) {
-			object->init();
+			dynamic_cast<IInitializable*>(getSingletons().get(inName).get())->init();
 		}
 	}
 }

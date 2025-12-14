@@ -57,6 +57,19 @@ inline size_t getHash(const char c) {
 	return c;
 }
 
+// Simple hashing, could potentially have repeats, but it is unlikely
+// djb2 http://www.cse.yorku.ca/~oz/hash.html
+inline size_t getHash(const std::string& string) {
+	size_t Hash = 0;
+	const unsigned char* str = (unsigned char*)string.c_str();
+
+	int c;
+	while ((c = *str++))
+		Hash = ((Hash << 5) + Hash) + c;
+
+	return Hash;
+}
+
 struct IDestroyable {
 	virtual ~IDestroyable() = default;
 

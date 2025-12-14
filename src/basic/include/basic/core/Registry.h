@@ -27,7 +27,7 @@
 	template class TDeferredFactory<n, n##DeferredRegistry##Name>;
 
 template <typename TType, const char* TName>
-class TRegistry {
+class TRegistry : public SObject {
 
 	CUSTOM_SINGLETON(TRegistry, TName)
 
@@ -77,7 +77,7 @@ public:
 // This can be done at any point the user wishes
 // It does this by storing registration, and doing it all at once at any point
 template <typename TType, const char* TName, typename... TArgs>
-class TDeferredRegistry {
+class TDeferredRegistry : public SObject  {
 
 	CUSTOM_SINGLETON(TDeferredRegistry, TName)
 

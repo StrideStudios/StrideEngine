@@ -2,8 +2,6 @@
 
 #include <array>
 
-#include "basic/core/Hashing.h"
-
 enum class EMaterialPass : uint8 {
 	OPAQUE,
 	TRANSLUCENT,
