@@ -27,11 +27,12 @@ void renderSceneUI() {
 	if (ImGui::Begin("Scene")) {
 		CScene& scene = CScene::get();
 		if (ImGui::Button("Add Mesh Object")) {
-			CStaticMeshObject* obj;
-			scene.createChild(obj);
+			//scene.addChild(CStaticMeshObject{});
+			TUnique<CStaticMeshObject> obj{};
+			scene.addChild(std::move(obj));
 		}
-		for (size_t objectNum = 0; objectNum < scene.getChildren().size(); ++objectNum) {
-			auto object = scene[objectNum];
+		for (size_t objectNum = 0; objectNum < scene.getChildren().getSize(); ++objectNum) {
+			auto& object = scene[objectNum];
 			if (!object) continue;
 			ImGui::PushID(fmts("{}", objectNum).c_str());
 
@@ -52,25 +53,25 @@ void renderSceneUI() {
 					ImGui::InputFloat3("Scale", reinterpret_cast<float*>(&scale));
 					if (scale != object->getScale()) object->setScale(scale);
 
-					auto& sobject = dynamic_cast<CStaticMeshObject&>(*object);
+					if (auto sobject = dynamic_cast<CStaticMeshObject*>(object.get())) {
+						const char* combo_preview_value = sobject->getMesh() ? sobject->getMesh()->name.c_str() : "None";
+						if (ImGui::BeginCombo("Meshes", combo_preview_value, ImGuiComboFlags_HeightRegular)) {
+							for (auto& mesh : CEngineLoader::getMeshes()) {
+								if (mesh.second->name.empty()) continue;
 
-					const char* combo_preview_value = sobject.getMesh() ? sobject.getMesh()->name.c_str() : "None";
-					if (ImGui::BeginCombo("Meshes", combo_preview_value, ImGuiComboFlags_HeightRegular)) {
-						for (auto& mesh : CEngineLoader::getMeshes()) {
-							if (mesh.second->name.empty()) continue;
+								const bool is_selected = ((sobject->getMesh() ? sobject->getMesh()->name : "None") == mesh.second->name);
+								if (ImGui::Selectable(CEngineLoader::getMeshes()[mesh.first]->name.c_str(), is_selected)) {
+									sobject->mesh = mesh.second;
+									msgs("attempted to set {} to {}", sobject->mesh ? sobject->mesh->name.c_str() : "None", mesh.second->name.c_str());
+								}
 
-							const bool is_selected = ((sobject.getMesh() ? sobject.getMesh()->name : "None") == mesh.second->name);
-							if (ImGui::Selectable(CEngineLoader::getMeshes()[mesh.first]->name.c_str(), is_selected)) {
-								sobject.mesh = mesh.second;
-								msgs("attempted to set {} to {}", sobject.mesh ? sobject.mesh->name.c_str() : "None", mesh.second->name.c_str());
+
+								// Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
+								if (is_selected)
+									ImGui::SetItemDefaultFocus();
 							}
-
-
-							// Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
-							if (is_selected)
-								ImGui::SetItemDefaultFocus();
+							ImGui::EndCombo();
 						}
-						ImGui::EndCombo();
 					}
 				}
 				ImGui::TreePop();

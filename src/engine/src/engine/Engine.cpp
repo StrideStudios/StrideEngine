@@ -27,7 +27,7 @@ void CEngine::init() {
 	CResourceManager::get().create(m_EngineViewport);
 }
 
-void CEngine::run() {
+void CEngine::run_internal() {
 	auto previousTime = std::chrono::high_resolution_clock::now();
 	bool bPauseRendering = false;
 	bool bRunning = true;
@@ -89,6 +89,16 @@ void CEngine::run() {
 			}
 		}
 	}
+
+	// Wait for the gpu to finish instructions
+	if (!CRenderer::get()->wait()) {
+		errs("Engine did not stop properly!");
+	}
+
+	// Stop 'main thread'
+	CThreading::getMainThread().stop();
+
+	CResourceManager::get().flush();
 }
 
 // Test game loop

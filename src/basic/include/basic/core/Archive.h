@@ -443,10 +443,11 @@ public:
 		if constexpr (TSize <= 0) {
 			inArchive << inValue.getSize();
 		}
-		inValue.forEach([&](size_t index, TType& obj) {
+		inValue.forEach([&](size_t index, const TType& obj) {
 			if constexpr (std::is_base_of_v<SObject, typename TUnfurled<TType>::Type>) {
-				inArchive << obj->getClass()->getName();
-				dynamic_cast<const ISerializable*>(obj)->save(inArchive);
+				auto object = getUnfurled(obj);
+				inArchive << object->getClass()->getName();
+				dynamic_cast<const ISerializable*>(object)->save(inArchive);
 			} else {
 				inArchive << obj;
 			}
@@ -464,8 +465,8 @@ public:
 			if constexpr (std::is_base_of_v<SObject, typename TUnfurled<TType>::Type>) {
 				std::string className;
 				inArchive >> className;
-				obj = SClassRegistry::get(className.c_str())->construct(inValue);
-				dynamic_cast<ISerializable*>(obj)->load(inArchive);
+				SClassRegistry::get(className.c_str())->constructObject(obj);
+				dynamic_cast<ISerializable*>(getUnfurled(obj))->load(inArchive);
 			} else {
 				inArchive >> obj;
 			}

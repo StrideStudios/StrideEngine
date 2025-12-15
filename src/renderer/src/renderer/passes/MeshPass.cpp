@@ -123,12 +123,11 @@ bool isVisible(const Matrix4f& inViewProj, const Matrix4f& inTransformMatrix, co
 	return true;
 }
 
-void renderChild(CMeshPass* pass, const VkCommandBuffer cmd, SRenderStack3f& stack, const THierarchy<CWorldObject>* inHierarchy, size_t& meshCount, size_t& drawCallCount, size_t& vertexCount) {
-	for (auto& object : inHierarchy->getChildren()) {
-		CWorldObject* obj = static_cast<CWorldObject*>(object);
+void renderChild(CMeshPass* pass, const VkCommandBuffer cmd, SRenderStack3f& stack, THierarchy<CWorldObject>* inHierarchy, size_t& meshCount, size_t& drawCallCount, size_t& vertexCount) {
+	inHierarchy->getChildren().forEach([&](size_t index, TUnique<CWorldObject>& obj) {
 		stack.push(obj->getTransformMatrix());
 
-		if (const auto staticMesh = dynamic_cast<CStaticMeshObject*>(obj)) {
+		if (const auto staticMesh = dynamic_cast<CStaticMeshObject*>(obj.get())) {
 			if (const auto rendererClass = dynamic_cast<IRenderableClass*>(staticMesh->getClass())) {
 
 				rendererClass->getRenderer()->render(pass, cmd, stack, staticMesh, drawCallCount, vertexCount);
@@ -137,10 +136,10 @@ void renderChild(CMeshPass* pass, const VkCommandBuffer cmd, SRenderStack3f& sta
 			}
 		}
 
-		renderChild(pass, cmd, stack, obj, meshCount, drawCallCount, vertexCount);
+		renderChild(pass, cmd, stack, obj.get(), meshCount, drawCallCount, vertexCount);
 
 		stack.pop();
-	}
+	});
 }
 
 void CMeshPass::render(const VkCommandBuffer cmd) {

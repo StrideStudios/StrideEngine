@@ -12,7 +12,7 @@
 		) \
 	public: \
 		static n& get() { \
-			return *dynamic_cast<n*>(getSingletons().get(#n).get()); \
+			return *getSingletons().get(#n).dynamicCast<n>().get(); \
 		} \
 	private:
 
@@ -28,7 +28,7 @@
 				Sets itself to a simple getter so that there is no branching at runtime
 				Since Functions are just memory addresses anyway, it should be nearly as quick as a direct call
 				*/ \
-				singletonCallback = [] -> n& {return *dynamic_cast<n*>(getSingletons().get(#n).get());}; \
+				singletonCallback = [] -> n& {return *getSingletons().get(#n).dynamicCast<n>().get();}; \
 				return (*singletonCallback)(); \
 			}; \
 		) \
@@ -46,25 +46,26 @@
 		) \
 	public: \
 		static n& get() { \
-			return *dynamic_cast<n*>(getSingletons().get(__singleton_name).get()); \
+			return *getSingletons().get(__singleton_name).dynamicCast<n>().get(); \
 		} \
 	private:
 
-EXPORT TMap<std::string, TUnique<SObject>>& getSingletons();
+EXPORT TMap<std::string, TShared<SObject>>& getSingletons();
+//TODO: big issue with destroy order... NOT FUN
 
 template <typename TType>
 requires std::is_base_of_v<SObject, TType>
 void initSingleton(const std::string& inName) {
 	if (!getSingletons().contains(inName)) {
-		getSingletons().push(inName, TUnique<TType>{});
+		auto outPointer = TShared<TType>{};
+		getSingletons().push(inName, outPointer.template staticCast<SObject>());
 		if constexpr (std::is_base_of_v<IDestroyable, TType>) {
-			auto destroyable = dynamic_cast<IDestroyable*>(getSingletons().get(inName).get());
-			CResourceManager::get().callback([destroyable] {
-				destroyable->destroy();
+			CResourceManager::get().callback([outPointer] {
+				outPointer->destroy();
 			});
 		}
 		if constexpr (std::is_base_of_v<IInitializable, TType>) {
-			dynamic_cast<IInitializable*>(getSingletons().get(inName).get())->init();
+			outPointer->init();
 		}
 	}
 }

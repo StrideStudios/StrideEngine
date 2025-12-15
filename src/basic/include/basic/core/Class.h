@@ -42,6 +42,18 @@ struct SClass : SObject {
 
 	virtual SObject* construct() const = 0;
 
+	virtual void constructObject(SObject&) const = 0;
+
+	template <typename TType>
+	void constructObject(TUnique<TType>& object) const {
+		constructObject(*object.get());
+	}
+
+	template <typename TType>
+	void constructObject(TShared<TType>& object) const {
+		constructObject(*object.get());
+	}
+
 	virtual SObject* construct(CResourceManager& inResourceManager) const = 0;
 
 	virtual SClass* getParent() const = 0;
@@ -66,6 +78,8 @@ struct TClass : SClass {
 	virtual SObject* construct() const override {
 		return nullptr;
 	}
+
+	virtual void constructObject(SObject& object) const override {}
 
 	virtual SObject* construct(CResourceManager& inResourceManager) const override {
 		return nullptr;
@@ -101,6 +115,12 @@ struct TGenericClass : SClass {
 	virtual SObject* construct() const override {
 		return new SObject();
 		//return construct(CResourceManager::get());
+	}
+
+	virtual void constructObject(SObject& object) const override {
+		if constexpr (not std::is_abstract_v<TCurrentClass>) {
+			object = TCurrentClass{};
+		}
 	}
 
 	virtual SObject* construct(CResourceManager& inResourceManager) const override {

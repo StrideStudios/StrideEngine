@@ -1,11 +1,10 @@
 #pragma once
 
 #include "basic/control/ResourceManager.h"
+#include "sstl/List.h"
 
 template <typename TType>
 struct THierarchy {
-
-	using Storage = CResourceManager;
 
 	/*
 	 * Children
@@ -15,8 +14,17 @@ struct THierarchy {
 
 	virtual void onRemoveChild(TType* inObject) {}
 
-	const Storage::Storage& getChildren() const {
-		return m_Children.getObjects();
+	TList<TUnique<TType>>& getChildren() { return m_Children; }
+	const TList<TUnique<TType>>& getChildren() const { return m_Children; }
+
+	template <typename... TArgs>
+	void addChild(TArgs&&... args) {
+		(m_Children.push(std::forward<TArgs>(args)), ...);
+	}
+
+	template <typename... TArgs>
+	void removeChild(TArgs&&... args) {
+		(m_Children.pop(std::forward<TArgs>(args)), ...);
 	}
 
 	template <typename TChildType>
@@ -40,12 +48,12 @@ struct THierarchy {
 		onRemoveChild(inObject);
 	}
 
-	TType* operator[](const size_t index) {
-		return dynamic_cast<TType*>(m_Children[index]);
+	TUnique<TType>& operator[](const size_t index) {
+		return m_Children[index];
 	}
 
-	const TType* operator[](const size_t index) const {
-		return dynamic_cast<TType*>(m_Children[index]);
+	const TUnique<TType>& operator[](const size_t index) const {
+		return m_Children[index];
 	}
 
 private:
@@ -63,5 +71,5 @@ private:
 	/*
 	 * A Resource Manager that contains Object children
 	 */
-	Storage m_Children;
+	TList<TUnique<TType>> m_Children;
 };

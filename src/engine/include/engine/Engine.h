@@ -2,6 +2,7 @@
 
 #include "basic/core/Common.h"
 #include "basic/core/Singleton.h"
+#include "rendercore/Renderer.h"
 
 class CVulkanRenderer;
 class CEngineViewport;
@@ -32,7 +33,14 @@ private:
 	// Make sure only main can access init and run functions
 	friend int main();
 
-	EXPORT void run();
+	EXPORT void run_internal();
+
+	template <typename TType>
+	requires std::is_base_of_v<CRenderer, TType>
+	static void run() {
+		CRenderer::create<TType>();
+		get().run_internal();
+	}
 
 	EXPORT void update();
 
