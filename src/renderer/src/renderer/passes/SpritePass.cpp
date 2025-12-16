@@ -4,7 +4,6 @@
 #include "rendercore/EngineLoader.h"
 #include "renderer/EngineTextures.h"
 #include "renderer/VulkanRenderer.h"
-#include "rendercore/VulkanDevice.h"
 #include "basic/Profiling.h"
 #include "engine/EngineSettings.h"
 #include "tracy/Tracy.hpp"
@@ -76,7 +75,7 @@ void CSpritePass::render(VkCommandBuffer cmd) {
 
 		stack.pop();
 
-		bindPipeline(cmd, opaquePipeline, sprite->material->mConstants);
+		bindPipeline(cmd, opaquePipeline, sprite->getMaterial()->mConstants);
 
 		vkCmdDraw(cmd, 6, NumInstances, 0, 0);
 

@@ -15,6 +15,10 @@ public:
 
 	CStaticMeshObject(SStaticMesh* inMesh): mesh(inMesh) {}
 
+	virtual IInstancer& getInstancer() override {
+		return m_Instancer;
+	}
+
 	no_discard virtual SStaticMesh* getMesh() const {
 		return mesh;
 	}
@@ -45,6 +49,9 @@ public:
 
 		return inArchive;
 	}
+
+	SSingleInstancer m_Instancer;
+
 };
 
 //TODO: mostly the same as SInstancer

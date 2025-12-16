@@ -74,7 +74,7 @@ SImage_T* loadImage(CResourceManager& manager, const std::filesystem::path& path
 
 		// Upload buffer is not needed outside of this function
 
-		SStagingBuffer uploadBuffer{image_size}; //TODO: was CPU_TO_GPU, test if errors
+		SStagingBuffer uploadBuffer{"Staging for " + fileName, image_size}; //TODO: was CPU_TO_GPU, test if errors
 
 		uploadBuffer.push(pImage, image_size);
 
@@ -393,10 +393,10 @@ SMeshBuffers_T* uploadMesh(CResourceManager& inManager, std::span<uint32> indice
 
 	// Create buffers
 	SMeshBuffers_T* meshBuffers;
-	inManager.create<SMeshBuffers_T>(meshBuffers, indexBufferSize, vertexBufferSize);
+	inManager.create<SMeshBuffers_T>(meshBuffers, "Mesh Buffer", indexBufferSize, vertexBufferSize);
 
 	// Staging is not needed outside of this function
-	SStagingBuffer staging{vertexBufferSize + indexBufferSize};
+	SStagingBuffer staging{"Staging for Mesh Buffer", vertexBufferSize + indexBufferSize};
 
 	// Copy vertex and Index Buffer
 	staging.push(vertices.data(), vertexBufferSize, indices.data(), indexBufferSize);

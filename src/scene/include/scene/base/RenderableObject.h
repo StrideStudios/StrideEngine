@@ -50,13 +50,9 @@ class CRenderableViewportObject : public CViewportObject, public IRenderable {
 
 public:
 
-	virtual IInstancer& getInstancer() override {
-		return m_Instancer;
-	}
+	virtual IInstancer& getInstancer() override = 0;
 
-private:
-
-	SSingleInstancer m_Instancer;
+	virtual CMaterial* getMaterial() = 0;
 };
 
 class CRenderableWorldObject : public CWorldObject, public IRenderable {
@@ -64,13 +60,8 @@ class CRenderableWorldObject : public CWorldObject, public IRenderable {
 
 public:
 
-	virtual IInstancer& getInstancer() override {
-		return m_Instancer;
-	}
+	virtual IInstancer& getInstancer() override = 0;
 
-private:
-
-	SSingleInstancer m_Instancer;
 };
 
 #undef MAKE_RENDERABLE

@@ -122,6 +122,8 @@ public:
 
 private:
 
+	friend class CEngine;
+
 	EXPORT static CPass* getPass(const SClass* cls);
 
 	EXPORT static bool hasPass(const SClass* cls);

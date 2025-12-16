@@ -11,11 +11,22 @@ class CSprite : public CRenderableViewportObject {
 
 public:
 
+	virtual IInstancer& getInstancer() override {
+		return m_Instancer;
+	}
+
+	virtual CMaterial* getMaterial() override {
+		return material;
+	}
+
 	// Surface Data
 	CMaterial* material;
+
+	SSingleInstancer m_Instancer;
+
 };
 
-class CInstancedSprite : public CSprite {
+class CInstancedSprite : public CRenderableViewportObject {
 
 	REGISTER_CLASS(CInstancedSprite, CSprite)
 
@@ -27,6 +38,10 @@ public:
 
 	virtual IInstancer& getInstancer() override {
 		return m_Instancer;
+	}
+
+	virtual CMaterial* getMaterial() override {
+		return material;
 	}
 
 	virtual size_t addInstance(const Transform2f& inTransform) {
@@ -44,16 +59,19 @@ public:
 	}
 
 	virtual CArchive& save(CArchive& inArchive) const override {
-		CSprite::save(inArchive);
+		CViewportObject::save(inArchive);
 		inArchive << m_Instancer;
 		return inArchive;
 	}
 
 	virtual CArchive& load(CArchive& inArchive) override {
-		CSprite::load(inArchive);
+		CViewportObject::load(inArchive);
 		inArchive >> m_Instancer;
 		return inArchive;
 	}
+
+	// Surface Data
+	CMaterial* material = nullptr;
 
 private:
 

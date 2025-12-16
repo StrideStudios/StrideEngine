@@ -1,5 +1,7 @@
 #pragma once
 
+#include "sstl/Memory.h"
+
 /*
  * A simple base class for all objects
  * If a derived class does not register itself, it will always be abstract
@@ -18,7 +20,7 @@ struct SObject {
 	EXPORT static SClass* staticClass();
 
 	// An iterator the parent uses to remove and modify its child
-	std::list<SObject*>::iterator itr;
+	std::list<TUnique<SObject>>::iterator itr;
 
 	friend bool operator<(const SObject& fst, const SObject& snd) {
 		return true;

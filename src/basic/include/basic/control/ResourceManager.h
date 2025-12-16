@@ -4,6 +4,8 @@
 
 #include "basic/core/Common.h"
 #include "basic/core/Object.h"
+#include "sstl/List.h"
+#include "sstl/Memory.h"
 
 /*
  * Stores pointers to CObject so they can be automatically deallocated when flush is called
@@ -15,8 +17,20 @@ class TResourceManager : public IDestroyable {
 
 public:
 
-	using Storage = std::list<TRequiredType*>;
+	using Storage = std::list<TUnique<SObject>>;
 	using Iterator = Storage::iterator;
+
+	// TODO: until everything is migrated, we use this to ensure no leaks
+	struct TempHelper : SObject, IDestroyable {
+		TempHelper(TRequiredType* obj): obj(obj) {}
+		virtual void destroy() override {
+			if (const auto destroyable = dynamic_cast<IDestroyable*>(obj)) {
+				destroyable->destroy();
+			}
+			delete obj;
+		}
+		TRequiredType* obj;
+	};
 
 	// Flush resources if out of scope
 	virtual ~TResourceManager() override {
@@ -70,7 +84,7 @@ public:
 	template <typename TType>
 	requires std::is_base_of_v<TRequiredType, TType>
 	Iterator push(TType* inType) {
-		m_Objects.push_back(inType);
+		m_Objects.emplace_back(TUnique<TempHelper>{inType});
 		inType->itr = m_Objects.begin();
 		std::advance(inType->itr, (m_Objects.size() - 1));
 		return inType->itr;
@@ -79,10 +93,9 @@ public:
 	// Reverse iterate and destroy
 	virtual void flush() {
 		for (auto itr = m_Objects.rbegin(); itr != m_Objects.rend(); ++itr) {
-			if (const auto& destroyable = dynamic_cast<IDestroyable*>(*itr)) {
+			if (const auto destroyable = dynamic_cast<IDestroyable*>(itr->get())) {
 				destroyable->destroy();
 			}
-			delete *itr;
 		}
 		m_Objects.clear();
 	}
@@ -96,12 +109,10 @@ public:
 
 	virtual void remove(const Iterator& itr) {
 		if (itr._Myproxy == nullptr || itr._Getcont() == nullptr) return; // Ensure itr is valid
-		const auto object = *itr;
-		m_Objects.erase(itr);
-		if (const auto& destroyable = dynamic_cast<IDestroyable*>(object)) {
+		if (const auto& destroyable = dynamic_cast<IDestroyable*>(itr->get())) {
 			destroyable->destroy();
 		}
-		delete object;
+		m_Objects.erase(itr);
 	}
 
 	template <typename TType>
@@ -122,7 +133,7 @@ public:
 	}
 
 	const TRequiredType*& operator[](size_t index) const {
-		Iterator itr = m_Objects.begin();
+		Storage::const_iterator itr = m_Objects.begin();
 		std::advance(itr, index);
 		return *itr;
 	}

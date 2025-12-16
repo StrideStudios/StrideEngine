@@ -270,11 +270,11 @@ void renderSpriteUI() {
 
 
 					if (!CEngineLoader::getMaterials().empty()) {
-						if (ImGui::BeginCombo("Surface Material", sprite->material->mName.c_str(), ImGuiComboFlags_HeightRegular)) {
+						if (ImGui::BeginCombo("Surface Material", sprite->getMaterial()->mName.c_str(), ImGuiComboFlags_HeightRegular)) {
 							for (const auto& material : CEngineLoader::getMaterials()) {
-								const bool isSelected = sprite->material == material.second;
+								const bool isSelected = sprite->getMaterial() == material.second;
 								if (ImGui::Selectable(material.first.c_str(), isSelected)) {
-									sprite->material = material.second;
+									//sprite->material = material.second;
 								}
 
 								// Set the initial focus when opening the combo (scrolling + keyboard navigation focus)

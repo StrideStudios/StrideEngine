@@ -10,7 +10,7 @@ CRenderer* CRenderer::get() {
 void CRenderer::set(CRenderer* inRenderer) {
 	astsOnce(CRenderer); // Ensure Renderer is set only once
 	gRenderer = inRenderer;
-	CResourceManager::get().push(gRenderer);
+	//CResourceManager::get().push(gRenderer);
 	gRenderer->init();
 }
 

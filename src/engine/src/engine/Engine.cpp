@@ -72,7 +72,7 @@ void CEngine::run_internal() {
 		});
 
 		// Draw to the screen
-		CRenderer::get()->render();
+		m_Renderer->render();
 
 		// Execute any tasks that are on the 'main thread'
 		// Done here because they can be done during the frame cap wait
@@ -91,7 +91,7 @@ void CEngine::run_internal() {
 	}
 
 	// Wait for the gpu to finish instructions
-	if (!CRenderer::get()->wait()) {
+	if (!m_Renderer->wait()) {
 		errs("Engine did not stop properly!");
 	}
 
@@ -99,6 +99,8 @@ void CEngine::run_internal() {
 	CThreading::getMainThread().stop();
 
 	CResourceManager::get().flush();
+
+	m_Renderer->destroy();
 }
 
 // Test game loop

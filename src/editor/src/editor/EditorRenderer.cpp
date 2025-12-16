@@ -132,7 +132,7 @@ void CEditorSpritePass::render(VkCommandBuffer cmd) {
 			VkDeviceSize offset = 0u;
 			vkCmdBindVertexBuffers(cmd, 0, 1u, &tempTextBuffer.get()->buffer, &offset);
 
-			SPushConstants constants = sprite->material->mConstants;
+			SPushConstants constants = sprite->getMaterial()->mConstants;
 			constants[0].x = font.mAtlasImage->mBindlessAddress;
 
 			bindPipeline(cmd, textPipeline, constants);
@@ -148,7 +148,7 @@ void CEditorSpritePass::render(VkCommandBuffer cmd) {
 
 			stack.pop();
 
-			bindPipeline(cmd, opaquePipeline, sprite->material->mConstants);
+			bindPipeline(cmd, opaquePipeline, sprite->getMaterial()->mConstants);
 		}
 
 		vkCmdDraw(cmd, 6, NumInstances, 0, 0);
@@ -168,36 +168,50 @@ void CEditorRenderer::init() {
 	CVulkanRenderer::init();
 
 	addPasses<
-		CMeshPass,
+		//CMeshPass,
 		CSpritePass,
 		//CEditorSpritePass,
 		CEngineUIPass
 	>();
 
 	if (CSpritePass* pass = getPass<CSpritePass>()) {
-		constexpr int32 numSprites = 250;
+		{
+			constexpr int32 numSprites = 250;
 
-		std::random_device rd;
-		std::mt19937 gen(rd());
+			std::random_device rd;
+			std::mt19937 gen(rd());
 
-		std::uniform_int_distribution distribx(0, 100);
-		std::uniform_int_distribution distriby(0, 100);
-		std::uniform_int_distribution distribr(0, 360);
+			std::uniform_int_distribution distribx(0, 100);
+			std::uniform_int_distribution distriby(0, 100);
+			std::uniform_int_distribution distribr(0, 360);
 
-		const auto sprite = std::make_shared<CInstancedSprite>();
-		sprite->mName = fmts("Instanced Sprite");
-		sprite->material = mEngineTextures->mErrorMaterial;
+			const auto sprite = std::make_shared<CInstancedSprite>();
+		   sprite->mName = fmts("Instanced Sprite");
+		   sprite->material = mEngineTextures->mErrorMaterial;
 
-		for (int32 i = 0; i < numSprites; ++i) {
-			Transform2f transform;
-			transform.setPosition(Vector2f{(float)distribx(gen) / 100.f, (float)distriby(gen) / 100.f});
-			transform.setScale(Vector2f{0.025f, 0.05f});
-			//transform.setScale(Vector2f{50.f, 50.f});
-			transform.setRotation((float)distribr(gen));
-			sprite->addInstance(transform);
+		   for (int32 i = 0; i < numSprites; ++i) {
+			   Transform2f transform;
+			   transform.setPosition(Vector2f{(float)distribx(gen) / 100.f, (float)distriby(gen) / 100.f});
+			   transform.setScale(Vector2f{0.025f, 0.05f});
+			   //transform.setScale(Vector2f{50.f, 50.f});
+			   transform.setRotation((float)distribr(gen));
+			   sprite->addInstance(transform);
+		   }
+
+		   pass->push(sprite);
 		}
 
-		pass->push(sprite);
+		/*{
+			const auto sprite = std::make_shared<CSprite>();
+			sprite->mName = fmts("Sprite");
+			sprite->material = mEngineTextures->mErrorMaterial;
+
+			sprite->setPosition(Vector2f{0.5f, 0.5f});
+			sprite->setScale({0.025f, 0.05f});
+			sprite->setRotation(45.f);
+
+			pass->push(sprite);
+		}*/
 	}
 }
 

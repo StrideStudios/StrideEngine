@@ -145,6 +145,9 @@ CSwapchain* CVulkanRenderer::getSwapchain() {
 }
 
 void CVulkanRenderer::render() {
+
+	auto& rem = CVulkanAllocator::get().m_Manager;
+
 	if (mVSync != UseVsync.get()) {
 		mVSync = UseVsync.get();
 		msgs("Reallocating Swapchain to {}", UseVsync.get() ? "enable VSync." : "disable VSync.");

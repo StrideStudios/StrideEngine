@@ -109,9 +109,11 @@ class CVulkanAllocator final : public SObject, public IDestroyable {
 
 public:
 
-	struct Resource : IDestroyable {
+	struct Resource : SObject, IDestroyable {
+		Resource(const std::string& name): name(name) {}
 		virtual bool isAllocated() = 0;
-		TResourceManager<Resource>::Iterator itr;
+		//TResourceManager<Resource>::Iterator itr;
+		std::string name;
 	};
 
 	template <typename TType, typename... TArgs>
@@ -143,7 +145,7 @@ public:
 		get().getCurrentResourceManager().flush();
 	}
 
-private:
+public:
 
 	force_inline TResourceManager<Resource>& getCurrentResourceManager() {
 		return m_BufferedManagers[CRenderer::get()->getBufferingType().getFrameIndex()];
@@ -158,7 +160,7 @@ private:
 	VmaAllocator mAllocator = nullptr;
 
 	TResourceManager<Resource> m_Manager;
-	std::vector<TResourceManager<Resource>> m_BufferedManagers;
+	std::deque<TResourceManager<Resource>> m_BufferedManagers;
 };
 
 // Create wrappers around Vulkan types that can be destroyed
@@ -335,7 +337,11 @@ struct SImage_T : SObject, IDestroyable {
 struct SBuffer_T : CVulkanAllocator::Resource {
 
 	SBuffer_T() = delete;
-	EXPORT SBuffer_T(size_t inBufferSize, VmaMemoryUsage inMemoryUsage, VkBufferUsageFlags inBufferUsage = 0);
+/*
+	SBuffer_T(size_t inBufferSize, VmaMemoryUsage inMemoryUsage, VkBufferUsageFlags inBufferUsage = 0):
+	SBuffer_T("Default Buffer", inBufferSize, inMemoryUsage, inBufferUsage) {}
+*/
+	EXPORT SBuffer_T(const std::string& inName, size_t inBufferSize, VmaMemoryUsage inMemoryUsage, VkBufferUsageFlags inBufferUsage = 0);
 
 	EXPORT void makeGlobal(); //TODO: alternate way of doing this
 	EXPORT void updateGlobal() const; // TODO: not global but instead 'dynamic' (address should be separate?)
@@ -380,11 +386,15 @@ private:
 
 template <VmaMemoryUsage TMemoryUsage, VkBufferUsageFlags TBufferUsage>
 struct SPushableBuffer {
+
+	SPushableBuffer(const std::string& inName) : name(inName) {}
 	virtual ~SPushableBuffer() = default;
 
 	virtual SBuffer_T* get() = 0;
 
 	virtual size_t getSize() const = 0;
+
+	const std::string& getName() const { return name; }
 
 	virtual void checkSize(const size_t size) {
 		if (size > getSize()) {
@@ -401,14 +411,14 @@ struct SPushableBuffer {
 
 			static_assert(TBufferUsage & VK_BUFFER_USAGE_TRANSFER_DST_BIT);
 
-			SBuffer_T* buffer;
-			CVulkanAllocator::allocate(buffer,
+			SBuffer_T buffer{
+				"Staging for " + name,
 				getSize(),
 				VMA_MEMORY_USAGE_CPU_ONLY,
 				VK_BUFFER_USAGE_TRANSFER_SRC_BIT
-			);
+			};
 
-			buffer->push(src, size, args...);
+			buffer.push(src, size, args...);
 
 			CRenderer::get()->immediateSubmit([this, totalSize, buffer](SCommandBuffer& cmd) {
 				VkBufferCopy copy {
@@ -417,10 +427,10 @@ struct SPushableBuffer {
 					.size = totalSize
 				};
 
-				vkCmdCopyBuffer(cmd, buffer->buffer, get()->buffer, 1, &copy);
+				vkCmdCopyBuffer(cmd, buffer.buffer, get()->buffer, 1, &copy);
 			});
 
-			CVulkanAllocator::remove(buffer);
+			buffer.destroy();
 		} else {
 			memcpy(get()->getMappedData(), src, size);
 			push(size, args...);
@@ -447,6 +457,8 @@ private:
 	size_t getTotalSize(const void* src, const size_t size, TArgs... args) {
 		return size + getTotalSize(args...);
 	}
+
+	std::string name;
 };
 
 
@@ -459,10 +471,11 @@ struct SLocalBuffer final : SPushableBuffer<VMA_MEMORY_USAGE_CPU_ONLY, TBufferUs
 
 	SLocalBuffer() = delete;
 
-	SLocalBuffer(const size_t inAllocSize):
-	mBuffer(inAllocSize, VMA_MEMORY_USAGE_CPU_ONLY, TBufferUsage){}
+	SLocalBuffer(const std::string& inName, const size_t inAllocSize):
+	SPushableBuffer<VMA_MEMORY_USAGE_CPU_ONLY, TBufferUsage>(inName),
+	mBuffer(SPushableBuffer<VMA_MEMORY_USAGE_CPU_ONLY, TBufferUsage>::getName(), inAllocSize, VMA_MEMORY_USAGE_CPU_ONLY, TBufferUsage){}
 
-	SLocalBuffer(const size_t inElementSize, const size_t inSize): SLocalBuffer(inElementSize * inSize) {}
+	SLocalBuffer(const std::string& inName, const size_t inElementSize, const size_t inSize): SLocalBuffer(inName, inElementSize * inSize) {}
 
 	virtual ~SLocalBuffer() override {
 		msgs("Destroyed Local Buffer.");
@@ -487,6 +500,9 @@ typedef SLocalBuffer<VK_BUFFER_USAGE_TRANSFER_SRC_BIT> SStagingBuffer;
 template <VmaMemoryUsage TMemoryUsage, VkBufferUsageFlags TBufferUsage, size_t TElementSize, size_t TSize>
 struct SStaticBuffer : SPushableBuffer<TMemoryUsage, TBufferUsage>, IDestroyable {
 
+	SStaticBuffer(const std::string& inName)
+	: SPushableBuffer<TMemoryUsage, TBufferUsage>(inName) {}
+
 	virtual ~SStaticBuffer() override {
 		if (!mAllocated) return;
 		msgs("WARNING: Static Buffer was not destroyed!");
@@ -497,7 +513,7 @@ struct SStaticBuffer : SPushableBuffer<TMemoryUsage, TBufferUsage>, IDestroyable
 	virtual SBuffer_T* get() override {
 		if (!mAllocated) {
 			mAllocated = true;
-			CVulkanAllocator::allocate(mBuffer, getSize(), TMemoryUsage, TBufferUsage);
+			CVulkanAllocator::allocate(mBuffer, SPushableBuffer<TMemoryUsage, TBufferUsage>::getName(), getSize(), TMemoryUsage, TBufferUsage);
 		}
 		return mBuffer;
 	}
@@ -525,7 +541,8 @@ private:
 template <VmaMemoryUsage TMemoryUsage, VkBufferUsageFlags TBufferUsage = 0>
 struct SDynamicBuffer : SPushableBuffer<TMemoryUsage, TBufferUsage>, IDestroyable {
 
-	SDynamicBuffer() = default;
+	SDynamicBuffer(const std::string& inName):
+	SPushableBuffer<TMemoryUsage, TBufferUsage>(inName) {}
 
 	virtual ~SDynamicBuffer() override {
 		if (!mAllocated) return;
@@ -567,7 +584,7 @@ private:
 		if (!mAllocated) {
 			mAllocated = true;
 			mAllocSize = inAllocSize;
-			CVulkanAllocator::allocate(mBuffer, mAllocSize, TMemoryUsage, TBufferUsage);
+			CVulkanAllocator::allocate(mBuffer, SPushableBuffer<TMemoryUsage, TBufferUsage>::getName(), mAllocSize, TMemoryUsage, TBufferUsage);
 		}
 	}
 
@@ -582,8 +599,9 @@ struct SMeshBuffers_T : SObject, IDestroyable {
 	REGISTER_STRUCT(SMeshBuffers_T, SObject)
 
 	SMeshBuffers_T() = default;
-	EXPORT SMeshBuffers_T(size_t indicesSize, size_t verticesSize);
+	EXPORT SMeshBuffers_T(const std::string& inName, size_t indicesSize, size_t verticesSize);
 
+	std::string name = "None";
 	SBuffer_T* indexBuffer = nullptr;
 	SBuffer_T* vertexBuffer = nullptr;
 };

@@ -456,7 +456,7 @@ VkRenderingAttachmentInfo SRenderAttachment::get(const SImage_T* inImage) const 
 	return info;
 }
 
-SBuffer_T::SBuffer_T(const size_t inBufferSize, const VmaMemoryUsage inMemoryUsage, const VkBufferUsageFlags inBufferUsage): mBindlessAddress(0) {
+SBuffer_T::SBuffer_T(const std::string& inName, const size_t inBufferSize, const VmaMemoryUsage inMemoryUsage, const VkBufferUsageFlags inBufferUsage): Resource(inName) {
 	// allocate buffer
 	const VkBufferCreateInfo bufferCreateInfo = {
 		.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
@@ -523,9 +523,9 @@ void SBuffer_T::unMapData() const {
 	vmaUnmapMemory(CVulkanAllocator::get().getAllocator(), allocation);
 }
 
-SMeshBuffers_T::SMeshBuffers_T(const size_t indicesSize, const size_t verticesSize) {
-	CVulkanAllocator::allocate(indexBuffer, indicesSize, VMA_MEMORY_USAGE_GPU_ONLY, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
-	CVulkanAllocator::allocate(vertexBuffer, verticesSize, VMA_MEMORY_USAGE_GPU_ONLY, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+SMeshBuffers_T::SMeshBuffers_T(const std::string& inName, const size_t indicesSize, const size_t verticesSize): name(inName) {
+	CVulkanAllocator::allocate(indexBuffer, name, indicesSize, VMA_MEMORY_USAGE_GPU_ONLY, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+	CVulkanAllocator::allocate(vertexBuffer, name, verticesSize, VMA_MEMORY_USAGE_GPU_ONLY, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
 }
 
 SImage_T::SImage_T(const std::string& inDebugName, const VkExtent3D inExtent, const VkFormat inFormat, const VkImageUsageFlags inFlags, const VkImageAspectFlags inViewFlags, const uint32 inNumMips):
@@ -649,7 +649,7 @@ void SImage_T::push(const void* inData, const uint32& inSize) {
 
 	// Upload buffer is not needed outside of this function
 	// TODO: Some way of doing an upload buffer generically
-	SStagingBuffer uploadBuffer{inSize}; //TODO: was CPU_TO_GPU, test if errors
+	SStagingBuffer uploadBuffer{mName, inSize}; //TODO: was CPU_TO_GPU, test if errors
 
 	memcpy(uploadBuffer.get()->getMappedData(), inData, inSize);
 
@@ -702,6 +702,8 @@ void CVulkanAllocator::destroy() {
 	msgs("Destroying Vulkan Allocator.");
 
 	mDestroyed = true;
+
+	auto& rem = m_Manager;
 
 	// Destroy all objects marked for removal first
 	for (auto& manager : m_BufferedManagers) { manager.flush(); }

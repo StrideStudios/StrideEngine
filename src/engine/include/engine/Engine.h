@@ -38,11 +38,14 @@ private:
 	template <typename TType>
 	requires std::is_base_of_v<CRenderer, TType>
 	static void run() {
-		CRenderer::create<TType>();
+		get().m_Renderer = TShared<TType>{};
+		CRenderer::set(get().m_Renderer.get());
 		get().run_internal();
 	}
 
 	EXPORT void update();
+
+	TShared<CRenderer> m_Renderer = nullptr;
 
 	//
 	// Frame Time

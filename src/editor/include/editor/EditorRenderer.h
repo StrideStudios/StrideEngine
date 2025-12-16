@@ -21,10 +21,10 @@ public:
 
 	CPipeline* textPipeline = nullptr;
 
-	SDynamicBuffer<VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT> tempTextBuffer;
+	SDynamicBuffer<VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT> tempTextBuffer{"Text Buffer"};
 };
 
-class CEditorRenderer :public CVulkanRenderer {
+class CEditorRenderer : public CVulkanRenderer {
 
 public:
 

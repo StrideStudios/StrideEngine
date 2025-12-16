@@ -98,7 +98,7 @@ public:
 
 	SceneData mSceneData{};
 
-	SStaticBuffer<VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, sizeof(SceneData), 1> mSceneBuffer;
+	SStaticBuffer<VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, sizeof(SceneData), 1> mSceneBuffer{"Scene Buffer"};
 
 	//
 	// Objects
