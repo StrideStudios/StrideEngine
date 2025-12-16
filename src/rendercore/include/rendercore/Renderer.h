@@ -79,11 +79,11 @@ public:
 
 	EXPORT static CRenderer* get();
 
-	template <typename TType>
+	/*template <typename TType>
 	static void create() {
 		TType* renderer = new TType();
 		set(renderer);
-	}
+	}*/
 
 	template <typename TPass>
 	static void addPass() {

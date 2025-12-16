@@ -703,8 +703,6 @@ void CVulkanAllocator::destroy() {
 
 	mDestroyed = true;
 
-	auto& rem = m_Manager;
-
 	// Destroy all objects marked for removal first
 	for (auto& manager : m_BufferedManagers) { manager.flush(); }
 	m_Manager.flush();

@@ -37,6 +37,10 @@ public:
 		TResourceManager::flush();
 	}
 
+	Storage& getObjects() {
+		return m_Objects;
+	}
+
 	const Storage& getObjects() const {
 		return m_Objects;
 	}
@@ -44,11 +48,14 @@ public:
 	template <typename TType>
 	requires std::is_base_of_v<TRequiredType, TType>
 	Iterator create(TType*& outType) {
-		outType = new TType();
+		m_Objects.emplace_back(TUnique<TType>{});
+		outType = dynamic_cast<TType*>(m_Objects.back().get());
 		if constexpr (std::is_base_of_v<IInitializable, TType>) {
 			outType->init();
 		}
-		return push(outType);
+		outType->itr = m_Objects.begin();
+		std::advance(outType->itr, (m_Objects.size() - 1));
+		return outType->itr;
 	}
 
 	template <typename TTargetType, typename TType>
@@ -60,19 +67,25 @@ public:
 	template <typename TType, typename... TArgs>
 	requires std::is_base_of_v<TRequiredType, TType> and std::is_constructible_v<TType, TArgs...>
 	Iterator create(TType*& outType, TArgs&&... args) {
-		outType = new TType(args...);
+		m_Objects.emplace_back(TUnique<TType>{args...});
+		outType = dynamic_cast<TType*>(m_Objects.back().get());
 		if constexpr (std::is_base_of_v<IInitializable, TType>) {
 			outType->init();
 		}
-		return push(outType);
+		outType->itr = m_Objects.begin();
+		std::advance(outType->itr, (m_Objects.size() - 1));
+		return outType->itr;
 	}
 
 	template <typename TType, typename... TArgs>
 	requires std::is_base_of_v<TRequiredType, TType> and std::is_base_of_v<TInitializable<TArgs...>, TType> and (not std::is_constructible_v<TType, TArgs...>)
 	Iterator create(TType*& outType, TArgs&&... args) {
-		outType = new TType();
+		m_Objects.emplace_back(TUnique<TType>{});
+		outType = dynamic_cast<TType*>(m_Objects.back().get());
 		outType->init(args...);
-		return push(outType);
+		outType->itr = m_Objects.begin();
+		std::advance(outType->itr, (m_Objects.size() - 1));
+		return outType->itr;
 	}
 
 	template <typename TTargetType, typename TType, typename... TArgs>
@@ -82,13 +95,23 @@ public:
 	}
 
 	template <typename TType>
+	//requires std::is_base_of_v<TRequiredType, TType>
+	Iterator pushUnique(TUnique<TType>&& inType) {
+		m_Objects.emplace_back(std::forward<TUnique<TType>>(inType));
+		const auto& newType = m_Objects.back();
+		newType->itr = m_Objects.begin();
+		std::advance(newType->itr, (m_Objects.size() - 1));
+		return newType->itr;
+	}
+
+	/*template <typename TType>
 	requires std::is_base_of_v<TRequiredType, TType>
 	Iterator push(TType* inType) {
 		m_Objects.emplace_back(TUnique<TempHelper>{inType});
 		inType->itr = m_Objects.begin();
 		std::advance(inType->itr, (m_Objects.size() - 1));
 		return inType->itr;
-	}
+	}*/
 
 	// Reverse iterate and destroy
 	virtual void flush() {

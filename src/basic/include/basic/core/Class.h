@@ -40,8 +40,6 @@ struct SClass : SObject {
 
 	virtual bool isAbstract() const = 0;
 
-	virtual SObject* construct() const = 0;
-
 	virtual void constructObject(SObject&) const = 0;
 
 	template <typename TType>
@@ -75,10 +73,6 @@ struct TClass : SClass {
 
 	TClass(): SClass("None") {}
 
-	virtual SObject* construct() const override {
-		return nullptr;
-	}
-
 	virtual void constructObject(SObject& object) const override {}
 
 	virtual SObject* construct(CResourceManager& inResourceManager) const override {
@@ -110,11 +104,6 @@ struct TGenericClass : SClass {
 
 	virtual bool isAbstract() const override {
 		return std::is_abstract_v<TCurrentClass>;
-	}
-
-	virtual SObject* construct() const override {
-		return new SObject();
-		//return construct(CResourceManager::get());
 	}
 
 	virtual void constructObject(SObject& object) const override {

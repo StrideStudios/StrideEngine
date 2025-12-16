@@ -129,8 +129,13 @@ public:
 	requires std::is_base_of_v<Resource, TType>
 	static void remove(TType*& inResource) {
 		if (get().mDestroyed) return;
-		get().m_Manager.ignore(inResource->itr);
-		get().getCurrentResourceManager().push(inResource);
+
+		//TODO: simpleSTL splice
+		get().getCurrentResourceManager().getObjects().splice(get().getCurrentResourceManager().getObjects().begin(), get().m_Manager.getObjects(), inResource->itr);
+
+		/*auto itr = inResource->itr;
+		get().getCurrentResourceManager().pushUnique(std::move(*itr));
+		get().m_Manager.ignore(itr);*/
 	}
 
 	VmaAllocator& getAllocator() {

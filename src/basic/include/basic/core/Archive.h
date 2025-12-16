@@ -355,8 +355,10 @@ public:
 	friend CArchive& operator>>(CArchive& inArchive, TType*& inValue) {
 		std::string className;
 		inArchive >> className;
-		inValue = dynamic_cast<TType*>(SClassRegistry::get(className.c_str())->construct());
-		CResourceManager::get().push(inValue);
+		TUnique<TType> obj = nullptr;
+		SClassRegistry::get(className.c_str())->constructObject(obj);
+		auto itr = CResourceManager::get().pushUnique(std::move(obj));
+		inValue = dynamic_cast<TType*>(itr->get());
 		inArchive >> *inValue;
 		return inArchive;
 	}
@@ -391,6 +393,56 @@ public:
 		return inArchive;
 	}
 
+	template <typename TType>
+	friend CArchive& operator<<(CArchive& inArchive, const TShared<TType>& inValue) {
+		if constexpr (std::is_base_of_v<SObject, TType>) {
+			inArchive << inValue->getClass()->getName();
+			dynamic_cast<ISerializable*>(inValue.get())->save(inArchive);
+		} else {
+			inArchive << *inValue.get();
+		}
+		return inArchive;
+	}
+
+	template <typename TType>
+	requires std::is_default_constructible_v<TType>
+	friend CArchive& operator>>(CArchive& inArchive, TShared<TType>& inValue) {
+		if constexpr (std::is_base_of_v<SObject, TType>) {
+			std::string className;
+			inArchive >> className;
+			SClassRegistry::get(className.c_str())->constructObject(inValue);
+			dynamic_cast<ISerializable*>(inValue.get())->load(inArchive);
+		} else {
+			inArchive >> *inValue.get();
+		}
+		return inArchive;
+	}
+
+	template <typename TType>
+	friend CArchive& operator<<(CArchive& inArchive, const TUnique<TType>& inValue) {
+		if constexpr (std::is_base_of_v<SObject, TType>) {
+			inArchive << inValue->getClass()->getName();
+			dynamic_cast<ISerializable*>(inValue.get())->save(inArchive);
+		} else {
+			inArchive << *inValue.get();
+		}
+		return inArchive;
+	}
+
+	template <typename TType>
+	requires std::is_default_constructible_v<TType>
+	friend CArchive& operator>>(CArchive& inArchive, TUnique<TType>& inValue) {
+		if constexpr (std::is_base_of_v<SObject, TType>) {
+			std::string className;
+			inArchive >> className;
+			SClassRegistry::get(className.c_str())->constructObject(inValue);
+			dynamic_cast<ISerializable*>(inValue.get())->load(inArchive);
+		} else {
+			inArchive >> *inValue.get();
+		}
+		return inArchive;
+	}
+
 	//
 	// Resource Managers
 	// Due to the runtime nature of these, the objects saved have to be both
@@ -402,10 +454,8 @@ public:
 	friend CArchive& operator<<(CArchive& inArchive, const TResourceManager<TType>& inValue) {
 		std::vector<SObject*> objects;
 		for (const auto object : inValue.getObjects()) {
-			if (const auto obj = dynamic_cast<SObject*>(object)) {
-				if (dynamic_cast<ISerializable*>(object)) {
-					objects.push_back(obj);
-				}
+			if (dynamic_cast<ISerializable*>(object.get())) {
+				objects.push_back(object);
 			}
 		}
 
@@ -425,9 +475,10 @@ public:
 		for (size_t i = 0; i < size; ++i) {
 			std::string className;
 			inArchive >> className;
-			TType* obj = dynamic_cast<TType*>(SClassRegistry::get(className.c_str())->construct());
-			inValue.push(obj);
-			dynamic_cast<ISerializable*>(obj)->load(inArchive); //TODO fix issues, test Application.cpp
+			TUnique<TType> object = nullptr;;
+			SClassRegistry::get(className.c_str())->constructObject(object);
+			dynamic_cast<ISerializable*>(object.get())->load(inArchive); //TODO fix issues, test Application.cpp
+			inValue.pushUnique(std::move(object));
 		}
 		return inArchive;
 	}
