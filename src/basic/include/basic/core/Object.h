@@ -19,9 +19,6 @@ struct SObject {
 
 	EXPORT static SClass* staticClass();
 
-	// An iterator the parent uses to remove and modify its child
-	std::list<TUnique<SObject>>::iterator itr;
-
 	friend bool operator<(const SObject& fst, const SObject& snd) {
 		return true;
 	}

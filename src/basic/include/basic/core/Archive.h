@@ -357,8 +357,8 @@ public:
 		inArchive >> className;
 		TUnique<TType> obj = nullptr;
 		SClassRegistry::get(className.c_str())->constructObject(obj);
-		auto itr = CResourceManager::get().pushUnique(std::move(obj));
-		inValue = dynamic_cast<TType*>(itr->get());
+		auto index = CResourceManager::get().pushUnique(std::move(obj));
+		inValue = dynamic_cast<TType*>(CResourceManager::get().getObjects().get(index).get());
 		inArchive >> *inValue;
 		return inArchive;
 	}

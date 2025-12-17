@@ -17,8 +17,7 @@ class TResourceManager : public IDestroyable {
 
 public:
 
-	using Storage = std::list<TUnique<SObject>>;
-	using Iterator = Storage::iterator;
+	using Storage = TList<TUnique<SObject>>;
 
 	// TODO: until everything is migrated, we use this to ensure no leaks
 	struct TempHelper : SObject, IDestroyable {
@@ -47,61 +46,48 @@ public:
 
 	template <typename TType>
 	requires std::is_base_of_v<TRequiredType, TType>
-	Iterator create(TType*& outType) {
-		m_Objects.emplace_back(TUnique<TType>{});
-		outType = dynamic_cast<TType*>(m_Objects.back().get());
+	void create(TType*& outType) {
+		m_Objects.push(TUnique<TType>{});
+		outType = dynamic_cast<TType*>(m_Objects.bottom().get());
 		if constexpr (std::is_base_of_v<IInitializable, TType>) {
 			outType->init();
 		}
-		outType->itr = m_Objects.begin();
-		std::advance(outType->itr, (m_Objects.size() - 1));
-		return outType->itr;
 	}
 
 	template <typename TTargetType, typename TType>
 	requires (!std::is_same_v<TTargetType, TType>) and std::is_base_of_v<TRequiredType, TTargetType>
-	Iterator create(TType*& outType) {
-		return create<TTargetType>(reinterpret_cast<TTargetType*&>(outType));
+	void create(TType*& outType) {
+		create<TTargetType>(reinterpret_cast<TTargetType*&>(outType));
 	}
 
 	template <typename TType, typename... TArgs>
 	requires std::is_base_of_v<TRequiredType, TType> and std::is_constructible_v<TType, TArgs...>
-	Iterator create(TType*& outType, TArgs&&... args) {
-		m_Objects.emplace_back(TUnique<TType>{args...});
-		outType = dynamic_cast<TType*>(m_Objects.back().get());
+	void create(TType*& outType, TArgs&&... args) {
+		m_Objects.push(TUnique<TType>{args...});
+		outType = dynamic_cast<TType*>(m_Objects.bottom().get());
 		if constexpr (std::is_base_of_v<IInitializable, TType>) {
 			outType->init();
 		}
-		outType->itr = m_Objects.begin();
-		std::advance(outType->itr, (m_Objects.size() - 1));
-		return outType->itr;
 	}
 
 	template <typename TType, typename... TArgs>
 	requires std::is_base_of_v<TRequiredType, TType> and std::is_base_of_v<TInitializable<TArgs...>, TType> and (not std::is_constructible_v<TType, TArgs...>)
-	Iterator create(TType*& outType, TArgs&&... args) {
-		m_Objects.emplace_back(TUnique<TType>{});
-		outType = dynamic_cast<TType*>(m_Objects.back().get());
+	void create(TType*& outType, TArgs&&... args) {
+		m_Objects.push(TUnique<TType>{});
+		outType = dynamic_cast<TType*>(m_Objects.bottom().get());
 		outType->init(args...);
-		outType->itr = m_Objects.begin();
-		std::advance(outType->itr, (m_Objects.size() - 1));
-		return outType->itr;
 	}
 
 	template <typename TTargetType, typename TType, typename... TArgs>
 	requires (!std::is_same_v<TTargetType, TType>) and std::is_base_of_v<TRequiredType, TTargetType>
-	Iterator create(TType*& outType, TArgs&&... args) {
-		return create<TTargetType, TArgs...>(reinterpret_cast<TTargetType*&>(outType), args...);
+	void create(TType*& outType, TArgs&&... args) {
+		create<TTargetType, TArgs...>(reinterpret_cast<TTargetType*&>(outType), args...);
 	}
 
 	template <typename TType>
 	//requires std::is_base_of_v<TRequiredType, TType>
-	Iterator pushUnique(TUnique<TType>&& inType) {
-		m_Objects.emplace_back(std::forward<TUnique<TType>>(inType));
-		const auto& newType = m_Objects.back();
-		newType->itr = m_Objects.begin();
-		std::advance(newType->itr, (m_Objects.size() - 1));
-		return newType->itr;
+	size_t pushUnique(TUnique<TType>&& inType) {
+		return m_Objects.push(std::forward<TUnique<TType>>(inType));
 	}
 
 	/*template <typename TType>
@@ -115,11 +101,11 @@ public:
 
 	// Reverse iterate and destroy
 	virtual void flush() {
-		for (auto itr = m_Objects.rbegin(); itr != m_Objects.rend(); ++itr) {
-			if (const auto destroyable = dynamic_cast<IDestroyable*>(itr->get())) {
+		m_Objects.forEachReverse([](size_t index, TUnique<SObject>& obj) {
+			if (const auto destroyable = dynamic_cast<IDestroyable*>(obj.get())) {
 				destroyable->destroy();
 			}
-		}
+		});
 		m_Objects.clear();
 	}
 
@@ -127,39 +113,31 @@ public:
 	requires std::is_base_of_v<TRequiredType, TType>
 	void remove(TType* inType) {
 		if (inType == nullptr) return;
-		remove(inType->itr);
+		if (const auto& destroyable = dynamic_cast<IDestroyable*>(inType->get())) {
+			destroyable->destroy();
+		}
+		m_Objects.pop(m_Objects.find(inType));
 	}
 
-	virtual void remove(const Iterator& itr) {
+	/*virtual void remove(const Iterator& itr) {
 		if (itr._Myproxy == nullptr || itr._Getcont() == nullptr) return; // Ensure itr is valid
 		if (const auto& destroyable = dynamic_cast<IDestroyable*>(itr->get())) {
 			destroyable->destroy();
 		}
 		m_Objects.erase(itr);
-	}
+	}*/
 
 	template <typename TType>
 	requires std::is_base_of_v<TRequiredType, TType>
 	void ignore(TType*& inType) {
-		ignore(inType->itr);
+		if (inType == nullptr) return;
+		m_Objects.pop(m_Objects.find(inType));
 	}
 
-	virtual void ignore(const Iterator& itr) {
+	/*virtual void ignore(const Iterator& itr) {
 		if (itr._Myproxy == nullptr || itr._Getcont() == nullptr) return; // Ensure itr is valid
 		m_Objects.erase(itr);
-	}
-
-	TRequiredType*& operator[](size_t index) {
-		Iterator itr = m_Objects.begin();
-		std::advance(itr, index);
-		return *itr;
-	}
-
-	const TRequiredType*& operator[](size_t index) const {
-		Storage::const_iterator itr = m_Objects.begin();
-		std::advance(itr, index);
-		return *itr;
-	}
+	}*/
 
 protected:
 
@@ -186,8 +164,8 @@ public:
 	EXPORT static CResourceManager& get();
 
 	// Calls the function when it is indicated to be destroyed
-	Iterator callback(const std::function<void()>& inFunction) {
+	void callback(const std::function<void()>& inFunction) {
 		Callback* cb;
-		return create(cb, inFunction);
+		create(cb, inFunction);
 	}
 };

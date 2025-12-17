@@ -130,8 +130,9 @@ public:
 	static void remove(TType*& inResource) {
 		if (get().mDestroyed) return;
 
-		//TODO: simpleSTL splice
-		get().getCurrentResourceManager().getObjects().splice(get().getCurrentResourceManager().getObjects().begin(), get().m_Manager.getObjects(), inResource->itr);
+		//get().getCurrentResourceManager().getObjects().splice(get().getCurrentResourceManager().getObjects().begin(), get().m_Manager.getObjects(), inResource->itr);
+
+		get().m_Manager.getObjects().transfer(get().getCurrentResourceManager().getObjects(), get().m_Manager.getObjects().find(inResource));
 
 		/*auto itr = inResource->itr;
 		get().getCurrentResourceManager().pushUnique(std::move(*itr));
