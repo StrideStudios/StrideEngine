@@ -31,7 +31,7 @@ public:
 	virtual void end() {}
 };
 
-DEFINE_REGISTRY(CObjectRenderer)
+DEFINE_REGISTRY(CObjectRendererRegistry, CObjectRenderer*)
 
 template <typename TType, typename TPassType>
 requires std::is_base_of_v<CViewportObject, TType>

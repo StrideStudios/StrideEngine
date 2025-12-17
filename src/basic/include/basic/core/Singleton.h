@@ -12,7 +12,7 @@
 		) \
 	public: \
 		static n& get() { \
-			return *getSingletons().get(#n).dynamicCast<n>().get(); \
+			return *getSingletons().get(#n).staticCast<n>().get(); \
 		} \
 	private:
 
@@ -28,7 +28,7 @@
 				Sets itself to a simple getter so that there is no branching at runtime
 				Since Functions are just memory addresses anyway, it should be nearly as quick as a direct call
 				*/ \
-				singletonCallback = [] -> n& {return *getSingletons().get(#n).dynamicCast<n>().get();}; \
+				singletonCallback = [] -> n& {return *getSingletons().get(#n).staticCast<n>().get();}; \
 				return (*singletonCallback)(); \
 			}; \
 		) \
@@ -46,7 +46,7 @@
 		) \
 	public: \
 		static n& get() { \
-			return *getSingletons().get(__singleton_name).dynamicCast<n>().get(); \
+			return *getSingletons().get(__singleton_name).staticCast<n>().get(); \
 		} \
 	private:
 

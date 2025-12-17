@@ -262,7 +262,7 @@ void CVulkanRenderer::render(const SRendererInfo& info) {
 
 			//TODO: personal ObjectRenderer for passes instead
 			// Tell all renderers that rendering has begun
-			CObjectRendererRegistry::forEach([](const std::string& inName, CObjectRenderer* object) {
+			CObjectRendererRegistry::forEach([](const std::string& inName, CObjectRenderer*& object) {
 				object->begin();
 			});
 

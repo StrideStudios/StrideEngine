@@ -51,4 +51,4 @@ private:
 	CPipeline* m_CurrentPipeline = nullptr;
 };
 
-DEFINE_DEFERRED_REGISTRY(CPass)
+DEFINE_DEFERRED_REGISTRY(CPassDeferredRegistry, CPass*)

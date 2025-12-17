@@ -1,7 +1,5 @@
 #pragma once
 
-#include "sstl/Memory.h"
-
 /*
  * A simple base class for all objects
  * If a derived class does not register itself, it will always be abstract
@@ -9,15 +7,21 @@
 
 struct SClass;
 
+template <typename TType>
+struct TShared;
+
+template <typename... TParentClasses>
+struct TClass;
+
 struct SObject {
+
+	typedef TClass<SObject> Class;
 
 	virtual ~SObject() = default;
 
-	virtual SClass* getClass() const {
-		return staticClass();
-	}
+	EXPORT virtual SClass* getClass() const;
 
-	EXPORT static SClass* staticClass();
+	EXPORT static TShared<Class> staticClass();
 
 	friend bool operator<(const SObject& fst, const SObject& snd) {
 		return true;
