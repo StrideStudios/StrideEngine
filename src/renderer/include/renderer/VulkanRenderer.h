@@ -69,7 +69,7 @@ public:
 	EXPORT virtual CSwapchain* getSwapchain() override;
 
 	// Draw to the screen
-	EXPORT virtual void render() override;
+	EXPORT virtual void render(const SRendererInfo& info) override;
 
 	no_discard EXPORT virtual bool wait() override;
 

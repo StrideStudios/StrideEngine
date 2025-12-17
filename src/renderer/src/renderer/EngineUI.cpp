@@ -18,6 +18,7 @@
 #include "scene/world/StaticMeshObject.h"
 #include "engine/Viewport.h"
 #include "basic/core/Threading.h"
+#include "engine/Engine.h"
 #include "renderer/EngineTextures.h"
 #include "rendercore/VulkanDevice.h"
 #include "rendercore/VulkanInstance.h"
@@ -408,7 +409,7 @@ void CEngineUIPass::init() {
 	initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 
 	ImGui_ImplVulkan_Init(&initInfo);
-	ImGui_ImplSDL3_InitForVulkan(CEngineViewport::get().mWindow);
+	ImGui_ImplSDL3_InitForVulkan(CEngine::get().getViewport()->mWindow);
 
 	msgs("INIT UI PASS");
 }

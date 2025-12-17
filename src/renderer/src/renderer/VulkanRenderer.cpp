@@ -11,6 +11,7 @@
 #include "rendercore/VulkanUtils.h"
 #include "vulkan/vk_enum_string_helper.h"
 #include "VkBootstrap.h"
+#include "engine/Engine.h"
 
 #include "engine/EngineSettings.h"
 #include "rendercore/EngineLoader.h"
@@ -77,7 +78,7 @@ void CVulkanRenderer::init() {
 	CVulkanInstance& inst = CVulkanInstance::get();
 
 	// Create a surface for Device to reference
-	SDL_Vulkan_CreateSurface(CEngineViewport::get().mWindow, inst.getInstance(), nullptr, &mVkSurface);
+	SDL_Vulkan_CreateSurface(CEngine::get().getViewport()->mWindow, inst.getInstance(), nullptr, &mVkSurface);
 
 	CResourceManager::get().callback([&] {
 		vkb::destroy_surface(CVulkanInstance::instance(), mVkSurface);//TODO: in instance?
@@ -144,14 +145,17 @@ CSwapchain* CVulkanRenderer::getSwapchain() {
 	return mEngineTextures->getSwapchain();
 }
 
-void CVulkanRenderer::render() {
-
-	auto& rem = CVulkanAllocator::get().m_Manager;
+void CVulkanRenderer::render(const SRendererInfo& info) {
 
 	if (mVSync != UseVsync.get()) {
 		mVSync = UseVsync.get();
 		msgs("Reallocating Swapchain to {}", UseVsync.get() ? "enable VSync." : "disable VSync.");
 		mEngineTextures->getSwapchain()->setDirty();
+	}
+
+	if (info.viewport->isDirty()) {
+		mEngineTextures->getSwapchain()->setDirty();
+		info.viewport->clean();
 	}
 
 	auto swapchainDirtyCheck = [&] {
@@ -215,8 +219,8 @@ void CVulkanRenderer::render() {
 		CVulkanUtils::transitionImage(cmd, mEngineTextures->mDepthImage, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
 		VkExtent2D extent {
-			CEngineViewport::get().mExtent.x,
-			CEngineViewport::get().mExtent.y
+			CEngine::get().getViewport()->mExtent.x,
+			CEngine::get().getViewport()->mExtent.y
 		};
 
 		CScene::get().update();
@@ -262,7 +266,7 @@ void CVulkanRenderer::render() {
 				object->begin();
 			});
 
-			CEngineViewport::get().set(cmd);
+			info.viewport->set(cmd);
 
 			CPass* previousPass = nullptr;
 			for (const auto pass : getPasses()) {
@@ -274,10 +278,10 @@ void CVulkanRenderer::render() {
 				if (previousPass) {
 					if (!pass->hasSameRenderingInfo(previousPass)) {
 						vkCmdEndRendering(cmd);
-						pass->beginRendering(cmd, CEngineViewport::get().mExtent, mEngineTextures->mDrawImage, mEngineTextures->mDepthImage);
+						pass->beginRendering(cmd, info.viewport->mExtent, mEngineTextures->mDrawImage, mEngineTextures->mDepthImage);
 					}
 				} else {
-					pass->beginRendering(cmd, CEngineViewport::get().mExtent, mEngineTextures->mDrawImage, mEngineTextures->mDepthImage);
+					pass->beginRendering(cmd, info.viewport->mExtent, mEngineTextures->mDrawImage, mEngineTextures->mDepthImage);
 				}
 
 				pass->render(cmd);

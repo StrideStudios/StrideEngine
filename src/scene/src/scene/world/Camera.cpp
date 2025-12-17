@@ -28,7 +28,7 @@ Matrix4f CCamera::getViewProjectionMatrix() {
 	Matrix4f viewMatrix = glm::inverse(cameraTranslation * getRotationMatrix());
 
 	// camera projection
-	const Extent32u extent = CEngineViewport::get().mExtent;
+	const Extent32u extent = CEngine::get().getViewport()->mExtent;
 	const float tanHalfFov = tan(glm::radians(mFOV) / 2.f);
 	const float aspect = (float)extent.x / (float)extent.y;
 

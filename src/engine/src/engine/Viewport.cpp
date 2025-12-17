@@ -9,10 +9,6 @@
 #include "SDL3/SDL_dialog.h"
 #include "SDL3/SDL_init.h"
 
-const CEngineViewport& CEngineViewport::get() {
-	return CEngine::get().getViewport(); //TODO: bad place for this
-}
-
 // Some ugly code that prevents the user from having to deal with it
 void sdlCallback(void* callback, const char* const* inFileName, int inFilter) {
 	if (inFileName == nullptr || *inFileName == nullptr) return;
@@ -30,10 +26,10 @@ void CEngineViewport::queryForFile(const std::vector<std::pair<const char*, cons
 	for (auto [fst, snd] : inFilters) {
 		filters.push_back({fst, snd});
 	}
-	SDL_ShowOpenFileDialog(sdlCallback, reinterpret_cast<void*>(callback), get().mWindow, filters.data(), static_cast<int32>(filters.size()), SPaths::get().mEnginePath.parent_path().string().c_str(), true);
+	SDL_ShowOpenFileDialog(sdlCallback, reinterpret_cast<void*>(callback), CEngine::get().getViewport()->mWindow, filters.data(), static_cast<int32>(filters.size()), SPaths::get().mEnginePath.parent_path().string().c_str(), true);
 }
 
-void CEngineViewport::init() {
+CEngineViewport::CEngineViewport() {
 	// Initialize SDL3
 	SDL_Init(SDL_INIT_VIDEO);
 
@@ -69,7 +65,7 @@ void CEngineViewport::pollEvents(bool& outRunning, bool& outPauseRendering) {
 			case SDL_EVENT_WINDOW_RESIZED:
 			case SDL_EVENT_WINDOW_MAXIMIZED:
 				update({static_cast<uint32>(e.window.data1), static_cast<uint32>(e.window.data2)});
-				CRenderer::get()->getSwapchain()->setDirty();
+				setDirty();
 				break;
 			default: break;
 		}

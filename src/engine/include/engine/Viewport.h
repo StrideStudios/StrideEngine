@@ -3,21 +3,19 @@
 //TODO: engine shouldn't have
 #include <vulkan/vulkan_core.h>
 
-class CEngineViewport : public SObject, public IInitializable, public IDestroyable {
+class CEngineViewport : public SObject, public TDirtyable<>, public IInitializable, public IDestroyable {
 
 	REGISTER_CLASS(CEngineViewport, SObject)
 
 public:
 
-	CEngineViewport() = default;
-
-	EXPORT static const CEngineViewport& get();
+	EXPORT CEngineViewport();
 
 	typedef void FCallback(std::vector<std::string> inFiles);
 
 	EXPORT static void queryForFile(const std::vector<std::pair<const char*, const char*>>& inFilters, FCallback* callback);
 
-	EXPORT virtual void init() override;
+	//EXPORT virtual void init() override;
 
 	EXPORT virtual void destroy() override;
 

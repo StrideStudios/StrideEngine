@@ -24,7 +24,8 @@ void CEngine::init() {
 	astsOnce(CEngine)
 
 	// Initialize the viewport
-	CResourceManager::get().create(m_EngineViewport);
+	m_EngineViewport = TUnique<CEngineViewport>{};
+	//CResourceManager::get().pushUnique(std::move(m_EngineViewport));
 }
 
 void CEngine::run_internal() {
@@ -71,8 +72,13 @@ void CEngine::run_internal() {
 			update();
 		});
 
+		// Create info for the renderer
+		SRendererInfo info {
+			m_EngineViewport
+		};
+
 		// Draw to the screen
-		m_Renderer->render();
+		m_Renderer->render(info);
 
 		// Execute any tasks that are on the 'main thread'
 		// Done here because they can be done during the frame cap wait

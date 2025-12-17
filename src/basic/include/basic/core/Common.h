@@ -98,7 +98,7 @@ struct TDirtyable {
 
 	virtual void onClean() {}
 
-protected:
+public:
 
 	void clean() {
 		m_Dirty = false;

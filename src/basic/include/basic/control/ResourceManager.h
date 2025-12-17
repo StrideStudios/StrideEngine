@@ -19,18 +19,6 @@ public:
 
 	using Storage = TList<TUnique<SObject>>;
 
-	// TODO: until everything is migrated, we use this to ensure no leaks
-	struct TempHelper : SObject, IDestroyable {
-		TempHelper(TRequiredType* obj): obj(obj) {}
-		virtual void destroy() override {
-			if (const auto destroyable = dynamic_cast<IDestroyable*>(obj)) {
-				destroyable->destroy();
-			}
-			delete obj;
-		}
-		TRequiredType* obj;
-	};
-
 	// Flush resources if out of scope
 	virtual ~TResourceManager() override {
 		TResourceManager::flush();

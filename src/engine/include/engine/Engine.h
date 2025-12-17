@@ -4,10 +4,6 @@
 #include "basic/core/Singleton.h"
 #include "rendercore/Renderer.h"
 
-class CVulkanRenderer;
-class CEngineViewport;
-class CScene;
-
 class CEngine : public SObject, public IInitializable {
 
 	REGISTER_CLASS(CEngine, SObject)
@@ -26,7 +22,9 @@ public:
 
 	no_discard Time& getTime() { return m_Time; }
 
-	no_discard const CEngineViewport& getViewport() const { return *m_EngineViewport; }
+	no_discard TUnique<CEngineViewport>& getViewport() { return m_EngineViewport; }
+
+	no_discard const TUnique<CEngineViewport>& getViewport() const { return m_EngineViewport; }
 
 private:
 
@@ -54,6 +52,6 @@ private:
 	Time m_Time{};
 
 	// SDL Window
-	CEngineViewport* m_EngineViewport = nullptr;
+	TUnique<CEngineViewport> m_EngineViewport = nullptr;
 
 };
