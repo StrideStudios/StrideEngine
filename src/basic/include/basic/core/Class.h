@@ -1,7 +1,6 @@
 #pragma once
 
 #include <type_traits>
-#include <memory>
 
 #include "Registry.h"
 #include "basic/core/Object.h"
@@ -15,12 +14,11 @@
 #define REGISTER_STRUCT(n, ...) \
 	private: \
 		typedef TClass<n, __VA_ARGS__> Class; \
-		inline static TShared<Class> c = nullptr; \
-		STATIC_C_BLOCK( makeClass<Class>(c, #n); ) \
+		inline static TUnique<Class> c{#n}; \
 	public: \
 		typedef __VA_ARGS__ Super; \
-		virtual SClass* getClass() const override { return c.get(); } \
-		static TShared<Class>& staticClass() { return c; } \
+		virtual SClass* getClass() const override { return c.staticCast<SClass>(); } \
+		static TUnique<Class>& staticClass() { return c; } \
 
 #define REGISTER_CLASS(n, ...) \
 	REGISTER_STRUCT(n, __VA_ARGS__) \

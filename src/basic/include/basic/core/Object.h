@@ -8,7 +8,7 @@
 struct SClass;
 
 template <typename TType>
-struct TShared;
+struct TUnique;
 
 template <typename... TParentClasses>
 struct TClass;
@@ -21,7 +21,7 @@ struct SObject {
 
 	EXPORT virtual SClass* getClass() const;
 
-	EXPORT static TShared<Class> staticClass();
+	EXPORT static TUnique<Class>& staticClass();
 
 	friend bool operator<(const SObject& fst, const SObject& snd) {
 		return true;

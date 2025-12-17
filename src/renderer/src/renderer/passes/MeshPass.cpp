@@ -130,6 +130,7 @@ void renderChild(CMeshPass* pass, const VkCommandBuffer cmd, SRenderStack3f& sta
 		if (const auto staticMesh = dynamic_cast<CStaticMeshObject*>(obj.get())) {
 			if (const auto rendererClass = dynamic_cast<IRenderableClass*>(staticMesh->getClass())) {
 
+
 				rendererClass->getRenderer()->render(pass, cmd, stack, staticMesh, drawCallCount, vertexCount);
 
 				meshCount++;
