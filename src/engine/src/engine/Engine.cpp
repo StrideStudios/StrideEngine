@@ -68,9 +68,9 @@ void CEngine::run_internal() {
 		}
 
 		// Run the game loop
-		CThreading::getGameThread().run([this] {
+		/*CThreading::getGameThread().run([this] {
 			update();
-		});
+		});*/
 
 		// Create info for the renderer
 		SRendererInfo info {

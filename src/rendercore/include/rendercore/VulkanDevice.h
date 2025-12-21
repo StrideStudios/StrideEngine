@@ -32,11 +32,11 @@ public:
 
     EXPORT virtual void destroy() override;
 
-    static const vkb::PhysicalDevice& physicalDevice() { return get().getPhysicalDevice(); }
+    static const vkb::PhysicalDevice& physicalDevice() { return get()->getPhysicalDevice(); }
 
     EXPORT static const VkPhysicalDevice& vkPhysicalDevice();
 
-    static const vkb::Device& device() { return get().getDevice(); }
+    static const vkb::Device& device() { return get()->getDevice(); }
 
     EXPORT static const VkDevice& vkDevice();
 

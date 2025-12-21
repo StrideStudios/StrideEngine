@@ -105,7 +105,7 @@ void CEngineTextures::initializeTextures() {
 
 	constexpr VkImageUsageFlags drawImageUsages = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-	const auto extent = CEngine::get().getViewport()->mExtent;
+	const auto extent = CEngine::get()->getViewport()->mExtent;
 
 	gTexturesResourceManager.create<SImage_T>(mDrawImage, "Draw Image", VkExtent3D{extent.x, extent.y, 1}, VK_FORMAT_R16G16B16A16_SFLOAT, drawImageUsages, VK_IMAGE_ASPECT_COLOR_BIT);
 
@@ -114,7 +114,7 @@ void CEngineTextures::initializeTextures() {
 
 void CEngineTextures::reallocate(const bool inUseVSync) {
 
-	auto extent = CEngine::get().getViewport()->mExtent;
+	auto extent = CEngine::get()->getViewport()->mExtent;
 	msgs("Reallocating Engine Textures to ({}, {})", extent.x, extent.y);
 
 	m_Swapchain->recreate(inUseVSync);

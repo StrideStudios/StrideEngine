@@ -16,7 +16,7 @@ class CWorldObject;
 	REGISTER_CLASS(n, __VA_ARGS__) \
 	REGISTER_OBJ(CObjectRendererRegistry, n) \
 	STATIC_C_BLOCK( \
-		object::staticClass()->setRenderer(CObjectRendererRegistry::get(#n)); \
+		object::staticClass()->setRenderer(CObjectRendererRegistry::get()->getObjects().get(#n)); \
 	)
 
 class CObjectRenderer : public SObject {

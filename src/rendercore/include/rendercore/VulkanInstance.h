@@ -13,7 +13,7 @@ public:
 
 	EXPORT virtual void init() override;
 
-	static const vkb::Instance& instance() { return get().getInstance(); }
+	static const vkb::Instance& instance() { return get()->getInstance(); }
 
 	EXPORT static const VkInstance& vkInstance();
 

@@ -151,7 +151,7 @@ void CMeshPass::render(const VkCommandBuffer cmd) {
 	size_t vertexCount = 0;
 
 	SRenderStack3f stack;
-	renderChild(this, cmd, stack, &CScene::get(), meshCount, drawCallCount, vertexCount);
+	renderChild(this, cmd, stack, CScene::get().get(), meshCount, drawCallCount, vertexCount);
 
 	// Set number of meshes, drawcalls, vertices, and triangles
 	Meshes.setText(fmts("Meshes: {}", meshCount));

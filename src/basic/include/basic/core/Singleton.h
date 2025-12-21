@@ -11,29 +11,29 @@
 			initSingleton<n>(#n); \
 		) \
 	public: \
-		static n& get() { \
-			return *getSingletons().get(#n).staticCast<n>().get(); \
+		static TShared<n> get() { \
+			return getSingletons().get(#n).staticCast<n>(); \
 		} \
 	private:
 
 // A singleton that is initialized upon first call to get()
 #define MAKE_LAZY_SINGLETON(n) \
 	private: \
-		typedef n& FSingletonCallback(); \
+		typedef TShared<n> FSingletonCallback(); \
 		inline static FSingletonCallback* singletonCallback = nullptr; \
 		STATIC_C_BLOCK( \
-			singletonCallback = [] -> n& { \
+			singletonCallback = [] -> TShared<n> { \
 				initSingleton<n>(#n); \
 				/*
 				Sets itself to a simple getter so that there is no branching at runtime
 				Since Functions are just memory addresses anyway, it should be nearly as quick as a direct call
 				*/ \
-				singletonCallback = [] -> n& {return *getSingletons().get(#n).staticCast<n>().get();}; \
+				singletonCallback = [] -> TShared<n> {return getSingletons().get(#n).staticCast<n>();}; \
 				return (*singletonCallback)(); \
 			}; \
 		) \
 	public: \
-		static n& get() { \
+		static TShared<n> get() { \
 			return (*singletonCallback)(); \
 		} \
 	private:
@@ -45,8 +45,8 @@
 			initSingleton<n>(__singleton_name); \
 		) \
 	public: \
-		static n& get() { \
-			return *getSingletons().get(__singleton_name).staticCast<n>().get(); \
+		static TShared<n> get() { \
+			return getSingletons().get(__singleton_name).staticCast<n>(); \
 		} \
 	private:
 

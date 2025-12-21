@@ -26,7 +26,7 @@ void CEngineViewport::queryForFile(const std::vector<std::pair<const char*, cons
 	for (auto [fst, snd] : inFilters) {
 		filters.push_back({fst, snd});
 	}
-	SDL_ShowOpenFileDialog(sdlCallback, reinterpret_cast<void*>(callback), CEngine::get().getViewport()->mWindow, filters.data(), static_cast<int32>(filters.size()), SPaths::get().mEnginePath.parent_path().string().c_str(), true);
+	SDL_ShowOpenFileDialog(sdlCallback, reinterpret_cast<void*>(callback), CEngine::get()->getViewport()->mWindow, filters.data(), static_cast<int32>(filters.size()), SPaths::get()->mEnginePath.parent_path().string().c_str(), true);
 }
 
 CEngineViewport::CEngineViewport() {

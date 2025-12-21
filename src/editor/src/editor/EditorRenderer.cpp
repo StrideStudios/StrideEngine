@@ -168,7 +168,7 @@ void CEditorRenderer::init() {
 	CVulkanRenderer::init();
 
 	addPasses<
-		//CMeshPass,
+		CMeshPass,
 		CSpritePass,
 		//CEditorSpritePass,
 		CEngineUIPass

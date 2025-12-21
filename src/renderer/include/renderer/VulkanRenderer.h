@@ -7,6 +7,7 @@
 
 #include "rendercore/Renderer.h"
 #include "rendercore/VulkanResources.h"
+#include "sstl/Threading.h"
 
 // Forward declare vkb types
 namespace vkb {
@@ -24,9 +25,8 @@ class CVulkanDevice;
 class CVulkanInstance;
 
 struct SUploadContext {
-	std::mutex mMutex;
-	CFence* mUploadFence;
-	CCommandPool* mCommandPool;
+	CFence* mUploadFence = nullptr;
+	CCommandPool* mCommandPool = nullptr;
 	SCommandBuffer mCommandBuffer{};
 };
 
@@ -90,7 +90,7 @@ public:
 
 	CDoubleBuffering<FrameData> mBuffering;
 
-	SUploadContext mUploadContext;
+	TThreadSafe<SUploadContext> mUploadContext;
 
 	//
 	// Scene Data

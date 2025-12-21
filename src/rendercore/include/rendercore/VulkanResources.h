@@ -119,20 +119,20 @@ public:
 	template <typename TType, typename... TArgs>
 	requires std::is_base_of_v<Resource, TType> and std::is_constructible_v<TType, TArgs...>
 	static void allocate(TType*& inResource, TArgs... args) {
-		if (get().mDestroyed) {
+		if (get()->mDestroyed) {
 			errs("Attempted to allocate a resource after Vulkan Allocator was Destroyed!");
 		}
-		get().m_Manager.create(inResource, args...);
+		get()->m_Manager.create(inResource, args...);
 	}
 
 	template <typename TType>
 	requires std::is_base_of_v<Resource, TType>
 	static void remove(TType*& inResource) {
-		if (get().mDestroyed) return;
+		if (get()->mDestroyed) return;
 
 		//get().getCurrentResourceManager().getObjects().splice(get().getCurrentResourceManager().getObjects().begin(), get().m_Manager.getObjects(), inResource->itr);
 
-		get().m_Manager.getObjects().transfer(get().getCurrentResourceManager().getObjects(), get().m_Manager.getObjects().find(inResource));
+		get()->m_Manager.getObjects().transfer(get()->getCurrentResourceManager().getObjects(), get()->m_Manager.getObjects().find(inResource));
 
 		/*auto itr = inResource->itr;
 		get().getCurrentResourceManager().pushUnique(std::move(*itr));
@@ -148,7 +148,7 @@ public:
 	EXPORT virtual void destroy() override;
 
 	static void flushFrameData() {
-		get().getCurrentResourceManager().flush();
+		get()->getCurrentResourceManager().flush();
 	}
 
 public:

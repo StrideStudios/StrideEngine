@@ -43,30 +43,30 @@ void CVulkanRenderer::immediateSubmit(std::function<void(SCommandBuffer& cmd)>&&
 	CVulkanRenderer& renderer = *get();
 	const VkDevice device = CVulkanDevice::vkDevice();
 
-	std::unique_lock lock(renderer.mUploadContext.mMutex);
+	renderer.mUploadContext.lockFor([&](const SUploadContext& upload) {
+		SCommandBuffer cmd = upload.mCommandBuffer;
 
-	SCommandBuffer cmd = renderer.mUploadContext.mCommandBuffer;
+		//begin the command buffer recording. We will use this command buffer exactly once before resetting, so we tell vulkan that
+		cmd.begin(false);
 
-	//begin the command buffer recording. We will use this command buffer exactly once before resetting, so we tell vulkan that
-	cmd.begin(false);
+		//execute the function
+		function(cmd);
 
-	//execute the function
-	function(cmd);
+		cmd.end();
 
-	cmd.end();
+		VkSubmitInfo submit = CVulkanInfo::submitInfo(&cmd.cmd);
 
-	VkSubmitInfo submit = CVulkanInfo::submitInfo(&cmd.cmd);
+		VK_CHECK(vkResetFences(device, 1, &upload.mUploadFence->mFence));
 
-	VK_CHECK(vkResetFences(device, 1, &renderer.mUploadContext.mUploadFence->mFence));
+		//submit command buffer to the queue and execute it.
+		// _uploadFence will now block until the graphic commands finish execution
+		VK_CHECK(vkQueueSubmit(CVulkanDevice::get()->getQueue(EQueueType::UPLOAD).mQueue, 1, &submit, *upload.mUploadFence));
 
-	//submit command buffer to the queue and execute it.
-	// _uploadFence will now block until the graphic commands finish execution
-	VK_CHECK(vkQueueSubmit(CVulkanDevice::get().getQueue(EQueueType::UPLOAD).mQueue, 1, &submit, *renderer.mUploadContext.mUploadFence));
+		VK_CHECK(vkWaitForFences(device, 1, &upload.mUploadFence->mFence, true, 1000000000));
 
-	VK_CHECK(vkWaitForFences(device, 1, &renderer.mUploadContext.mUploadFence->mFence, true, 1000000000));
-
-	// reset the command buffers inside the command pool
-	VK_CHECK(vkResetCommandPool(device, *renderer.mUploadContext.mCommandPool, 0));
+		// reset the command buffers inside the command pool
+		VK_CHECK(vkResetCommandPool(device, *upload.mCommandPool, 0));
+	});
 }
 
 void CVulkanRenderer::init() {
@@ -75,10 +75,10 @@ void CVulkanRenderer::init() {
 
 	// Initializes the vkb instance
 	//gInstanceManager.create(m_Instance);
-	CVulkanInstance& inst = CVulkanInstance::get();
+	const TShared<CVulkanInstance> inst = CVulkanInstance::get();
 
 	// Create a surface for Device to reference
-	SDL_Vulkan_CreateSurface(CEngine::get().getViewport()->mWindow, inst.getInstance(), nullptr, &mVkSurface);
+	SDL_Vulkan_CreateSurface(CEngine::get()->getViewport()->mWindow, inst->getInstance(), nullptr, &mVkSurface);
 
 	CResourceManager::get().callback([&] {
 		vkb::destroy_surface(CVulkanInstance::instance(), mVkSurface);//TODO: in instance?
@@ -86,24 +86,24 @@ void CVulkanRenderer::init() {
 
 	// Create the vulkan device
 	//gInstanceManager.create(m_Device, m_Instance, mVkSurface);
-	CVulkanDevice& device = CVulkanDevice::get();
-	device.init(mVkSurface);
+	const TShared<CVulkanDevice> device = CVulkanDevice::get();
+	device->init(mVkSurface);
 
-	VkCommandPoolCreateInfo uploadCommandPoolInfo = CVulkanInfo::createCommandPoolInfo(CVulkanDevice::get().getQueue(EQueueType::UPLOAD).mFamily);
+	VkCommandPoolCreateInfo uploadCommandPoolInfo = CVulkanInfo::createCommandPoolInfo(CVulkanDevice::get()->getQueue(EQueueType::UPLOAD).mFamily);
 	//create pool for upload context
-	CResourceManager::get().create(mUploadContext.mCommandPool, uploadCommandPoolInfo);
+	CResourceManager::get().create(mUploadContext->mCommandPool, uploadCommandPoolInfo);
 
 	//allocate the default command buffer that we will use for the instant commands
-	mUploadContext.mCommandBuffer = SCommandBuffer(mUploadContext.mCommandPool);
+	mUploadContext->mCommandBuffer = SCommandBuffer(mUploadContext->mCommandPool);
 
 	VkFenceCreateInfo fenceCreateInfo = CVulkanInfo::createFenceInfo(VK_FENCE_CREATE_SIGNALED_BIT);
-	CResourceManager::get().create(mUploadContext.mUploadFence, fenceCreateInfo);
+	CResourceManager::get().create(mUploadContext->mUploadFence, fenceCreateInfo);
 
 	{
 		// Create a command pool for commands submitted to the graphics queue.
 		// We also want the pool to allow for resetting of individual command buffers
 		const VkCommandPoolCreateInfo commandPoolInfo = CVulkanInfo::createCommandPoolInfo(
-			CVulkanDevice::get().getQueue(EQueueType::GRAPHICS).mFamily, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+			CVulkanDevice::get()->getQueue(EQueueType::GRAPHICS).mFamily, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
 		mBuffering.forEach([commandPoolInfo](FrameData& frame) {
 			CResourceManager::get().create(frame.mCommandPool, commandPoolInfo);
@@ -111,7 +111,7 @@ void CVulkanRenderer::init() {
 			// Allocate the default command buffer that we will use for rendering
 			frame.mMainCommandBuffer = SCommandBuffer(frame.mCommandPool);
 
-			frame.mTracyContext = TracyVkContext(CVulkanDevice::vkPhysicalDevice(), CVulkanDevice::vkDevice(), CVulkanDevice::get().getQueue(EQueueType::GRAPHICS).mQueue, frame.mMainCommandBuffer);
+			frame.mTracyContext = TracyVkContext(CVulkanDevice::vkPhysicalDevice(), CVulkanDevice::vkDevice(), CVulkanDevice::get()->getQueue(EQueueType::GRAPHICS).mQueue, frame.mMainCommandBuffer);
 		});
 
 		CResourceManager::get().callback([&] {
@@ -122,7 +122,7 @@ void CVulkanRenderer::init() {
 	}
 
 	// Initialize allocator
-	CVulkanAllocator::get().init();
+	CVulkanAllocator::get()->init();
 
 	CResourceManager::get().create(mEngineTextures);
 
@@ -219,11 +219,11 @@ void CVulkanRenderer::render(const SRendererInfo& info) {
 		CVulkanUtils::transitionImage(cmd, mEngineTextures->mDepthImage, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
 		VkExtent2D extent {
-			CEngine::get().getViewport()->mExtent.x,
-			CEngine::get().getViewport()->mExtent.y
+			CEngine::get()->getViewport()->mExtent.x,
+			CEngine::get()->getViewport()->mExtent.y
 		};
 
-		CScene::get().update();
+		CScene::get()->update();
 
 		{
 			ZoneScopedN("Update Scene Data");
@@ -234,7 +234,7 @@ void CVulkanRenderer::render(const SRendererInfo& info) {
 				mSceneData.mScreenSize = Vector2f((float)extent.width, (float)extent.height);
 				mSceneData.mInvScreenSize = Vector2f(1.f / (float)extent.width, 1.f / (float)extent.height);
 
-				mSceneData.mViewProj = CScene::get().mMainCamera->getViewProjectionMatrix();
+				mSceneData.mViewProj = CScene::get()->mMainCamera->getViewProjectionMatrix();
 
 				//some default lighting parameters
 				mSceneData.mAmbientColor = glm::vec4(.1f);
@@ -262,8 +262,9 @@ void CVulkanRenderer::render(const SRendererInfo& info) {
 
 			//TODO: personal ObjectRenderer for passes instead
 			// Tell all renderers that rendering has begun
-			CObjectRendererRegistry::forEach([](const std::string& inName, CObjectRenderer*& object) {
-				object->begin();
+
+			CObjectRendererRegistry::get()->getObjects().forEach([](const TPair<std::string, CObjectRenderer*>& pair) {
+				pair.obj()->begin();
 			});
 
 			info.viewport->set(cmd);
@@ -291,8 +292,8 @@ void CVulkanRenderer::render(const SRendererInfo& info) {
 			vkCmdEndRendering(cmd);
 
 			// Tell all renderers that rendering has ended
-			CObjectRendererRegistry::forEach([](const std::string& inName, CObjectRenderer* object) {
-				object->end();
+			CObjectRendererRegistry::get()->getObjects().forEach([](const TPair<std::string, CObjectRenderer*>& pair) {
+				pair.obj()->end();
 			});
 
 			// Tell all passes that rendering has begun
@@ -320,7 +321,7 @@ void CVulkanRenderer::render(const SRendererInfo& info) {
 		//finalize the command buffer (we can no longer add commands, but it can now be executed)
 		cmd.end();
 
-		mEngineTextures->getSwapchain()->submit(cmd, CVulkanDevice::get().getQueue(EQueueType::GRAPHICS).mQueue, mBuffering.getFrameIndex(), swapchainImage->mBindlessAddress);
+		mEngineTextures->getSwapchain()->submit(cmd, CVulkanDevice::get()->getQueue(EQueueType::GRAPHICS).mQueue, mBuffering.getFrameIndex(), swapchainImage->mBindlessAddress);
 
 		//increase the number of frames drawn
 		getBufferingType().incrementFrame();

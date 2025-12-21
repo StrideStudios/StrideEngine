@@ -26,14 +26,14 @@
 
 void renderSceneUI() {
 	if (ImGui::Begin("Scene")) {
-		CScene& scene = CScene::get();
+		const TShared<CScene> scene = CScene::get();
 		if (ImGui::Button("Add Mesh Object")) {
 			//scene.addChild(CStaticMeshObject{});
 			TUnique<CStaticMeshObject> obj{};
-			scene.addChild(std::move(obj));
+			scene->addChild(std::move(obj));
 		}
-		for (size_t objectNum = 0; objectNum < scene.getChildren().getSize(); ++objectNum) {
-			auto& object = scene[objectNum];
+		for (size_t objectNum = 0; objectNum < scene->getChildren().getSize(); ++objectNum) {
+			auto& object = scene.get()->getChildren()[objectNum];
 			if (!object) continue;
 			ImGui::PushID(fmts("{}", objectNum).c_str());
 
@@ -42,7 +42,7 @@ void renderSceneUI() {
 				ImGui::InputText("Name", &object->mName);
 
 				if (ImGui::Button("Remove")) {
-					scene.removeChild(object);
+					scene->removeChild(object);
 				} else {
 					Vector3f position = object->getPosition();
 					ImGui::InputFloat3("Position", reinterpret_cast<float*>(&position));
@@ -391,7 +391,7 @@ void CEngineUIPass::init() {
 		.Instance = CVulkanInstance::instance(),
 		.PhysicalDevice = CVulkanDevice::physicalDevice(),
 		.Device = CVulkanDevice::device(),
-		.Queue = CVulkanDevice::get().getQueue(EQueueType::GRAPHICS).mQueue,
+		.Queue = CVulkanDevice::get()->getQueue(EQueueType::GRAPHICS).mQueue,
 		.DescriptorPool = *descriptorPool,
 		.MinImageCount = 3,
 		.ImageCount = 3,
@@ -409,7 +409,7 @@ void CEngineUIPass::init() {
 	initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 
 	ImGui_ImplVulkan_Init(&initInfo);
-	ImGui_ImplSDL3_InitForVulkan(CEngine::get().getViewport()->mWindow);
+	ImGui_ImplSDL3_InitForVulkan(CEngine::get()->getViewport()->mWindow);
 
 	msgs("INIT UI PASS");
 }

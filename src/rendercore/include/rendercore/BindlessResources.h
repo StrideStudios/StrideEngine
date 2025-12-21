@@ -144,19 +144,19 @@ public:
 	}
 
 	static CDescriptorPool*& getBindlessDescriptorPool() {
-		return get().mDescriptorPool;
+		return get()->mDescriptorPool;
 	}
 
 	static CPipelineLayout*& getBasicPipelineLayout() {
-		return get().mPipelineLayout;
+		return get()->mPipelineLayout;
 	}
 
 	static CDescriptorSetLayout*& getBindlessDescriptorSetLayout() {
-		return get().mDescriptorSetLayout;
+		return get()->mDescriptorSetLayout;
 	}
 
 	static CDescriptorSet*& getBindlessDescriptorSet() {
-		return get().mDescriptorSet;
+		return get()->mDescriptorSet;
 	}
 
 private:

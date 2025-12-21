@@ -7,7 +7,7 @@
 CCommand* CEngineSettings::getCommand(const std::string& inCommand) {
 
 	CCommand* outCommand = nullptr;
-	for (const auto&[command, commandType] : get().m_Commands) {
+	for (const auto&[command, commandType] : get()->m_Commands) {
 		if (command == inCommand) {
 			outCommand = commandType;
 			break;
@@ -19,7 +19,7 @@ CCommand* CEngineSettings::getCommand(const std::string& inCommand) {
 
 void CEngineSettings::addCommand(const std::string& inCommand, CCommand* inCommandType) {
 	//ast(!get().m_Commands.contains(inCommand), "Command {} already defined.", inCommand);
-	get().m_Commands.emplace_back(inCommand, inCommandType);
+	get()->m_Commands.emplace_back(inCommand, inCommandType);
 }
 
 std::vector<std::pair<std::string, std::vector<CGuiType*>>>& CGuiType::getCategoryMap() {

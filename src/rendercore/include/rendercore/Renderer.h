@@ -104,12 +104,12 @@ public:
 
 	template <typename TPass>
 	static bool hasPass() {
-		return hasPass(TPass::staticClass().get());
+		return hasPass(TPass::staticClass());
 	}
 
 	template <typename TPass>
 	static TPass* getPass() {
-		return static_cast<TPass*>(getPass(TPass::staticClass().get()));
+		return static_cast<TPass*>(getPass(TPass::staticClass()));
 	}
 
 	no_discard virtual IBuffering& getBufferingType() = 0;

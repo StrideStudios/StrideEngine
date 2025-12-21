@@ -10,8 +10,6 @@ struct SPaths : SObject {
 	REGISTER_CLASS(SPaths, SObject)
 	MAKE_SINGLETON(SPaths)
 
-	inline static TShared<SPaths> singletons;
-
 private:
 
 	struct Directory : std::filesystem::path {

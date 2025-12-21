@@ -8,10 +8,13 @@
 #define REGISTER_OBJ(registryType, n) \
 	private: \
 		STATIC_C_BLOCK( \
-			registryType::registerObject<n*>(#n); \
+			if (registryType::get()->getObjects().contains(#n)) return; \
+			n* object; \
+			CResourceManager::get().create(object); \
+			registryType::get()->getObjects().push(#n, object); \
 		) \
 	public: \
-		static n& get() { return *dynamic_cast<n*>(registryType::get(#n)); } \
+		static n& get() { return *dynamic_cast<n*>(registryType::get()->getObjects().get(#n)); } \
 	private:
 //TODO: remove? Kinda useless with singletons
 #define _DEFINE_REGISTRY(id, name, ...) \
@@ -39,43 +42,17 @@ class TRegistry : public SObject {
 
 public:
 
-	template <typename TChildType = TType, typename... TArgs>
-	requires std::is_base_of_v<typename TUnfurled<TType>::Type, typename TUnfurled<TChildType>::Type>
-	static TChildType registerObject(const char* inName, TArgs... args) {
-		if constexpr (TUnfurled<TChildType>::isManaged) {
-			return {};
-		} else {
-			if (contains(inName)) return {};
-			TChildType object;
-			CResourceManager::get().create(object, args...);
-			get().m_Objects.insert(std::make_pair(inName, object));
-			return object;
-		}
+	TMap<std::string, TType>& getObjects() {
+		return m_Objects;
 	}
 
-	static void registerObject(const char* inName, const TType& inObject) {
-		if (contains(inName)) return;
-		get().m_Objects.insert(std::make_pair(inName, inObject));
+	const TMap<std::string, TType>& getObjects() const {
+		return m_Objects;
 	}
 
-	static void forEach(const std::function<void(const std::string&, TType&)>& inFunction) {
-		for (const auto& pair : get().m_Objects) {
-			inFunction(pair.first, const_cast<TType&>(pair.second));
-		}
-	}
+private:
 
-	static bool contains(const char* inName) {
-		return get().m_Objects.contains(inName);
-	}
-
-	static TType& get(const char* inName) {
-		if (!contains(inName)) {
-			errs("Could not get registry object {}", inName);
-		}
-		return get().m_Objects.at(inName);
-	}
-
-	std::map<std::string, TType> m_Objects{};
+	TMap<std::string, TType> m_Objects;
 
 };
 
@@ -105,22 +82,22 @@ public:
 	}
 
 	static void forEach(const std::function<void(const std::string&, const TType&)>& inFunction) {
-		for (auto& pair : get().m_Objects) {
+		for (auto& pair : get()->m_Objects) {
 			inFunction(pair.first, pair.second);
 		}
 	}
 
 	static bool contains(const char* inName) {
-		return get().m_Objects.contains(inName);
+		return get()->m_Objects.contains(inName);
 	}
 
 	template <typename TChildType = TType>
 	requires std::is_base_of_v<TType, TChildType>
 	static TChildType& get(const char* inName, TArgs... args) {
 		if (!contains(inName)) {
-			get().m_Objects.insert(std::make_pair(inName, TTypeDeferredFactory::construct(inName, CResourceManager::get(), args...)));
+			get()->m_Objects.insert(std::make_pair(inName, TTypeDeferredFactory::construct(inName, CResourceManager::get(), args...)));
 		}
-		return dynamic_cast<TChildType&>(get().m_Objects[inName]);
+		return dynamic_cast<TChildType&>(get()->m_Objects[inName]);
 	}
 
 	std::map<std::string, TType> m_Objects;

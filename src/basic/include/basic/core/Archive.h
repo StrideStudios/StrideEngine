@@ -356,7 +356,7 @@ public:
 		std::string className;
 		inArchive >> className;
 		TUnique<TType> obj = nullptr;
-		SClassRegistry::get(className.c_str())->constructObject(obj);
+		SClassRegistry::get()->getObjects().get(className)->constructObject(obj);
 		auto index = CResourceManager::get().pushUnique(std::move(obj));
 		inValue = dynamic_cast<TType*>(CResourceManager::get().getObjects().get(index).get());
 		inArchive >> *inValue;
@@ -410,7 +410,7 @@ public:
 		if constexpr (std::is_base_of_v<SObject, TType>) {
 			std::string className;
 			inArchive >> className;
-			SClassRegistry::get(className.c_str())->constructObject(inValue);
+			SClassRegistry::get()->getObjects().get(className)->constructObject(inValue);
 			dynamic_cast<ISerializable*>(inValue.get())->load(inArchive);
 		} else {
 			inArchive >> *inValue.get();
@@ -435,7 +435,7 @@ public:
 		if constexpr (std::is_base_of_v<SObject, TType>) {
 			std::string className;
 			inArchive >> className;
-			SClassRegistry::get(className.c_str())->constructObject(inValue);
+			SClassRegistry::get()->getObjects().get(className)->constructObject(inValue);
 			dynamic_cast<ISerializable*>(inValue.get())->load(inArchive);
 		} else {
 			inArchive >> *inValue.get();
@@ -476,7 +476,7 @@ public:
 			std::string className;
 			inArchive >> className;
 			TUnique<TType> object = nullptr;;
-			SClassRegistry::get(className.c_str())->constructObject(object);
+			SClassRegistry::get()->getObjects().get(className)->constructObject(object);
 			dynamic_cast<ISerializable*>(object.get())->load(inArchive); //TODO fix issues, test Application.cpp
 			inValue.pushUnique(std::move(object));
 		}
@@ -489,11 +489,9 @@ public:
 	// SObject and ISerializable, for classes and virtual serialization respectively
 	//
 
-	template <typename TType, size_t TSize = 0>
-	friend CArchive& operator<<(CArchive& inArchive, const TSequenceContainer<TType, TSize>& inValue) {
-		if constexpr (TSize <= 0) {
-			inArchive << inValue.getSize();
-		}
+	template <typename TType>
+	friend CArchive& operator<<(CArchive& inArchive, const TSequenceContainer<TType>& inValue) {
+		inArchive << inValue.getSize();
 		inValue.forEach([&](size_t index, const TType& obj) {
 			if constexpr (std::is_base_of_v<SObject, typename TUnfurled<TType>::Type>) {
 				auto object = getUnfurled(obj);
@@ -506,21 +504,21 @@ public:
 		return inArchive;
 	}
 
-	template <typename TType, size_t TSize = 0>
-	friend CArchive& operator>>(CArchive& inArchive, TSequenceContainer<TType, TSize>& inValue) {
-		size_t size = TSize;
-		if constexpr (TSize <= 0) {
-			inArchive >> size;
-		}
-		inValue.resize(size, [&](TType& obj, size_t) {
+	template <typename TType>
+	friend CArchive& operator>>(CArchive& inArchive, TSequenceContainer<TType>& inValue) {
+		size_t size;
+		inArchive >> size;
+		inValue.resize(size, [&](size_t) {
+			TType obj;
 			if constexpr (std::is_base_of_v<SObject, typename TUnfurled<TType>::Type>) {
 				std::string className;
 				inArchive >> className;
-				SClassRegistry::get(className.c_str())->constructObject(obj);
+				SClassRegistry::get()->getObjects().get(className)->constructObject(obj);
 				dynamic_cast<ISerializable*>(getUnfurled(obj))->load(inArchive);
 			} else {
 				inArchive >> obj;
 			}
+			return obj;
 		});
 		return inArchive;
 	}
@@ -543,15 +541,17 @@ public:
 	friend CArchive& operator>>(CArchive& inArchive, TSingleAssociativeContainer<TType>& inValue) {
 		size_t size;
 		inArchive >> size;
-		inValue.resize(size, [&](TType& obj) {
+		inValue.resize(size, [&] {
+			TType obj;
 			if constexpr (std::is_base_of_v<SObject, typename TUnfurled<TType>::Type>) {
 				std::string className;
 				inArchive >> className;
-				obj = SClassRegistry::get(className.c_str())->construct(inValue);
+				obj = SClassRegistry::get()->getObjects().get(className)->construct(inValue);
 				dynamic_cast<ISerializable*>(obj)->load(inArchive);
 			} else {
 				inArchive >> obj;
 			}
+			return obj;
 		});
 		return inArchive;
 	}
@@ -575,16 +575,18 @@ public:
 	friend CArchive& operator>>(CArchive& inArchive, TAssociativeContainer<TKeyType, TValueType>& inValue) {
 		size_t size;
 		inArchive >> size;
-		inValue.resize(size, [&](TPair<TKeyType, TValueType>& pair) {
+		inValue.resize(size, [&] {
+			TPair<TKeyType, TValueType> pair;
 			inArchive >> pair.key;
 			if constexpr (std::is_base_of_v<SObject, typename TUnfurled<TValueType>::Type>) {
 				std::string className;
 				inArchive >> className;
-				pair.value = SClassRegistry::get(className.c_str())->construct(inValue);
+				pair.value = SClassRegistry::get()->getObjects().get(className)->construct(inValue);
 				dynamic_cast<ISerializable*>(pair.value)->load(inArchive);
 			} else {
 				inArchive >> pair.value;
 			}
+			return pair;
 		});
 		return inArchive;
 	}

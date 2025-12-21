@@ -4,12 +4,12 @@
 // Since Object is so generic, it can't implement core/Class.h in its header file
 // This is a workaround so class can still be provided
 
-static TUnique<SObject::Class> c{"SObject"};
+static SObject::Class* c = makeClass<SObject::Class>("SObject");
 
 SClass* SObject::getClass() const {
-	return c.staticCast<SClass>();
+	return c;
 }
 
-TUnique<SObject::Class>& SObject::staticClass() {
+SObject::Class* SObject::staticClass() {
 	return c;
 }

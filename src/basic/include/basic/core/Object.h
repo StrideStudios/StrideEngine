@@ -21,7 +21,7 @@ struct SObject {
 
 	EXPORT virtual SClass* getClass() const;
 
-	EXPORT static TUnique<Class>& staticClass();
+	EXPORT static Class* staticClass();
 
 	friend bool operator<(const SObject& fst, const SObject& snd) {
 		return true;

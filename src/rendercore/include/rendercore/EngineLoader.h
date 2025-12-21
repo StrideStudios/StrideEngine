@@ -180,7 +180,7 @@ class CEngineLoader : public SObject {
 
 	template <typename TType>
 	static void save(const std::string& inFileName, TType inValue) {
-		std::filesystem::path path = SPaths::get().mAssetPath;
+		std::filesystem::path path = SPaths::get()->mAssetPath;
 		path.append(inFileName);
 
 		CFileArchive file(path.string(), "wb");
@@ -213,7 +213,7 @@ public:
 
 	EXPORT static void importTexture(const std::filesystem::path& inPath);
 
-	static std::map<std::string, SImage_T*>& getImages() { return get().mImages; }
+	static std::map<std::string, SImage_T*>& getImages() { return get()->mImages; }
 
 	std::map<std::string, SImage_T*> mImages{};
 
@@ -223,7 +223,7 @@ public:
 
 	EXPORT static void importFont(const std::filesystem::path& inPath);
 
-	static std::map<std::string, SFont>& getFonts() { return get().mFonts; }
+	static std::map<std::string, SFont>& getFonts() { return get()->mFonts; }
 
 	std::map<std::string, SFont> mFonts{};
 
@@ -233,7 +233,7 @@ public:
 
 	EXPORT static void createMaterial(const std::string& inMaterialName);
 
-	static std::map<std::string, CMaterial*>& getMaterials() { return get().mMaterials; }
+	static std::map<std::string, CMaterial*>& getMaterials() { return get()->mMaterials; }
 
 	std::map<std::string, CMaterial*> mMaterials{};
 
@@ -243,7 +243,7 @@ public:
 
 	EXPORT static void importMesh(const std::filesystem::path& inPath);
 
-	static std::map<std::string, SStaticMesh*>& getMeshes() { return get().mMeshes; }
+	static std::map<std::string, SStaticMesh*>& getMeshes() { return get()->mMeshes; }
 
 	std::map<std::string, SStaticMesh*> mMeshes{};
 

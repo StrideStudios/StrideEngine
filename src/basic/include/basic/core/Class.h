@@ -14,11 +14,11 @@
 #define REGISTER_STRUCT(n, ...) \
 	private: \
 		typedef TClass<n, __VA_ARGS__> Class; \
-		inline static TUnique<Class> c{#n}; \
+		inline static Class* c = makeClass<Class>(#n); \
 	public: \
 		typedef __VA_ARGS__ Super; \
-		virtual SClass* getClass() const override { return c.staticCast<SClass>(); } \
-		static TUnique<Class>& staticClass() { return c; } \
+		virtual SClass* getClass() const override { return c; } \
+		static Class* staticClass() { return c; } \
 
 #define REGISTER_CLASS(n, ...) \
 	REGISTER_STRUCT(n, __VA_ARGS__) \
@@ -61,7 +61,7 @@ struct SClass : SObject {
 
 };
 
-DEFINE_REGISTRY(SClassRegistry, TShared<SClass>)
+DEFINE_REGISTRY(SClassRegistry, TUnique<SClass>)
 
 template <typename... TParentClasses>
 //requires std::is_base_of_v<SObject, TType>
@@ -125,7 +125,7 @@ struct TGenericClass : SClass {
 		if constexpr (std::is_same_v<TCurrentClass, SObject> and std::is_same_v<typename Super::Current, SObject>) {
 			return nullptr;
 		} else {
-			return Super::Current::staticClass().get();
+			return Super::Current::staticClass();
 		}
 	}
 
@@ -154,10 +154,9 @@ struct TClass<TCurrentClass, TParentClasses...> : TGenericClass<TCurrentClass, T
 };
 
 template <typename TClassType>
-void makeClass(TShared<TClassType>& out, const std::string& inName) {
-	if (SClassRegistry::contains(inName.c_str())) {
-		out = SClassRegistry::get(inName.c_str()).dynamicCast<TClassType>();
+TClassType* makeClass(const std::string& inName) {
+	if (!SClassRegistry::get()->getObjects().contains(inName)) {
+		SClassRegistry::get()->getObjects().push(inName, TUnique<TClassType>{inName});
 	}
-	out = TShared<TClassType>{inName};
-	SClassRegistry::registerObject(inName.c_str(), out.template staticCast<SClass>());
+	return static_cast<TClassType*>(SClassRegistry::get()->getObjects().get(inName).get());
 }

@@ -36,9 +36,9 @@ private:
 	template <typename TType>
 	requires std::is_base_of_v<CRenderer, TType>
 	static void run() {
-		get().m_Renderer = TShared<TType>{};
-		CRenderer::set(get().m_Renderer.get());
-		get().run_internal();
+		get()->m_Renderer = TType{};
+		CRenderer::set(get()->m_Renderer.get());
+		get()->run_internal();
 	}
 
 	EXPORT void update();

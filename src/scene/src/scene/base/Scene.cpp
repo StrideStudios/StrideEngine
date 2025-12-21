@@ -5,7 +5,7 @@
 static CResourceManager gSceneResourceManager;
 
 void CScene::init() {
-	std::filesystem::path path = SPaths::get().mAssetPath.string() + "Scene.scn";
+	std::filesystem::path path = SPaths::get()->mAssetPath.string() + "Scene.scn";
 
 	if (std::filesystem::exists(path)) {
 		CFileArchive file(path.string(), "rb");
@@ -19,7 +19,7 @@ void CScene::init() {
 void CScene::destroy() {
 	gSceneResourceManager.flush();
 
-	std::filesystem::path path = SPaths::get().mAssetPath.string() + "Scene.scn";
+	std::filesystem::path path = SPaths::get()->mAssetPath.string() + "Scene.scn";
 
 	CFileArchive file(path.string(), "wb");
 	file << *this;

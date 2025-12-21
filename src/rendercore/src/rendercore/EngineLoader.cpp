@@ -442,7 +442,7 @@ SStaticMesh* toStaticMesh(SMeshData mesh, const std::string& fileName) {
 
 void CEngineLoader::save() {
 	// Only materials need to be saved (as they are the only thing created at runtime)
-	for (const auto& [name, material] : get().mMaterials) {
+	for (const auto& [name, material] : get()->mMaterials) {
 		save<CMaterial*>(name, material);
 	}
 }
@@ -457,7 +457,7 @@ void CEngineLoader::load() {
 	std::vector<std::filesystem::path> meshes;
 
 	// Add each type to their respective vector
-	for (std::filesystem::recursive_directory_iterator i(SPaths::get().mAssetPath), end; i != end; ++i) {
+	for (std::filesystem::recursive_directory_iterator i(SPaths::get()->mAssetPath), end; i != end; ++i) {
 		if (!std::filesystem::is_directory(i->path())) {
 			if (i->path().extension() == ".ktx2") {
 				textures.push_back(i->path());
@@ -482,25 +482,25 @@ void CEngineLoader::load() {
 	// Load textures
 	for (const auto& path : textures) {
 		SImage_T* image = loadImage(CResourceManager::get(), path);
-		get().mImages.emplace(pathToName(path), image);
+		get()->mImages.emplace(pathToName(path), image);
 	}
 
 	// Load fonts
 	for (const auto& path : fonts) {
 		SFont font = loadFont(CResourceManager::get(), path);
-		get().mFonts.emplace(pathToName(path), font);
+		get()->mFonts.emplace(pathToName(path), font);
 	}
 
 	// Load materials
 	for (const auto& path : materials) {
 		auto material = load<CMaterial*>(path);
-		get().mMaterials.emplace(pathToName(path), material);
+		get()->mMaterials.emplace(pathToName(path), material);
 	}
 
 	// Load meshes
 	for (const auto& path : meshes) {
 		auto mesh = load<SMeshData>(path);
-		get().mMeshes.emplace(pathToName(path), toStaticMesh(mesh, pathToName(path)));
+		get()->mMeshes.emplace(pathToName(path), toStaticMesh(mesh, pathToName(path)));
 	}
 }
 
@@ -528,7 +528,7 @@ void CEngineLoader::importTexture(const std::filesystem::path& inPath) {
 		errs("Compress for file {} failed.", fileName.c_str());
 	}
 
-	std::filesystem::path cachedPath = SPaths::get().mAssetPath.string() + fileName;
+	std::filesystem::path cachedPath = SPaths::get()->mAssetPath.string() + fileName;
 	cachedPath.replace_extension(".ktx2");
 
 	// Write to ktx2 file
@@ -540,7 +540,7 @@ void CEngineLoader::importTexture(const std::filesystem::path& inPath) {
 
 	SImage_T* loadedImage = loadImage(CResourceManager::get(), cachedPath);
 
-	get().mImages.emplace(loadedImage->mName, loadedImage);
+	get()->mImages.emplace(loadedImage->mName, loadedImage);
 }
 
 constexpr static uint32 FONT_MAX_SIZE = 128;
@@ -574,7 +574,7 @@ void CEngineLoader::importFont(const std::filesystem::path& inPath) {
     font.mAscenderPx = face->size->metrics.ascender / 64.f;
     font.mDescenderPx = face->size->metrics.descender / 64.f;
 
-    get().mFonts.emplace(font.mName, font);
+    get()->mFonts.emplace(font.mName, font);
 
 	// Do all standard ASCII characters
     for (uint8 character = 0; character < std::numeric_limits<uint8>::max(); ++character) {
@@ -616,7 +616,7 @@ void CEngineLoader::importFont(const std::filesystem::path& inPath) {
 
     msgs("Created font {} with {} letters.", font.mName.c_str(), font.letters.size());
 
-	std::filesystem::path cachedPath = SPaths::get().mAssetPath.string() + font.mName;
+	std::filesystem::path cachedPath = SPaths::get()->mAssetPath.string() + font.mName;
 	cachedPath.replace_extension(".fnt");
 
 	const std::string label = font.mName + " Atlas";
@@ -654,7 +654,7 @@ void CEngineLoader::createMaterial(const std::string& inMaterialName) {
 	CResourceManager::get().create(material);
 	material->mName = name;
 
-	get().mMaterials.emplace(name, material);
+	get()->mMaterials.emplace(name, material);
 }
 
 void CEngineLoader::importMesh(const std::filesystem::path& inPath) {
@@ -673,7 +673,7 @@ void CEngineLoader::importMesh(const std::filesystem::path& inPath) {
 	for (const auto& [name, data] : meshData) {
 
 		// Create an asset path with the appropriate name
-		std::filesystem::path path = SPaths::get().mAssetPath;
+		std::filesystem::path path = SPaths::get()->mAssetPath;
 		path.append(name + ".msh");
 
 		// Ensure .msh doesn't already exist
@@ -690,6 +690,6 @@ void CEngineLoader::importMesh(const std::filesystem::path& inPath) {
 
 		const auto mesh = readMeshData(path);
 
-		get().mMeshes.emplace(name, toStaticMesh(mesh, name));
+		get()->mMeshes.emplace(name, toStaticMesh(mesh, name));
 	}
 }

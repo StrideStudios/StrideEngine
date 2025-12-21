@@ -126,7 +126,7 @@ std::string readShaderFile(const char* inFileName) {
 			return std::string();
 		}
 		const std::string name = code.substr(p1 + 1, p2 - p1 - 1);
-		const std::string include = readShaderFile((SPaths::get().mShaderPath.string() + name.c_str()).c_str());
+		const std::string include = readShaderFile((SPaths::get()->mShaderPath.string() + name.c_str()).c_str());
 		code.replace(pos, p2-pos+1, include.c_str());
 	}
 
@@ -198,7 +198,7 @@ SShader::SShader(const char* inFilePath) {
 		mStage = EShaderStage::FRAGMENT;
 	}
 
-	const std::string path = SPaths::get().mShaderPath.string() + inFilePath;
+	const std::string path = SPaths::get()->mShaderPath.string() + inFilePath;
 	const std::string SPIRVpath = path + ".spv";
 
 	// Get the hash of the original source file so we know if it changed
@@ -471,7 +471,7 @@ SBuffer_T::SBuffer_T(const std::string& inName, const size_t inBufferSize, const
 	};
 
 	// allocate the buffer
-	VK_CHECK(vmaCreateBuffer(CVulkanAllocator::get().getAllocator(), &bufferCreateInfo, &vmaallocInfo, &buffer, &allocation, &info));
+	VK_CHECK(vmaCreateBuffer(CVulkanAllocator::get()->getAllocator(), &bufferCreateInfo, &vmaallocInfo, &buffer, &allocation, &info));
 }
 
 void SBuffer_T::makeGlobal() {
@@ -507,7 +507,7 @@ void SBuffer_T::updateGlobal() const {
 
 void SBuffer_T::destroy() {
 	msgs("Destroy Buffer");
-	vmaDestroyBuffer(CVulkanAllocator::get().getAllocator(), buffer, allocation);
+	vmaDestroyBuffer(CVulkanAllocator::get()->getAllocator(), buffer, allocation);
 	allocation = nullptr;
 }
 
@@ -516,11 +516,11 @@ void* SBuffer_T::getMappedData() const {
 }
 
 void SBuffer_T::mapData(void** data) const {
-	vmaMapMemory(CVulkanAllocator::get().getAllocator(), allocation, data);
+	vmaMapMemory(CVulkanAllocator::get()->getAllocator(), allocation, data);
 }
 
 void SBuffer_T::unMapData() const {
-	vmaUnmapMemory(CVulkanAllocator::get().getAllocator(), allocation);
+	vmaUnmapMemory(CVulkanAllocator::get()->getAllocator(), allocation);
 }
 
 SMeshBuffers_T::SMeshBuffers_T(const std::string& inName, const size_t indicesSize, const size_t verticesSize): name(inName) {
@@ -540,7 +540,7 @@ SImage_T::SImage_T(const std::string& inDebugName, const VkExtent3D inExtent, co
 		.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
 	};
 
-	vmaCreateImage(CVulkanAllocator::get().getAllocator(), &mImageInfo, &imageAllocationInfo, &mImage, &mAllocation, nullptr);
+	vmaCreateImage(CVulkanAllocator::get()->getAllocator(), &mImageInfo, &imageAllocationInfo, &mImage, &mAllocation, nullptr);
 
 	//build a image-view for the draw image to use for rendering
 	mImageViewInfo = CVulkanInfo::createImageViewInfo(inFormat, mImage, inViewFlags);
@@ -679,7 +679,7 @@ void SImage_T::push(const void* inData, const uint32& inSize) {
 }
 
 void SImage_T::destroy() {
-	vmaDestroyImage(CVulkanAllocator::get().getAllocator(), mImage, mAllocation);
+	vmaDestroyImage(CVulkanAllocator::get()->getAllocator(), mImage, mAllocation);
 	vkDestroyImageView(CVulkanDevice::vkDevice(), mImageView, nullptr);
 }
 
