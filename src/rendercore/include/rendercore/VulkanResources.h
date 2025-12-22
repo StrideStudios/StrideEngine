@@ -129,14 +129,7 @@ public:
 	requires std::is_base_of_v<Resource, TType>
 	static void remove(TType*& inResource) {
 		if (get()->mDestroyed) return;
-
-		//get().getCurrentResourceManager().getObjects().splice(get().getCurrentResourceManager().getObjects().begin(), get().m_Manager.getObjects(), inResource->itr);
-
 		get()->m_Manager.getObjects().transfer(get()->getCurrentResourceManager().getObjects(), get()->m_Manager.getObjects().find(inResource));
-
-		/*auto itr = inResource->itr;
-		get().getCurrentResourceManager().pushUnique(std::move(*itr));
-		get().m_Manager.ignore(itr);*/
 	}
 
 	VmaAllocator& getAllocator() {
@@ -144,6 +137,8 @@ public:
 	}
 
 	EXPORT void init();
+
+	EXPORT void init2(const TShared<CRenderer>& inRenderer);
 
 	EXPORT virtual void destroy() override;
 

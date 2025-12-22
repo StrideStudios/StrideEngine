@@ -698,6 +698,22 @@ void CVulkanAllocator::init() {
 	m_BufferedManagers.resize(CRenderer::get()->getBufferingType().getFrameOverlap());
 }
 
+void CVulkanAllocator::init2(const TShared<CRenderer>& inRenderer) {
+	msgs("Creating Vulkan Allocator.");
+
+	const VmaAllocatorCreateInfo allocatorInfo {
+		.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT,
+		.physicalDevice = inRenderer->device()->getPhysicalDevice().physical_device,
+		.device = inRenderer->device()->getDevice(),
+		.instance = inRenderer->instance()->getInstance()
+	};
+
+	VK_CHECK(vmaCreateAllocator(&allocatorInfo, &mAllocator));
+
+	// Set amount to the number of frame overlaps
+	m_BufferedManagers.resize(inRenderer->getBufferingType().getFrameOverlap());
+}
+
 void CVulkanAllocator::destroy() {
 	msgs("Destroying Vulkan Allocator.");
 

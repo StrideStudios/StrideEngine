@@ -13,9 +13,9 @@
 
 static CResourceManager gTexturesResourceManager;
 
-void CEngineTextures::init() {
+CEngineTextures::CEngineTextures(CRenderer* renderer) {
 
-	CResourceManager::get().create(m_Swapchain);
+	CResourceManager::get().create(m_Swapchain, renderer);
 
 	// Initialize samplers
 	// Default samplers repeat and do not have anisotropy

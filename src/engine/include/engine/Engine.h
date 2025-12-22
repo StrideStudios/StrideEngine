@@ -4,10 +4,10 @@
 #include "basic/core/Singleton.h"
 #include "rendercore/Renderer.h"
 
-class CEngine : public SObject, public IInitializable {
+class CEngine : public SObject {
 
 	REGISTER_CLASS(CEngine, SObject)
-	MAKE_LAZY_SINGLETON(CEngine)
+	//MAKE_LAZY_SINGLETON(CEngine)
 
 	struct Time {
 		int32 mAverageFrameRate = 0;
@@ -18,7 +18,9 @@ class CEngine : public SObject, public IInitializable {
 
 public:
 
-	EXPORT virtual void init() override;
+	EXPORT static TShared<CEngine> get();
+
+	EXPORT CEngine();
 
 	no_discard Time& getTime() { return m_Time; }
 
@@ -36,7 +38,7 @@ private:
 	template <typename TType>
 	requires std::is_base_of_v<CRenderer, TType>
 	static void run() {
-		get()->m_Renderer = TType{};
+		get()->m_Renderer = TShared<TType>{};
 		CRenderer::set(get()->m_Renderer.get());
 		get()->run_internal();
 	}

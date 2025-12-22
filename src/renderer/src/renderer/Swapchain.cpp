@@ -51,9 +51,9 @@ void SSwapchain::destroy() {
 	vkb::destroy_swapchain(*mInternalSwapchain);
 }
 
-CVulkanSwapchain::CVulkanSwapchain() {
+CVulkanSwapchain::CVulkanSwapchain(CRenderer* renderer) {
 
-	m_Frames.resize(CRenderer::get()->getBufferingType().getFrameOverlap());
+	m_Frames.resize(renderer->getBufferingType().getFrameOverlap());
 
 	// Create one fence to control when the gpu has finished rendering the frame,
 	// And 2 semaphores to synchronize rendering with swapchain

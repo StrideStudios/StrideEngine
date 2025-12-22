@@ -34,6 +34,7 @@ struct SSwapchain final : SObject, TInitializable<const vkb::Result<vkb::Swapcha
 	std::vector<CSemaphore*> mSwapchainRenderSemaphores{};
 };
 
+//TODO: does not need to be SObject derived
 class CVulkanSwapchain : public CSwapchain, public IInitializable, public IDestroyable {
 
 	REGISTER_CLASS(CVulkanSwapchain, CSwapchain)
@@ -48,7 +49,8 @@ public:
 		CFence* mPresentFence = nullptr;
 	};
 
-	EXPORT CVulkanSwapchain();
+	CVulkanSwapchain() = default;
+	EXPORT CVulkanSwapchain(CRenderer* renderer);
 
 	virtual void init() override {
 		init(VK_NULL_HANDLE);

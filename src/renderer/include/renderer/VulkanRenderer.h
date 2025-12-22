@@ -3,11 +3,12 @@
 #include <vulkan/vulkan_core.h>
 #include <functional>
 #include <memory>
-#include <mutex>
 
 #include "rendercore/Renderer.h"
 #include "rendercore/VulkanResources.h"
 #include "sstl/Threading.h"
+
+class CEngineTextures;
 
 // Forward declare vkb types
 namespace vkb {
@@ -20,7 +21,6 @@ namespace tracy {
 	class VkCtx;
 }
 
-class CEngineTextures;
 class CVulkanDevice;
 class CVulkanInstance;
 
@@ -73,15 +73,25 @@ public:
 
 	no_discard EXPORT virtual bool wait() override;
 
+	EXPORT virtual CVulkanDevice* device() override;
+
+	EXPORT virtual CVulkanInstance* instance() override;
+
 	// Tell children to render
 	virtual void render(VkCommandBuffer cmd) {};
 
 	// Stores textures used internally by the engine
-	CEngineTextures* mEngineTextures = nullptr;
+	TShared<CEngineTextures> mEngineTextures = nullptr;
 
 	//
 	// Rendering Utils
 	//
+
+	TShared<CVulkanDevice> mDevice = nullptr;
+
+	TShared<CVulkanInstance> mInstance = nullptr;
+
+	TShared<CVulkanAllocator> mAllocator = nullptr;
 
 	// Vulkan window surface
 	VkSurfaceKHR mVkSurface;

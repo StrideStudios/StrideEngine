@@ -122,6 +122,10 @@ public:
 
 	virtual bool wait() = 0;
 
+	virtual class CVulkanDevice* device() = 0;
+
+	virtual class CVulkanInstance* instance() = 0;
+
 	std::list<CPass*> getPasses() const { return m_Passes; }
 
 private:

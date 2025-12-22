@@ -18,7 +18,12 @@ ADD_TEXT(GameTime);
 ADD_TEXT(DeltaTime);
 #undef SETTINGS_CATEGORY
 
-void CEngine::init() {
+TShared<CEngine> CEngine::get() {
+	static TShared<CEngine> engine;
+	return engine;
+}
+
+CEngine::CEngine() {
 	ZoneScopedN("Engine Initialization");
 
 	astsOnce(CEngine)
@@ -104,9 +109,10 @@ void CEngine::run_internal() {
 	// Stop 'main thread'
 	CThreading::getMainThread().stop();
 
+	m_Renderer->destroy();
+
 	CResourceManager::get().flush();
 
-	m_Renderer->destroy();
 }
 
 // Test game loop
