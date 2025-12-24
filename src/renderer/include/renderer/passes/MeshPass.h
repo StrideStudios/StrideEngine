@@ -12,7 +12,7 @@ public:
 
 	EXPORT virtual void init() override;
 
-	EXPORT virtual void render(VkCommandBuffer cmd) override;
+	EXPORT virtual void render(const SRendererInfo& info, VkCommandBuffer cmd) override;
 
 	//
 	// Pipelines

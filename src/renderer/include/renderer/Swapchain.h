@@ -50,7 +50,7 @@ public:
 	};
 
 	CVulkanSwapchain() = default;
-	EXPORT CVulkanSwapchain(CRenderer* renderer);
+	EXPORT CVulkanSwapchain(const TShared<CRenderer>& renderer);
 
 	virtual void init() override {
 		init(VK_NULL_HANDLE);

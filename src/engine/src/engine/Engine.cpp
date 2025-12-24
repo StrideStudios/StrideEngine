@@ -79,7 +79,8 @@ void CEngine::run_internal() {
 
 		// Create info for the renderer
 		SRendererInfo info {
-			m_EngineViewport
+			m_EngineViewport,
+			m_Renderer
 		};
 
 		// Draw to the screen

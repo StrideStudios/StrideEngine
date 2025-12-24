@@ -21,7 +21,7 @@
 
 constexpr static bool gUseOpenCL = false;
 
-SImage_T* loadImage(CResourceManager& manager, const std::filesystem::path& path) {
+SImage_T* loadImage(const TShared<CVulkanAllocator>& allocator, CResourceManager& manager, const std::filesystem::path& path) {
 	const std::string& fileName = path.filename().string();
 
 	basisu::uint8_vec fileData;
@@ -46,7 +46,7 @@ SImage_T* loadImage(CResourceManager& manager, const std::filesystem::path& path
 
 	// Allocate image and transition to dst
 	SImage_T* image;
-	manager.create<SImage_T>(image, fileName, imageSize, VK_FORMAT_BC7_SRGB_BLOCK, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_IMAGE_ASPECT_COLOR_BIT, numMips);
+	manager.create<SImage_T>(image, allocator, fileName, imageSize, VK_FORMAT_BC7_SRGB_BLOCK, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_IMAGE_ASPECT_COLOR_BIT, numMips);
 
 	CRenderer::get()->immediateSubmit([&](SCommandBuffer& cmd) {
 		CVulkanUtils::transitionImage(cmd, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
@@ -74,9 +74,9 @@ SImage_T* loadImage(CResourceManager& manager, const std::filesystem::path& path
 
 		// Upload buffer is not needed outside of this function
 
-		SStagingBuffer uploadBuffer{"Staging for " + fileName, image_size}; //TODO: was CPU_TO_GPU, test if errors
+		SStagingBuffer uploadBuffer{allocator, "Staging for " + fileName, image_size}; //TODO: was CPU_TO_GPU, test if errors
 
-		uploadBuffer.push(pImage, image_size);
+		uploadBuffer.push(allocator, pImage, image_size);
 
 		CRenderer::get()->immediateSubmit([&](SCommandBuffer& cmd) {
 			//ZoneScopedAllocation(std::string("Copy Image from Upload Buffer"));
@@ -109,7 +109,7 @@ SImage_T* loadImage(CResourceManager& manager, const std::filesystem::path& path
 	return image;
 }
 
-SFont loadFont(CResourceManager& allocator, const std::filesystem::path& inPath) {
+SFont loadFont(const TShared<CVulkanAllocator>& allocator, CResourceManager& manager, const std::filesystem::path& inPath) {
 	SFont font;
 	std::vector<uint8> atlasData;
 
@@ -119,7 +119,7 @@ SFont loadFont(CResourceManager& allocator, const std::filesystem::path& inPath)
 	file.close();
 
 	const std::string label = font.mName + " Atlas";
-	allocator.create<SImage_T>(font.mAtlasImage, label, VkExtent3D{font.mAtlasSize.x, font.mAtlasSize.y, 1}, VK_FORMAT_R8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+	manager.create<SImage_T>(font.mAtlasImage, allocator, label, VkExtent3D{font.mAtlasSize.x, font.mAtlasSize.y, 1}, VK_FORMAT_R8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
 	font.mAtlasImage->push(atlasData.data(), atlasData.size());
 
 	return font;
@@ -387,19 +387,19 @@ SMeshData readMeshData(const std::filesystem::path& path) {
 	return outSaveData;
 }
 
-SMeshBuffers_T* uploadMesh(CResourceManager& inManager, std::span<uint32> indices, std::span<SVertex> vertices) {
+SMeshBuffers_T* uploadMesh(const TShared<CVulkanAllocator>& allocator, CResourceManager& inManager, std::span<uint32> indices, std::span<SVertex> vertices) {
 	const size_t vertexBufferSize = vertices.size() * sizeof(SVertex);
 	const size_t indexBufferSize = indices.size() * sizeof(uint32);
 
 	// Create buffers
 	SMeshBuffers_T* meshBuffers;
-	inManager.create<SMeshBuffers_T>(meshBuffers, "Mesh Buffer", indexBufferSize, vertexBufferSize);
+	inManager.create<SMeshBuffers_T>(meshBuffers, allocator, "Mesh Buffer", indexBufferSize, vertexBufferSize);
 
 	// Staging is not needed outside of this function
-	SStagingBuffer staging{"Staging for Mesh Buffer", vertexBufferSize + indexBufferSize};
+	SStagingBuffer staging{allocator, "Staging for Mesh Buffer", vertexBufferSize + indexBufferSize};
 
 	// Copy vertex and Index Buffer
-	staging.push(vertices.data(), vertexBufferSize, indices.data(), indexBufferSize);
+	staging.push(allocator, vertices.data(), vertexBufferSize, indices.data(), indexBufferSize);
 
 	//TODO: slow, render thread?
 	// also from an older version of the tutorial, doesnt use sync2
@@ -422,7 +422,7 @@ SMeshBuffers_T* uploadMesh(CResourceManager& inManager, std::span<uint32> indice
 	return meshBuffers;
 }
 
-SStaticMesh* toStaticMesh(SMeshData mesh, const std::string& fileName) {
+SStaticMesh* toStaticMesh(const TShared<CVulkanAllocator>& allocator, SMeshData mesh, const std::string& fileName) {
 	SStaticMesh* loadMesh;
 	CResourceManager::get().create(loadMesh);
 	loadMesh->name = fileName;
@@ -436,7 +436,7 @@ SStaticMesh* toStaticMesh(SMeshData mesh, const std::string& fileName) {
 		});
 	}
 
-	loadMesh->meshBuffers = uploadMesh(CResourceManager::get(), mesh.indices, mesh.vertices);
+	loadMesh->meshBuffers = uploadMesh(allocator, CResourceManager::get(), mesh.indices, mesh.vertices);
 	return loadMesh;
 }
 
@@ -447,7 +447,7 @@ void CEngineLoader::save() {
 	}
 }
 
-void CEngineLoader::load() {
+void CEngineLoader::load(const TShared<CVulkanAllocator>& allocator) {
 
 	basisu::basisu_encoder_init(gUseOpenCL, false);
 
@@ -481,13 +481,13 @@ void CEngineLoader::load() {
 
 	// Load textures
 	for (const auto& path : textures) {
-		SImage_T* image = loadImage(CResourceManager::get(), path);
+		SImage_T* image = loadImage(allocator, CResourceManager::get(), path);
 		get()->mImages.emplace(pathToName(path), image);
 	}
 
 	// Load fonts
 	for (const auto& path : fonts) {
-		SFont font = loadFont(CResourceManager::get(), path);
+		SFont font = loadFont(allocator, CResourceManager::get(), path);
 		get()->mFonts.emplace(pathToName(path), font);
 	}
 
@@ -500,11 +500,11 @@ void CEngineLoader::load() {
 	// Load meshes
 	for (const auto& path : meshes) {
 		auto mesh = load<SMeshData>(path);
-		get()->mMeshes.emplace(pathToName(path), toStaticMesh(mesh, pathToName(path)));
+		get()->mMeshes.emplace(pathToName(path), toStaticMesh(allocator, mesh, pathToName(path)));
 	}
 }
 
-void CEngineLoader::importTexture(const std::filesystem::path& inPath) {
+void CEngineLoader::importTexture(const TShared<CVulkanAllocator>& allocator, const std::filesystem::path& inPath) {
 	const std::string fileName = inPath.filename().string();
 
 	basisu::image image;
@@ -538,7 +538,7 @@ void CEngineLoader::importTexture(const std::filesystem::path& inPath) {
 
 	basisu::basis_free_data(pKTX2_data);
 
-	SImage_T* loadedImage = loadImage(CResourceManager::get(), cachedPath);
+	SImage_T* loadedImage = loadImage(allocator, CResourceManager::get(), cachedPath);
 
 	get()->mImages.emplace(loadedImage->mName, loadedImage);
 }
@@ -546,7 +546,7 @@ void CEngineLoader::importTexture(const std::filesystem::path& inPath) {
 constexpr static uint32 FONT_MAX_SIZE = 128;
 constexpr static uint32 FONT_ATLAS_SIZE = 1024;
 
-void CEngineLoader::importFont(const std::filesystem::path& inPath) {
+void CEngineLoader::importFont(const TShared<CVulkanAllocator>& allocator, const std::filesystem::path& inPath) {
 	FT_Library ft;
 	if (const auto err = FT_Init_FreeType(&ft)) {
 		errs("FreeType could not initialize. {}", FT_Error_String(err));
@@ -620,7 +620,7 @@ void CEngineLoader::importFont(const std::filesystem::path& inPath) {
 	cachedPath.replace_extension(".fnt");
 
 	const std::string label = font.mName + " Atlas";
-	CResourceManager::get().create<SImage_T>(font.mAtlasImage, label, VkExtent3D{FONT_ATLAS_SIZE, FONT_ATLAS_SIZE, 1}, VK_FORMAT_R8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+	CResourceManager::get().create<SImage_T>(font.mAtlasImage, allocator, label, VkExtent3D{FONT_ATLAS_SIZE, FONT_ATLAS_SIZE, 1}, VK_FORMAT_R8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
 	font.mAtlasImage->push(atlasData.data(), atlasData.size());
 
 	// Write font and atlas data to file
@@ -657,7 +657,7 @@ void CEngineLoader::createMaterial(const std::string& inMaterialName) {
 	get()->mMaterials.emplace(name, material);
 }
 
-void CEngineLoader::importMesh(const std::filesystem::path& inPath) {
+void CEngineLoader::importMesh(const TShared<CVulkanAllocator>& allocator, const std::filesystem::path& inPath) {
 	const std::string fileName = inPath.filename().string();
 
 	// Load the GLTF into Mesh Data
@@ -690,6 +690,6 @@ void CEngineLoader::importMesh(const std::filesystem::path& inPath) {
 
 		const auto mesh = readMeshData(path);
 
-		get()->mMeshes.emplace(name, toStaticMesh(mesh, name));
+		get()->mMeshes.emplace(name, toStaticMesh(allocator, mesh, name));
 	}
 }

@@ -86,7 +86,7 @@ void CEditorSpritePass::init() {
 	exampleText->material = textMaterial;
 }
 
-void CEditorSpritePass::render(VkCommandBuffer cmd) {
+void CEditorSpritePass::render(const SRendererInfo& info, VkCommandBuffer cmd) {
 	ZoneScopedN("Editor Sprite Pass");
 
 	uint32 drawCallCount = 0;
@@ -127,7 +127,7 @@ void CEditorSpritePass::render(VkCommandBuffer cmd) {
 				});
 			});
 
-			tempTextBuffer.push(datas.data(), bufferSize);
+			tempTextBuffer.push(info.allocator, datas.data(), bufferSize);
 
 			VkDeviceSize offset = 0u;
 			vkCmdBindVertexBuffers(cmd, 0, 1u, &tempTextBuffer.get()->buffer, &offset);
@@ -144,7 +144,7 @@ void CEditorSpritePass::render(VkCommandBuffer cmd) {
 			stack.push(sprite->getTransformMatrix());
 
 			VkDeviceSize offset = 0u;
-			vkCmdBindVertexBuffers(cmd, 0, 1u, &instancer.get(stack)->buffer, &offset);
+			vkCmdBindVertexBuffers(cmd, 0, 1u, &instancer.get(info.allocator, stack)->buffer, &offset);
 
 			stack.pop();
 

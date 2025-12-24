@@ -22,7 +22,7 @@ public:
 
 	virtual void end() {}
 
-	virtual void render(VkCommandBuffer cmd) = 0;
+	virtual void render(const SRendererInfo& info, VkCommandBuffer cmd) = 0;
 
 	virtual void update() {}
 

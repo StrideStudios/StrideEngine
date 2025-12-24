@@ -40,10 +40,9 @@ CVulkanRenderer::CVulkanRenderer(): mVSync(UseVsync.get()) {}
 
 void CVulkanRenderer::immediateSubmit(std::function<void(SCommandBuffer& cmd)>&& function) {
 
-	CVulkanRenderer& renderer = *get();
 	const VkDevice device = mDevice->getDevice();
 
-	renderer.mUploadContext.lockFor([&](const SUploadContext& upload) {
+	mUploadContext.lockFor([&](const SUploadContext& upload) {
 		SCommandBuffer cmd = upload.mCommandBuffer;
 
 		//begin the command buffer recording. We will use this command buffer exactly once before resetting, so we tell vulkan that
@@ -54,7 +53,7 @@ void CVulkanRenderer::immediateSubmit(std::function<void(SCommandBuffer& cmd)>&&
 
 		cmd.end();
 
-		VkSubmitInfo submit = CVulkanInfo::submitInfo(&cmd.cmd);
+		const VkSubmitInfo submit = CVulkanInfo::submitInfo(&cmd.cmd);
 
 		VK_CHECK(vkResetFences(device, 1, &upload.mUploadFence->mFence));
 
@@ -121,26 +120,33 @@ void CVulkanRenderer::init() {
 		});//TODO: not a big fan of the callbacks, should be its own class
 	}
 
-	// Initialize allocator
-	CVulkanAllocator::get()->init();
+	// Initialize Allocator
+	mAllocator = TShared<CVulkanAllocator>{};
+	mAllocator->init2(asShared());
+	CResourceManager::get().callback([this]{
+		mAllocator->destroy();
+	});
 
-	mEngineTextures = TShared<CEngineTextures>{this};
+	mEngineTextures = TShared<CEngineTextures>{asShared(), mAllocator};
+	CResourceManager::get().callback([this]{
+		mEngineTextures->destroy();
+	});
 
-	mSceneBuffer.get()->makeGlobal();
+	mSceneBuffer.get(mAllocator)->makeGlobal();
 
 	// Load textures and meshes
-	CEngineLoader::load();
+	CEngineLoader::load(mAllocator);
 
 	//CPassDeferredRegistry::init(CResourceManager::get());
 }
 
 void CVulkanRenderer::destroy() {
 
-	msgs("Pre Engine tec destroy");
-	mEngineTextures->destroy();
-	msgs("Post Engine tec destroy");
+	//mEngineTextures->destroy();
 
 	mSceneBuffer.destroy();
+
+	//mAllocator->destroy();
 
 	gInstanceManager.flush();
 }
@@ -149,7 +155,10 @@ CSwapchain* CVulkanRenderer::getSwapchain() {
 	return mEngineTextures->getSwapchain();
 }
 
-void CVulkanRenderer::render(const SRendererInfo& info) {
+void CVulkanRenderer::render(SRendererInfo& info) {
+
+	// Set renderer info allocator
+	info.allocator = mAllocator->asWeak();
 
 	if (mVSync != UseVsync.get()) {
 		mVSync = UseVsync.get();
@@ -168,7 +177,7 @@ void CVulkanRenderer::render(const SRendererInfo& info) {
 			// Wait for gpu before recreating swapchain
 			if (!wait()) continue;
 
-			mEngineTextures->reallocate(UseVsync.get());
+			mEngineTextures->reallocate(info, UseVsync.get());
 
 			for (const auto pass : getPasses()) {
 				pass->update();
@@ -209,7 +218,7 @@ void CVulkanRenderer::render(const SRendererInfo& info) {
 		CVulkanUtils::transitionImage(cmd, mEngineTextures->mDrawImage, VK_IMAGE_LAYOUT_GENERAL);
 
 		// Flush previous frame resources
-		CVulkanAllocator::flushFrameData();
+		mAllocator->flushFrameData();
 	}
 
 	{
@@ -250,10 +259,10 @@ void CVulkanRenderer::render(const SRendererInfo& info) {
 			}
 
 			//write the buffer
-			auto* sceneUniformData = static_cast<SceneData*>(mSceneBuffer.get()->getMappedData());
+			auto* sceneUniformData = static_cast<SceneData*>(mSceneBuffer.get(mAllocator)->getMappedData());
 			*sceneUniformData = mSceneData;
 
-			mSceneBuffer.get()->updateGlobal();
+			mSceneBuffer.get(mAllocator)->updateGlobal();
 		}
 
 		if (!getPasses().empty()) {
@@ -289,7 +298,7 @@ void CVulkanRenderer::render(const SRendererInfo& info) {
 					pass->beginRendering(cmd, info.viewport->mExtent, mEngineTextures->mDrawImage, mEngineTextures->mDepthImage);
 				}
 
-				pass->render(cmd);
+				pass->render(info, cmd);
 				previousPass = pass;
 			}
 

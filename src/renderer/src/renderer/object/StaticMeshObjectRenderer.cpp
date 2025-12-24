@@ -7,7 +7,7 @@
 #include "renderer/VulkanRenderer.h"
 #include "tracy/Tracy.hpp"
 
-void CStaticMeshObjectRenderer::render(CMeshPass* inPass, VkCommandBuffer cmd, SRenderStack3f& stack, CStaticMeshObject* inObject, size_t& outDrawCalls, size_t& outVertices) {
+void CStaticMeshObjectRenderer::render(const SRendererInfo& info, CMeshPass* inPass, VkCommandBuffer cmd, SRenderStack3f& stack, CStaticMeshObject* inObject, size_t& outDrawCalls, size_t& outVertices) {
 	IInstancer& instancer = inObject->getInstancer();
 	SStaticMesh* mesh = inObject->getMesh();
 	if (!mesh) return;
@@ -29,7 +29,7 @@ void CStaticMeshObjectRenderer::render(CMeshPass* inPass, VkCommandBuffer cmd, S
 
 		const auto buffers = {
 			mesh->meshBuffers->vertexBuffer->buffer,
-			instancer.get(stack)->buffer
+			instancer.get(info.allocator, stack)->buffer
 		};
 		vkCmdBindVertexBuffers(cmd, 0, static_cast<uint32>(buffers.size()), buffers.begin(), offset.begin());
 	}
@@ -97,7 +97,7 @@ void CStaticMeshObjectRenderer::render(CMeshPass* inPass, VkCommandBuffer cmd, S
 
 				const auto buffers = {
 					cubeBoundsMesh->meshBuffers->vertexBuffer->buffer,
-					instancer.get(stack)->buffer
+					instancer.get(info.allocator, stack)->buffer
 				};
 				vkCmdBindVertexBuffers(cmd, 0, static_cast<uint32>(buffers.size()), buffers.begin(), offset.begin());
 			}
@@ -123,7 +123,7 @@ void CStaticMeshObjectRenderer::render(CMeshPass* inPass, VkCommandBuffer cmd, S
 
 				const auto buffers = {
 					sphereBoundsMesh->meshBuffers->vertexBuffer->buffer,
-					instancer.get(stack)->buffer
+					instancer.get(info.allocator, stack)->buffer
 				};
 				vkCmdBindVertexBuffers(cmd, 0, static_cast<uint32>(buffers.size()), buffers.begin(), offset.begin());
 			}

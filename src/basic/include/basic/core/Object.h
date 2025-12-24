@@ -1,5 +1,7 @@
 #pragma once
 
+#include "sstl/Memory.h"
+
 /*
  * A simple base class for all objects
  * If a derived class does not register itself, it will always be abstract
@@ -13,7 +15,7 @@ struct TUnique;
 template <typename... TParentClasses>
 struct TClass;
 
-struct SObject {
+struct SObject : TSharedFrom<SObject> {
 
 	typedef TClass<SObject> Class;
 

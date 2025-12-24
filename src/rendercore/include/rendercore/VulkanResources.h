@@ -8,6 +8,8 @@
 #include "rendercore/VulkanDevice.h"
 #include "rendercore/VulkanUtils.h"
 #include "basic/core/Common.h"
+#include "sstl/Deque.h"
+#include "sstl/Set.h"
 
 enum class EShaderStage : uint8 {
 	VERTEX,
@@ -104,9 +106,6 @@ class CVulkanAllocator final : public SObject, public IDestroyable {
 
 	REGISTER_CLASS(CVulkanAllocator, SObject)
 
-	// Allocator may be called at any point, especially by static buffers, so it needs to be lazy
-	MAKE_LAZY_SINGLETON(CVulkanAllocator)
-
 public:
 
 	struct Resource : SObject, IDestroyable {
@@ -116,20 +115,24 @@ public:
 		std::string name;
 	};
 
-	template <typename TType, typename... TArgs>
-	requires std::is_base_of_v<Resource, TType> and std::is_constructible_v<TType, TArgs...>
-	static void allocate(TType*& inResource, TArgs... args) {
-		if (get()->mDestroyed) {
+	template <typename TType>
+	requires std::is_base_of_v<Resource, TType>
+	TType* addResource(TUnique<TType>&& inResource) {
+		if (mDestroyed) {
 			errs("Attempted to allocate a resource after Vulkan Allocator was Destroyed!");
 		}
-		get()->m_Manager.create(inResource, args...);
+		m_Resources.push(std::move(inResource));
+		return m_Resources.bottom().staticCast<TType>();
 	}
 
 	template <typename TType>
 	requires std::is_base_of_v<Resource, TType>
-	static void remove(TType*& inResource) {
-		if (get()->mDestroyed) return;
-		get()->m_Manager.getObjects().transfer(get()->getCurrentResourceManager().getObjects(), get()->m_Manager.getObjects().find(inResource));
+	void removeResource(TType* inResource) {
+		if (mDestroyed) {
+			msgs("Attempted to remove a resource after Vulkan Allocator was Destroyed!");
+			return;
+		}
+		m_Resources.transfer(getCurrentResourceManager(), m_Resources.find(inResource));
 	}
 
 	VmaAllocator& getAllocator() {
@@ -142,26 +145,31 @@ public:
 
 	EXPORT virtual void destroy() override;
 
-	static void flushFrameData() {
-		get()->getCurrentResourceManager().flush();
+	void flushFrameData() {
+		getCurrentResourceManager().forEach([](size_t, const TUnique<Resource>& resource) {
+			resource->destroy();
+		});
+		getCurrentResourceManager().clear();
 	}
 
 public:
 
-	force_inline TResourceManager<Resource>& getCurrentResourceManager() {
-		return m_BufferedManagers[CRenderer::get()->getBufferingType().getFrameIndex()];
+	force_inline TList<TUnique<Resource>>& getCurrentResourceManager() {
+		return **m_BufferedManagers[m_Renderer->getBufferingType().getFrameIndex()];
 	}
 
-	force_inline const TResourceManager<Resource>& getCurrentResourceManager() const {
-		return m_BufferedManagers[CRenderer::get()->getBufferingType().getFrameIndex()];
+	force_inline const TList<TUnique<Resource>>& getCurrentResourceManager() const {
+		return **m_BufferedManagers[m_Renderer->getBufferingType().getFrameIndex()];
 	}
 
 	bool mDestroyed = false;
 
+	TWeak<CRenderer> m_Renderer = nullptr;
+
 	VmaAllocator mAllocator = nullptr;
 
-	TResourceManager<Resource> m_Manager;
-	std::deque<TResourceManager<Resource>> m_BufferedManagers;
+	TList<TUnique<Resource>> m_Resources;
+	TDeque<TUnique<TList<TUnique<Resource>>>> m_BufferedManagers;
 };
 
 // Create wrappers around Vulkan types that can be destroyed
@@ -174,6 +182,7 @@ public:
 		C##inName(Vk##inName##CreateInfo inCreateInfo) { \
 			VK_CHECK(vkCreate##inName(CVulkanDevice::vkDevice(), &inCreateInfo, nullptr, &m##inName)); \
 		} \
+		virtual Vk##inName get() { return m##inName; } \
 		virtual void destroy() override { vkDestroy##inName(CVulkanDevice::vkDevice(), m##inName, nullptr); } \
 		Vk##inName operator->() const { return m##inName; } \
 		operator Vk##inName() const { return m##inName; } \
@@ -308,7 +317,7 @@ struct SImage_T : SObject, IDestroyable {
 	REGISTER_STRUCT(SImage_T, SObject)
 
 	SImage_T() = default;
-	EXPORT SImage_T(const std::string& inDebugName, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags = 0, VkImageAspectFlags inViewFlags = 0, uint32 inNumMips = 1);
+	EXPORT SImage_T(const TShared<CVulkanAllocator>& inAllocator, const std::string& inDebugName, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags = 0, VkImageAspectFlags inViewFlags = 0, uint32 inNumMips = 1);
 
 	VkExtent3D getExtent() const { return mImageInfo.extent; }
 
@@ -328,6 +337,7 @@ struct SImage_T : SObject, IDestroyable {
 	VkImageView mImageView = nullptr;
 	VkImageViewCreateInfo mImageViewInfo;
 
+	TWeak<CVulkanAllocator> allocator = nullptr;
 	VmaAllocation mAllocation = nullptr;
 	uint32 mBindlessAddress = -1;
 
@@ -337,12 +347,7 @@ struct SImage_T : SObject, IDestroyable {
 
 struct SBuffer_T : CVulkanAllocator::Resource {
 
-	SBuffer_T() = delete;
-/*
-	SBuffer_T(size_t inBufferSize, VmaMemoryUsage inMemoryUsage, VkBufferUsageFlags inBufferUsage = 0):
-	SBuffer_T("Default Buffer", inBufferSize, inMemoryUsage, inBufferUsage) {}
-*/
-	EXPORT SBuffer_T(const std::string& inName, size_t inBufferSize, VmaMemoryUsage inMemoryUsage, VkBufferUsageFlags inBufferUsage = 0);
+	EXPORT SBuffer_T(VmaAllocator inAllocator, const std::string& inName, size_t inBufferSize, VmaMemoryUsage inMemoryUsage, VkBufferUsageFlags inBufferUsage = 0);
 
 	EXPORT void makeGlobal(); //TODO: alternate way of doing this
 	EXPORT void updateGlobal() const; // TODO: not global but instead 'dynamic' (address should be separate?)
@@ -367,8 +372,10 @@ struct SBuffer_T : CVulkanAllocator::Resource {
 
 	VkBuffer buffer = nullptr;
 
+	VmaAllocator allocator = nullptr;
 	VmaAllocation allocation = nullptr;
 	VmaAllocationInfo info = {};
+	size_t size;
 
 	uint32 mBindlessAddress = 0;
 
@@ -397,22 +404,23 @@ struct SPushableBuffer {
 
 	const std::string& getName() const { return name; }
 
-	virtual void checkSize(const size_t size) {
-		if (size > getSize()) {
-			errs("Tried to allocate more than available in Buffer!");
+	virtual void checkSize(const TShared<CVulkanAllocator>& allocator, const size_t size) {
+		if (size != getSize()) {
+			errs("Tried to allocate {} bytes in buffer {} of size {}!", size, name, getSize());
 		}
 	}
 
 	template <typename... TArgs>
-	void push(const void* src, const size_t size = 0, TArgs... args) {
+	void push(const TShared<CVulkanAllocator>& allocator, const void* src, const size_t size = 0, TArgs... args) {
 		size_t totalSize = getTotalSize(src, size, args...);
-		checkSize(totalSize);
+		checkSize(allocator, totalSize);
 
 		if constexpr (TMemoryUsage == VMA_MEMORY_USAGE_GPU_ONLY) {
 
 			static_assert(TBufferUsage & VK_BUFFER_USAGE_TRANSFER_DST_BIT);
 
 			SBuffer_T buffer{
+				allocator->getAllocator(),
 				"Staging for " + name,
 				getSize(),
 				VMA_MEMORY_USAGE_CPU_ONLY,
@@ -421,7 +429,7 @@ struct SPushableBuffer {
 
 			buffer.push(src, size, args...);
 
-			CRenderer::get()->immediateSubmit([this, totalSize, buffer](SCommandBuffer& cmd) {
+			allocator->m_Renderer->immediateSubmit([this, totalSize, buffer](SCommandBuffer& cmd) {
 				VkBufferCopy copy {
 					.srcOffset = 0,
 					.dstOffset = 0,
@@ -434,19 +442,19 @@ struct SPushableBuffer {
 			buffer.destroy();
 		} else {
 			memcpy(get()->getMappedData(), src, size);
-			push(size, args...);
+			push(allocator, size, args...);
 		}
 	}
 
 private:
 
 	template <typename... TArgs>
-	void push(const size_t offset = 0) {}
+	void push(const TShared<CVulkanAllocator>& allocator, const size_t offset = 0) {}
 
 	template <typename... TArgs>
-	void push(const size_t offset, const void* src, const size_t size, TArgs... args) {
+	void push(const TShared<CVulkanAllocator>& allocator, const size_t offset, const void* src, const size_t size, TArgs... args) {
 		memcpy(static_cast<char*>(get()->getMappedData()) + offset, src, size);
-		push(offset + size, args...);
+		push(allocator, offset + size, args...);
 	}
 
 	template <typename... TArgs>
@@ -472,11 +480,11 @@ struct SLocalBuffer final : SPushableBuffer<VMA_MEMORY_USAGE_CPU_ONLY, TBufferUs
 
 	SLocalBuffer() = delete;
 
-	SLocalBuffer(const std::string& inName, const size_t inAllocSize):
+	SLocalBuffer(const TShared<CVulkanAllocator>& allocator, const std::string& inName, const size_t inAllocSize):
 	SPushableBuffer<VMA_MEMORY_USAGE_CPU_ONLY, TBufferUsage>(inName),
-	mBuffer(SPushableBuffer<VMA_MEMORY_USAGE_CPU_ONLY, TBufferUsage>::getName(), inAllocSize, VMA_MEMORY_USAGE_CPU_ONLY, TBufferUsage){}
+	mBuffer(allocator->getAllocator(), SPushableBuffer<VMA_MEMORY_USAGE_CPU_ONLY, TBufferUsage>::getName(), inAllocSize, VMA_MEMORY_USAGE_CPU_ONLY, TBufferUsage){}
 
-	SLocalBuffer(const std::string& inName, const size_t inElementSize, const size_t inSize): SLocalBuffer(inName, inElementSize * inSize) {}
+	SLocalBuffer(const TShared<CVulkanAllocator>& allocator, const std::string& inName, const size_t inElementSize, const size_t inSize): SLocalBuffer(allocator, inName, inElementSize * inSize) {}
 
 	virtual ~SLocalBuffer() override {
 		msgs("Destroyed Local Buffer.");
@@ -485,7 +493,7 @@ struct SLocalBuffer final : SPushableBuffer<VMA_MEMORY_USAGE_CPU_ONLY, TBufferUs
 
 	virtual SBuffer_T* get() override { return &mBuffer; }
 
-	virtual size_t getSize() const override { return mBuffer.info.size; }
+	virtual size_t getSize() const override { return mBuffer.size; }
 
 private:
 
@@ -511,10 +519,11 @@ struct SStaticBuffer : SPushableBuffer<TMemoryUsage, TBufferUsage>, IDestroyable
 
 	// Since templated Static Buffers are resolved at compile time, the buffer will never change
 	// Thus, it should always be allocated globally
-	virtual SBuffer_T* get() override {
+	virtual SBuffer_T* get(const TShared<CVulkanAllocator>& inAllocator) {
 		if (!mAllocated) {
 			mAllocated = true;
-			CVulkanAllocator::allocate(mBuffer, SPushableBuffer<TMemoryUsage, TBufferUsage>::getName(), getSize(), TMemoryUsage, TBufferUsage);
+			allocator = inAllocator;
+			mBuffer = allocator->addResource(TUnique<SBuffer_T>{allocator->getAllocator(), SPushableBuffer<TMemoryUsage, TBufferUsage>::getName(), getSize(), TMemoryUsage, TBufferUsage});
 		}
 		return mBuffer;
 	}
@@ -527,10 +536,16 @@ struct SStaticBuffer : SPushableBuffer<TMemoryUsage, TBufferUsage>, IDestroyable
 		if (!mAllocated) return;
 		msgs("Destroyed Static Buffer.");
 		mAllocated = false;
-		CVulkanAllocator::remove(mBuffer);
+		allocator->removeResource(mBuffer);
 	}
 
 private:
+
+	virtual SBuffer_T* get() override {
+		return mBuffer;
+	}
+
+	TWeak<CVulkanAllocator> allocator = nullptr;
 
 	bool mAllocated = false;
 	SBuffer_T* mBuffer = nullptr; //TODO: move buffer stuff locally (MAYBE parent class)
@@ -557,8 +572,9 @@ struct SDynamicBuffer : SPushableBuffer<TMemoryUsage, TBufferUsage>, IDestroyabl
 		return mBuffer;
 	}
 
-	virtual void checkSize(const size_t size) override {
-		allocate(size);
+	virtual void checkSize(const TShared<CVulkanAllocator>& inAllocator, const size_t size) override {
+		allocate(inAllocator, size);
+		SPushableBuffer<TMemoryUsage, TBufferUsage>::checkSize(inAllocator, size);
 	}
 
 	virtual size_t getSize() const override {
@@ -569,12 +585,12 @@ struct SDynamicBuffer : SPushableBuffer<TMemoryUsage, TBufferUsage>, IDestroyabl
 		if (!mAllocated) return;
 		msgs("Destroyed Dynamic Buffer.");
 		mAllocated = false;
-		CVulkanAllocator::remove(mBuffer);
+		allocator->removeResource(mBuffer);
 	}
 
 private:
 
-	void allocate(const size_t inAllocSize) {
+	void allocate(const TShared<CVulkanAllocator>& inAllocator, const size_t inAllocSize) {
 		if (inAllocSize <= 0) {
 			errs("Dynamic Buffer has been given an invalid size!");
 		}
@@ -584,10 +600,13 @@ private:
 		}
 		if (!mAllocated) {
 			mAllocated = true;
+			allocator = inAllocator;
 			mAllocSize = inAllocSize;
-			CVulkanAllocator::allocate(mBuffer, SPushableBuffer<TMemoryUsage, TBufferUsage>::getName(), mAllocSize, TMemoryUsage, TBufferUsage);
+			mBuffer = allocator->addResource(TUnique<SBuffer_T>{allocator->getAllocator(), SPushableBuffer<TMemoryUsage, TBufferUsage>::getName(), mAllocSize, TMemoryUsage, TBufferUsage});
 		}
 	}
+
+	TWeak<CVulkanAllocator> allocator = nullptr;
 
 	size_t mAllocSize = 0;
 	bool mAllocated = false;
@@ -600,7 +619,7 @@ struct SMeshBuffers_T : SObject, IDestroyable {
 	REGISTER_STRUCT(SMeshBuffers_T, SObject)
 
 	SMeshBuffers_T() = default;
-	EXPORT SMeshBuffers_T(const std::string& inName, size_t indicesSize, size_t verticesSize);
+	EXPORT SMeshBuffers_T(const TShared<CVulkanAllocator>& allocator, const std::string& inName, size_t indicesSize, size_t verticesSize);
 
 	std::string name = "None";
 	SBuffer_T* indexBuffer = nullptr;

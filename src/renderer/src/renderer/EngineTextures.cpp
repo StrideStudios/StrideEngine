@@ -13,7 +13,7 @@
 
 static CResourceManager gTexturesResourceManager;
 
-CEngineTextures::CEngineTextures(CRenderer* renderer) {
+CEngineTextures::CEngineTextures(TShared<CRenderer> renderer, TShared<CVulkanAllocator> allocator) {
 
 	CResourceManager::get().create(m_Swapchain, renderer);
 
@@ -84,7 +84,7 @@ CEngineTextures::CEngineTextures(CRenderer* renderer) {
 
 	constexpr VkExtent3D extent(16, 16, 1);
 	constexpr int32 size = extent.width * extent.height * extent.depth * 4;
-	CResourceManager::get().create<SImage_T>(mErrorCheckerboardImage, "Default Error", extent, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+	CResourceManager::get().create<SImage_T>(mErrorCheckerboardImage, allocator, "Default Error", extent, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
 	mErrorCheckerboardImage->push(pixels.data(), size);
 
 	{
@@ -94,10 +94,10 @@ CEngineTextures::CEngineTextures(CRenderer* renderer) {
 		mErrorMaterial->mPassType = EMaterialPass::ERROR;
 	}
 
-	initializeTextures();
+	initializeTextures(allocator);
 }
 
-void CEngineTextures::initializeTextures() {
+void CEngineTextures::initializeTextures(TShared<CVulkanAllocator> allocator) {
 
 	// Ensure previous textures have been destroyed
 	// This is in the case of screen resizing
@@ -107,22 +107,24 @@ void CEngineTextures::initializeTextures() {
 
 	const auto extent = CEngine::get()->getViewport()->mExtent;
 
-	gTexturesResourceManager.create<SImage_T>(mDrawImage, "Draw Image", VkExtent3D{extent.x, extent.y, 1}, VK_FORMAT_R16G16B16A16_SFLOAT, drawImageUsages, VK_IMAGE_ASPECT_COLOR_BIT);
+	gTexturesResourceManager.create<SImage_T>(mDrawImage, allocator, "Draw Image", VkExtent3D{extent.x, extent.y, 1}, VK_FORMAT_R16G16B16A16_SFLOAT, drawImageUsages, VK_IMAGE_ASPECT_COLOR_BIT);
 
-	gTexturesResourceManager.create<SImage_T>(mDepthImage, "Depth Image", VkExtent3D{extent.x, extent.y, 1}, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_ASPECT_DEPTH_BIT);
+	gTexturesResourceManager.create<SImage_T>(mDepthImage, allocator, "Depth Image", VkExtent3D{extent.x, extent.y, 1}, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_ASPECT_DEPTH_BIT);
 }
 
-void CEngineTextures::reallocate(const bool inUseVSync) {
+void CEngineTextures::reallocate(const SRendererInfo& info, const bool inUseVSync) {
 
 	auto extent = CEngine::get()->getViewport()->mExtent;
 	msgs("Reallocating Engine Textures to ({}, {})", extent.x, extent.y);
 
 	m_Swapchain->recreate(inUseVSync);
 
-	initializeTextures();
+	initializeTextures(info.allocator);
 }
 
 void CEngineTextures::destroy() {
+	mErrorCheckerboardImage->destroy();
+	CResourceManager::get().ignore(mErrorCheckerboardImage);
 	gTexturesResourceManager.flush();
 }
 

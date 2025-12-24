@@ -123,7 +123,7 @@ bool isVisible(const Matrix4f& inViewProj, const Matrix4f& inTransformMatrix, co
 	return true;
 }
 
-void renderChild(CMeshPass* pass, const VkCommandBuffer cmd, SRenderStack3f& stack, THierarchy<CWorldObject>* inHierarchy, size_t& meshCount, size_t& drawCallCount, size_t& vertexCount) {
+void renderChild(const SRendererInfo& info, CMeshPass* pass, const VkCommandBuffer cmd, SRenderStack3f& stack, THierarchy<CWorldObject>* inHierarchy, size_t& meshCount, size_t& drawCallCount, size_t& vertexCount) {
 	inHierarchy->getChildren().forEach([&](size_t index, TUnique<CWorldObject>& obj) {
 		stack.push(obj->getTransformMatrix());
 
@@ -131,19 +131,19 @@ void renderChild(CMeshPass* pass, const VkCommandBuffer cmd, SRenderStack3f& sta
 			if (const auto rendererClass = dynamic_cast<IRenderableClass*>(staticMesh->getClass())) {
 
 
-				rendererClass->getRenderer()->render(pass, cmd, stack, staticMesh, drawCallCount, vertexCount);
+				rendererClass->getRenderer()->render(info, pass, cmd, stack, staticMesh, drawCallCount, vertexCount);
 
 				meshCount++;
 			}
 		}
 
-		renderChild(pass, cmd, stack, obj.get(), meshCount, drawCallCount, vertexCount);
+		renderChild(info, pass, cmd, stack, obj.get(), meshCount, drawCallCount, vertexCount);
 
 		stack.pop();
 	});
 }
 
-void CMeshPass::render(const VkCommandBuffer cmd) {
+void CMeshPass::render(const SRendererInfo& info, const VkCommandBuffer cmd) {
 	ZoneScopedN("Base Pass");
 
 	size_t meshCount = 0;
@@ -151,7 +151,7 @@ void CMeshPass::render(const VkCommandBuffer cmd) {
 	size_t vertexCount = 0;
 
 	SRenderStack3f stack;
-	renderChild(this, cmd, stack, CScene::get().get(), meshCount, drawCallCount, vertexCount);
+	renderChild(info, this, cmd, stack, CScene::get().get(), meshCount, drawCallCount, vertexCount);
 
 	// Set number of meshes, drawcalls, vertices, and triangles
 	Meshes.setText(fmts("Meshes: {}", meshCount));

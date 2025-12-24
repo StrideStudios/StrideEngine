@@ -49,7 +49,7 @@ void CSpritePass::init() {
 	manager.flush();
 }
 
-void CSpritePass::render(VkCommandBuffer cmd) {
+void CSpritePass::render(const SRendererInfo& info, VkCommandBuffer cmd) {
 	ZoneScopedN("Sprite Pass");
 
 	//TODO: Z order sorting
@@ -71,7 +71,7 @@ void CSpritePass::render(VkCommandBuffer cmd) {
 		stack.push(sprite->getTransformMatrix());
 
 		VkDeviceSize offset = 0u;
-		vkCmdBindVertexBuffers(cmd, 0, 1u, &instancer.get(stack)->buffer, &offset);
+		vkCmdBindVertexBuffers(cmd, 0, 1u, &instancer.get(info.allocator, stack)->buffer, &offset);
 
 		stack.pop();
 

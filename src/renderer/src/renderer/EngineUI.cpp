@@ -24,7 +24,7 @@
 #include "rendercore/VulkanInstance.h"
 #include "scene/viewport/generic/Text.h"
 
-void renderSceneUI() {
+void renderSceneUI(const SRendererInfo& info) {
 	if (ImGui::Begin("Scene")) {
 		const TShared<CScene> scene = CScene::get();
 		if (ImGui::Button("Add Mesh Object")) {
@@ -86,7 +86,7 @@ void renderSceneUI() {
 	ImGui::End();
 }
 
-void renderFontUI() {
+void renderFontUI(const SRendererInfo& info) {
 	if (ImGui::Begin("Fonts")) {
 		if (ImGui::Button("Import Font")) {
 
@@ -98,10 +98,10 @@ void renderFontUI() {
 			};
 
 			//TODO: file query shouldnt be in viewport (also should be on background, but rendering thread crashes)
-			CEngineViewport::queryForFile(filters, [](std::vector<std::string> inFiles) {
+			CEngineViewport::queryForFile(filters, [&](std::vector<std::string> inFiles) {
 				for (const auto& file : inFiles) {
-					CThreading::getMainThread().add([file] {
-						CEngineLoader::importFont(file);
+					CThreading::getMainThread().add([info, file] {
+						CEngineLoader::importFont(info.allocator, file);
 					});
 				}
 			});
@@ -127,7 +127,7 @@ void renderFontUI() {
 	ImGui::End();
 }
 
-void renderTextureUI() {
+void renderTextureUI(const SRendererInfo& info) {
 	if (ImGui::Begin("Textures")) {
 		if (ImGui::Button("Import Texture")) {
 
@@ -140,10 +140,10 @@ void renderTextureUI() {
 			};
 
 			//TODO: file query shouldnt be in viewport
-			CEngineViewport::queryForFile(filters, [](std::vector<std::string> inFiles) {
+			CEngineViewport::queryForFile(filters, [&](std::vector<std::string> inFiles) {
 				for (const auto& file : inFiles) {
-					CThreading::runOnBackgroundThread([file] {
-						CEngineLoader::importTexture(file);
+					CThreading::runOnBackgroundThread([info, file] {
+						CEngineLoader::importTexture(info.allocator, file);
 					});
 				}
 			});
@@ -152,7 +152,7 @@ void renderTextureUI() {
 	ImGui::End();
 }
 
-void renderMaterialUI() {
+void renderMaterialUI(const SRendererInfo& info) {
 	static std::string selected = "";
 	if (ImGui::Begin("Materials")) {
 		ImGui::Text("Add Material");
@@ -244,7 +244,7 @@ void renderMaterialUI() {
 	ImGui::End();
 }
 
-void renderSpriteUI() {
+void renderSpriteUI(const SRendererInfo& info) {
 	return;
 	if (ImGui::Begin("Sprites")) {
 		for (const auto& pass = CRenderer::get()->getPass<CSpritePass>(); const auto& sprite : pass->objects) {
@@ -299,7 +299,7 @@ void renderSpriteUI() {
 	ImGui::End();
 }
 
-void renderMeshUI() {
+void renderMeshUI(const SRendererInfo& info) {
 	if (ImGui::Begin("Meshes")) {
 		if (ImGui::Button("Import Mesh")) {
 
@@ -308,10 +308,10 @@ void renderMeshUI() {
 			};
 
 			//TODO: file query shouldn't be in viewport
-			CEngineViewport::queryForFile(filters, [](std::vector<std::string> inFiles) {
+			CEngineViewport::queryForFile(filters, [&](std::vector<std::string> inFiles) {
 				for (const auto& file : inFiles) {
-					CThreading::runOnBackgroundThread([file] {
-						CEngineLoader::importMesh(file);
+					CThreading::runOnBackgroundThread([info, file] {
+						CEngineLoader::importMesh(info.allocator, file);
 					});
 				}
 			});
@@ -383,8 +383,7 @@ void CEngineUIPass::init() {
 		.pPoolSizes = poolSizes
 	};
 
-	CDescriptorPool* descriptorPool;
-	CResourceManager::get().create(descriptorPool, poolCreateInfo);
+	imguiPool = TUnique<CDescriptorPool>{poolCreateInfo};
 
 	// this initializes imgui for Vulkan
 	ImGui_ImplVulkan_InitInfo initInfo {
@@ -392,7 +391,7 @@ void CEngineUIPass::init() {
 		.PhysicalDevice = CVulkanDevice::physicalDevice(),
 		.Device = CVulkanDevice::device(),
 		.Queue = CVulkanDevice::get()->getQueue(EQueueType::GRAPHICS).mQueue,
-		.DescriptorPool = *descriptorPool,
+		.DescriptorPool = imguiPool->get(),
 		.MinImageCount = 3,
 		.ImageCount = 3,
 		.UseDynamicRendering = true
@@ -421,16 +420,16 @@ void CEngineUIPass::begin() {
 	ImGui::NewFrame();
 }
 
-void CEngineUIPass::render(VkCommandBuffer cmd) {
+void CEngineUIPass::render(const SRendererInfo& info, VkCommandBuffer cmd) {
 	// Render Engine Settings
 	CEngineSettings::render();
 
-	renderTextureUI();
-	renderMaterialUI();
-	renderSpriteUI();
-	renderMeshUI();
-	renderSceneUI();
-	renderFontUI();
+	renderTextureUI(info);
+	renderMaterialUI(info);
+	renderSpriteUI(info);
+	renderMeshUI(info);
+	renderSceneUI(info);
+	renderFontUI(info);
 
 	ImGui::Render();
 	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
@@ -439,6 +438,7 @@ void CEngineUIPass::render(VkCommandBuffer cmd) {
 void CEngineUIPass::destroy() {
 	ImGui_ImplVulkan_Shutdown();
 	ImGui_ImplSDL3_Shutdown();
+	imguiPool->destroy();
 	ImGui::DestroyContext();
 
 	msgs("DESTROY UI PASS");

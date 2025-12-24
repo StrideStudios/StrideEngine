@@ -9,6 +9,8 @@
 #include "SDL3/SDL_dialog.h"
 #include "SDL3/SDL_init.h"
 
+typedef std::function<void(std::vector<std::string>)> FCallback;
+
 // Some ugly code that prevents the user from having to deal with it
 void sdlCallback(void* callback, const char* const* inFileName, int inFilter) {
 	if (inFileName == nullptr || *inFileName == nullptr) return;
@@ -18,15 +20,19 @@ void sdlCallback(void* callback, const char* const* inFileName, int inFilter) {
 		fileNames.push_back(*inFileName);
 		++inFileName;
 	}
-	(*reinterpret_cast<CEngineViewport::FCallback*>(callback))(fileNames);
+
+	// Call if it exists, use std::unique ptr to claim ownership and destroy when necessary
+	if (const std::unique_ptr<FCallback> cb{static_cast<FCallback*>(callback)})
+		(*cb)(fileNames);
 }
 
-void CEngineViewport::queryForFile(const std::vector<std::pair<const char*, const char*>>& inFilters, FCallback* callback) {
+void CEngineViewport::queryForFile(const std::vector<std::pair<const char*, const char*>>& inFilters, const FCallback& callback) {
 	std::vector<SDL_DialogFileFilter> filters;
 	for (auto [fst, snd] : inFilters) {
 		filters.push_back({fst, snd});
 	}
-	SDL_ShowOpenFileDialog(sdlCallback, reinterpret_cast<void*>(callback), CEngine::get()->getViewport()->mWindow, filters.data(), static_cast<int32>(filters.size()), SPaths::get()->mEnginePath.parent_path().string().c_str(), true);
+	auto* cb = new FCallback(std::move(callback));
+	SDL_ShowOpenFileDialog(sdlCallback, cb, CEngine::get()->getViewport()->mWindow, filters.data(), static_cast<int32>(filters.size()), SPaths::get()->mEnginePath.parent_path().string().c_str(), true);
 }
 
 CEngineViewport::CEngineViewport() {

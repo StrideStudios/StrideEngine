@@ -41,11 +41,10 @@
 #define CUSTOM_SINGLETON(n, ...) \
 	private: \
 		inline static std::string __singleton_name = (std::string(#n) + __VA_ARGS__); \
-		STATIC_C_BLOCK( \
-			initSingleton<n>(__singleton_name); \
-		) \
 	public: \
 		static TShared<n> get() { \
+			if (!getSingletons().contains(__singleton_name)) \
+				initSingleton<n>(__singleton_name); \
 			return getSingletons().get(__singleton_name).staticCast<n>(); \
 		} \
 	private:

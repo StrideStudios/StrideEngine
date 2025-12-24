@@ -11,6 +11,7 @@ class CPass;
 class CSceneObject;
 class CViewportObject;
 class CWorldObject;
+struct SRendererInfo;
 
 #define REGISTER_RENDERER(n, object, ...) \
 	REGISTER_CLASS(n, __VA_ARGS__) \
@@ -26,7 +27,7 @@ class CObjectRenderer : public SObject {
 public:
 	virtual void begin() {}
 
-	virtual void render(CPass* inPass, VkCommandBuffer cmd, SRenderStack& stack, CSceneObject* inObject, size_t& outDrawCalls, size_t& outVertices) = 0;
+	virtual void render(const SRendererInfo& info, CPass* inPass, VkCommandBuffer cmd, SRenderStack& stack, CSceneObject* inObject, size_t& outDrawCalls, size_t& outVertices) = 0;
 
 	virtual void end() {}
 };
@@ -41,10 +42,10 @@ class CViewportObjectRenderer : public CObjectRenderer {
 
 public:
 
-	virtual void render(TPassType* inPass, VkCommandBuffer cmd, SRenderStack2f& stack, TType* inObject, size_t& outDrawCalls, size_t& outVertices) = 0;
+	virtual void render(const SRendererInfo& info, TPassType* inPass, VkCommandBuffer cmd, SRenderStack2f& stack, TType* inObject, size_t& outDrawCalls, size_t& outVertices) = 0;
 
-	virtual void render(CPass* inPass, VkCommandBuffer cmd, SRenderStack& stack, CSceneObject* inObject, size_t& outDrawCalls, size_t& outVertices) override final {
-		render(dynamic_cast<TPassType*>(inPass), cmd, static_cast<SRenderStack2f&>(stack), dynamic_cast<TType*>(inObject), outDrawCalls, outVertices);
+	virtual void render(const SRendererInfo& info, CPass* inPass, VkCommandBuffer cmd, SRenderStack& stack, CSceneObject* inObject, size_t& outDrawCalls, size_t& outVertices) override final {
+		render(info, dynamic_cast<TPassType*>(inPass), cmd, static_cast<SRenderStack2f&>(stack), dynamic_cast<TType*>(inObject), outDrawCalls, outVertices);
 	}
 };
 
@@ -56,9 +57,9 @@ class CWorldObjectRenderer : public CObjectRenderer {
 
 public:
 
-	virtual void render(TPassType* inPass, VkCommandBuffer cmd, SRenderStack3f& stack, TType* inObject, size_t& outDrawCalls, size_t& outVertices) = 0;
+	virtual void render(const SRendererInfo& info, TPassType* inPass, VkCommandBuffer cmd, SRenderStack3f& stack, TType* inObject, size_t& outDrawCalls, size_t& outVertices) = 0;
 
-	virtual void render(CPass* inPass, VkCommandBuffer cmd, SRenderStack& stack, CSceneObject* inObject, size_t& outDrawCalls, size_t& outVertices) override final {
-		render(dynamic_cast<TPassType*>(inPass), cmd, static_cast<SRenderStack3f&>(stack), dynamic_cast<TType*>(inObject), outDrawCalls, outVertices);
+	virtual void render(const SRendererInfo& info, CPass* inPass, VkCommandBuffer cmd, SRenderStack& stack, CSceneObject* inObject, size_t& outDrawCalls, size_t& outVertices) override final {
+		render(info, dynamic_cast<TPassType*>(inPass), cmd, static_cast<SRenderStack3f&>(stack), dynamic_cast<TType*>(inObject), outDrawCalls, outVertices);
 	}
 };

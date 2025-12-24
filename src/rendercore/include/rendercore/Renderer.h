@@ -75,6 +75,8 @@ class CDoubleBuffering final : public TBuffering<TType, 2> {};
 
 struct SRendererInfo {
 	TUnique<class CEngineViewport>& viewport;
+	TWeak<class CRenderer> renderer;
+	TWeak<class CVulkanAllocator> allocator;
 };
 
 class CRenderer : public SObject, public IInitializable, public IDestroyable {
@@ -118,7 +120,7 @@ public:
 
 	virtual void immediateSubmit(std::function<void(struct SCommandBuffer& cmd)>&& function) = 0;
 
-	virtual void render(const SRendererInfo& info) = 0;
+	virtual void render(SRendererInfo& info) = 0;
 
 	virtual bool wait() = 0;
 

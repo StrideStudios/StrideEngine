@@ -11,9 +11,7 @@ public:
 
 	EXPORT CEngineViewport();
 
-	typedef void FCallback(std::vector<std::string> inFiles);
-
-	EXPORT static void queryForFile(const std::vector<std::pair<const char*, const char*>>& inFilters, FCallback* callback);
+	EXPORT static void queryForFile(const std::vector<std::pair<const char*, const char*>>& inFilters, const std::function<void(std::vector<std::string>)>& callback);
 
 	//EXPORT virtual void init() override;
 

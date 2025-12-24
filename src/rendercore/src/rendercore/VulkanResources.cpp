@@ -456,7 +456,9 @@ VkRenderingAttachmentInfo SRenderAttachment::get(const SImage_T* inImage) const 
 	return info;
 }
 
-SBuffer_T::SBuffer_T(const std::string& inName, const size_t inBufferSize, const VmaMemoryUsage inMemoryUsage, const VkBufferUsageFlags inBufferUsage): Resource(inName) {
+SBuffer_T::SBuffer_T(VmaAllocator inAllocator, const std::string& inName, const size_t inBufferSize, const VmaMemoryUsage inMemoryUsage, const VkBufferUsageFlags inBufferUsage)
+: Resource(inName), allocator(inAllocator), size(inBufferSize) {
+
 	// allocate buffer
 	const VkBufferCreateInfo bufferCreateInfo = {
 		.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
@@ -471,7 +473,7 @@ SBuffer_T::SBuffer_T(const std::string& inName, const size_t inBufferSize, const
 	};
 
 	// allocate the buffer
-	VK_CHECK(vmaCreateBuffer(CVulkanAllocator::get()->getAllocator(), &bufferCreateInfo, &vmaallocInfo, &buffer, &allocation, &info));
+	VK_CHECK(vmaCreateBuffer(allocator, &bufferCreateInfo, &vmaallocInfo, &buffer, &allocation, &info));
 }
 
 void SBuffer_T::makeGlobal() {
@@ -507,7 +509,7 @@ void SBuffer_T::updateGlobal() const {
 
 void SBuffer_T::destroy() {
 	msgs("Destroy Buffer");
-	vmaDestroyBuffer(CVulkanAllocator::get()->getAllocator(), buffer, allocation);
+	vmaDestroyBuffer(allocator, buffer, allocation);
 	allocation = nullptr;
 }
 
@@ -516,20 +518,20 @@ void* SBuffer_T::getMappedData() const {
 }
 
 void SBuffer_T::mapData(void** data) const {
-	vmaMapMemory(CVulkanAllocator::get()->getAllocator(), allocation, data);
+	vmaMapMemory(allocator, allocation, data);
 }
 
 void SBuffer_T::unMapData() const {
-	vmaUnmapMemory(CVulkanAllocator::get()->getAllocator(), allocation);
+	vmaUnmapMemory(allocator, allocation);
 }
 
-SMeshBuffers_T::SMeshBuffers_T(const std::string& inName, const size_t indicesSize, const size_t verticesSize): name(inName) {
-	CVulkanAllocator::allocate(indexBuffer, name, indicesSize, VMA_MEMORY_USAGE_GPU_ONLY, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
-	CVulkanAllocator::allocate(vertexBuffer, name, verticesSize, VMA_MEMORY_USAGE_GPU_ONLY, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+SMeshBuffers_T::SMeshBuffers_T(const TShared<CVulkanAllocator>& allocator, const std::string& inName, const size_t indicesSize, const size_t verticesSize): name(inName) {
+	indexBuffer = allocator->addResource(TUnique<SBuffer_T>{allocator->getAllocator(), name, indicesSize, VMA_MEMORY_USAGE_GPU_ONLY, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT});
+	vertexBuffer = allocator->addResource(TUnique<SBuffer_T>{allocator->getAllocator(), name, verticesSize, VMA_MEMORY_USAGE_GPU_ONLY, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT});
 }
 
-SImage_T::SImage_T(const std::string& inDebugName, const VkExtent3D inExtent, const VkFormat inFormat, const VkImageUsageFlags inFlags, const VkImageAspectFlags inViewFlags, const uint32 inNumMips):
-	mName(inDebugName) {
+SImage_T::SImage_T(const TShared<CVulkanAllocator>& inAllocator, const std::string& inDebugName, const VkExtent3D inExtent, const VkFormat inFormat, const VkImageUsageFlags inFlags, const VkImageAspectFlags inViewFlags, const uint32 inNumMips)
+: mName(inDebugName), allocator(inAllocator) {
 
 	mImageInfo = CVulkanInfo::createImageInfo(inFormat, inFlags, inExtent);
 	mImageInfo.mipLevels = inNumMips;
@@ -540,7 +542,7 @@ SImage_T::SImage_T(const std::string& inDebugName, const VkExtent3D inExtent, co
 		.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
 	};
 
-	vmaCreateImage(CVulkanAllocator::get()->getAllocator(), &mImageInfo, &imageAllocationInfo, &mImage, &mAllocation, nullptr);
+	vmaCreateImage(allocator->getAllocator(), &mImageInfo, &imageAllocationInfo, &mImage, &mAllocation, nullptr);
 
 	//build a image-view for the draw image to use for rendering
 	mImageViewInfo = CVulkanInfo::createImageViewInfo(inFormat, mImage, inViewFlags);
@@ -649,11 +651,11 @@ void SImage_T::push(const void* inData, const uint32& inSize) {
 
 	// Upload buffer is not needed outside of this function
 	// TODO: Some way of doing an upload buffer generically
-	SStagingBuffer uploadBuffer{mName, inSize}; //TODO: was CPU_TO_GPU, test if errors
+	SStagingBuffer uploadBuffer{allocator, mName, inSize}; //TODO: was CPU_TO_GPU, test if errors
 
 	memcpy(uploadBuffer.get()->getMappedData(), inData, inSize);
 
-	CRenderer::get()->immediateSubmit([&](SCommandBuffer& cmd) {
+	allocator->m_Renderer->immediateSubmit([&](SCommandBuffer& cmd) {
 		CVulkanUtils::transitionImage(cmd, this, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
 		VkBufferImageCopy copyRegion = {};
@@ -679,7 +681,7 @@ void SImage_T::push(const void* inData, const uint32& inSize) {
 }
 
 void SImage_T::destroy() {
-	vmaDestroyImage(CVulkanAllocator::get()->getAllocator(), mImage, mAllocation);
+	vmaDestroyImage(allocator->getAllocator(), mImage, mAllocation);
 	vkDestroyImageView(CVulkanDevice::vkDevice(), mImageView, nullptr);
 }
 
@@ -701,6 +703,8 @@ void CVulkanAllocator::init() {
 void CVulkanAllocator::init2(const TShared<CRenderer>& inRenderer) {
 	msgs("Creating Vulkan Allocator.");
 
+	m_Renderer = inRenderer;
+
 	const VmaAllocatorCreateInfo allocatorInfo {
 		.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT,
 		.physicalDevice = inRenderer->device()->getPhysicalDevice().physical_device,
@@ -720,7 +724,17 @@ void CVulkanAllocator::destroy() {
 	mDestroyed = true;
 
 	// Destroy all objects marked for removal first
-	for (auto& manager : m_BufferedManagers) { manager.flush(); }
-	m_Manager.flush();
+	m_BufferedManagers.forEach([](size_t, TUnique<TList<TUnique<Resource>>>& list) {
+		list->forEach([](size_t, const TUnique<Resource>& resource) {
+			resource->destroy();
+		});
+		list->clear();
+	});
+
+	m_Resources.forEach([](size_t, const TUnique<Resource>& resource) {
+		resource->destroy();
+	});
+	m_Resources.clear();
+
 	vmaDestroyAllocator(mAllocator);
 }

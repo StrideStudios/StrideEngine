@@ -51,7 +51,7 @@ void SSwapchain::destroy() {
 	vkb::destroy_swapchain(*mInternalSwapchain);
 }
 
-CVulkanSwapchain::CVulkanSwapchain(CRenderer* renderer) {
+CVulkanSwapchain::CVulkanSwapchain(const TShared<CRenderer>& renderer) {
 
 	m_Frames.resize(renderer->getBufferingType().getFrameOverlap());
 

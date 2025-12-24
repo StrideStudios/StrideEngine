@@ -22,7 +22,7 @@ struct SInstance {
 
 struct IInstancer : TDirtyable<true> {
 	virtual size_t getNumberOfInstances() = 0;
-	virtual SBuffer_T* get(SRenderStack& stack) = 0;
+	virtual SBuffer_T* get(const TShared<CVulkanAllocator>& allocator, SRenderStack& stack) = 0;
 	virtual void flush() = 0;
 };
 
@@ -42,7 +42,7 @@ struct SStaticInstancer : IInstancer {
 		return m_Instances.size();
 	}
 
-	void reallocate(SRenderStack& stack) {
+	void reallocate(const TShared<CVulkanAllocator>& allocator, SRenderStack& stack) {
 
 		for (auto& instance : m_Instances) {
 			stack.push(instance.Transform);
@@ -50,16 +50,16 @@ struct SStaticInstancer : IInstancer {
 			stack.pop();
 		}
 
-		m_InstanceBuffer.push(m_Instances.data());
+		m_InstanceBuffer.push(allocator, m_Instances.data());
 	}
 
 	//TODO: don't return SBuffer_T*
-	virtual SBuffer_T* get(SRenderStack& stack) override {
+	virtual SBuffer_T* get(const TShared<CVulkanAllocator>& allocator, SRenderStack& stack) override {
 		if (isDirty()) {
 			clean();
-			reallocate(stack);
+			reallocate(allocator, stack);
 		}
-		return m_InstanceBuffer.get();
+		return m_InstanceBuffer.get(allocator);
 	}
 
 	virtual void flush() override {
@@ -104,22 +104,22 @@ struct SSingleInstancer : IInstancer {
 		return 1;
 	}
 
-	void reallocate(SRenderStack& stack) {
+	void reallocate(const TShared<CVulkanAllocator>& allocator, SRenderStack& stack) {
 
 		stack.push(m_Instance.Transform);
 		m_Instance.Transform = stack.get();
 		stack.pop();
 
-		m_InstanceBuffer.push(&m_Instance, sizeof(m_Instance));
+		m_InstanceBuffer.push(allocator, &m_Instance, sizeof(m_Instance));
 	}
 
 	//TODO: don't return SBuffer_T*
-	virtual SBuffer_T* get(SRenderStack& stack) override {
+	virtual SBuffer_T* get(const TShared<CVulkanAllocator>& allocator, SRenderStack& stack) override {
 		if (isDirty()) {
 			clean();
-			reallocate(stack);
+			reallocate(allocator, stack);
 		}
-		return m_InstanceBuffer.get();
+		return m_InstanceBuffer.get(allocator);
 	}
 
 	virtual void flush() override {
@@ -159,7 +159,7 @@ struct SDynamicInstancer : IInstancer {
 		return m_Instances.size();
 	}
 
-	void reallocate(SRenderStack& stack) {
+	void reallocate(const TShared<CVulkanAllocator>& allocator, SRenderStack& stack) {
 
 		for (auto& instance : m_Instances) {
 			stack.push(instance.Transform);
@@ -169,14 +169,14 @@ struct SDynamicInstancer : IInstancer {
 
 		const size_t bufferSize = m_Instances.size() * sizeof(SInstance);
 
-		m_InstanceBuffer.push(m_Instances.data(), bufferSize);
+		m_InstanceBuffer.push(allocator, m_Instances.data(), bufferSize);
 	}
 
 	//TODO: don't return SBuffer_T*
-	virtual SBuffer_T* get(SRenderStack& stack) override {
+	virtual SBuffer_T* get(const TShared<CVulkanAllocator>& allocator, SRenderStack& stack) override {
 		if (isDirty()) {
 			clean();
-			reallocate(stack);
+			reallocate(allocator, stack);
 		}
 		return m_InstanceBuffer.get();
 	}
