@@ -1,4 +1,4 @@
-﻿#include "renderer/EngineUI.h"
+﻿#include "renderer/passes/EngineUIPass.h"
 
 #include "imgui/imgui.h"
 #include "imgui/imgui_stdlib.h"
@@ -12,7 +12,6 @@
 #include "rendercore/EngineLoader.h"
 #include "rendercore/Material.h"
 #include "scene/base/Scene.h"
-#include "scene/viewport/Sprite.h"
 #include "renderer/passes/SpritePass.h"
 #include "rendercore/StaticMesh.h"
 #include "scene/world/StaticMeshObject.h"

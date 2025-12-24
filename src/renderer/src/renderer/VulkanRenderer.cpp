@@ -16,8 +16,6 @@
 #include "engine/EngineSettings.h"
 #include "rendercore/EngineLoader.h"
 #include "renderer/EngineTextures.h"
-#include "renderer/EngineUI.h"
-#include "renderer/passes/MeshPass.h"
 #include "scene/base/Scene.h"
 #include "renderer/passes/SpritePass.h"
 #include "renderer/Swapchain.h"

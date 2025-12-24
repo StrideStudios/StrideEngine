@@ -11,7 +11,7 @@
 #include "scene/viewport/Sprite.h"
 #include "renderer/passes/SpritePass.h"
 #include "renderer/EngineTextures.h"
-#include "renderer/EngineUI.h"
+#include "renderer/passes/EngineUIPass.h"
 #include "tracy/Tracy.hpp"
 #include "scene/viewport/generic/Text.h"
 
