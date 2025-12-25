@@ -130,7 +130,7 @@ void CEditorSpritePass::render(const SRendererInfo& info, VkCommandBuffer cmd) {
 			tempTextBuffer.push(info.allocator, datas.data(), bufferSize);
 
 			VkDeviceSize offset = 0u;
-			vkCmdBindVertexBuffers(cmd, 0, 1u, &tempTextBuffer.get()->buffer, &offset);
+			vkCmdBindVertexBuffers(cmd, 0, 1u, &tempTextBuffer.get(info.allocator)->buffer, &offset);
 
 			SPushConstants constants = sprite->getMaterial()->mConstants;
 			constants[0].x = font.mAtlasImage->mBindlessAddress;

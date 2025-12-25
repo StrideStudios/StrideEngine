@@ -398,7 +398,7 @@ struct SPushableBuffer {
 	SPushableBuffer(const std::string& inName) : name(inName) {}
 	virtual ~SPushableBuffer() = default;
 
-	virtual SBuffer_T* get() = 0;
+	virtual SBuffer_T* get(const TShared<CVulkanAllocator>& allocator) = 0;
 
 	virtual size_t getSize() const = 0;
 
@@ -429,19 +429,20 @@ struct SPushableBuffer {
 
 			buffer.push(src, size, args...);
 
-			allocator->m_Renderer->immediateSubmit([this, totalSize, buffer](SCommandBuffer& cmd) {
+			TWeak<CVulkanAllocator> weakAllocator = allocator;
+			allocator->m_Renderer->immediateSubmit([this, weakAllocator, totalSize, buffer](SCommandBuffer& cmd) {
 				VkBufferCopy copy {
 					.srcOffset = 0,
 					.dstOffset = 0,
 					.size = totalSize
 				};
 
-				vkCmdCopyBuffer(cmd, buffer.buffer, get()->buffer, 1, &copy);
+				vkCmdCopyBuffer(cmd, buffer.buffer, get(weakAllocator)->buffer, 1, &copy);
 			});
 
 			buffer.destroy();
 		} else {
-			memcpy(get()->getMappedData(), src, size);
+			memcpy(get(allocator)->getMappedData(), src, size);
 			push(allocator, size, args...);
 		}
 	}
@@ -453,7 +454,7 @@ private:
 
 	template <typename... TArgs>
 	void push(const TShared<CVulkanAllocator>& allocator, const size_t offset, const void* src, const size_t size, TArgs... args) {
-		memcpy(static_cast<char*>(get()->getMappedData()) + offset, src, size);
+		memcpy(static_cast<char*>(get(allocator)->getMappedData()) + offset, src, size);
 		push(allocator, offset + size, args...);
 	}
 
@@ -491,7 +492,7 @@ struct SLocalBuffer final : SPushableBuffer<VMA_MEMORY_USAGE_CPU_ONLY, TBufferUs
 		mBuffer.destroy();
 	}
 
-	virtual SBuffer_T* get() override { return &mBuffer; }
+	virtual SBuffer_T* get(const TShared<CVulkanAllocator>&) override { return &mBuffer; }
 
 	virtual size_t getSize() const override { return mBuffer.size; }
 
@@ -519,7 +520,7 @@ struct SStaticBuffer : SPushableBuffer<TMemoryUsage, TBufferUsage>, IDestroyable
 
 	// Since templated Static Buffers are resolved at compile time, the buffer will never change
 	// Thus, it should always be allocated globally
-	virtual SBuffer_T* get(const TShared<CVulkanAllocator>& inAllocator) {
+	virtual SBuffer_T* get(const TShared<CVulkanAllocator>& inAllocator) override {
 		if (!mAllocated) {
 			mAllocated = true;
 			allocator = inAllocator;
@@ -533,17 +534,13 @@ struct SStaticBuffer : SPushableBuffer<TMemoryUsage, TBufferUsage>, IDestroyable
 	}
 
 	virtual void destroy() override {
-		if (!mAllocated) return;
+		if (!allocator || !mAllocated) return;
 		msgs("Destroyed Static Buffer.");
 		mAllocated = false;
 		allocator->removeResource(mBuffer);
 	}
 
 private:
-
-	virtual SBuffer_T* get() override {
-		return mBuffer;
-	}
 
 	TWeak<CVulkanAllocator> allocator = nullptr;
 
@@ -565,7 +562,7 @@ struct SDynamicBuffer : SPushableBuffer<TMemoryUsage, TBufferUsage>, IDestroyabl
 		msgs("WARNING: Dynamic Buffer was not destroyed!");
 	}
 
-	virtual SBuffer_T* get() override {
+	virtual SBuffer_T* get(const TShared<CVulkanAllocator>&) override {
 		if (mAllocSize <= 0 || !mAllocated) {
 			errs("Dynamic Buffer has not been allocated!");
 		}
@@ -581,8 +578,9 @@ struct SDynamicBuffer : SPushableBuffer<TMemoryUsage, TBufferUsage>, IDestroyabl
 		return mAllocSize;
 	}
 
-	virtual void destroy() override {
-		if (!mAllocated) return;
+	virtual void destroy() override
+	{
+		if (!allocator || !mAllocated) return;
 		msgs("Destroyed Dynamic Buffer.");
 		mAllocated = false;
 		allocator->removeResource(mBuffer);

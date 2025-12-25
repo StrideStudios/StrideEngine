@@ -96,7 +96,7 @@ SImage_T* loadImage(const TShared<CVulkanAllocator>& allocator, CResourceManager
 			};
 
 			// copy the buffer into the image
-			vkCmdCopyBufferToImage(cmd, uploadBuffer.get()->buffer, image->mImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+			vkCmdCopyBufferToImage(cmd, uploadBuffer.get(allocator)->buffer, image->mImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
 		});
 
 		manager.flush();
@@ -409,14 +409,14 @@ SMeshBuffers_T* uploadMesh(const TShared<CVulkanAllocator>& allocator, CResource
 		vertexCopy.srcOffset = 0;
 		vertexCopy.size = vertexBufferSize;
 
-		vkCmdCopyBuffer(cmd, staging.get()->buffer, meshBuffers->vertexBuffer->buffer, 1, &vertexCopy);
+		vkCmdCopyBuffer(cmd, staging.get(allocator)->buffer, meshBuffers->vertexBuffer->buffer, 1, &vertexCopy);
 
 		VkBufferCopy indexCopy{};
 		indexCopy.dstOffset = 0;
 		indexCopy.srcOffset = vertexBufferSize;
 		indexCopy.size = indexBufferSize;
 
-		vkCmdCopyBuffer(cmd, staging.get()->buffer, meshBuffers->indexBuffer->buffer, 1, &indexCopy);
+		vkCmdCopyBuffer(cmd, staging.get(allocator)->buffer, meshBuffers->indexBuffer->buffer, 1, &indexCopy);
 	});
 
 	return meshBuffers;

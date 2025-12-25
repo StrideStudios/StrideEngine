@@ -653,7 +653,7 @@ void SImage_T::push(const void* inData, const uint32& inSize) {
 	// TODO: Some way of doing an upload buffer generically
 	SStagingBuffer uploadBuffer{allocator, mName, inSize}; //TODO: was CPU_TO_GPU, test if errors
 
-	memcpy(uploadBuffer.get()->getMappedData(), inData, inSize);
+	memcpy(uploadBuffer.get(allocator)->getMappedData(), inData, inSize);
 
 	allocator->m_Renderer->immediateSubmit([&](SCommandBuffer& cmd) {
 		CVulkanUtils::transitionImage(cmd, this, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
@@ -670,7 +670,7 @@ void SImage_T::push(const void* inData, const uint32& inSize) {
 		copyRegion.imageExtent = getExtent();
 
 		// copy the buffer into the image
-		vkCmdCopyBufferToImage(cmd, uploadBuffer.get()->buffer, mImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+		vkCmdCopyBufferToImage(cmd, uploadBuffer.get(allocator)->buffer, mImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
 
 		if (isMipmapped()) {
 			generateMipmaps(cmd, this);

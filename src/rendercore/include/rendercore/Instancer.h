@@ -178,7 +178,7 @@ struct SDynamicInstancer : IInstancer {
 			clean();
 			reallocate(allocator, stack);
 		}
-		return m_InstanceBuffer.get();
+		return m_InstanceBuffer.get(allocator);
 	}
 
 	virtual void flush() override {
