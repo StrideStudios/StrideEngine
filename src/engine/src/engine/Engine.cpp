@@ -30,7 +30,7 @@ CEngine::CEngine() {
 	astsOnce(CEngine)
 
 	// Initialize the viewport
-	m_EngineViewport = TUnique<CEngineViewport>{};
+	m_EngineViewport = TShared<CEngineViewport>{};
 	m_Input = TShared<CInput>{};
 	//CResourceManager::get().pushUnique(std::move(m_EngineViewport));
 }

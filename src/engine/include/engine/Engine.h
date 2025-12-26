@@ -25,9 +25,7 @@ public:
 
 	no_discard Time& getTime() { return m_Time; }
 
-	no_discard TUnique<CEngineViewport>& getViewport() { return m_EngineViewport; }
-
-	no_discard const TUnique<CEngineViewport>& getViewport() const { return m_EngineViewport; }
+	no_discard TShared<CEngineViewport> getViewport() const { return m_EngineViewport; }
 
 	no_discard TShared<CInput> getInput() const { return m_Input; }
 
@@ -59,6 +57,6 @@ private:
 	Time m_Time{};
 
 	// SDL Window
-	TUnique<CEngineViewport> m_EngineViewport = nullptr;
+	TShared<CEngineViewport> m_EngineViewport = nullptr;
 
 };

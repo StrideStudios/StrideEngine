@@ -74,7 +74,7 @@ template <typename TType>
 class CDoubleBuffering final : public TBuffering<TType, 2> {};
 
 struct SRendererInfo {
-	TUnique<class CEngineViewport>& viewport;
+	TWeak<class CEngineViewport> viewport;
 	TWeak<class CRenderer> renderer;
 	TWeak<class CVulkanAllocator> allocator;
 };

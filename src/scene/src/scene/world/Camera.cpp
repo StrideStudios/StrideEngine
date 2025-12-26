@@ -49,7 +49,7 @@ void CCamera::update() {
 	// Set FOV
 	mFOV = FieldOfView.get();
 
-	auto input = CEngine::get()->getInput();
+	const auto& input = CEngine::get()->getInput();
 
 	// Engine camera moves only when right clicking
 	if (!input->shouldShowMouse()) {
