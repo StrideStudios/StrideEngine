@@ -493,8 +493,8 @@ public:
 	friend CArchive& operator<<(CArchive& inArchive, const TSequenceContainer<TType>& inValue) {
 		inArchive << inValue.getSize();
 		inValue.forEach([&](size_t index, const TType& obj) {
-			if constexpr (std::is_base_of_v<SObject, typename TUnfurled<TType>::Type>) {
-				auto object = getUnfurled(obj);
+			if constexpr (sstl::is_managed_v<TType> && std::is_base_of_v<SObject, typename TUnfurled<TType>::Type>) {
+				auto object = sstl::getUnfurled(obj);
 				inArchive << object->getClass()->getName();
 				dynamic_cast<const ISerializable*>(object)->save(inArchive);
 			} else {
@@ -510,11 +510,11 @@ public:
 		inArchive >> size;
 		inValue.resize(size, [&](size_t) {
 			TType obj;
-			if constexpr (std::is_base_of_v<SObject, typename TUnfurled<TType>::Type>) {
+			if constexpr (sstl::is_managed_v<TType> && std::is_base_of_v<SObject, typename TUnfurled<TType>::Type>) {
 				std::string className;
 				inArchive >> className;
 				SClassRegistry::get()->getObjects().get(className)->constructObject(obj);
-				dynamic_cast<ISerializable*>(getUnfurled(obj))->load(inArchive);
+				dynamic_cast<ISerializable*>(sstl::getUnfurled(obj))->load(inArchive);
 			} else {
 				inArchive >> obj;
 			}

@@ -42,14 +42,16 @@ struct SClass : SObject {
 
 	virtual void constructObject(SObject&) const = 0;
 
+	virtual SObject* constructPointer() const = 0;
+
 	template <typename TType>
 	void constructObject(TUnique<TType>& object) const {
-		constructObject(*object.get());
+		object = TUnique<TType>{static_cast<TType*>(constructPointer())};
 	}
 
 	template <typename TType>
 	void constructObject(TShared<TType>& object) const {
-		constructObject(*object.get());
+		object = TShared<TType>{static_cast<TType*>(constructPointer())};
 	}
 
 	virtual SObject* construct(CResourceManager& inResourceManager) const = 0;
@@ -74,6 +76,8 @@ struct TClass : SClass {
 	TClass(): SClass("None") {}
 
 	virtual void constructObject(SObject& object) const override {}
+
+	virtual SObject* constructPointer() const override { return nullptr; }
 
 	virtual SObject* construct(CResourceManager& inResourceManager) const override {
 		return nullptr;
@@ -109,6 +113,14 @@ struct TGenericClass : SClass {
 	virtual void constructObject(SObject& object) const override {
 		if constexpr (not std::is_abstract_v<TCurrentClass>) {
 			object = TCurrentClass{};
+		}
+	}
+
+	virtual SObject* constructPointer() const override {
+		if constexpr (std::is_abstract_v<TCurrentClass>) {
+			return nullptr;
+		} else {
+			return new TCurrentClass();
 		}
 	}
 
