@@ -71,8 +71,8 @@ void CVulkanRenderer::init() {
 	astsOnce(CVulkanRenderer);
 
 	// Initializes the vkb instance
-	//gInstanceManager.create(m_Instance);
-	mInstance = CVulkanInstance::get();
+	mInstance = TShared<CVulkanInstance>{};
+	mInstance->init();
 
 	// Create a surface for Device to reference
 	SDL_Vulkan_CreateSurface(CEngine::get()->getViewport()->mWindow, mInstance->getInstance(), nullptr, &mVkSurface);
@@ -84,7 +84,7 @@ void CVulkanRenderer::init() {
 	// Create the vulkan device
 	//gInstanceManager.create(m_Device, m_Instance, mVkSurface);
 	mDevice = CVulkanDevice::get();
-	mDevice->init(mVkSurface);
+	mDevice->init(mInstance, mVkSurface);
 
 	VkCommandPoolCreateInfo uploadCommandPoolInfo = CVulkanInfo::createCommandPoolInfo(mDevice->getQueue(EQueueType::UPLOAD).mFamily);
 	//create pool for upload context
@@ -193,17 +193,17 @@ void CVulkanRenderer::render(SRendererInfo& info) {
 		ZoneScopedN("Begin Frame");
 
 		// Wait for the previous render to stop
-		if (!mEngineTextures->getSwapchain()->wait(mBuffering.getFrameIndex())) {
+		if (!mEngineTextures->getSwapchain()->wait(mDevice, mBuffering.getFrameIndex())) {
 			return;
 		}
 
 		cmd.begin();
 
 		// Get the current swapchain image
-		swapchainImage = mEngineTextures->getSwapchain()->getSwapchainImage(mBuffering.getFrameIndex());
+		swapchainImage = mEngineTextures->getSwapchain()->getSwapchainImage(mDevice, mBuffering.getFrameIndex()).get();
 
 		// Reset the current fences, done here so the swapchain acquire doesn't stall the engine
-		mEngineTextures->getSwapchain()->reset(mBuffering.getFrameIndex());
+		mEngineTextures->getSwapchain()->reset(mDevice, mBuffering.getFrameIndex());
 
 		// Clear the draw image
 		CVulkanUtils::transitionImage(cmd, mEngineTextures->mDrawImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
@@ -346,7 +346,7 @@ bool CVulkanRenderer::wait() {
 	// Make sure the gpu is not working
 	vkDeviceWaitIdle(mDevice->getDevice());
 
-	return mEngineTextures->getSwapchain()->wait(mBuffering.getFrameIndex());
+	return mEngineTextures->getSwapchain()->wait(mDevice, mBuffering.getFrameIndex());
 }
 
 EXPORT CVulkanDevice* CVulkanRenderer::device() {

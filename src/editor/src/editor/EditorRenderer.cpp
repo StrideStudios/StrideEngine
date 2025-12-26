@@ -3,6 +3,7 @@
 #include <memory>
 #include <random>
 
+#include "VkBootstrap.h"
 #include "rendercore/BindlessResources.h"
 #include "rendercore/Font.h"
 #include "rendercore/Material.h"
@@ -15,8 +16,8 @@
 #include "tracy/Tracy.hpp"
 #include "scene/viewport/generic/Text.h"
 
-void CEditorSpritePass::init() {
-	CSpritePass::init();
+void CEditorSpritePass::init(TShared<CRenderer> inRenderer) {
+	CSpritePass::init(inRenderer);
 
 	/*{
 		const auto sprite = std::make_shared<CInstancedSprite>();
@@ -98,7 +99,7 @@ void CEditorSpritePass::render(const SRendererInfo& info, VkCommandBuffer cmd) {
 		ZoneScoped;
 		ZoneName(sprite->mName.c_str(), sprite->mName.size());
 
-		vkDeviceWaitIdle(CVulkanDevice::vkDevice());
+		vkDeviceWaitIdle(info.renderer->device()->getDevice().device);
 
 		if (auto textSprite = std::dynamic_pointer_cast<CTextSprite>(sprite); textSprite) {
 			if (CEngineLoader::getFonts().empty()) continue;

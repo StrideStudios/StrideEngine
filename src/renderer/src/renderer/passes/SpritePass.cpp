@@ -16,10 +16,10 @@ ADD_TEXT(SpriteVertices, "Vertices: ");
 ADD_TEXT(SpriteTriangles, "Triangles: ");
 #undef SETTINGS_CATEGORY
 
-void CSpritePass::init() {
-	CPass::init();
+void CSpritePass::init(TShared<CRenderer> inRenderer) {
+	CPass::init(inRenderer);
 
-	const CVulkanRenderer* renderer = CVulkanRenderer::get();
+	const TShared<CVulkanRenderer> renderer = inRenderer.staticCast<CVulkanRenderer>();
 
 	CResourceManager manager;
 

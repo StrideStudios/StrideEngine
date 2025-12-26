@@ -20,7 +20,7 @@ SQueue CVulkanDevice::getQueue(const EQueueType inType) {
     return mQueues[inType];
 }
 
-void CVulkanDevice::init(VkSurfaceKHR inSurface) {
+void CVulkanDevice::init(TShared<CVulkanInstance> inInstance, VkSurfaceKHR inSurface) {
 
     // Swapchain Maintenance features
     VkPhysicalDeviceSwapchainMaintenance1FeaturesEXT swapchainMaintenance1Features{
@@ -64,7 +64,7 @@ void CVulkanDevice::init(VkSurfaceKHR inSurface) {
     };
 
     //TODO: send out a simple error window telling the user why vulkan crashed (SimpleErrorReporter or something)
-    vkb::PhysicalDeviceSelector selector{CVulkanInstance::instance()};
+    vkb::PhysicalDeviceSelector selector{inInstance->getInstance()};
     auto physicalDevice = selector
             .set_minimum_version(1, 3)
             .set_required_features(features)

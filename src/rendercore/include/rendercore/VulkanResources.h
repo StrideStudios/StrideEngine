@@ -139,8 +139,6 @@ public:
 		return mAllocator;
 	}
 
-	EXPORT void init();
-
 	EXPORT void init2(const TShared<CRenderer>& inRenderer);
 
 	EXPORT virtual void destroy() override;

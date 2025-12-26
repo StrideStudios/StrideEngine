@@ -80,15 +80,15 @@ void CEngineViewport::pollEvents(bool& outRunning, bool& outPauseRendering) {
 
 		// ImGui will consume input
 		if (!ImGui::IsAnyItemActive()) {
-			CInput::process(e);
+			CEngine::get()->getInput()->process(e);
 		}
 
 		// If Escape or End pressed, end the program
-		if (CInput::getKeyPressed(EKey::ESCAPE) || CInput::getKeyPressed(EKey::END)) {
+		if (CEngine::get()->getInput()->getKeyPressed(EKey::ESCAPE) || CEngine::get()->getInput()->getKeyPressed(EKey::END)) {
 			outRunning = false;
 		}
 
 		// If we shouldn't show the mouse, make it impossible to leave the viewport
-		SDL_SetWindowRelativeMouseMode(mWindow, !CInput::shouldShowMouse());
+		SDL_SetWindowRelativeMouseMode(mWindow, !CEngine::get()->getInput()->shouldShowMouse());
 	}
 }

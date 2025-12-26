@@ -69,7 +69,7 @@ CEngineTextures::CEngineTextures(TShared<CRenderer> renderer, TShared<CVulkanAll
 
 		const auto sets = {writeSet, writeSet2};
 
-		vkUpdateDescriptorSets(CVulkanDevice::vkDevice(), (uint32)sets.size(), sets.begin(), 0, nullptr);
+		vkUpdateDescriptorSets(renderer->device()->device().device, (uint32)sets.size(), sets.begin(), 0, nullptr);
 	}
 
 	// Error checkerboard image

@@ -353,8 +353,8 @@ void renderMeshUI(const SRendererInfo& info) {
 	ImGui::End();
 }
 
-void CEngineUIPass::init() {
-	CPass::init();
+void CEngineUIPass::init(const TShared<CRenderer> inRenderer) {
+	CPass::init(inRenderer);
 
 	// Setup Dear ImGui context
 	ImGui::CreateContext();
@@ -386,10 +386,10 @@ void CEngineUIPass::init() {
 
 	// this initializes imgui for Vulkan
 	ImGui_ImplVulkan_InitInfo initInfo {
-		.Instance = CVulkanInstance::instance(),
-		.PhysicalDevice = CVulkanDevice::physicalDevice(),
-		.Device = CVulkanDevice::device(),
-		.Queue = CVulkanDevice::get()->getQueue(EQueueType::GRAPHICS).mQueue,
+		.Instance = inRenderer->instance()->getInstance(),
+		.PhysicalDevice = inRenderer->device()->getPhysicalDevice(),
+		.Device = inRenderer->device()->getDevice(),
+		.Queue = inRenderer->device()->getQueue(EQueueType::GRAPHICS).mQueue,
 		.DescriptorPool = imguiPool->get(),
 		.MinImageCount = 3,
 		.ImageCount = 3,

@@ -274,22 +274,34 @@ public:
 		mMouseArray.fill(false);
 	}
 
-	EXPORT static void tick();
+	EXPORT void tick();
 
-	EXPORT static void process(const SDL_Event& inEvent);
+	EXPORT void process(const SDL_Event& inEvent);
 
-	EXPORT static bool shouldShowMouse();
+	bool shouldShowMouse() const {
+		return mShowMouse;
+	}
 
-	EXPORT static void setShowMouse(bool inShowMouse);
+	void setShowMouse(const bool inShowMouse) {
+		mShowMouse = inShowMouse;
+	}
 
-	EXPORT static bool getKeyPressed(const EKey inKey);
+	bool getKeyPressed(const EKey inKey) {
+		return mKeyMap[inKey];
+	}
 
 	// 1 is left-click, 2 is middle-click, 3 is right-click
-	EXPORT static bool getMousePressed(const int32 inMouseButton);
+	bool getMousePressed(const int32 inMouseButton) const {
+		return mMouseArray[inMouseButton];
+	}
 
-	EXPORT static Vector2f getMousePosition();
+	Vector2f getMousePosition() const {
+		return mMousePosition;
+	}
 
-	EXPORT static Vector2f getMouseVelocity();
+	Vector2f getMouseVelocity() const {
+		return mMouseVelocity;
+	}
 
 private:
 

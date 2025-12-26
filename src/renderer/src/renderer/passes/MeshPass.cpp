@@ -17,10 +17,10 @@ ADD_TEXT(Triangles, "Triangles: ");
 #undef SETTINGS_CATEGORY
 
 //TODO: for now this is hard coded base pass, dont need anything else for now
-void CMeshPass::init() {
-	CPass::init();
+void CMeshPass::init(const TShared<CRenderer> inRenderer) {
+	CPass::init(inRenderer);
 
-	const CVulkanRenderer* renderer = CVulkanRenderer::get();
+	const TShared<CVulkanRenderer> renderer = inRenderer.staticCast<CVulkanRenderer>();
 
 	CResourceManager manager;
 

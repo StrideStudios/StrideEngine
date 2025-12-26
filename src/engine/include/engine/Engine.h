@@ -1,8 +1,9 @@
 ﻿#pragma once
 
 #include "basic/core/Common.h"
-#include "basic/core/Singleton.h"
 #include "rendercore/Renderer.h"
+
+class CInput;
 
 class CEngine : public SObject {
 
@@ -28,6 +29,8 @@ public:
 
 	no_discard const TUnique<CEngineViewport>& getViewport() const { return m_EngineViewport; }
 
+	no_discard TShared<CInput> getInput() const { return m_Input; }
+
 private:
 
 	// Make sure only main can access init and run functions
@@ -46,6 +49,8 @@ private:
 	EXPORT void update();
 
 	TShared<CRenderer> m_Renderer = nullptr;
+
+	TShared<CInput> m_Input = nullptr;
 
 	//
 	// Frame Time

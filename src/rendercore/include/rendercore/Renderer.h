@@ -95,7 +95,7 @@ public:
 	static void addPass() {
 		if (hasPass<TPass>()) return;
 		TPass* pass;
-		CResourceManager::get().create(pass);
+		CResourceManager::get().create(pass, get()->getShared().staticCast<CRenderer>());
 		get()->m_Passes.push_back(pass);
 	}
 

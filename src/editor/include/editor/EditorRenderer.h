@@ -9,7 +9,7 @@ class CEditorSpritePass : public CSpritePass {
 
 public:
 
-	EXPORT virtual void init() override;
+	EXPORT virtual void init(TShared<CRenderer> inRenderer) override;
 
 	EXPORT virtual void render(const SRendererInfo& info, VkCommandBuffer cmd) override;
 

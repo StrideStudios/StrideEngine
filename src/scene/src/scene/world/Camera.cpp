@@ -49,17 +49,19 @@ void CCamera::update() {
 	// Set FOV
 	mFOV = FieldOfView.get();
 
+	auto input = CEngine::get()->getInput();
+
 	// Engine camera moves only when right clicking
-	if (!CInput::shouldShowMouse()) {
+	if (!input->shouldShowMouse()) {
 		Vector3f rotation = getRotation();
-		rotation.x += Sensitivity.get() * (CInput::getMouseVelocity().x / 360.f);// * (float)SEngineTime::get().mDeltaTime;
-		rotation.y -= Sensitivity.get() * (CInput::getMouseVelocity().y / 360.f);// * (float)SEngineTime::get().mDeltaTime;
+		rotation.x += Sensitivity.get() * (input->getMouseVelocity().x / 360.f);// * (float)SEngineTime::get().mDeltaTime;
+		rotation.y -= Sensitivity.get() * (input->getMouseVelocity().y / 360.f);// * (float)SEngineTime::get().mDeltaTime;
 		setRotation(rotation);
 	}
 
-	float forwardAxis = CInput::getKeyPressed(EKey::S) ? 0.25f : CInput::getKeyPressed(EKey::W) ? -0.25f : 0.f;
-	float rightAxis = CInput::getKeyPressed(EKey::D) ? 0.25f : CInput::getKeyPressed(EKey::A) ? -0.25f : 0.f;
-	float upAxis = CInput::getKeyPressed(EKey::E) ? 0.25f : CInput::getKeyPressed(EKey::Q) ? -0.25f : 0.f;
+	float forwardAxis = input->getKeyPressed(EKey::S) ? 0.25f : input->getKeyPressed(EKey::W) ? -0.25f : 0.f;
+	float rightAxis = input->getKeyPressed(EKey::D) ? 0.25f : input->getKeyPressed(EKey::A) ? -0.25f : 0.f;
+	float upAxis = input->getKeyPressed(EKey::E) ? 0.25f : input->getKeyPressed(EKey::Q) ? -0.25f : 0.f;
 
 	mVelocity = {rightAxis, upAxis, forwardAxis};
 

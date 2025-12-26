@@ -19,7 +19,7 @@ struct SQueue {
     uint32 mFamily;
 };
 
-class CVulkanDevice final : public SObject, public TInitializable<VkSurfaceKHR>, public IDestroyable {
+class CVulkanDevice final : public SObject, public TInitializable<TShared<CVulkanInstance>, VkSurfaceKHR>, public IDestroyable {
 
 	REGISTER_CLASS(CVulkanDevice, SObject)
     MAKE_LAZY_SINGLETON(CVulkanDevice)
@@ -28,7 +28,7 @@ public:
 
     EXPORT SQueue getQueue(EQueueType inType);
 
-    EXPORT virtual void init(VkSurfaceKHR inSurface) override;
+    EXPORT virtual void init(TShared<CVulkanInstance> inInstance, VkSurfaceKHR inSurface) override;
 
     EXPORT virtual void destroy() override;
 

@@ -30,6 +30,7 @@ CEngine::CEngine() {
 
 	// Initialize the viewport
 	m_EngineViewport = TUnique<CEngineViewport>{};
+	m_Input = TShared<CInput>{};
 	//CResourceManager::get().pushUnique(std::move(m_EngineViewport));
 }
 
@@ -60,7 +61,7 @@ void CEngine::run_internal() {
 		GameTime.setText(fmts("Game Time: {}", std::to_string(m_Time.mGameTime)));
 
 		// Tick input
-		CInput::tick();
+		m_Input->tick();
 
 		// Handle SDL events
 		m_EngineViewport->pollEvents(bRunning, bPauseRendering);

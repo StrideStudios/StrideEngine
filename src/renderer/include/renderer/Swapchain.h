@@ -4,6 +4,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include "rendercore/VulkanResources.h"
+#include "sstl/Vector.h"
 
 // Forward declare vkb types
 namespace vkb {
@@ -14,7 +15,7 @@ namespace vkb {
 class CVulkanDevice;
 
 struct SSwapchainImage : SImage_T {
-	virtual void destroy() override;
+	EXPORT virtual void destroy() override;
 };
 
 struct SSwapchain final : SObject, TInitializable<const vkb::Result<vkb::Swapchain>&>, IDestroyable {
@@ -27,11 +28,11 @@ struct SSwapchain final : SObject, TInitializable<const vkb::Result<vkb::Swapcha
 
 	std::shared_ptr<vkb::Swapchain> mInternalSwapchain;
 
-	std::vector<SSwapchainImage*> mSwapchainImages{};
+	TVector<TUnique<SSwapchainImage>> mSwapchainImages;
 
 	// TODO: Needed if Maintenence1 is not available, should union
 	// TODO: this means i probably need some sort of platform info or something
-	std::vector<CSemaphore*> mSwapchainRenderSemaphores{};
+	TVector<TUnique<CSemaphore>> mSwapchainRenderSemaphores;
 };
 
 //TODO: does not need to be SObject derived
@@ -62,15 +63,15 @@ public:
 
 	EXPORT virtual void destroy() override;
 
-	EXPORT SSwapchainImage* getSwapchainImage(uint32 inCurrentFrameIndex);
+	EXPORT TUnique<SSwapchainImage>& getSwapchainImage(const TShared<CVulkanDevice>& inDevice, uint32 inCurrentFrameIndex);
 
-	no_discard EXPORT bool wait(uint32 inCurrentFrameIndex) const;
+	no_discard EXPORT bool wait(const TShared<CVulkanDevice>& inDevice, uint32 inCurrentFrameIndex) const;
 
-	EXPORT void reset(uint32 inCurrentFrameIndex) const;
+	EXPORT void reset(const TShared<CVulkanDevice>& inDevice, uint32 inCurrentFrameIndex) const;
 
 	EXPORT void submit(VkCommandBuffer inCmd, VkQueue inGraphicsQueue, uint32 inCurrentFrameIndex, uint32 inSwapchainImageIndex);
 
-	SSwapchain* mSwapchain = nullptr;
+	TUnique<SSwapchain> mSwapchain = nullptr;
 
 	VkFormat mFormat = VK_FORMAT_UNDEFINED;
 

@@ -10,7 +10,7 @@ class CObjectRenderer;
 #define REGISTER_PASS(className, parentName) \
 	REGISTER_STRUCT(className, parentName)
 
-class CPass : public SObject, public IInitializable, public IDestroyable {
+class CPass : public SObject, public TInitializable<TShared<CRenderer>>, public IDestroyable {
 
 public:
 
