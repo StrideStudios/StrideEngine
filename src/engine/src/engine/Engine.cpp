@@ -11,7 +11,8 @@
 #include "tracy/Tracy.hpp"
 
 #define SETTINGS_CATEGORY "Engine"
-ADD_COMMAND(int32, UseFrameCap, 180, 0, 500);
+ADD_COMMAND(bool, UseFrameCap, true);
+ADD_COMMAND(int32, FrameCap, 180, 30, 500);
 ADD_TEXT(FrameRate);
 ADD_TEXT(AverageFrameRate);
 ADD_TEXT(GameTime);
@@ -93,10 +94,10 @@ void CEngine::run_internal() {
 
 		// If we go over the target framerate, delay
 		// Ensure no divide by 0
-		if (UseFrameCap.get() > 0) {
+		if (UseFrameCap.get()) {
 			ZoneScopedN("Frame Cap Wait");
 
-			const double TargetDeltaTime = 1.0 / UseFrameCap.get();
+			const double TargetDeltaTime = 1.0 / FrameCap.get();
 			if (const auto frameTime = std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - previousTime).count(); TargetDeltaTime > frameTime) {
 				SDL_Delay(static_cast<uint32>((TargetDeltaTime - frameTime) * 1000.0));
 			}
