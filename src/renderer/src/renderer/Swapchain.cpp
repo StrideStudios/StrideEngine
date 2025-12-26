@@ -19,11 +19,11 @@
 
 static CResourceManager gFrameResourceManager;
 
-void SSwapchainImage::destroy() {
-	vkDestroyImageView(CVulkanDevice::vkDevice(), mImageView, nullptr);
+void SSwapchainImage::destroy(const TShared<CVulkanDevice>& device) {
+	vkDestroyImageView(device->getDevice().device, mImageView, nullptr);
 }
 
-void SSwapchain::init(const vkb::Result<vkb::Swapchain>& inSwapchainBuilder) {
+void SSwapchain::init(const TShared<CVulkanDevice>& device, const vkb::Result<vkb::Swapchain>& inSwapchainBuilder) {
 	//store swapchain and its related images
 	mInternalSwapchain = std::make_shared<vkb::Swapchain>(inSwapchainBuilder.value());
 
@@ -34,7 +34,7 @@ void SSwapchain::init(const vkb::Result<vkb::Swapchain>& inSwapchainBuilder) {
 
 	// Allocate render semaphores
 	mSwapchainRenderSemaphores.resize(images.size(), [&](const size_t i){
-		return TUnique<CSemaphore>{semaphoreCreateInfo};
+		return TUnique<CSemaphore>{device, semaphoreCreateInfo};
 	});
 
 	mSwapchainImages.resize(images.size(), [&](const size_t i){
@@ -46,9 +46,9 @@ void SSwapchain::init(const vkb::Result<vkb::Swapchain>& inSwapchainBuilder) {
 	});
 }
 
-void SSwapchain::destroy() {
-	mSwapchainImages.forEachReverse([](size_t, const TUnique<SSwapchainImage>& object){
-		object->destroy();
+void SSwapchain::destroy(const TShared<CVulkanDevice>& device) {
+	mSwapchainImages.forEachReverse([&device](size_t, const TUnique<SSwapchainImage>& object){
+		object->destroy(device);
 	});
 	mSwapchainRenderSemaphores.forEachReverse([](size_t, const TUnique<CSemaphore>& object){
 		object->destroy();
@@ -67,20 +67,22 @@ CVulkanSwapchain::CVulkanSwapchain(const TShared<CRenderer>& renderer) {
 
 	for (auto& [mSwapchainSemaphore, mRenderSemaphore, mRenderFence, mPresentFence] : m_Frames) {
 
-		gFrameResourceManager.create(mRenderFence, fenceCreateInfo);
+		gFrameResourceManager.create(mRenderFence, renderer->device(), fenceCreateInfo);
 		//gFrameResourceManager.createDestroyable(mPresentFence, fenceCreateInfo);
 
-		gFrameResourceManager.create(mSwapchainSemaphore, semaphoreCreateInfo);
+		gFrameResourceManager.create(mSwapchainSemaphore, renderer->device(), semaphoreCreateInfo);
 		//gFrameResourceManager.createDestroyable(mRenderSemaphore, semaphoreCreateInfo);
 	}
+
+	create(renderer->device(), VK_NULL_HANDLE);
 }
 
-void CVulkanSwapchain::init(const VkSwapchainKHR oldSwapchain, const bool inUseVSync) {
+void CVulkanSwapchain::create(const TShared<CVulkanDevice>& device, const VkSwapchainKHR oldSwapchain, const bool inUseVSync) {
 	mFormat = VK_FORMAT_R8G8B8A8_UNORM;
 
 	m_VSync = inUseVSync;
 
-	const auto& vkbSwapchain = vkb::SwapchainBuilder{CVulkanDevice::device()} //TODO: remove usage of device
+	const auto& vkbSwapchain = vkb::SwapchainBuilder{device->getDevice()} //TODO: remove usage of device
 		.set_old_swapchain(oldSwapchain)
 		.set_desired_format(VkSurfaceFormatKHR{ .format = mFormat, .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR })
 		.set_desired_present_mode(m_VSync ? VK_PRESENT_MODE_FIFO_KHR : VK_PRESENT_MODE_IMMEDIATE_KHR)
@@ -94,23 +96,21 @@ void CVulkanSwapchain::init(const VkSwapchainKHR oldSwapchain, const bool inUseV
 
 	// Flush any resources that may have been allocated
 	if (mSwapchain) {
-		mSwapchain->destroy();
+		mSwapchain->destroy(device);
 	}
 
 	//Initialize internal swapchain
 	mSwapchain = TUnique<SSwapchain>{};
-	mSwapchain->init(vkbSwapchain);
+	mSwapchain->init(device, vkbSwapchain);
 }
 
-void CVulkanSwapchain::recreate(bool inUseVSync) {
-
-	init(*mSwapchain->mInternalSwapchain, inUseVSync);
-
+void CVulkanSwapchain::recreate(const TShared<CVulkanDevice>& device, const bool inUseVSync) {
+	create(device, *mSwapchain->mInternalSwapchain, inUseVSync);
 	clean();
 }
 
-void CVulkanSwapchain::destroy() {
-	if (mSwapchain) mSwapchain->destroy();
+void CVulkanSwapchain::destroy(const TShared<CVulkanDevice>& device) {
+	if (mSwapchain) mSwapchain->destroy(device);
 	gFrameResourceManager.flush();
 }
 

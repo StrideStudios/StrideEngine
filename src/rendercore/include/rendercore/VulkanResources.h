@@ -5,11 +5,11 @@
 #include <vulkan/vk_enum_string_helper.h>
 #include <vulkan/vulkan_core.h>
 
+#include "VkBootstrap.h"
 #include "rendercore/VulkanDevice.h"
 #include "rendercore/VulkanUtils.h"
 #include "basic/core/Common.h"
 #include "sstl/Deque.h"
-#include "sstl/Set.h"
 
 enum class EShaderStage : uint8 {
 	VERTEX,
@@ -175,15 +175,16 @@ public:
 	struct C##inName final : SObject, IDestroyable { \
 		REGISTER_STRUCT(C##inName, SObject) \
 		C##inName() = default; \
-		C##inName(Vk##inName inType): m##inName(inType) {} \
-		C##inName(const C##inName& in##inName): m##inName(in##inName.m##inName) {} \
-		C##inName(Vk##inName##CreateInfo inCreateInfo) { \
-			VK_CHECK(vkCreate##inName(CVulkanDevice::vkDevice(), &inCreateInfo, nullptr, &m##inName)); \
+		C##inName(const TShared<CVulkanDevice>& inDevice, Vk##inName inType):  device(inDevice), m##inName(inType) {} \
+		C##inName(const TShared<CVulkanDevice>& inDevice, const C##inName& in##inName):  device(inDevice), m##inName(in##inName.m##inName) {} \
+		C##inName(const TShared<CVulkanDevice>& inDevice, Vk##inName##CreateInfo inCreateInfo): device(inDevice) { \
+			VK_CHECK(vkCreate##inName(device->getDevice().device, &inCreateInfo, nullptr, &m##inName)); \
 		} \
 		virtual Vk##inName get() { return m##inName; } \
-		virtual void destroy() override { vkDestroy##inName(CVulkanDevice::vkDevice(), m##inName, nullptr); } \
+		virtual void destroy() override { vkDestroy##inName(device->getDevice().device, m##inName, nullptr); } \
 		Vk##inName operator->() const { return m##inName; } \
 		operator Vk##inName() const { return m##inName; } \
+		TWeak<CVulkanDevice> device = nullptr; \
 		Vk##inName m##inName = nullptr; \
 	}
 
@@ -198,16 +199,17 @@ struct CPipeline final : SObject, IDestroyable {
 	REGISTER_STRUCT(CPipeline, SObject)
 
 	CPipeline() = default;
-	EXPORT CPipeline(const SPipelineCreateInfo& inCreateInfo, CVertexAttributeArchive& inAttributes, CPipelineLayout* inLayout);
+	EXPORT CPipeline(const TShared<CVulkanDevice>& inDevice, const SPipelineCreateInfo& inCreateInfo, CVertexAttributeArchive& inAttributes, CPipelineLayout* inLayout);
 
 	EXPORT void bind(VkCommandBuffer cmd, const VkPipelineBindPoint inBindPoint) const;
 
-	virtual void destroy() override { vkDestroyPipeline(CVulkanDevice::vkDevice(), mPipeline, nullptr); }
+	EXPORT virtual void destroy() override;
 
 	VkPipeline operator->() const { return mPipeline; }
 
 	operator VkPipeline() const { return mPipeline; }
 
+	TWeak<CVulkanDevice> device = nullptr;
 	VkPipeline mPipeline = nullptr;
 
 	CPipelineLayout* mLayout;
@@ -229,8 +231,8 @@ struct CDescriptorSet final : SObject {
 
 	CDescriptorSet(const CDescriptorSet& inDescriptorSet): mDescriptorSet(inDescriptorSet.mDescriptorSet) {}
 
-	CDescriptorSet(const VkDescriptorSetAllocateInfo& inCreateInfo) {
-		VK_CHECK(vkAllocateDescriptorSets(CVulkanDevice::vkDevice(), &inCreateInfo, &mDescriptorSet));
+	CDescriptorSet(const TShared<CVulkanDevice>& inDevice, const VkDescriptorSetAllocateInfo& inCreateInfo) {
+		VK_CHECK(vkAllocateDescriptorSets(inDevice->getDevice().device, &inCreateInfo, &mDescriptorSet));
 	}
 
 	void bind(VkCommandBuffer cmd, VkPipelineBindPoint inBindPoint, VkPipelineLayout inPipelineLayout, uint32 inFirstSet, uint32 inDescriptorSetCount) const {
@@ -248,9 +250,9 @@ struct SShader : SObject, IDestroyable {
 	REGISTER_STRUCT(SShader, SObject)
 
 	SShader() = default;
-	EXPORT SShader(const char* inFilePath);
+	EXPORT SShader(const TShared<CVulkanDevice>& inDevice, const char* inFilePath);
 
-	virtual void destroy() override { vkDestroyShaderModule(CVulkanDevice::vkDevice(), mModule, nullptr); }
+	EXPORT virtual void destroy() override;
 
 	std::string mFileName = "";
 	VkShaderModule mModule = nullptr;
@@ -265,6 +267,8 @@ private:
 	bool loadShader(VkDevice inDevice, const char* inFileName, uint32 Hash);
 
 	bool saveShader(const char* inFileName, uint32 Hash) const;
+
+	TWeak<CVulkanDevice> device = nullptr;
 };
 
 enum class EAttachmentType : uint8 {
@@ -315,7 +319,7 @@ struct SImage_T : SObject, IDestroyable {
 	REGISTER_STRUCT(SImage_T, SObject)
 
 	SImage_T() = default;
-	EXPORT SImage_T(const TShared<CVulkanAllocator>& inAllocator, const std::string& inDebugName, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags = 0, VkImageAspectFlags inViewFlags = 0, uint32 inNumMips = 1);
+	EXPORT SImage_T(const TShared<CVulkanAllocator>& inAllocator, const TShared<CVulkanDevice>& inDevice, const std::string& inDebugName, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags = 0, VkImageAspectFlags inViewFlags = 0, uint32 inNumMips = 1);
 
 	VkExtent3D getExtent() const { return mImageInfo.extent; }
 
@@ -336,6 +340,7 @@ struct SImage_T : SObject, IDestroyable {
 	VkImageViewCreateInfo mImageViewInfo;
 
 	TWeak<CVulkanAllocator> allocator = nullptr;
+	TWeak<CVulkanDevice> device = nullptr;
 	VmaAllocation mAllocation = nullptr;
 	uint32 mBindlessAddress = -1;
 
@@ -347,8 +352,8 @@ struct SBuffer_T : CVulkanAllocator::Resource {
 
 	EXPORT SBuffer_T(VmaAllocator inAllocator, const std::string& inName, size_t inBufferSize, VmaMemoryUsage inMemoryUsage, VkBufferUsageFlags inBufferUsage = 0);
 
-	EXPORT void makeGlobal(); //TODO: alternate way of doing this
-	EXPORT void updateGlobal() const; // TODO: not global but instead 'dynamic' (address should be separate?)
+	EXPORT void makeGlobal(const TShared<CVulkanDevice>& inDevice); //TODO: alternate way of doing this
+	EXPORT void updateGlobal(const TShared<CVulkanDevice>& inDevice) const; // TODO: not global but instead 'dynamic' (address should be separate?)
 
 	EXPORT virtual void destroy() override;
 
@@ -630,9 +635,9 @@ struct SCommandBuffer : SObject {
 
 	SCommandBuffer() = default;
 
-	SCommandBuffer(const CCommandPool* inCmdPool) {
+	SCommandBuffer(const TShared<CVulkanDevice>& inDevice, const CCommandPool* inCmdPool) {
 		VkCommandBufferAllocateInfo frameCmdAllocInfo = CVulkanInfo::createCommandAllocateInfo(*inCmdPool, 1);
-		VK_CHECK(vkAllocateCommandBuffers(CVulkanDevice::vkDevice(), &frameCmdAllocInfo, &cmd));
+		VK_CHECK(vkAllocateCommandBuffers(inDevice->getDevice().device, &frameCmdAllocInfo, &cmd));
 	}
 
 	SCommandBuffer(VkCommandBuffer inCmd): cmd(inCmd) {}

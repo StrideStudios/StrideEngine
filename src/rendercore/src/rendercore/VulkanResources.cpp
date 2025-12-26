@@ -187,7 +187,7 @@ bool SShader::saveShader(const char* inFileName, uint32 Hash) const {
 	return true;
 }
 
-SShader::SShader(const char* inFilePath) {
+SShader::SShader(const TShared<CVulkanDevice>& inDevice, const char* inFilePath): device(inDevice) {
 	const std::string fileExtension = std::filesystem::path(inFilePath).extension().string();
 
 	if (fileExtension == ".comp") {
@@ -214,7 +214,7 @@ SShader::SShader(const char* inFilePath) {
 	}
 
 	// Check for written SPIRV files
-	if (loadShader(CVulkanDevice::vkDevice(), SPIRVpath.c_str(), Hash)) {
+	if (loadShader(device->getDevice().device, SPIRVpath.c_str(), Hash)) {
 		return;
 	}
 
@@ -230,15 +230,19 @@ SShader::SShader(const char* inFilePath) {
 		errs("Shader file {} failed to compile!", inFilePath);
 	}
 
-	if (loadShader(CVulkanDevice::vkDevice(), SPIRVpath.c_str(), Hash)) {
+	if (loadShader(device->getDevice().device, SPIRVpath.c_str(), Hash)) {
 		return;
 	}
 
 	errs("Shader file {} could not be loaded!", inFilePath);
 }
 
-CPipeline::CPipeline(const SPipelineCreateInfo& inCreateInfo, CVertexAttributeArchive& inAttributes, CPipelineLayout* inLayout):
-	mLayout(inLayout) {
+void SShader::destroy() {
+	vkDestroyShaderModule(device->getDevice().device, mModule, nullptr);
+}
+
+CPipeline::CPipeline(const TShared<CVulkanDevice>& inDevice, const SPipelineCreateInfo& inCreateInfo, CVertexAttributeArchive& inAttributes, CPipelineLayout* inLayout):
+	device(inDevice), mLayout(inLayout) {
 
 	// Make viewport state from our stored viewport and scissor.
 	// At the moment we won't support multiple viewports or scissors
@@ -407,13 +411,17 @@ CPipeline::CPipeline(const SPipelineCreateInfo& inCreateInfo, CVertexAttributeAr
 		.layout = inLayout->mPipelineLayout
 	};
 
-	if (vkCreateGraphicsPipelines(CVulkanDevice::vkDevice(), VK_NULL_HANDLE, 1, &pipelineInfo,nullptr, &mPipeline) != VK_SUCCESS) {
+	if (vkCreateGraphicsPipelines(inDevice->getDevice().device, VK_NULL_HANDLE, 1, &pipelineInfo,nullptr, &mPipeline) != VK_SUCCESS) {
 		msgs("Failed to create pipeline!");
 	}
 }
 
-void CPipeline::bind(VkCommandBuffer cmd, const VkPipelineBindPoint inBindPoint) const {
+void CPipeline::bind(const VkCommandBuffer cmd, const VkPipelineBindPoint inBindPoint) const {
 	vkCmdBindPipeline(cmd, inBindPoint, mPipeline);
+}
+
+void CPipeline::destroy() {
+	vkDestroyPipeline(device->getDevice().device, mPipeline, nullptr);
 }
 
 VkRenderingAttachmentInfo SRenderAttachment::get(const SImage_T* inImage) const {
@@ -476,18 +484,18 @@ SBuffer_T::SBuffer_T(VmaAllocator inAllocator, const std::string& inName, const 
 	VK_CHECK(vmaCreateBuffer(allocator, &bufferCreateInfo, &vmaallocInfo, &buffer, &allocation, &info));
 }
 
-void SBuffer_T::makeGlobal() {
+void SBuffer_T::makeGlobal(const TShared<CVulkanDevice>& inDevice) {
 	// Update descriptors with new buffer
 	//TODO: need some way of guaranteeing Buffer addresses so they don't have to be passed in push constants
 	static uint32 gCurrentBufferAddress = 0;
 	mBindlessAddress = gCurrentBufferAddress;
 	gCurrentBufferAddress++;
 
-	updateGlobal();
+	updateGlobal(inDevice);
 
 }
 
-void SBuffer_T::updateGlobal() const {
+void SBuffer_T::updateGlobal(const TShared<CVulkanDevice>& inDevice) const {
 	//TODO: need some way of guaranteeing Buffer addresses so they don't have to be passed in push constants
 	const auto bufferDescriptorInfo = VkDescriptorBufferInfo{
 		.buffer = buffer,
@@ -504,7 +512,7 @@ void SBuffer_T::updateGlobal() const {
 		.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
 		.pBufferInfo = &bufferDescriptorInfo,
 	};
-	vkUpdateDescriptorSets(CVulkanDevice::vkDevice(), 1, &writeSet, 0, nullptr);
+	vkUpdateDescriptorSets(inDevice->getDevice().device, 1, &writeSet, 0, nullptr);
 }
 
 void SBuffer_T::destroy() {
@@ -530,8 +538,8 @@ SMeshBuffers_T::SMeshBuffers_T(const TShared<CVulkanAllocator>& allocator, const
 	vertexBuffer = allocator->addResource(TUnique<SBuffer_T>{allocator->getAllocator(), name, verticesSize, VMA_MEMORY_USAGE_GPU_ONLY, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT});
 }
 
-SImage_T::SImage_T(const TShared<CVulkanAllocator>& inAllocator, const std::string& inDebugName, const VkExtent3D inExtent, const VkFormat inFormat, const VkImageUsageFlags inFlags, const VkImageAspectFlags inViewFlags, const uint32 inNumMips)
-: mName(inDebugName), allocator(inAllocator) {
+SImage_T::SImage_T(const TShared<CVulkanAllocator>& inAllocator, const TShared<CVulkanDevice>& inDevice, const std::string& inDebugName, const VkExtent3D inExtent, const VkFormat inFormat, const VkImageUsageFlags inFlags, const VkImageAspectFlags inViewFlags, const uint32 inNumMips)
+: mName(inDebugName), allocator(inAllocator), device(inDevice) {
 
 	mImageInfo = CVulkanInfo::createImageInfo(inFormat, inFlags, inExtent);
 	mImageInfo.mipLevels = inNumMips;
@@ -548,7 +556,7 @@ SImage_T::SImage_T(const TShared<CVulkanAllocator>& inAllocator, const std::stri
 	mImageViewInfo = CVulkanInfo::createImageViewInfo(inFormat, mImage, inViewFlags);
 	mImageViewInfo.subresourceRange.levelCount = mImageInfo.mipLevels;
 
-	VK_CHECK(vkCreateImageView(CVulkanDevice::vkDevice(), &mImageViewInfo, nullptr, &mImageView));
+	VK_CHECK(vkCreateImageView(device->getDevice().device, &mImageViewInfo, nullptr, &mImageView));
 
 	// Update descriptors with new image
 	if ((inFlags & VK_IMAGE_USAGE_SAMPLED_BIT) != 0) { //TODO: VK_IMAGE_USAGE_SAMPLED_BIT is not a permanent solution
@@ -571,7 +579,7 @@ SImage_T::SImage_T(const TShared<CVulkanAllocator>& inAllocator, const std::stri
 			.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
 			.pImageInfo = &imageDescriptorInfo,
 		};
-		vkUpdateDescriptorSets(CVulkanDevice::vkDevice(), 1, &writeSet, 0, nullptr);
+		vkUpdateDescriptorSets(device->getDevice().device, 1, &writeSet, 0, nullptr);
 	}
 }
 
@@ -682,7 +690,7 @@ void SImage_T::push(const void* inData, const uint32& inSize) {
 
 void SImage_T::destroy() {
 	vmaDestroyImage(allocator->getAllocator(), mImage, mAllocation);
-	vkDestroyImageView(CVulkanDevice::vkDevice(), mImageView, nullptr);
+	vkDestroyImageView(device->getDevice().device, mImageView, nullptr);
 }
 
 void CVulkanAllocator::init2(const TShared<CRenderer>& inRenderer) {

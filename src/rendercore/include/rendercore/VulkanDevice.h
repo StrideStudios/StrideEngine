@@ -22,7 +22,6 @@ struct SQueue {
 class CVulkanDevice final : public SObject, public TInitializable<TShared<CVulkanInstance>, VkSurfaceKHR>, public IDestroyable {
 
 	REGISTER_CLASS(CVulkanDevice, SObject)
-    MAKE_LAZY_SINGLETON(CVulkanDevice)
 
 public:
 
@@ -31,14 +30,6 @@ public:
     EXPORT virtual void init(TShared<CVulkanInstance> inInstance, VkSurfaceKHR inSurface) override;
 
     EXPORT virtual void destroy() override;
-
-    static const vkb::PhysicalDevice& physicalDevice() { return get()->getPhysicalDevice(); }
-
-    EXPORT static const VkPhysicalDevice& vkPhysicalDevice();
-
-    static const vkb::Device& device() { return get()->getDevice(); }
-
-    EXPORT static const VkDevice& vkDevice();
 
     no_discard EXPORT const vkb::PhysicalDevice& getPhysicalDevice() const;
 

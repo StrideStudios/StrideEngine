@@ -4,7 +4,6 @@
 
 #include "engine/Engine.h"
 #include "engine/EngineSettings.h"
-#include "engine/EngineTime.h"
 #include "engine/Input.h"
 #include "engine/Viewport.h"
 
@@ -54,8 +53,8 @@ void CCamera::update() {
 	// Engine camera moves only when right clicking
 	if (!input->shouldShowMouse()) {
 		Vector3f rotation = getRotation();
-		rotation.x += Sensitivity.get() * (input->getMouseVelocity().x / 360.f);// * (float)SEngineTime::get().mDeltaTime;
-		rotation.y -= Sensitivity.get() * (input->getMouseVelocity().y / 360.f);// * (float)SEngineTime::get().mDeltaTime;
+		rotation.x += Sensitivity.get() * (input->getMouseVelocity().x / 360.f);
+		rotation.y -= Sensitivity.get() * (input->getMouseVelocity().y / 360.f);
 		setRotation(rotation);
 	}
 

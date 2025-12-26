@@ -34,8 +34,6 @@ class CVulkanRenderer : public CRenderer {
 
 	REGISTER_CLASS(CVulkanRenderer, CRenderer)
 
-	//MAKE_SINGLETON(CVulkanRenderer)
-
 public:
 
 	EXPORT static CVulkanRenderer* get();
@@ -66,16 +64,16 @@ public:
 
 	virtual IBuffering& getBufferingType() override { return mBuffering; }
 
-	EXPORT virtual CSwapchain* getSwapchain() override;
+	EXPORT virtual TShared<CSwapchain> getSwapchain() override;
 
 	// Draw to the screen
 	EXPORT virtual void render(SRendererInfo& info) override;
 
 	no_discard EXPORT virtual bool wait() override;
 
-	EXPORT virtual CVulkanDevice* device() override;
+	EXPORT virtual TShared<CVulkanDevice> device() override;
 
-	EXPORT virtual CVulkanInstance* instance() override;
+	EXPORT virtual TShared<CVulkanInstance> instance() override;
 
 	// Tell children to render
 	virtual void render(VkCommandBuffer cmd) {};

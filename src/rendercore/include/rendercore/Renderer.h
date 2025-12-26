@@ -116,7 +116,7 @@ public:
 
 	no_discard virtual IBuffering& getBufferingType() = 0;
 
-	no_discard virtual CSwapchain* getSwapchain() = 0;
+	no_discard virtual TShared<CSwapchain> getSwapchain() = 0;
 
 	virtual void immediateSubmit(std::function<void(struct SCommandBuffer& cmd)>&& function) = 0;
 
@@ -124,9 +124,9 @@ public:
 
 	virtual bool wait() = 0;
 
-	virtual class CVulkanDevice* device() = 0;
+	virtual TShared<class CVulkanDevice> device() = 0;
 
-	virtual class CVulkanInstance* instance() = 0;
+	virtual TShared<class CVulkanInstance> instance() = 0;
 
 	std::list<CPass*> getPasses() const { return m_Passes; }
 

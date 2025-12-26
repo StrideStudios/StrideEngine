@@ -13,9 +13,9 @@
 
 static CResourceManager gTexturesResourceManager;
 
-CEngineTextures::CEngineTextures(TShared<CRenderer> renderer, TShared<CVulkanAllocator> allocator) {
+CEngineTextures::CEngineTextures(const TShared<CRenderer>& renderer, TShared<CVulkanAllocator> allocator) {
 
-	CResourceManager::get().create(m_Swapchain, renderer);
+	m_Swapchain = TShared<CVulkanSwapchain>{renderer};
 
 	// Initialize samplers
 	// Default samplers repeat and do not have anisotropy
@@ -32,14 +32,14 @@ CEngineTextures::CEngineTextures(TShared<CRenderer> renderer, TShared<CVulkanAll
 		samplerCreateInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
 
 		CSampler* samplerNearest;
-		CResourceManager::get().create(samplerNearest, samplerCreateInfo);
+		CResourceManager::get().create(samplerNearest, renderer->device(), samplerCreateInfo);
 
 		samplerCreateInfo.magFilter = VK_FILTER_LINEAR;
 		samplerCreateInfo.minFilter = VK_FILTER_LINEAR;
 		samplerCreateInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
 
 		CSampler* samplerLinear;
-		CResourceManager::get().create(samplerLinear, samplerCreateInfo);
+		CResourceManager::get().create(samplerLinear, renderer->device(), samplerCreateInfo);
 
 		const auto imageDescriptorInfo = VkDescriptorImageInfo{
 			.sampler = *samplerNearest};
@@ -69,7 +69,7 @@ CEngineTextures::CEngineTextures(TShared<CRenderer> renderer, TShared<CVulkanAll
 
 		const auto sets = {writeSet, writeSet2};
 
-		vkUpdateDescriptorSets(renderer->device()->device().device, (uint32)sets.size(), sets.begin(), 0, nullptr);
+		vkUpdateDescriptorSets(renderer->device()->getDevice().device, (uint32)sets.size(), sets.begin(), 0, nullptr);
 	}
 
 	// Error checkerboard image
@@ -84,7 +84,7 @@ CEngineTextures::CEngineTextures(TShared<CRenderer> renderer, TShared<CVulkanAll
 
 	constexpr VkExtent3D extent(16, 16, 1);
 	constexpr int32 size = extent.width * extent.height * extent.depth * 4;
-	CResourceManager::get().create<SImage_T>(mErrorCheckerboardImage, allocator, "Default Error", extent, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+	CResourceManager::get().create<SImage_T>(mErrorCheckerboardImage, allocator, renderer->device(), "Default Error", extent, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
 	mErrorCheckerboardImage->push(pixels.data(), size);
 
 	{
@@ -107,9 +107,9 @@ void CEngineTextures::initializeTextures(TShared<CVulkanAllocator> allocator) {
 
 	const auto extent = CEngine::get()->getViewport()->mExtent;
 
-	gTexturesResourceManager.create<SImage_T>(mDrawImage, allocator, "Draw Image", VkExtent3D{extent.x, extent.y, 1}, VK_FORMAT_R16G16B16A16_SFLOAT, drawImageUsages, VK_IMAGE_ASPECT_COLOR_BIT);
+	gTexturesResourceManager.create<SImage_T>(mDrawImage, allocator, allocator->m_Renderer->device(), "Draw Image", VkExtent3D{extent.x, extent.y, 1}, VK_FORMAT_R16G16B16A16_SFLOAT, drawImageUsages, VK_IMAGE_ASPECT_COLOR_BIT);
 
-	gTexturesResourceManager.create<SImage_T>(mDepthImage, allocator, "Depth Image", VkExtent3D{extent.x, extent.y, 1}, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_ASPECT_DEPTH_BIT);
+	gTexturesResourceManager.create<SImage_T>(mDepthImage, allocator, allocator->m_Renderer->device(), "Depth Image", VkExtent3D{extent.x, extent.y, 1}, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_ASPECT_DEPTH_BIT);
 }
 
 void CEngineTextures::reallocate(const SRendererInfo& info, const bool inUseVSync) {
@@ -117,14 +117,15 @@ void CEngineTextures::reallocate(const SRendererInfo& info, const bool inUseVSyn
 	auto extent = CEngine::get()->getViewport()->mExtent;
 	msgs("Reallocating Engine Textures to ({}, {})", extent.x, extent.y);
 
-	m_Swapchain->recreate(inUseVSync);
+	m_Swapchain->recreate(info.renderer->device(), inUseVSync);
 
 	initializeTextures(info.allocator);
 }
 
-void CEngineTextures::destroy() {
+void CEngineTextures::destroy(const TShared<CVulkanDevice>& device) {
 	mErrorCheckerboardImage->destroy();
 	CResourceManager::get().ignore(mErrorCheckerboardImage);
 	gTexturesResourceManager.flush();
+	m_Swapchain->destroy(device);
 }
 

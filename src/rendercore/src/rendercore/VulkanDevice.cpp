@@ -127,14 +127,6 @@ const vkb::PhysicalDevice& CVulkanDevice::getPhysicalDevice() const {
     return *m_PhysicalDevice;
 }
 
-const VkPhysicalDevice& CVulkanDevice::vkPhysicalDevice() {
-    return physicalDevice().physical_device;
-}
-
 const vkb::Device& CVulkanDevice::getDevice() const {
     return *m_Device;
-}
-
-const VkDevice& CVulkanDevice::vkDevice() {
-    return device().device;
 }

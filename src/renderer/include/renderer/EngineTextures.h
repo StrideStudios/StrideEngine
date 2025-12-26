@@ -15,15 +15,15 @@ class CEngineTextures : public SObject, public IDestroyable {
 public:
 
 	CEngineTextures() = default;
-	EXPORT CEngineTextures(TShared<CRenderer> renderer, TShared<CVulkanAllocator> allocator);
+	EXPORT CEngineTextures(const TShared<CRenderer>& renderer, TShared<CVulkanAllocator> allocator);
 
 	EXPORT void initializeTextures(TShared<CVulkanAllocator> allocator);
 
 	EXPORT void reallocate(const SRendererInfo& info, bool inUseVSync = true);
 
-	EXPORT virtual void destroy() override;
+	EXPORT virtual void destroy(const TShared<CVulkanDevice>& device);
 
-	no_discard CVulkanSwapchain* getSwapchain() const { return m_Swapchain; }
+	no_discard TShared<CVulkanSwapchain> getSwapchain() const { return m_Swapchain; }
 
 	//
 	// Textures
@@ -46,6 +46,6 @@ private:
 	// SwapChain
 	//
 
-	CVulkanSwapchain* m_Swapchain;
+	TShared<CVulkanSwapchain> m_Swapchain = nullptr;
 
 };

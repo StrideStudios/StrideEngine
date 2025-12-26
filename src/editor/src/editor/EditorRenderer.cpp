@@ -49,10 +49,10 @@ void CEditorSpritePass::init(TShared<CRenderer> inRenderer) {
 	CResourceManager manager;
 
 	SShader* frag;
-	manager.create<SShader>(frag, "material\\text.frag");
+	manager.create<SShader>(frag, inRenderer->device(), "material\\text.frag");
 
 	SShader* vert;
-	manager.create<SShader>(vert, "material\\text.vert");
+	manager.create<SShader>(vert, inRenderer->device(), "material\\text.vert");
 
 	const SPipelineCreateInfo createInfo {
 		.vertexModule = vert->mModule,
@@ -72,7 +72,7 @@ void CEditorSpritePass::init(TShared<CRenderer> inRenderer) {
 	attributes << VK_FORMAT_R32G32B32A32_SFLOAT;
 	attributes << VK_FORMAT_R32G32B32A32_SFLOAT;
 
-	CResourceManager::get().create<CPipeline>(textPipeline, createInfo, attributes, CBindlessResources::getBasicPipelineLayout());
+	CResourceManager::get().create<CPipeline>(textPipeline, inRenderer->device(), createInfo, attributes, CBindlessResources::getBasicPipelineLayout());
 
 	manager.flush();
 

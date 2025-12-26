@@ -29,6 +29,8 @@ public:
 
 	no_discard TShared<CInput> getInput() const { return m_Input; }
 
+	no_discard TShared<CRenderer> getRenderer() const { return m_Renderer; }
+
 private:
 
 	// Make sure only main can access init and run functions

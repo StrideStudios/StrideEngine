@@ -20,6 +20,7 @@
 #include "renderer/passes/SpritePass.h"
 #include "renderer/Swapchain.h"
 #include "engine/Viewport.h"
+#include "rendercore/BindlessResources.h"
 #include "rendercore/VulkanInstance.h"
 #include "renderer/object/ObjectRenderer.h"
 #include "SDL3/SDL_vulkan.h"
@@ -82,19 +83,20 @@ void CVulkanRenderer::init() {
 	}); //TODO: not a big fan of the callbacks, should be its own class
 
 	// Create the vulkan device
-	//gInstanceManager.create(m_Device, m_Instance, mVkSurface);
-	mDevice = CVulkanDevice::get();
+	mDevice = TShared<CVulkanDevice>{};
 	mDevice->init(mInstance, mVkSurface);
+
+	CBindlessResources::get()->init(mDevice);
 
 	VkCommandPoolCreateInfo uploadCommandPoolInfo = CVulkanInfo::createCommandPoolInfo(mDevice->getQueue(EQueueType::UPLOAD).mFamily);
 	//create pool for upload context
-	CResourceManager::get().create(mUploadContext->mCommandPool, uploadCommandPoolInfo);
+	CResourceManager::get().create(mUploadContext->mCommandPool, mDevice, uploadCommandPoolInfo);
 
 	//allocate the default command buffer that we will use for the instant commands
-	mUploadContext->mCommandBuffer = SCommandBuffer(mUploadContext->mCommandPool);
+	mUploadContext->mCommandBuffer = SCommandBuffer(mDevice, mUploadContext->mCommandPool);
 
 	VkFenceCreateInfo fenceCreateInfo = CVulkanInfo::createFenceInfo(VK_FENCE_CREATE_SIGNALED_BIT);
-	CResourceManager::get().create(mUploadContext->mUploadFence, fenceCreateInfo);
+	CResourceManager::get().create(mUploadContext->mUploadFence, mDevice, fenceCreateInfo);
 
 	{
 		// Create a command pool for commands submitted to the graphics queue.
@@ -103,10 +105,10 @@ void CVulkanRenderer::init() {
 			mDevice->getQueue(EQueueType::GRAPHICS).mFamily, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
 		mBuffering.forEach([&](FrameData& frame) {
-			CResourceManager::get().create(frame.mCommandPool, commandPoolInfo);
+			CResourceManager::get().create(frame.mCommandPool, mDevice, commandPoolInfo);
 
 			// Allocate the default command buffer that we will use for rendering
-			frame.mMainCommandBuffer = SCommandBuffer(frame.mCommandPool);
+			frame.mMainCommandBuffer = SCommandBuffer(mDevice, frame.mCommandPool);
 
 			frame.mTracyContext = TracyVkContext(mDevice->getPhysicalDevice(), mDevice->getDevice(), mDevice->getQueue(EQueueType::GRAPHICS).mQueue, frame.mMainCommandBuffer);
 		});
@@ -127,10 +129,10 @@ void CVulkanRenderer::init() {
 
 	mEngineTextures = TShared<CEngineTextures>{asShared(), mAllocator};
 	CResourceManager::get().callback([this]{
-		mEngineTextures->destroy();
+		mEngineTextures->destroy(mDevice);
 	});
 
-	mSceneBuffer.get(mAllocator)->makeGlobal();
+	mSceneBuffer.get(mAllocator)->makeGlobal(mDevice);
 
 	// Load textures and meshes
 	CEngineLoader::load(mAllocator);
@@ -149,7 +151,7 @@ void CVulkanRenderer::destroy() {
 	gInstanceManager.flush();
 }
 
-CSwapchain* CVulkanRenderer::getSwapchain() {
+TShared<CSwapchain> CVulkanRenderer::getSwapchain() {
 	return mEngineTextures->getSwapchain();
 }
 
@@ -260,7 +262,7 @@ void CVulkanRenderer::render(SRendererInfo& info) {
 			auto* sceneUniformData = static_cast<SceneData*>(mSceneBuffer.get(mAllocator)->getMappedData());
 			*sceneUniformData = mSceneData;
 
-			mSceneBuffer.get(mAllocator)->updateGlobal();
+			mSceneBuffer.get(mAllocator)->updateGlobal(mDevice);
 		}
 
 		if (!getPasses().empty()) {
@@ -349,12 +351,12 @@ bool CVulkanRenderer::wait() {
 	return mEngineTextures->getSwapchain()->wait(mDevice, mBuffering.getFrameIndex());
 }
 
-EXPORT CVulkanDevice* CVulkanRenderer::device() {
-	return mDevice.get();
+EXPORT TShared<CVulkanDevice> CVulkanRenderer::device() {
+	return mDevice;
 }
 
-EXPORT CVulkanInstance* CVulkanRenderer::instance() {
-	return mInstance.get();
+EXPORT TShared<CVulkanInstance> CVulkanRenderer::instance() {
+	return mInstance;
 }
 
 void CNullRenderer::render(VkCommandBuffer cmd) {

@@ -46,7 +46,7 @@ SImage_T* loadImage(const TShared<CVulkanAllocator>& allocator, CResourceManager
 
 	// Allocate image and transition to dst
 	SImage_T* image;
-	manager.create<SImage_T>(image, allocator, fileName, imageSize, VK_FORMAT_BC7_SRGB_BLOCK, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_IMAGE_ASPECT_COLOR_BIT, numMips);
+	manager.create<SImage_T>(image, allocator, allocator->m_Renderer->device(), fileName, imageSize, VK_FORMAT_BC7_SRGB_BLOCK, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_IMAGE_ASPECT_COLOR_BIT, numMips);
 
 	CRenderer::get()->immediateSubmit([&](SCommandBuffer& cmd) {
 		CVulkanUtils::transitionImage(cmd, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
@@ -119,7 +119,7 @@ SFont loadFont(const TShared<CVulkanAllocator>& allocator, CResourceManager& man
 	file.close();
 
 	const std::string label = font.mName + " Atlas";
-	manager.create<SImage_T>(font.mAtlasImage, allocator, label, VkExtent3D{font.mAtlasSize.x, font.mAtlasSize.y, 1}, VK_FORMAT_R8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+	manager.create<SImage_T>(font.mAtlasImage, allocator, allocator->m_Renderer->device(), label, VkExtent3D{font.mAtlasSize.x, font.mAtlasSize.y, 1}, VK_FORMAT_R8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
 	font.mAtlasImage->push(atlasData.data(), atlasData.size());
 
 	return font;
@@ -620,7 +620,7 @@ void CEngineLoader::importFont(const TShared<CVulkanAllocator>& allocator, const
 	cachedPath.replace_extension(".fnt");
 
 	const std::string label = font.mName + " Atlas";
-	CResourceManager::get().create<SImage_T>(font.mAtlasImage, allocator, label, VkExtent3D{FONT_ATLAS_SIZE, FONT_ATLAS_SIZE, 1}, VK_FORMAT_R8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+	CResourceManager::get().create<SImage_T>(font.mAtlasImage, allocator, allocator->m_Renderer->device(), label, VkExtent3D{FONT_ATLAS_SIZE, FONT_ATLAS_SIZE, 1}, VK_FORMAT_R8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
 	font.mAtlasImage->push(atlasData.data(), atlasData.size());
 
 	// Write font and atlas data to file

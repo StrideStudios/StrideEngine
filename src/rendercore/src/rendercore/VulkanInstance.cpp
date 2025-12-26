@@ -15,10 +15,6 @@ void CVulkanInstance::init() {
 	mInstance = std::make_shared<vkb::Instance>(instance.value());
 }
 
-const VkInstance& CVulkanInstance::vkInstance() {
-	return instance().instance;
-}
-
 const vkb::Instance& CVulkanInstance::getInstance() const {
 		return *mInstance;
 }

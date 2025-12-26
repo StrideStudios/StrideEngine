@@ -382,7 +382,7 @@ void CEngineUIPass::init(const TShared<CRenderer> inRenderer) {
 		.pPoolSizes = poolSizes
 	};
 
-	imguiPool = TUnique<CDescriptorPool>{poolCreateInfo};
+	imguiPool = TUnique<CDescriptorPool>{inRenderer->device(), poolCreateInfo};
 
 	// this initializes imgui for Vulkan
 	ImGui_ImplVulkan_InitInfo initInfo {

@@ -15,16 +15,16 @@ namespace vkb {
 class CVulkanDevice;
 
 struct SSwapchainImage : SImage_T {
-	EXPORT virtual void destroy() override;
+	EXPORT virtual void destroy(const TShared<CVulkanDevice>& device);
 };
 
-struct SSwapchain final : SObject, TInitializable<const vkb::Result<vkb::Swapchain>&>, IDestroyable {
+struct SSwapchain final : SObject, TInitializable<const TShared<CVulkanDevice>&, const vkb::Result<vkb::Swapchain>&>, IDestroyable {
 
 	REGISTER_STRUCT(SSwapchain, SObject)
 
-	EXPORT virtual void init(const vkb::Result<vkb::Swapchain>& inSwapchainBuilder) override;
+	EXPORT virtual void init(const TShared<CVulkanDevice>& device, const vkb::Result<vkb::Swapchain>& inSwapchainBuilder) override;
 
-	EXPORT virtual void destroy() override;
+	EXPORT virtual void destroy(const TShared<CVulkanDevice>& device);
 
 	std::shared_ptr<vkb::Swapchain> mInternalSwapchain;
 
@@ -36,7 +36,7 @@ struct SSwapchain final : SObject, TInitializable<const vkb::Result<vkb::Swapcha
 };
 
 //TODO: does not need to be SObject derived
-class CVulkanSwapchain : public CSwapchain, public IInitializable, public IDestroyable {
+class CVulkanSwapchain : public CSwapchain {
 
 	REGISTER_CLASS(CVulkanSwapchain, CSwapchain)
 
@@ -53,15 +53,10 @@ public:
 	CVulkanSwapchain() = default;
 	EXPORT CVulkanSwapchain(const TShared<CRenderer>& renderer);
 
-	virtual void init() override {
-		init(VK_NULL_HANDLE);
-	}
+	EXPORT void create(const TShared<CVulkanDevice>& device, VkSwapchainKHR oldSwapchain, bool inUseVSync = true);
+	EXPORT void recreate(const TShared<CVulkanDevice>& device, bool inUseVSync = true);
 
-	EXPORT virtual void init(VkSwapchainKHR oldSwapchain, bool inUseVSync = true);
-
-	EXPORT void recreate(bool inUseVSync = true);
-
-	EXPORT virtual void destroy() override;
+	EXPORT virtual void destroy(const TShared<CVulkanDevice>& device);
 
 	EXPORT TUnique<SSwapchainImage>& getSwapchainImage(const TShared<CVulkanDevice>& inDevice, uint32 inCurrentFrameIndex);
 
