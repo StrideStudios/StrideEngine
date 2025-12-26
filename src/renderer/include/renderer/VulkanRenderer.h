@@ -90,11 +90,11 @@ public:
 	TShared<CVulkanAllocator> mAllocator = nullptr;
 
 	// Vulkan window surface
-	VkSurfaceKHR mVkSurface;
+	VkSurfaceKHR mVkSurface = nullptr;
 
 	bool mVSync;
 
-	CDoubleBuffering<FrameData> mBuffering;
+	CDoubleBuffering<FrameData> mBuffering{};
 
 	TThreadSafe<SUploadContext> mUploadContext;
 

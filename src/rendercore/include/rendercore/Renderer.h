@@ -45,6 +45,8 @@ class TBuffering : public IBuffering {
 
 public:
 
+	TBuffering() = default;
+
 	virtual size_t getFrameOverlap() const override { return TFrameOverlap; }
 
 	TType& getFrame(size_t inFrameIndex) { return m_FrameData[inFrameIndex]; }
@@ -68,10 +70,10 @@ private:
 };
 
 template <typename TType>
-class CSingleBuffering final : public TBuffering<TType, 1> {};
+using CSingleBuffering = TBuffering<TType, 1>;
 
 template <typename TType>
-class CDoubleBuffering final : public TBuffering<TType, 2> {};
+using CDoubleBuffering = TBuffering<TType, 2>;
 
 struct SRendererInfo {
 	TWeak<class CEngineViewport> viewport;
