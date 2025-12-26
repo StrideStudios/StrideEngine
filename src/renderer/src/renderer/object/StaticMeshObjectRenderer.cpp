@@ -38,7 +38,7 @@ void CStaticMeshObjectRenderer::render(const SRendererInfo& info, CMeshPass* inP
 	for (const auto& surface : mesh->surfaces) {
 
 
-		const CMaterial* material = CVulkanRenderer::get()->mEngineTextures->mErrorMaterial;
+		const CMaterial* material = info.renderer.staticCast<CVulkanRenderer>()->mEngineTextures->mErrorMaterial;
 		if (surface.material) {
 			material = surface.material;
 		}

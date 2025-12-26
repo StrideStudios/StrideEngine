@@ -48,7 +48,7 @@ SImage_T* loadImage(const TShared<CVulkanAllocator>& allocator, CResourceManager
 	SImage_T* image;
 	manager.create<SImage_T>(image, allocator, allocator->m_Renderer->device(), fileName, imageSize, VK_FORMAT_BC7_SRGB_BLOCK, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_IMAGE_ASPECT_COLOR_BIT, numMips);
 
-	CRenderer::get()->immediateSubmit([&](SCommandBuffer& cmd) {
+	allocator->m_Renderer->immediateSubmit([&](SCommandBuffer& cmd) {
 		CVulkanUtils::transitionImage(cmd, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 	});
 
@@ -78,7 +78,7 @@ SImage_T* loadImage(const TShared<CVulkanAllocator>& allocator, CResourceManager
 
 		uploadBuffer.push(allocator, pImage, image_size);
 
-		CRenderer::get()->immediateSubmit([&](SCommandBuffer& cmd) {
+		allocator->m_Renderer->immediateSubmit([&](SCommandBuffer& cmd) {
 			//ZoneScopedAllocation(std::string("Copy Image from Upload Buffer"));
 
 			const VkBufferImageCopy copyRegion = {
@@ -102,7 +102,7 @@ SImage_T* loadImage(const TShared<CVulkanAllocator>& allocator, CResourceManager
 		manager.flush();
 	}
 
-	CRenderer::get()->immediateSubmit([&](SCommandBuffer& cmd) {
+	allocator->m_Renderer->immediateSubmit([&](SCommandBuffer& cmd) {
 		CVulkanUtils::transitionImage(cmd, image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	});
 
@@ -403,7 +403,7 @@ SMeshBuffers_T* uploadMesh(const TShared<CVulkanAllocator>& allocator, CResource
 
 	//TODO: slow, render thread?
 	// also from an older version of the tutorial, doesnt use sync2
-	CRenderer::get()->immediateSubmit([&](SCommandBuffer& cmd) {
+	allocator->m_Renderer->immediateSubmit([&](SCommandBuffer& cmd) {
 		VkBufferCopy vertexCopy{};
 		vertexCopy.dstOffset = 0;
 		vertexCopy.srcOffset = 0;

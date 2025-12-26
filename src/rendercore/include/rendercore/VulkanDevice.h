@@ -19,15 +19,16 @@ struct SQueue {
     uint32 mFamily;
 };
 
-class CVulkanDevice final : public SObject, public TInitializable<TShared<CVulkanInstance>, VkSurfaceKHR>, public IDestroyable {
+class CVulkanDevice final : public SObject, public IDestroyable {
 
 	REGISTER_CLASS(CVulkanDevice, SObject)
 
 public:
 
-    EXPORT SQueue getQueue(EQueueType inType);
+    CVulkanDevice() = default;
+    EXPORT CVulkanDevice(TShared<CVulkanInstance> inInstance, VkSurfaceKHR inSurface);
 
-    EXPORT virtual void init(TShared<CVulkanInstance> inInstance, VkSurfaceKHR inSurface) override;
+    EXPORT SQueue getQueue(EQueueType inType);
 
     EXPORT virtual void destroy() override;
 

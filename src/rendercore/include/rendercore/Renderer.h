@@ -83,8 +83,6 @@ class CRenderer : public SObject, public IInitializable, public IDestroyable {
 
 public:
 
-	EXPORT static CRenderer* get();
-
 	/*template <typename TType>
 	static void create() {
 		TType* renderer = new TType();
@@ -92,25 +90,25 @@ public:
 	}*/
 
 	template <typename TPass>
-	static void addPass() {
+	void addPass() {
 		if (hasPass<TPass>()) return;
 		TPass* pass;
-		CResourceManager::get().create(pass, get()->getShared().staticCast<CRenderer>());
-		get()->m_Passes.push_back(pass);
+		CResourceManager::get().create(pass, getShared().staticCast<CRenderer>());
+		m_Passes.push_back(pass);
 	}
 
 	template <typename... TPasses>
-	static void addPasses() {
+	void addPasses() {
 		(addPass<TPasses>(), ...);
 	}
 
 	template <typename TPass>
-	static bool hasPass() {
+	bool hasPass() {
 		return hasPass(TPass::staticClass());
 	}
 
 	template <typename TPass>
-	static TPass* getPass() {
+	TPass* getPass() {
 		return static_cast<TPass*>(getPass(TPass::staticClass()));
 	}
 
@@ -134,11 +132,9 @@ private:
 
 	friend class CEngine;
 
-	EXPORT static CPass* getPass(const SClass* cls);
+	EXPORT CPass* getPass(const SClass* cls) const;
 
-	EXPORT static bool hasPass(const SClass* cls);
-
-	EXPORT static void set(CRenderer* inRenderer);
+	EXPORT bool hasPass(const SClass* cls) const;
 
 	std::list<CPass*> m_Passes;
 

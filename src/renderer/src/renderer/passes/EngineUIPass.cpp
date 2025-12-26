@@ -246,7 +246,7 @@ void renderMaterialUI(const SRendererInfo& info) {
 void renderSpriteUI(const SRendererInfo& info) {
 	return;
 	if (ImGui::Begin("Sprites")) {
-		for (const auto& pass = CRenderer::get()->getPass<CSpritePass>(); const auto& sprite : pass->objects) {
+		for (const auto& pass = info.renderer->getPass<CSpritePass>(); const auto& sprite : pass->objects) {
 			if (ImGui::BeginTabBar("Sprite")) {
 				if (ImGui::BeginTabItem(sprite->mName.c_str())) {
 					//ImGui::Checkbox("Highlight", &material.material->mHighlight);
@@ -396,7 +396,7 @@ void CEngineUIPass::init(const TShared<CRenderer> inRenderer) {
 		.UseDynamicRendering = true
 	};
 
-	const VkFormat format = CVulkanRenderer::get()->mEngineTextures->mDrawImage->getFormat();
+	const VkFormat format = inRenderer.staticCast<CVulkanRenderer>()->mEngineTextures->mDrawImage->getFormat();
 
 	//dynamic rendering parameters for imgui to use
 	initInfo.PipelineRenderingCreateInfo = {.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};

@@ -31,10 +31,6 @@ ADD_COMMAND(bool, UseVsync, true);
 
 static CResourceManager gInstanceManager;
 
-CVulkanRenderer* CVulkanRenderer::get() {
-	return static_cast<CVulkanRenderer*>(CRenderer::get());
-}
-
 CVulkanRenderer::CVulkanRenderer(): mVSync(UseVsync.get()) {}
 
 void CVulkanRenderer::immediateSubmit(std::function<void(SCommandBuffer& cmd)>&& function) {
@@ -73,7 +69,6 @@ void CVulkanRenderer::init() {
 
 	// Initializes the vkb instance
 	mInstance = TShared<CVulkanInstance>{};
-	mInstance->init();
 
 	// Create a surface for Device to reference
 	SDL_Vulkan_CreateSurface(CEngine::get()->getViewport()->mWindow, mInstance->getInstance(), nullptr, &mVkSurface);
@@ -83,8 +78,7 @@ void CVulkanRenderer::init() {
 	}); //TODO: not a big fan of the callbacks, should be its own class
 
 	// Create the vulkan device
-	mDevice = TShared<CVulkanDevice>{};
-	mDevice->init(mInstance, mVkSurface);
+	mDevice = TShared<CVulkanDevice>{mInstance, mVkSurface};
 
 	CBindlessResources::get()->init(mDevice);
 
@@ -121,8 +115,7 @@ void CVulkanRenderer::init() {
 	}
 
 	// Initialize Allocator
-	mAllocator = TShared<CVulkanAllocator>{};
-	mAllocator->init2(asShared());
+	mAllocator = TShared<CVulkanAllocator>{asShared()};
 	CResourceManager::get().callback([this]{
 		mAllocator->destroy();
 	});

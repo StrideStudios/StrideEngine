@@ -115,6 +115,9 @@ public:
 		std::string name;
 	};
 
+	CVulkanAllocator() = default;
+	EXPORT CVulkanAllocator(const TShared<CRenderer>& inRenderer);
+
 	template <typename TType>
 	requires std::is_base_of_v<Resource, TType>
 	TType* addResource(TUnique<TType>&& inResource) {
@@ -138,8 +141,6 @@ public:
 	VmaAllocator& getAllocator() {
 		return mAllocator;
 	}
-
-	EXPORT void init2(const TShared<CRenderer>& inRenderer);
 
 	EXPORT virtual void destroy() override;
 

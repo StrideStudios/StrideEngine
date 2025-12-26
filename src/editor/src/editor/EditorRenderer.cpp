@@ -19,10 +19,12 @@
 void CEditorSpritePass::init(TShared<CRenderer> inRenderer) {
 	CSpritePass::init(inRenderer);
 
+	TWeak<CVulkanRenderer> vulkanRenderer = inRenderer.staticCast<CVulkanRenderer>();
+
 	/*{
 		const auto sprite = std::make_shared<CInstancedSprite>();
 		sprite->mName = fmts("Instanced Sprite");
-		sprite->material = CVulkanRenderer::get()->mEngineTextures->mErrorMaterial;
+		sprite->material = vulkanRenderer->mEngineTextures->mErrorMaterial;
 
 		Transform2f transform;
 		transform.setPosition(Vector2f{0.f});
@@ -36,15 +38,13 @@ void CEditorSpritePass::init(TShared<CRenderer> inRenderer) {
 	{
 		const auto textSprite = std::make_shared<CTextSprite>();
 		textSprite->mName = fmts("Text Sprite");
-		textSprite->material = CVulkanRenderer::get()->mEngineTextures->mErrorMaterial;
+		textSprite->material = vulkanRenderer->mEngineTextures->mErrorMaterial;
 
 		textSprite->setPosition(Vector2f{0.f});
 		//textSprite->setScale(Vector2f{1.f, 1.f});
 
 		push(textSprite);
 	}
-
-	CVulkanRenderer& renderer = *CVulkanRenderer::get();
 
 	CResourceManager manager;
 
@@ -59,8 +59,8 @@ void CEditorSpritePass::init(TShared<CRenderer> inRenderer) {
 		.fragmentModule = frag->mModule,
 		.mBlendMode = EBlendMode::ALPHA_BLEND,
 		.mDepthTestMode = EDepthTestMode::FRONT,
-		.mColorFormat = renderer.mEngineTextures->mDrawImage->getFormat(),
-		.mDepthFormat = renderer.mEngineTextures->mDepthImage->getFormat()
+		.mColorFormat = vulkanRenderer->mEngineTextures->mDrawImage->getFormat(),
+		.mDepthFormat = vulkanRenderer->mEngineTextures->mDepthImage->getFormat()
 	};
 
 	CVertexAttributeArchive attributes;

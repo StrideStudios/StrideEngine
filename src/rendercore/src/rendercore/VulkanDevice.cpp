@@ -7,20 +7,16 @@
 
 // Define how to create queues
 static std::map<vkb::QueueType, std::map<EQueueType, float>> queueFamilies {
+    {
+        vkb::QueueType::graphics,
         {
-            vkb::QueueType::graphics,
-            {
-                {EQueueType::GRAPHICS, 1.f},
-                {EQueueType::UPLOAD, 0.f}
-            }
-        },
-    };
+            {EQueueType::GRAPHICS, 1.f},
+            {EQueueType::UPLOAD, 0.f}
+        }
+    },
+};
 
-SQueue CVulkanDevice::getQueue(const EQueueType inType) {
-    return mQueues[inType];
-}
-
-void CVulkanDevice::init(TShared<CVulkanInstance> inInstance, VkSurfaceKHR inSurface) {
+CVulkanDevice::CVulkanDevice(TShared<CVulkanInstance> inInstance, VkSurfaceKHR inSurface) {
 
     // Swapchain Maintenance features
     VkPhysicalDeviceSwapchainMaintenance1FeaturesEXT swapchainMaintenance1Features{
@@ -117,6 +113,10 @@ void CVulkanDevice::init(TShared<CVulkanInstance> inInstance, VkSurfaceKHR inSur
             mQueues.emplace(queueType, inQueue);
         }
     }
+}
+
+SQueue CVulkanDevice::getQueue(const EQueueType inType) {
+    return mQueues[inType];
 }
 
 void CVulkanDevice::destroy() {

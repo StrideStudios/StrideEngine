@@ -693,7 +693,7 @@ void SImage_T::destroy() {
 	vkDestroyImageView(device->getDevice().device, mImageView, nullptr);
 }
 
-void CVulkanAllocator::init2(const TShared<CRenderer>& inRenderer) {
+CVulkanAllocator::CVulkanAllocator(const TShared<CRenderer>& inRenderer) {
 	msgs("Creating Vulkan Allocator.");
 
 	m_Renderer = inRenderer;

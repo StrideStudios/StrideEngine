@@ -2,7 +2,7 @@
 
 #include "VkBootstrap.h"
 
-void CVulkanInstance::init() {
+CVulkanInstance::CVulkanInstance() {
 	vkb::InstanceBuilder builder;
 
 	auto instance = builder.set_app_name(gEngineName)

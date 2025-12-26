@@ -36,8 +36,6 @@ class CVulkanRenderer : public CRenderer {
 
 public:
 
-	EXPORT static CVulkanRenderer* get();
-
 	struct SceneData {
 		Matrix4f mViewProj;
 		Vector2f mScreenSize;
