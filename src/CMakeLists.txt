@@ -126,8 +126,21 @@ subdirectory_link(StrideEngine PUBLIC
         editor
 )
 
-# Tell cmake to copy dlls to the target directory
-add_custom_command(TARGET StrideEngine POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:StrideEngine> $<TARGET_FILE_DIR:StrideEngine>
-        COMMAND_EXPAND_LISTS
-)
+if(WIN32)
+    set_target_properties(StrideEngine
+            PROPERTIES
+            LINK_FLAGS_DEBUG "/SUBSYSTEM:CONSOLE"
+            LINK_FLAGS_RELEASE "/SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup"
+    )
+
+    target_compile_definitions(StrideEngine PRIVATE
+            $<$<CONFIG:Debug>:BUILD_DEBUG>
+            $<$<CONFIG:Release>:BUILD_RELEASE>
+    )
+
+    # Tell cmake to copy dlls to the target directory
+    add_custom_command(TARGET StrideEngine POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:StrideEngine> $<TARGET_FILE_DIR:StrideEngine>
+            COMMAND_EXPAND_LISTS
+    )
+endif()

@@ -5,6 +5,13 @@
 
 int main() {
 
+#ifdef BUILD_DEBUG
+	msgs("Engine Initialized with profile 'Debug'");
+#endif
+#ifdef BUILD_RELEASE
+	msgs("Engine Initialized with profile 'Release'");
+#endif
+
 	// Tell Engine to use CEditorRenderer, which has certain passes
 	CEngine::run<CEditorRenderer>();
 

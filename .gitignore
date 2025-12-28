@@ -14,6 +14,7 @@
 
 # Cmake files
 !CMakeLists.txt
+!CMakePresets.json
 !*.cmake
 
 # Git
@@ -34,6 +35,7 @@ cache/
 # Build files
 cmake-build-debug/
 bin/
+build/
 
 # Auto generated files
 src/Sources.h
