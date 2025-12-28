@@ -11,8 +11,6 @@
 #include "renderer/Swapchain.h"
 #include "engine/Viewport.h"
 
-static CResourceManager gTexturesResourceManager;
-
 CEngineTextures::CEngineTextures(const TShared<CRenderer>& renderer, TShared<CVulkanAllocator> allocator) {
 
 	m_Swapchain = TShared<CVulkanSwapchain>{renderer};
@@ -31,22 +29,20 @@ CEngineTextures::CEngineTextures(const TShared<CRenderer>& renderer, TShared<CVu
 		samplerCreateInfo.minFilter = VK_FILTER_NEAREST;
 		samplerCreateInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
 
-		CSampler* samplerNearest;
-		CResourceManager::get().create(samplerNearest, renderer->device(), samplerCreateInfo);
+		mNearestSampler = TUnique<CSampler>{renderer->device(), samplerCreateInfo};
 
 		samplerCreateInfo.magFilter = VK_FILTER_LINEAR;
 		samplerCreateInfo.minFilter = VK_FILTER_LINEAR;
 		samplerCreateInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
 
-		CSampler* samplerLinear;
-		CResourceManager::get().create(samplerLinear, renderer->device(), samplerCreateInfo);
+		mLinearSampler = TUnique<CSampler>{renderer->device(), samplerCreateInfo};;
 
 		const auto imageDescriptorInfo = VkDescriptorImageInfo{
-			.sampler = *samplerNearest};
+			.sampler = **mNearestSampler};
 
 		const auto writeSet = VkWriteDescriptorSet{
 			.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-			.dstSet = *CBindlessResources::getBindlessDescriptorSet(),
+			.dstSet = **CBindlessResources::getBindlessDescriptorSet(),
 			.dstBinding = gSamplerBinding,
 			.dstArrayElement = 0,
 			.descriptorCount = 1,
@@ -55,11 +51,11 @@ CEngineTextures::CEngineTextures(const TShared<CRenderer>& renderer, TShared<CVu
 		};
 
 		const auto imageDescriptorInfo2 = VkDescriptorImageInfo{
-			.sampler = *samplerLinear};
+			.sampler = **mLinearSampler};
 
 		const auto writeSet2 = VkWriteDescriptorSet{
 			.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-			.dstSet = *CBindlessResources::getBindlessDescriptorSet(),
+			.dstSet = **CBindlessResources::getBindlessDescriptorSet(),
 			.dstBinding = gSamplerBinding,
 			.dstArrayElement = 1,
 			.descriptorCount = 1,
@@ -84,11 +80,11 @@ CEngineTextures::CEngineTextures(const TShared<CRenderer>& renderer, TShared<CVu
 
 	constexpr VkExtent3D extent(16, 16, 1);
 	constexpr int32 size = extent.width * extent.height * extent.depth * 4;
-	CResourceManager::get().create<SImage_T>(mErrorCheckerboardImage, allocator, renderer->device(), "Default Error", extent, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+	mErrorCheckerboardImage = TUnique<SImage_T>{allocator, renderer->device(), "Default Error", extent, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT};
 	mErrorCheckerboardImage->push(pixels.data(), size);
 
 	{
-		CResourceManager::get().create(mErrorMaterial);
+		mErrorMaterial = TUnique<CMaterial>{};
 		mErrorMaterial->mShouldSave = false;
 		mErrorMaterial->mName = "Error";
 		mErrorMaterial->mPassType = EMaterialPass::ERROR;
@@ -101,15 +97,18 @@ void CEngineTextures::initializeTextures(TShared<CVulkanAllocator> allocator) {
 
 	// Ensure previous textures have been destroyed
 	// This is in the case of screen resizing
-	gTexturesResourceManager.flush();
+	if (mDrawImage || mDepthImage) {
+		mDrawImage->destroy();
+		mDepthImage->destroy();
+	}
 
 	constexpr VkImageUsageFlags drawImageUsages = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
 	const auto extent = CEngine::get()->getViewport()->mExtent;
 
-	gTexturesResourceManager.create<SImage_T>(mDrawImage, allocator, allocator->m_Renderer->device(), "Draw Image", VkExtent3D{extent.x, extent.y, 1}, VK_FORMAT_R16G16B16A16_SFLOAT, drawImageUsages, VK_IMAGE_ASPECT_COLOR_BIT);
+	mDrawImage = TUnique<SImage_T>{allocator, allocator->m_Renderer->device(), "Draw Image", VkExtent3D{extent.x, extent.y, 1}, VK_FORMAT_R16G16B16A16_SFLOAT, drawImageUsages, VK_IMAGE_ASPECT_COLOR_BIT};
 
-	gTexturesResourceManager.create<SImage_T>(mDepthImage, allocator, allocator->m_Renderer->device(), "Depth Image", VkExtent3D{extent.x, extent.y, 1}, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_ASPECT_DEPTH_BIT);
+	mDepthImage = TUnique<SImage_T>{allocator, allocator->m_Renderer->device(), "Depth Image", VkExtent3D{extent.x, extent.y, 1}, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_ASPECT_DEPTH_BIT};
 }
 
 void CEngineTextures::reallocate(const SRendererInfo& info, const bool inUseVSync) {
@@ -124,8 +123,12 @@ void CEngineTextures::reallocate(const SRendererInfo& info, const bool inUseVSyn
 
 void CEngineTextures::destroy(const TShared<CVulkanDevice>& device) {
 	mErrorCheckerboardImage->destroy();
-	CResourceManager::get().ignore(mErrorCheckerboardImage);
-	gTexturesResourceManager.flush();
+	if (mDrawImage || mDepthImage) {
+		mDrawImage->destroy();
+		mDepthImage->destroy();
+	}
 	m_Swapchain->destroy(device);
+	mLinearSampler->destroy();
+	mNearestSampler->destroy();
 }
 

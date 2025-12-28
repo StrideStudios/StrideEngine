@@ -19,7 +19,7 @@ void CBindlessResources::init(const TShared<CVulkanDevice>& inDevice) {
 			.pPoolSizes = poolSizes.begin()
 		};
 
-		CResourceManager::get().create(mDescriptorPool, inDevice, poolCreateInfo);
+		mDescriptorPool = TUnique<CDescriptorPool>{inDevice, poolCreateInfo};
 	}
 
 	// Create Descriptor Set layout
@@ -69,7 +69,7 @@ void CBindlessResources::init(const TShared<CVulkanDevice>& inDevice) {
 			.pBindings = binding.begin(),
 		};
 
-		CResourceManager::get().create(mDescriptorSetLayout, inDevice, layoutCreateInfo);
+		mDescriptorSetLayout = TUnique<CDescriptorSetLayout>{inDevice, layoutCreateInfo};
 	}
 
 	{
@@ -88,7 +88,7 @@ void CBindlessResources::init(const TShared<CVulkanDevice>& inDevice) {
 			.pSetLayouts = &mDescriptorSetLayout->mDescriptorSetLayout
 		};
 
-		CResourceManager::get().create<CDescriptorSet>(mDescriptorSet, inDevice, allocationCreateInfo);
+		mDescriptorSet = TUnique<CDescriptorSet>{inDevice, allocationCreateInfo};
 
 	}
 
@@ -112,6 +112,12 @@ void CBindlessResources::init(const TShared<CVulkanDevice>& inDevice) {
 			.pPushConstantRanges = pushConstants.begin()
 		};
 
-		CResourceManager::get().create(mPipelineLayout, inDevice, layoutCreateInfo);
+		mPipelineLayout = TUnique<CPipelineLayout>{inDevice, layoutCreateInfo};
 	}
+}
+
+void CBindlessResources::destroy() {
+	mPipelineLayout->destroy();
+	mDescriptorSetLayout->destroy();
+	mDescriptorPool->destroy();
 }

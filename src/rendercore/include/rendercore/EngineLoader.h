@@ -213,9 +213,9 @@ public:
 
 	EXPORT static void importTexture(const TShared<CVulkanAllocator>& allocator, const std::filesystem::path& inPath);
 
-	static std::map<std::string, SImage_T*>& getImages() { return get()->mImages; }
+	static std::map<std::string, TShared<SImage_T>>& getImages() { return get()->mImages; }
 
-	std::map<std::string, SImage_T*> mImages{};
+	std::map<std::string, TShared<SImage_T>> mImages{};
 
 	//
 	// Fonts
@@ -233,9 +233,9 @@ public:
 
 	EXPORT static void createMaterial(const std::string& inMaterialName);
 
-	static std::map<std::string, CMaterial*>& getMaterials() { return get()->mMaterials; }
+	static std::map<std::string, TShared<CMaterial>>& getMaterials() { return get()->mMaterials; }
 
-	std::map<std::string, CMaterial*> mMaterials{};
+	std::map<std::string, TShared<CMaterial>> mMaterials{};
 
 	//
 	// Meshes
@@ -243,8 +243,8 @@ public:
 
 	EXPORT static void importMesh(const TShared<CVulkanAllocator>& allocator, const std::filesystem::path& inPath);
 
-	static std::map<std::string, SStaticMesh*>& getMeshes() { return get()->mMeshes; }
+	static std::map<std::string, TShared<SStaticMesh>>& getMeshes() { return get()->mMeshes; }
 
-	std::map<std::string, SStaticMesh*> mMeshes{};
+	std::map<std::string, TShared<SStaticMesh>> mMeshes{};
 
 };

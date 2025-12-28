@@ -54,8 +54,6 @@ struct SClass : SObject {
 		object = TShared<TType>{static_cast<TType*>(constructPointer())};
 	}
 
-	virtual SObject* construct(CResourceManager& inResourceManager) const = 0;
-
 	virtual SClass* getParent() const = 0;
 
 	virtual bool doesInherit(SClass* inClass) = 0;
@@ -78,10 +76,6 @@ struct TClass : SClass {
 	virtual void constructObject(SObject& object) const override {}
 
 	virtual SObject* constructPointer() const override { return nullptr; }
-
-	virtual SObject* construct(CResourceManager& inResourceManager) const override {
-		return nullptr;
-	}
 
 	virtual bool isAbstract() const override {
 		return true;
@@ -121,16 +115,6 @@ struct TGenericClass : SClass {
 			return nullptr;
 		} else {
 			return new TCurrentClass();
-		}
-	}
-
-	virtual SObject* construct(CResourceManager& inResourceManager) const override {
-		if constexpr (std::is_abstract_v<TCurrentClass>) {
-			return nullptr;
-		} else {
-			TCurrentClass* obj;
-			inResourceManager.create(obj);
-			return obj;
 		}
 	}
 

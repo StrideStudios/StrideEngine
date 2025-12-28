@@ -25,8 +25,8 @@ class CVulkanDevice;
 class CVulkanInstance;
 
 struct SUploadContext {
-	CFence* mUploadFence = nullptr;
-	CCommandPool* mCommandPool = nullptr;
+	TUnique<CFence> mUploadFence = nullptr;
+	TUnique<CCommandPool> mCommandPool = nullptr;
 	SCommandBuffer mCommandBuffer{};
 };
 
@@ -46,7 +46,7 @@ public:
 	};
 
 	struct FrameData {
-		CCommandPool* mCommandPool = nullptr;
+		TUnique<CCommandPool> mCommandPool = nullptr;
 		SCommandBuffer mMainCommandBuffer{};
 
 		tracy::VkCtx* mTracyContext;

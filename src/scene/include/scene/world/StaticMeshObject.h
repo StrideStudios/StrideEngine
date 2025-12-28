@@ -44,7 +44,7 @@ public:
 		if (hasMesh) {
 			std::string name;
 			inArchive >> name;
-			mesh = CEngineLoader::getMeshes()[name];
+			mesh = CEngineLoader::getMeshes()[name].get();
 		}
 
 		return inArchive;

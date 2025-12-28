@@ -21,13 +21,9 @@ void CSpritePass::init(TShared<CRenderer> inRenderer) {
 
 	const TShared<CVulkanRenderer> renderer = inRenderer.staticCast<CVulkanRenderer>();
 
-	CResourceManager manager;
+	const TUnique<SShader> frag{inRenderer->device(), "material\\sprite.frag"};
 
-	SShader* frag;
-	manager.create<SShader>(frag, inRenderer->device(), "material\\sprite.frag");
-
-	SShader* vert;
-	manager.create<SShader>(vert, inRenderer->device(), "material\\sprite.vert");
+	const TUnique<SShader> vert{inRenderer->device(), "material\\sprite.vert"};
 
 	const SPipelineCreateInfo createInfo {
 		.vertexModule = vert->mModule,
@@ -44,9 +40,10 @@ void CSpritePass::init(TShared<CRenderer> inRenderer) {
 	attributes << VK_FORMAT_R32G32B32A32_SFLOAT;
 	attributes << VK_FORMAT_R32G32B32A32_SFLOAT;
 
-	CResourceManager::get().create<CPipeline>(opaquePipeline, inRenderer->device(), createInfo, attributes, CBindlessResources::getBasicPipelineLayout());
+	opaquePipeline = TUnique<CPipeline>{inRenderer->device(), createInfo, attributes, CBindlessResources::getBasicPipelineLayout()};
 
-	manager.flush();
+	vert->destroy();
+	frag->destroy();
 }
 
 void CSpritePass::render(const SRendererInfo& info, VkCommandBuffer cmd) {
@@ -75,7 +72,7 @@ void CSpritePass::render(const SRendererInfo& info, VkCommandBuffer cmd) {
 
 		stack.pop();
 
-		bindPipeline(cmd, opaquePipeline, sprite->getMaterial()->mConstants);
+		bindPipeline(cmd, *opaquePipeline, sprite->getMaterial()->mConstants);
 
 		vkCmdDraw(cmd, 6, NumInstances, 0, 0);
 
@@ -102,4 +99,5 @@ void CSpritePass::destroy() {
 		instancer.destroy();
 	}*/ //TODO: objects.clear() is probably not needed.
 	objects.clear();
+	opaquePipeline->destroy();
 }

@@ -43,11 +43,11 @@ class CVulkanSwapchain : public CSwapchain {
 public:
 
 	struct FrameData {
-		CSemaphore* mSwapchainSemaphore = nullptr;
-		CSemaphore* mRenderSemaphore = nullptr;
+		TUnique<CSemaphore> mSwapchainSemaphore = nullptr;
+		TUnique<CSemaphore> mRenderSemaphore = nullptr;
 
-		CFence* mRenderFence = nullptr;
-		CFence* mPresentFence = nullptr;
+		TUnique<CFence> mRenderFence = nullptr;
+		TUnique<CFence> mPresentFence = nullptr;
 	};
 
 	CVulkanSwapchain() = default;

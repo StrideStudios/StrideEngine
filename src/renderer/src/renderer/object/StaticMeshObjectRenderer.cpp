@@ -38,14 +38,14 @@ void CStaticMeshObjectRenderer::render(const SRendererInfo& info, CMeshPass* inP
 	for (const auto& surface : mesh->surfaces) {
 
 
-		const CMaterial* material = info.renderer.staticCast<CVulkanRenderer>()->mEngineTextures->mErrorMaterial;
+		const CMaterial* material = *info.renderer.staticCast<CVulkanRenderer>()->mEngineTextures->mErrorMaterial;
 		if (surface.material) {
 			material = surface.material;
 		}
 
 		//TODO: auto pipeline rebind (or something)
 		// If the materials arent the same, rebind material data
-		inPass->bindPipeline(cmd, inPass->opaquePipeline, material->mConstants);
+		inPass->bindPipeline(cmd, *inPass->opaquePipeline, material->mConstants);
 		//surface.material->getPipeline(renderer) TODO: pipelines
 		vkCmdDrawIndexed(cmd, surface.count, (uint32)NumInstances, surface.startIndex, 0, 0);
 
@@ -56,8 +56,8 @@ void CStaticMeshObjectRenderer::render(const SRendererInfo& info, CMeshPass* inP
 	//TODO: If Render Bounds
 
 	if (CEngineLoader::getMeshes().contains("CubeBounds") && CEngineLoader::getMeshes().contains("SphereBounds")) {
-		const SStaticMesh* cubeBoundsMesh = CEngineLoader::getMeshes()["CubeBounds"];
-		const SStaticMesh* sphereBoundsMesh = CEngineLoader::getMeshes()["SphereBounds"];
+		const SStaticMesh* cubeBoundsMesh = CEngineLoader::getMeshes()["CubeBounds"].get();
+		const SStaticMesh* sphereBoundsMesh = CEngineLoader::getMeshes()["SphereBounds"].get();
 
 		// Fill with matrix transform for bounds
 		SPushConstants boxPcs;
@@ -104,7 +104,7 @@ void CStaticMeshObjectRenderer::render(const SRendererInfo& info, CMeshPass* inP
 
 			for (const auto& surface : cubeBoundsMesh->surfaces) {
 
-				inPass->bindPipeline(cmd, inPass->wireframePipeline, boxPcs);
+				inPass->bindPipeline(cmd, *inPass->wireframePipeline, boxPcs);
 
 				vkCmdDrawIndexed(cmd, surface.count, (uint32)NumInstances, surface.startIndex, 0, 0);
 			}
@@ -130,7 +130,7 @@ void CStaticMeshObjectRenderer::render(const SRendererInfo& info, CMeshPass* inP
 
 			for (const auto& surface : sphereBoundsMesh->surfaces) {
 
-				inPass->bindPipeline(cmd, inPass->wireframePipeline, spherePcs);
+				inPass->bindPipeline(cmd, *inPass->wireframePipeline, spherePcs);
 
 				vkCmdDrawIndexed(cmd, surface.count, (uint32)NumInstances, surface.startIndex, 0, 0);
 			}

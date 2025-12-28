@@ -61,7 +61,7 @@ void renderSceneUI(const SRendererInfo& info) {
 
 								const bool is_selected = ((sobject->getMesh() ? sobject->getMesh()->name : "None") == mesh.second->name);
 								if (ImGui::Selectable(CEngineLoader::getMeshes()[mesh.first]->name.c_str(), is_selected)) {
-									sobject->mesh = mesh.second;
+									sobject->mesh = mesh.second.get();
 									msgs("attempted to set {} to {}", sobject->mesh ? sobject->mesh->name.c_str() : "None", mesh.second->name.c_str());
 								}
 
@@ -106,7 +106,7 @@ void renderFontUI(const SRendererInfo& info) {
 			});
 		}
 
-		for (auto font : CEngineLoader::getFonts()) {
+		for (auto& font : CEngineLoader::getFonts()) {
 			if (ImGui::BeginCombo("Font", font.first.c_str(), ImGuiComboFlags_HeightRegular)) {
 				static uint32 selected = 0;
 				for (int32 i = 0; i < CEngineLoader::getFonts().size(); ++i) {
@@ -176,8 +176,7 @@ void renderMaterialUI(const SRendererInfo& info) {
 				materialNumber++;
 			}
 
-			CMaterial* material;
-			CResourceManager::get().create(material);
+			TShared<CMaterial> material{};
 			material->mName = testName;
 			CEngineLoader::getMaterials().emplace(testName, material);
 			selected = testName;
@@ -193,7 +192,7 @@ void renderMaterialUI(const SRendererInfo& info) {
 		}
 
 		if (!CEngineLoader::getMaterials().empty()) {
-			CMaterial* material = CEngineLoader::getMaterials()[selected];
+			CMaterial* material = CEngineLoader::getMaterials()[selected].get();
 
 			if (material) {
 				if (ImGui::BeginCombo("Material", material->mName.c_str(), ImGuiComboFlags_HeightRegular)) {
@@ -326,7 +325,7 @@ void renderMeshUI(const SRendererInfo& info) {
 									for (const auto& material : CEngineLoader::getMaterials()) {
 										const bool isSelected = surface.material == material.second;
 										if (ImGui::Selectable(material.first.c_str(), isSelected)) {
-											surface.material = material.second;
+											surface.material = material.second.get();
 										}
 
 										// Set the initial focus when opening the combo (scrolling + keyboard navigation focus)

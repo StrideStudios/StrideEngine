@@ -241,8 +241,8 @@ void SShader::destroy() {
 	vkDestroyShaderModule(device->getDevice().device, mModule, nullptr);
 }
 
-CPipeline::CPipeline(const TShared<CVulkanDevice>& inDevice, const SPipelineCreateInfo& inCreateInfo, CVertexAttributeArchive& inAttributes, CPipelineLayout* inLayout):
-	device(inDevice), mLayout(inLayout) {
+CPipeline::CPipeline(const TShared<CVulkanDevice>& inDevice, const SPipelineCreateInfo& inCreateInfo, CVertexAttributeArchive& inAttributes, const TUnique<CPipelineLayout>& inLayout):
+	device(inDevice), mLayout(inLayout.get()) {
 
 	// Make viewport state from our stored viewport and scissor.
 	// At the moment we won't support multiple viewports or scissors
@@ -505,7 +505,7 @@ void SBuffer_T::updateGlobal(const TShared<CVulkanDevice>& inDevice) const {
 
 	const auto writeSet = VkWriteDescriptorSet{
 		.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-		.dstSet = *CBindlessResources::getBindlessDescriptorSet(),
+		.dstSet = **CBindlessResources::getBindlessDescriptorSet(),
 		.dstBinding = gUBOBinding, //TODO: for now UBO bindings
 		.dstArrayElement = mBindlessAddress,
 		.descriptorCount = 1,
@@ -572,7 +572,7 @@ SImage_T::SImage_T(const TShared<CVulkanAllocator>& inAllocator, const TShared<C
 
 		const auto writeSet = VkWriteDescriptorSet{
 			.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-			.dstSet = *CBindlessResources::getBindlessDescriptorSet(),
+			.dstSet = **CBindlessResources::getBindlessDescriptorSet(),
 			.dstBinding = gTextureBinding,
 			.dstArrayElement = mBindlessAddress,
 			.descriptorCount = 1,

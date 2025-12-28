@@ -21,7 +21,7 @@
 
 constexpr static bool gUseOpenCL = false;
 
-SImage_T* loadImage(const TShared<CVulkanAllocator>& allocator, CResourceManager& manager, const std::filesystem::path& path) {
+TShared<SImage_T> loadImage(const TShared<CVulkanAllocator>& allocator, const std::filesystem::path& path) {
 	const std::string& fileName = path.filename().string();
 
 	basisu::uint8_vec fileData;
@@ -45,11 +45,13 @@ SImage_T* loadImage(const TShared<CVulkanAllocator>& allocator, CResourceManager
 	msgs("Texture dimensions: ({}x{}), levels: {}", width, height, numMips);
 
 	// Allocate image and transition to dst
-	SImage_T* image;
-	manager.create<SImage_T>(image, allocator, allocator->m_Renderer->device(), fileName, imageSize, VK_FORMAT_BC7_SRGB_BLOCK, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_IMAGE_ASPECT_COLOR_BIT, numMips);
+	TShared<SImage_T> image{allocator, allocator->m_Renderer->device(), fileName, imageSize, VK_FORMAT_BC7_SRGB_BLOCK, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_IMAGE_ASPECT_COLOR_BIT, numMips};
+	CResourceManager::get().callback([image] {
+		image->destroy();
+	});
 
 	allocator->m_Renderer->immediateSubmit([&](SCommandBuffer& cmd) {
-		CVulkanUtils::transitionImage(cmd, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+		CVulkanUtils::transitionImage(cmd, *image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 	});
 
 	transcoder.start_transcoding();
@@ -98,18 +100,16 @@ SImage_T* loadImage(const TShared<CVulkanAllocator>& allocator, CResourceManager
 			// copy the buffer into the image
 			vkCmdCopyBufferToImage(cmd, uploadBuffer.get(allocator)->buffer, image->mImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
 		});
-
-		manager.flush();
 	}
 
 	allocator->m_Renderer->immediateSubmit([&](SCommandBuffer& cmd) {
-		CVulkanUtils::transitionImage(cmd, image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		CVulkanUtils::transitionImage(cmd, *image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	});
 
 	return image;
 }
 
-SFont loadFont(const TShared<CVulkanAllocator>& allocator, CResourceManager& manager, const std::filesystem::path& inPath) {
+SFont loadFont(const TShared<CVulkanAllocator>& allocator, const std::filesystem::path& inPath) {
 	SFont font;
 	std::vector<uint8> atlasData;
 
@@ -119,7 +119,11 @@ SFont loadFont(const TShared<CVulkanAllocator>& allocator, CResourceManager& man
 	file.close();
 
 	const std::string label = font.mName + " Atlas";
-	manager.create<SImage_T>(font.mAtlasImage, allocator, allocator->m_Renderer->device(), label, VkExtent3D{font.mAtlasSize.x, font.mAtlasSize.y, 1}, VK_FORMAT_R8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+	font.mAtlasImage = TUnique<SImage_T>{allocator, allocator->m_Renderer->device(), label, VkExtent3D{font.mAtlasSize.x, font.mAtlasSize.y, 1}, VK_FORMAT_R8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT};
+	SImage_T* image = font.mAtlasImage.get();
+	CResourceManager::get().callback([image] {
+		image->destroy();
+	});
 	font.mAtlasImage->push(atlasData.data(), atlasData.size());
 
 	return font;
@@ -387,13 +391,12 @@ SMeshData readMeshData(const std::filesystem::path& path) {
 	return outSaveData;
 }
 
-SMeshBuffers_T* uploadMesh(const TShared<CVulkanAllocator>& allocator, CResourceManager& inManager, std::span<uint32> indices, std::span<SVertex> vertices) {
+TUnique<SMeshBuffers_T> uploadMesh(const TShared<CVulkanAllocator>& allocator, std::span<uint32> indices, std::span<SVertex> vertices) {
 	const size_t vertexBufferSize = vertices.size() * sizeof(SVertex);
 	const size_t indexBufferSize = indices.size() * sizeof(uint32);
 
 	// Create buffers
-	SMeshBuffers_T* meshBuffers;
-	inManager.create<SMeshBuffers_T>(meshBuffers, allocator, "Mesh Buffer", indexBufferSize, vertexBufferSize);
+	TUnique<SMeshBuffers_T> meshBuffers{allocator, "Mesh Buffer", indexBufferSize, vertexBufferSize};
 
 	// Staging is not needed outside of this function
 	SStagingBuffer staging{allocator, "Staging for Mesh Buffer", vertexBufferSize + indexBufferSize};
@@ -422,9 +425,8 @@ SMeshBuffers_T* uploadMesh(const TShared<CVulkanAllocator>& allocator, CResource
 	return meshBuffers;
 }
 
-SStaticMesh* toStaticMesh(const TShared<CVulkanAllocator>& allocator, SMeshData mesh, const std::string& fileName) {
-	SStaticMesh* loadMesh;
-	CResourceManager::get().create(loadMesh);
+TShared<SStaticMesh> toStaticMesh(const TShared<CVulkanAllocator>& allocator, SMeshData mesh, const std::string& fileName) {
+	TShared<SStaticMesh> loadMesh{};
 	loadMesh->name = fileName;
 	loadMesh->bounds = mesh.bounds;
 	for (auto& [name, startIndex, count] : mesh.surfaces) {
@@ -436,14 +438,14 @@ SStaticMesh* toStaticMesh(const TShared<CVulkanAllocator>& allocator, SMeshData 
 		});
 	}
 
-	loadMesh->meshBuffers = uploadMesh(allocator, CResourceManager::get(), mesh.indices, mesh.vertices);
+	loadMesh->meshBuffers = uploadMesh(allocator, mesh.indices, mesh.vertices);
 	return loadMesh;
 }
 
 void CEngineLoader::save() {
 	// Only materials need to be saved (as they are the only thing created at runtime)
 	for (const auto& [name, material] : get()->mMaterials) {
-		save<CMaterial*>(name, material);
+		save<TShared<CMaterial>>(name, material);
 	}
 }
 
@@ -481,14 +483,14 @@ void CEngineLoader::load(const TShared<CVulkanAllocator>& allocator) {
 
 	// Load textures
 	for (const auto& path : textures) {
-		SImage_T* image = loadImage(allocator, CResourceManager::get(), path);
+		TShared<SImage_T> image = loadImage(allocator, path);
 		get()->mImages.emplace(pathToName(path), image);
 	}
 
 	// Load fonts
 	for (const auto& path : fonts) {
-		SFont font = loadFont(allocator, CResourceManager::get(), path);
-		get()->mFonts.emplace(pathToName(path), font);
+		SFont font = loadFont(allocator, path);
+		get()->mFonts.emplace(pathToName(path), std::move(font));
 	}
 
 	// Load materials
@@ -538,7 +540,7 @@ void CEngineLoader::importTexture(const TShared<CVulkanAllocator>& allocator, co
 
 	basisu::basis_free_data(pKTX2_data);
 
-	SImage_T* loadedImage = loadImage(allocator, CResourceManager::get(), cachedPath);
+	TShared<SImage_T> loadedImage = loadImage(allocator, cachedPath);
 
 	get()->mImages.emplace(loadedImage->mName, loadedImage);
 }
@@ -574,7 +576,7 @@ void CEngineLoader::importFont(const TShared<CVulkanAllocator>& allocator, const
     font.mAscenderPx = face->size->metrics.ascender / 64.f;
     font.mDescenderPx = face->size->metrics.descender / 64.f;
 
-    get()->mFonts.emplace(font.mName, font);
+    get()->mFonts.emplace(font.mName, std::move(font));
 
 	// Do all standard ASCII characters
     for (uint8 character = 0; character < std::numeric_limits<uint8>::max(); ++character) {
@@ -620,7 +622,11 @@ void CEngineLoader::importFont(const TShared<CVulkanAllocator>& allocator, const
 	cachedPath.replace_extension(".fnt");
 
 	const std::string label = font.mName + " Atlas";
-	CResourceManager::get().create<SImage_T>(font.mAtlasImage, allocator, allocator->m_Renderer->device(), label, VkExtent3D{FONT_ATLAS_SIZE, FONT_ATLAS_SIZE, 1}, VK_FORMAT_R8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+	font.mAtlasImage = TUnique<SImage_T>{allocator, allocator->m_Renderer->device(), label, VkExtent3D{FONT_ATLAS_SIZE, FONT_ATLAS_SIZE, 1}, VK_FORMAT_R8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT};
+	SImage_T* image = font.mAtlasImage.get();
+	CResourceManager::get().callback([image] {
+		image->destroy();
+	});
 	font.mAtlasImage->push(atlasData.data(), atlasData.size());
 
 	// Write font and atlas data to file
@@ -650,8 +656,7 @@ void CEngineLoader::createMaterial(const std::string& inMaterialName) {
 		materialNumber++;
 	}
 
-	CMaterial* material;
-	CResourceManager::get().create(material);
+	TShared<CMaterial> material{};
 	material->mName = name;
 
 	get()->mMaterials.emplace(name, material);

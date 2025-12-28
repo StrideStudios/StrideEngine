@@ -42,7 +42,6 @@ private:
 	requires std::is_base_of_v<CRenderer, TType>
 	static void run() {
 		get()->m_Renderer = TShared<TType>{};
-		get()->m_Renderer->init();
 		get()->run_internal();
 	}
 

@@ -38,7 +38,7 @@ void CEditorSpritePass::init(TShared<CRenderer> inRenderer) {
 	{
 		const auto textSprite = std::make_shared<CTextSprite>();
 		textSprite->mName = fmts("Text Sprite");
-		textSprite->material = vulkanRenderer->mEngineTextures->mErrorMaterial;
+		textSprite->material = *vulkanRenderer->mEngineTextures->mErrorMaterial;
 
 		textSprite->setPosition(Vector2f{0.f});
 		//textSprite->setScale(Vector2f{1.f, 1.f});
@@ -46,13 +46,9 @@ void CEditorSpritePass::init(TShared<CRenderer> inRenderer) {
 		push(textSprite);
 	}
 
-	CResourceManager manager;
+	const TUnique<SShader> frag{inRenderer->device(), "material\\text.frag"};
 
-	SShader* frag;
-	manager.create<SShader>(frag, inRenderer->device(), "material\\text.frag");
-
-	SShader* vert;
-	manager.create<SShader>(vert, inRenderer->device(), "material\\text.vert");
+	const TUnique<SShader> vert{inRenderer->device(), "material\\text.vert"};
 
 	const SPipelineCreateInfo createInfo {
 		.vertexModule = vert->mModule,
@@ -72,19 +68,19 @@ void CEditorSpritePass::init(TShared<CRenderer> inRenderer) {
 	attributes << VK_FORMAT_R32G32B32A32_SFLOAT;
 	attributes << VK_FORMAT_R32G32B32A32_SFLOAT;
 
-	CResourceManager::get().create<CPipeline>(textPipeline, inRenderer->device(), createInfo, attributes, CBindlessResources::getBasicPipelineLayout());
+	textPipeline = TUnique<CPipeline>{inRenderer->device(), createInfo, attributes, CBindlessResources::getBasicPipelineLayout()};
 
-	manager.flush();
+	vert->destroy();
+	frag->destroy();
 
-	CMaterial* textMaterial;
-	CResourceManager::get().create(textMaterial);
+	textMaterial = TUnique<CMaterial>{};
 	textMaterial->mShouldSave = false;
 	textMaterial->mName = "Error";
 	textMaterial->mPassType = EMaterialPass::ERROR;
 
 	const auto exampleText = std::make_shared<CTextSprite>("Example Text");
 	exampleText->mName = "Example Text";
-	exampleText->material = textMaterial;
+	exampleText->material = *textMaterial;
 }
 
 void CEditorSpritePass::render(const SRendererInfo& info, VkCommandBuffer cmd) {
@@ -112,7 +108,7 @@ void CEditorSpritePass::render(const SRendererInfo& info, VkCommandBuffer cmd) {
 				SInstance instance;
 			};
 
-			SFont font = CEngineLoader::getFonts().begin()->second;
+			SFont& font = CEngineLoader::getFonts().begin()->second;
 
 			std::vector<SData> datas;
 
@@ -136,7 +132,7 @@ void CEditorSpritePass::render(const SRendererInfo& info, VkCommandBuffer cmd) {
 			SPushConstants constants = sprite->getMaterial()->mConstants;
 			constants[0].x = font.mAtlasImage->mBindlessAddress;
 
-			bindPipeline(cmd, textPipeline, constants);
+			bindPipeline(cmd, *textPipeline, constants);
 		} else {
 			IInstancer& instancer = sprite->getInstancer();
 			NumInstances = instancer.getNumberOfInstances();
@@ -149,7 +145,7 @@ void CEditorSpritePass::render(const SRendererInfo& info, VkCommandBuffer cmd) {
 
 			stack.pop();
 
-			bindPipeline(cmd, opaquePipeline, sprite->getMaterial()->mConstants);
+			bindPipeline(cmd, *opaquePipeline, sprite->getMaterial()->mConstants);
 		}
 
 		vkCmdDraw(cmd, 6, NumInstances, 0, 0);
@@ -162,6 +158,7 @@ void CEditorSpritePass::render(const SRendererInfo& info, VkCommandBuffer cmd) {
 void CEditorSpritePass::destroy() {
 	CSpritePass::destroy();
 	tempTextBuffer.destroy();
+	textPipeline->destroy();
 }
 
 void CEditorRenderer::init() {
@@ -188,7 +185,7 @@ void CEditorRenderer::init() {
 
 			const auto sprite = std::make_shared<CInstancedSprite>();
 		   sprite->mName = fmts("Instanced Sprite");
-		   sprite->material = mEngineTextures->mErrorMaterial;
+		   sprite->material = *mEngineTextures->mErrorMaterial;
 
 		   for (int32 i = 0; i < numSprites; ++i) {
 			   Transform2f transform;

@@ -12,14 +12,16 @@ public:
 
 	EXPORT virtual void init(TShared<CRenderer> inRenderer) override;
 
+	EXPORT void destroy() override;
+
 	EXPORT virtual void render(const SRendererInfo& info, VkCommandBuffer cmd) override;
 
 	//
 	// Pipelines
 	//
 
-	CPipeline* opaquePipeline = nullptr;
-	CPipeline* errorPipeline = nullptr;
-	CPipeline* wireframePipeline = nullptr;
-	CPipeline* transparentPipeline = nullptr;
+	TUnique<CPipeline> opaquePipeline = nullptr;
+	TUnique<CPipeline> errorPipeline = nullptr;
+	TUnique<CPipeline> wireframePipeline = nullptr;
+	TUnique<CPipeline> transparentPipeline = nullptr;
 };

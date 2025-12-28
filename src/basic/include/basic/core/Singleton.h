@@ -63,8 +63,5 @@ void initSingleton(const std::string& inName) {
 				outPointer->destroy();
 			});
 		}
-		if constexpr (std::is_base_of_v<IInitializable, TType>) {
-			outPointer->init();
-		}
 	}
 }

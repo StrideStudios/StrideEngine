@@ -19,7 +19,9 @@ public:
 	// Pipelines
 	//
 
-	CPipeline* textPipeline = nullptr;
+	TUnique<CPipeline> textPipeline = nullptr;
+
+	TUnique<CMaterial> textMaterial = nullptr;
 
 	SDynamicBuffer<VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT> tempTextBuffer{"Text Buffer"};
 };

@@ -32,7 +32,6 @@ CEngine::CEngine() {
 	// Initialize the viewport
 	m_EngineViewport = TShared<CEngineViewport>{};
 	m_Input = TShared<CInput>{};
-	//CResourceManager::get().pushUnique(std::move(m_EngineViewport));
 }
 
 void CEngine::run_internal() {

@@ -2,8 +2,6 @@
 
 #include "scene/world/Camera.h"
 
-static CResourceManager gSceneResourceManager;
-
 void CScene::init() {
 	std::filesystem::path path = SPaths::get()->mAssetPath.string() + "Scene.scn";
 
@@ -13,11 +11,11 @@ void CScene::init() {
 		file.close();
 	}
 
-	gSceneResourceManager.create(mMainCamera);
+	mMainCamera = TShared<CCamera>{};
 }
 
 void CScene::destroy() {
-	gSceneResourceManager.flush();
+	mMainCamera->destroy();
 
 	std::filesystem::path path = SPaths::get()->mAssetPath.string() + "Scene.scn";
 

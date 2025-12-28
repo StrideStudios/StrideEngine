@@ -200,7 +200,7 @@ struct CPipeline final : SObject, IDestroyable {
 	REGISTER_STRUCT(CPipeline, SObject)
 
 	CPipeline() = default;
-	EXPORT CPipeline(const TShared<CVulkanDevice>& inDevice, const SPipelineCreateInfo& inCreateInfo, CVertexAttributeArchive& inAttributes, CPipelineLayout* inLayout);
+	EXPORT CPipeline(const TShared<CVulkanDevice>& inDevice, const SPipelineCreateInfo& inCreateInfo, CVertexAttributeArchive& inAttributes, const TUnique<CPipelineLayout>& inLayout);
 
 	EXPORT void bind(VkCommandBuffer cmd, const VkPipelineBindPoint inBindPoint) const;
 

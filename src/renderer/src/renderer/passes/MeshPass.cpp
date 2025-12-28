@@ -22,22 +22,15 @@ void CMeshPass::init(const TShared<CRenderer> inRenderer) {
 
 	const TShared<CVulkanRenderer> renderer = inRenderer.staticCast<CVulkanRenderer>();
 
-	CResourceManager manager;
+	const TUnique<SShader> frag{inRenderer->device(), "material\\mesh.frag"};
 
-	SShader* frag;
-	manager.create<SShader>(frag, inRenderer->device(), "material\\mesh.frag");
+	const TUnique<SShader> errorFrag{inRenderer->device(), "material\\mesh_error.frag"};
 
-	SShader* errorFrag;
-	manager.create<SShader>(errorFrag, inRenderer->device(), "material\\mesh_error.frag");
+	const TUnique<SShader> vert{inRenderer->device(), "material\\mesh.vert"};
 
-	SShader* vert;
-	manager.create<SShader>(vert, inRenderer->device(), "material\\mesh.vert");
+	const TUnique<SShader> basicFrag{inRenderer->device(), "material\\basic.frag"};
 
-	SShader* basicFrag;
-	manager.create<SShader>(basicFrag, inRenderer->device(), "material\\basic.frag");
-
-	SShader* wireframeVert;
-	manager.create<SShader>(wireframeVert, inRenderer->device(), "material\\wireframe.vert");
+	const TUnique<SShader> wireframeVert{inRenderer->device(), "material\\wireframe.vert"};
 
 	SPipelineCreateInfo createInfo {
 		.vertexModule = vert->mModule,
@@ -59,19 +52,19 @@ void CMeshPass::init(const TShared<CRenderer> inRenderer) {
 	attributes << VK_FORMAT_R32G32B32A32_SFLOAT;
 	attributes << VK_FORMAT_R32G32B32A32_SFLOAT;
 
-	CResourceManager::get().create<CPipeline>(opaquePipeline, inRenderer->device(), createInfo, attributes, CBindlessResources::getBasicPipelineLayout());
+	opaquePipeline = TUnique<CPipeline>{inRenderer->device(), createInfo, attributes, CBindlessResources::getBasicPipelineLayout()};
 
 	// Transparent should be additive and always render in front
 	createInfo.mBlendMode = EBlendMode::ADDITIVE;
 	createInfo.mDepthTestMode = EDepthTestMode::FRONT;
 
-	CResourceManager::get().create<CPipeline>(transparentPipeline, inRenderer->device(), createInfo, attributes, CBindlessResources::getBasicPipelineLayout());
+	transparentPipeline = TUnique<CPipeline>{inRenderer->device(), createInfo, attributes, CBindlessResources::getBasicPipelineLayout()};
 
 	createInfo.fragmentModule = errorFrag->mModule;
 	createInfo.mBlendMode = EBlendMode::NONE;
 	createInfo.mDepthTestMode = EDepthTestMode::NORMAL;
 
-	CResourceManager::get().create<CPipeline>(errorPipeline, inRenderer->device(), createInfo, attributes, CBindlessResources::getBasicPipelineLayout());
+	errorPipeline = TUnique<CPipeline>{inRenderer->device(), createInfo, attributes, CBindlessResources::getBasicPipelineLayout()};
 
 	createInfo.vertexModule = wireframeVert->mModule;
 	createInfo.fragmentModule = basicFrag->mModule;
@@ -80,9 +73,20 @@ void CMeshPass::init(const TShared<CRenderer> inRenderer) {
 	createInfo.mCullMode = VK_CULL_MODE_NONE;
 	createInfo.mLineWidth = 5.f;
 
-	CResourceManager::get().create<CPipeline>(wireframePipeline, inRenderer->device(), createInfo, attributes, CBindlessResources::getBasicPipelineLayout());
+	wireframePipeline = TUnique<CPipeline>{inRenderer->device(), createInfo, attributes, CBindlessResources::getBasicPipelineLayout()};
 
-	manager.flush();
+	wireframeVert->destroy();
+	basicFrag->destroy();
+	vert->destroy();
+	errorFrag->destroy();
+	frag->destroy();
+}
+
+void CMeshPass::destroy(){
+	opaquePipeline->destroy();
+	transparentPipeline->destroy();
+	errorPipeline->destroy();
+	wireframePipeline->destroy();
 }
 
 //TODO: probably faster with gpu

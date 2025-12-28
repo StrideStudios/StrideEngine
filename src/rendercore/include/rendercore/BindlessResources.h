@@ -30,27 +30,29 @@ public:
 
 	EXPORT virtual void init(const TShared<CVulkanDevice>& inDevice);
 
-	static CDescriptorPool*& getBindlessDescriptorPool() {
+	EXPORT virtual void destroy();
+
+	static TUnique<CDescriptorPool>& getBindlessDescriptorPool() {
 		return get()->mDescriptorPool;
 	}
 
-	static CPipelineLayout*& getBasicPipelineLayout() {
+	static TUnique<CPipelineLayout>& getBasicPipelineLayout() {
 		return get()->mPipelineLayout;
 	}
 
-	static CDescriptorSetLayout*& getBindlessDescriptorSetLayout() {
+	static TUnique<CDescriptorSetLayout>& getBindlessDescriptorSetLayout() {
 		return get()->mDescriptorSetLayout;
 	}
 
-	static CDescriptorSet*& getBindlessDescriptorSet() {
+	static TUnique<CDescriptorSet>& getBindlessDescriptorSet() {
 		return get()->mDescriptorSet;
 	}
 
 private:
 
-	CDescriptorPool* mDescriptorPool = nullptr;
-	CPipelineLayout* mPipelineLayout = nullptr;
-	CDescriptorSetLayout* mDescriptorSetLayout = nullptr;
-	CDescriptorSet* mDescriptorSet = nullptr;
+	TUnique<CDescriptorPool> mDescriptorPool = nullptr;
+	TUnique<CPipelineLayout> mPipelineLayout = nullptr;
+	TUnique<CDescriptorSetLayout> mDescriptorSetLayout = nullptr;
+	TUnique<CDescriptorSet> mDescriptorSet = nullptr;
 
 };

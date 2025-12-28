@@ -1,4 +1,6 @@
-﻿add_subdirectory(simplestl)
+﻿option(SIMPLESTL_INIT "" ON)
+option(SIMPLESTL_DESTROY "" OFF)
+add_subdirectory(simplestl)
 
 add_subdirectory(glm)
 add_subdirectory(fmt)

@@ -27,27 +27,6 @@ struct THierarchy {
 		(m_Children.pop(std::forward<TArgs>(args)), ...);
 	}
 
-	template <typename TChildType>
-	requires std::is_base_of_v<TType, TChildType>
-	void addChild(TChildType*& inObject) {
-		inObject->itr = m_Children.push(inObject);
-		onAddChild(inObject);
-	}
-
-	template <typename TChildType, typename... TArgs>
-	requires std::is_base_of_v<TType, TChildType>
-	void createChild(TChildType*& inObject, TArgs... args) {
-		inObject->itr = m_Children.create(inObject, args...);
-		onAddChild(inObject);
-	}
-
-	template <typename TChildType>
-	requires std::is_base_of_v<TType, TChildType>
-	void removeChild(TChildType*& inObject) {
-		m_Children.remove(inObject->itr);
-		onRemoveChild(inObject);
-	}
-
 	TUnique<TType>& operator[](const size_t index) {
 		return m_Children[index];
 	}

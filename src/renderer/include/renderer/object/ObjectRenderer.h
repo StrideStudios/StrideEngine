@@ -17,7 +17,7 @@ struct SRendererInfo;
 	REGISTER_CLASS(n, __VA_ARGS__) \
 	REGISTER_OBJ(CObjectRendererRegistry, n) \
 	STATIC_C_BLOCK( \
-		object::staticClass()->setRenderer(CObjectRendererRegistry::get()->getObjects().get(#n)); \
+		object::staticClass()->setRenderer(CObjectRendererRegistry::get()->getObjects().get(#n).get()); \
 	)
 
 class CObjectRenderer : public SObject {
@@ -32,7 +32,7 @@ public:
 	virtual void end() {}
 };
 
-DEFINE_REGISTRY(CObjectRendererRegistry, CObjectRenderer*)
+DEFINE_REGISTRY(CObjectRendererRegistry, TUnique<CObjectRenderer>)
 
 template <typename TType, typename TPassType>
 requires std::is_base_of_v<CViewportObject, TType>

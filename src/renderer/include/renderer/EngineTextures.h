@@ -26,19 +26,27 @@ public:
 	no_discard TShared<CVulkanSwapchain> getSwapchain() const { return m_Swapchain; }
 
 	//
-	// Textures
+	// Samplers
 	//
 
-	SImage_T* mDrawImage;
-	SImage_T* mDepthImage;
+	TUnique<CSampler> mNearestSampler = nullptr;
+
+	TUnique<CSampler> mLinearSampler = nullptr;
 
 	//
 	// Default Data
 	//
 
-	SImage_T* mErrorCheckerboardImage;
+	TUnique<SImage_T> mErrorCheckerboardImage = nullptr;
 
-	CMaterial* mErrorMaterial = nullptr;
+	//
+	// Textures
+	//
+
+	TUnique<SImage_T> mDrawImage = nullptr;
+	TUnique<SImage_T> mDepthImage = nullptr;
+
+	TUnique<CMaterial> mErrorMaterial = nullptr;
 
 private:
 

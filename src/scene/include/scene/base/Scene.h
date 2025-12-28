@@ -18,5 +18,5 @@ public:
 
 	EXPORT virtual void update();
 
-	class CCamera* mMainCamera = nullptr;
+	TShared<class CCamera> mMainCamera = nullptr;
 };

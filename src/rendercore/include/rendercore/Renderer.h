@@ -94,9 +94,7 @@ public:
 	template <typename TPass>
 	void addPass() {
 		if (hasPass<TPass>()) return;
-		TPass* pass;
-		CResourceManager::get().create(pass, getShared().staticCast<CRenderer>());
-		m_Passes.push_back(pass);
+		m_Passes.push_back(TShared<TPass>{getShared().staticCast<CRenderer>()});
 	}
 
 	template <typename... TPasses>
@@ -128,7 +126,11 @@ public:
 
 	virtual TShared<class CVulkanInstance> instance() = 0;
 
-	std::list<CPass*> getPasses() const { return m_Passes; }
+	std::list<TShared<CPass>>& getPasses() { return m_Passes; }
+
+	const std::list<TShared<CPass>>& getPasses() const { return m_Passes; }
+
+	EXPORT virtual void destroy() override;
 
 private:
 
@@ -138,6 +140,6 @@ private:
 
 	EXPORT bool hasPass(const SClass* cls) const;
 
-	std::list<CPass*> m_Passes;
+	std::list<TShared<CPass>> m_Passes;
 
 };
