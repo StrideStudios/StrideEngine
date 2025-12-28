@@ -1,16 +1,14 @@
 ﻿#pragma once
 
-#include <vector>
-#include <memory>
-
 #include "SceneObject.h"
 
 class CScene : public SObject, public THierarchy<CWorldObject>, public IInitializable, public IDestroyable {
 
 	REGISTER_CLASS(CScene, SObject)
-	MAKE_LAZY_SINGLETON(CScene)
 
 public:
+
+	EXPORT static TShared<CScene> get();
 
 	EXPORT virtual void init() override;
 

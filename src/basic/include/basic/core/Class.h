@@ -4,7 +4,6 @@
 
 #include "Registry.h"
 #include "basic/core/Object.h"
-#include "basic/control/ResourceManager.h"
 
 /*
  * Simple registration for classes and structs

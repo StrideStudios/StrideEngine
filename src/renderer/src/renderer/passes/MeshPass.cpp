@@ -1,5 +1,6 @@
 ﻿#include "renderer/passes/MeshPass.h"
 
+#include "engine/Engine.h"
 #include "rendercore/BindlessResources.h"
 #include "renderer/EngineTextures.h"
 #include "renderer/VulkanRenderer.h"

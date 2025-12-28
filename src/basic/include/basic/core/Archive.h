@@ -337,32 +337,6 @@ public:
 		return inArchive;
 	}
 
-	//
-	// Pointers need to be dereferenced on write and constructed on read
-	// Saved pointers must be of a registered class
-	//
-
-	template <typename TType>
-	requires std::is_base_of_v<SObject, TType>
-	friend CArchive& operator<<(CArchive& inArchive, TType* inValue) {
-		inArchive << inValue->getClass()->getName();
-		inArchive << *inValue;
-		return inArchive;
-	}
-
-	template <typename TType>
-	requires std::is_default_constructible_v<TType> and std::is_base_of_v<SObject, TType>
-	friend CArchive& operator>>(CArchive& inArchive, TType*& inValue) {
-		std::string className;
-		inArchive >> className;
-		TUnique<TType> obj = nullptr;
-		SClassRegistry::get()->getObjects().get(className)->constructObject(obj);
-		auto index = CResourceManager::get().pushUnique(std::move(obj));
-		inValue = dynamic_cast<TType*>(CResourceManager::get().getObjects().get(index).get());
-		inArchive >> *inValue;
-		return inArchive;
-	}
-
 	template <typename TType>
 	requires (not std::is_polymorphic_v<TType>)
 	friend CArchive& operator<<(CArchive& inArchive, const std::shared_ptr<TType>& inValue) {
@@ -439,46 +413,6 @@ public:
 			dynamic_cast<ISerializable*>(inValue.get())->load(inArchive);
 		} else {
 			inArchive >> *inValue.get();
-		}
-		return inArchive;
-	}
-
-	//
-	// Resource Managers
-	// Due to the runtime nature of these, the objects saved have to be both
-	// SObject and ISerializable, for classes and virtual serialization respectively
-	//
-
-	template <typename TType>
-	requires std::is_base_of_v<SObject, TType>
-	friend CArchive& operator<<(CArchive& inArchive, const TResourceManager<TType>& inValue) {
-		std::vector<SObject*> objects;
-		for (const auto object : inValue.getObjects()) {
-			if (dynamic_cast<ISerializable*>(object.get())) {
-				objects.push_back(object);
-			}
-		}
-
-		inArchive << objects.size();
-		for (const auto object : objects) {
-			inArchive << object->getClass()->getName();
-			dynamic_cast<ISerializable*>(object)->save(inArchive);
-		}
-		return inArchive;
-	}
-
-	template <typename TType>
-	requires std::is_base_of_v<SObject, TType>
-	friend CArchive& operator>>(CArchive& inArchive, TResourceManager<TType>& inValue) {
-		size_t size;
-		inArchive >> size;
-		for (size_t i = 0; i < size; ++i) {
-			std::string className;
-			inArchive >> className;
-			TUnique<TType> object = nullptr;;
-			SClassRegistry::get()->getObjects().get(className)->constructObject(object);
-			dynamic_cast<ISerializable*>(object.get())->load(inArchive); //TODO fix issues, test Application.cpp
-			inValue.pushUnique(std::move(object));
 		}
 		return inArchive;
 	}

@@ -113,8 +113,6 @@ void CEngine::run_internal() {
 
 	m_Renderer->destroy();
 
-	CResourceManager::get().flush();
-
 }
 
 // Test game loop

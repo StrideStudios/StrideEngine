@@ -56,12 +56,6 @@ template <typename TType>
 requires std::is_base_of_v<SObject, TType>
 void initSingleton(const std::string& inName) {
 	if (!getSingletons().contains(inName)) {
-		auto outPointer = TShared<TType>{};
-		getSingletons().push(inName, outPointer.template staticCast<SObject>());
-		if constexpr (std::is_base_of_v<IDestroyable, TType>) {
-			CResourceManager::get().callback([outPointer] {
-				outPointer->destroy();
-			});
-		}
+		getSingletons().push(inName, TShared<TType>{});
 	}
 }

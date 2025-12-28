@@ -71,33 +71,20 @@ void CVulkanRenderer::init() {
 	// Create a surface for Device to reference
 	SDL_Vulkan_CreateSurface(CEngine::get()->getViewport()->mWindow, mInstance->getInstance(), nullptr, &mVkSurface);
 
-	CResourceManager::get().callback([&] {
-		vkb::destroy_surface(mInstance->getInstance(), mVkSurface);//TODO: in instance?
-	}); //TODO: not a big fan of the callbacks, should be its own class
-
 	// Create the vulkan device
 	mDevice = TShared<CVulkanDevice>{mInstance, mVkSurface};
 
 	CBindlessResources::get()->init(mDevice);
-	CResourceManager::get().callback([]{
-		CBindlessResources::get()->destroy();
-	});
 
 	VkCommandPoolCreateInfo uploadCommandPoolInfo = CVulkanInfo::createCommandPoolInfo(mDevice->getQueue(EQueueType::UPLOAD).mFamily);
 	//create pool for upload context
 	mUploadContext->mCommandPool = TUnique<CCommandPool>{mDevice, uploadCommandPoolInfo};
-	CResourceManager::get().callback([this]{
-		mUploadContext->mCommandPool->destroy();
-	});
 
 	//allocate the default command buffer that we will use for the instant commands
 	mUploadContext->mCommandBuffer = SCommandBuffer(mDevice, *mUploadContext->mCommandPool);
 
 	VkFenceCreateInfo fenceCreateInfo = CVulkanInfo::createFenceInfo(VK_FENCE_CREATE_SIGNALED_BIT);
 	mUploadContext->mUploadFence = TUnique<CFence>{mDevice, fenceCreateInfo};
-	CResourceManager::get().callback([this]{
-		mUploadContext->mUploadFence->destroy();
-	});
 
 	{
 		// Create a command pool for commands submitted to the graphics queue.
@@ -107,49 +94,68 @@ void CVulkanRenderer::init() {
 
 		mBuffering.forEach([&](FrameData& frame) {
 			frame.mCommandPool = TUnique<CCommandPool>{mDevice, commandPoolInfo};
-			CResourceManager::get().callback([&frame]{
-				frame.mCommandPool->destroy();
-			});
 
 			// Allocate the default command buffer that we will use for rendering
 			frame.mMainCommandBuffer = SCommandBuffer(mDevice, *frame.mCommandPool);
 
 			frame.mTracyContext = TracyVkContext(mDevice->getPhysicalDevice(), mDevice->getDevice(), mDevice->getQueue(EQueueType::GRAPHICS).mQueue, frame.mMainCommandBuffer);
 		});
-
-		CResourceManager::get().callback([&] {
-			mBuffering.forEach([](const FrameData& frame) {
-				TracyVkDestroy(frame.mTracyContext);
-			});
-		});//TODO: not a big fan of the callbacks, should be its own class
 	}
 
 	// Initialize Allocator
 	mAllocator = TShared<CVulkanAllocator>{asShared()};
-	CResourceManager::get().callback([this]{
-		mAllocator->destroy();
-	});
 
 	mEngineTextures = TShared<CEngineTextures>{asShared(), mAllocator};
-	CResourceManager::get().callback([this]{
-		mEngineTextures->destroy(mDevice);
-	});
 
 	mSceneBuffer.get(mAllocator)->makeGlobal(mDevice);
 
 	// Load textures and meshes
 	CEngineLoader::load(mAllocator);
+
+	// Ensure init is called
+	CScene::get();
 }
 
 //TODO: members are destroyed in reverse order, so that can be used instead.
 void CVulkanRenderer::destroy() {
 	CRenderer::destroy();
 
-	//mEngineTextures->destroy();
+	CScene::get()->destroy();
+
+	//TODO: CEngineLoader self destroy
+	for (const auto& image : CEngineLoader::getImages()) {
+		image.second->destroy();
+	}
+
+	for (const auto& font : CEngineLoader::getFonts()) {
+		font.second.mAtlasImage->destroy();
+	}
 
 	mSceneBuffer.destroy();
 
-	//mAllocator->destroy();
+	mEngineTextures->destroy(mDevice);
+
+	mAllocator->destroy();
+
+	mBuffering.forEach([](const FrameData& frame) {
+		TracyVkDestroy(frame.mTracyContext);
+	});
+
+	mBuffering.forEach([&](const FrameData& frame) {
+		frame.mCommandPool->destroy();
+	});
+
+	mUploadContext->mUploadFence->destroy();
+
+	mUploadContext->mCommandPool->destroy();
+
+	CBindlessResources::get()->destroy();
+
+	mDevice->destroy();
+
+	vkb::destroy_surface(mInstance->getInstance(), mVkSurface); //TODO: in instance or own class
+
+	mInstance->destroy();
 }
 
 TShared<CSwapchain> CVulkanRenderer::getSwapchain() {
@@ -254,9 +260,6 @@ void CVulkanRenderer::render(SRendererInfo& info) {
 				mSceneData.mAmbientColor = glm::vec4(.1f);
 				mSceneData.mSunlightColor = glm::vec4(1.f);
 				mSceneData.mSunlightDirection = glm::vec4(0,1,0.5,1.f);
-
-				//allocate a new uniform buffer for the scene data
-				//m_GPUSceneDataBuffer = renderer.getCurrentFrame().mFrameResourceManager.allocateBuffer(sizeof(Data), VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
 			}
 
 			//write the buffer

@@ -248,26 +248,6 @@ void renderSpriteUI(const SRendererInfo& info) {
 		for (const auto& pass = info.renderer->getPass<CSpritePass>(); const auto& sprite : pass->objects) {
 			if (ImGui::BeginTabBar("Sprite")) {
 				if (ImGui::BeginTabItem(sprite->mName.c_str())) {
-					//ImGui::Checkbox("Highlight", &material.material->mHighlight);
-					//ImGui::InputInt("Color Texture ID", &material.second->data.colorTextureId);
-					/*const char* combo_preview_value = mGlobalResourceManager.m_Images[surface.material->colorTextureId]->name.c_str();
-					if (ImGui::BeginCombo("Color Texture", combo_preview_value, ImGuiComboFlags_HeightRegular)) {
-						for (int n = 0; n < mGlobalResourceManager.m_Images.size(); n++) {
-							if (mGlobalResourceManager.m_Images[n]->name.empty()) continue;
-
-							const bool is_selected = (surface.material->colorTextureId == n);
-							if (ImGui::Selectable(mGlobalResourceManager.m_Images[n]->name.c_str(), is_selected))
-								surface.material->colorTextureId = n;
-
-							// Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
-							if (is_selected)
-								ImGui::SetItemDefaultFocus();
-						}
-						ImGui::EndCombo();
-					}*/
-
-
-
 					if (!CEngineLoader::getMaterials().empty()) {
 						if (ImGui::BeginCombo("Surface Material", sprite->getMaterial()->mName.c_str(), ImGuiComboFlags_HeightRegular)) {
 							for (const auto& material : CEngineLoader::getMaterials()) {

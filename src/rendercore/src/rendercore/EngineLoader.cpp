@@ -46,9 +46,6 @@ TShared<SImage_T> loadImage(const TShared<CVulkanAllocator>& allocator, const st
 
 	// Allocate image and transition to dst
 	TShared<SImage_T> image{allocator, allocator->m_Renderer->device(), fileName, imageSize, VK_FORMAT_BC7_SRGB_BLOCK, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_IMAGE_ASPECT_COLOR_BIT, numMips};
-	CResourceManager::get().callback([image] {
-		image->destroy();
-	});
 
 	allocator->m_Renderer->immediateSubmit([&](SCommandBuffer& cmd) {
 		CVulkanUtils::transitionImage(cmd, *image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
@@ -120,10 +117,6 @@ SFont loadFont(const TShared<CVulkanAllocator>& allocator, const std::filesystem
 
 	const std::string label = font.mName + " Atlas";
 	font.mAtlasImage = TUnique<SImage_T>{allocator, allocator->m_Renderer->device(), label, VkExtent3D{font.mAtlasSize.x, font.mAtlasSize.y, 1}, VK_FORMAT_R8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT};
-	SImage_T* image = font.mAtlasImage.get();
-	CResourceManager::get().callback([image] {
-		image->destroy();
-	});
 	font.mAtlasImage->push(atlasData.data(), atlasData.size());
 
 	return font;
@@ -495,7 +488,7 @@ void CEngineLoader::load(const TShared<CVulkanAllocator>& allocator) {
 
 	// Load materials
 	for (const auto& path : materials) {
-		auto material = load<CMaterial*>(path);
+		auto material = load<TShared<CMaterial>>(path);
 		get()->mMaterials.emplace(pathToName(path), material);
 	}
 
@@ -623,10 +616,6 @@ void CEngineLoader::importFont(const TShared<CVulkanAllocator>& allocator, const
 
 	const std::string label = font.mName + " Atlas";
 	font.mAtlasImage = TUnique<SImage_T>{allocator, allocator->m_Renderer->device(), label, VkExtent3D{FONT_ATLAS_SIZE, FONT_ATLAS_SIZE, 1}, VK_FORMAT_R8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT};
-	SImage_T* image = font.mAtlasImage.get();
-	CResourceManager::get().callback([image] {
-		image->destroy();
-	});
 	font.mAtlasImage->push(atlasData.data(), atlasData.size());
 
 	// Write font and atlas data to file

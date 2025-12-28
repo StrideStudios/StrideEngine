@@ -1,6 +1,5 @@
 #pragma once
 
-#include "basic/control/ResourceManager.h"
 #include "sstl/List.h"
 
 template <typename TType>

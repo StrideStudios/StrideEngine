@@ -111,7 +111,6 @@ public:
 	struct Resource : SObject, IDestroyable {
 		Resource(const std::string& name): name(name) {}
 		virtual bool isAllocated() = 0;
-		//TResourceManager<Resource>::Iterator itr;
 		std::string name;
 	};
 
@@ -135,7 +134,7 @@ public:
 			msgs("Attempted to remove a resource after Vulkan Allocator was Destroyed!");
 			return;
 		}
-		m_Resources.transfer(getCurrentResourceManager(), m_Resources.find(inResource));
+		m_Resources.transfer(getCurrentManager(), m_Resources.find(inResource));
 	}
 
 	VmaAllocator& getAllocator() {
@@ -145,19 +144,19 @@ public:
 	EXPORT virtual void destroy() override;
 
 	void flushFrameData() {
-		getCurrentResourceManager().forEach([](size_t, const TUnique<Resource>& resource) {
+		getCurrentManager().forEach([](size_t, const TUnique<Resource>& resource) {
 			resource->destroy();
 		});
-		getCurrentResourceManager().clear();
+		getCurrentManager().clear();
 	}
 
 public:
 
-	force_inline TList<TUnique<Resource>>& getCurrentResourceManager() {
+	force_inline TList<TUnique<Resource>>& getCurrentManager() {
 		return **m_BufferedManagers[m_Renderer->getBufferingType().getFrameIndex()];
 	}
 
-	force_inline const TList<TUnique<Resource>>& getCurrentResourceManager() const {
+	force_inline const TList<TUnique<Resource>>& getCurrentManager() const {
 		return **m_BufferedManagers[m_Renderer->getBufferingType().getFrameIndex()];
 	}
 

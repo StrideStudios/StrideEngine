@@ -8,7 +8,6 @@ class CInput;
 class CEngine : public SObject {
 
 	REGISTER_CLASS(CEngine, SObject)
-	//MAKE_LAZY_SINGLETON(CEngine)
 
 	struct Time {
 		int32 mAverageFrameRate = 0;
