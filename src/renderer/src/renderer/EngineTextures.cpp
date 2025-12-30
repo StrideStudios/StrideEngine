@@ -11,7 +11,7 @@
 #include "renderer/Swapchain.h"
 #include "engine/Viewport.h"
 
-CEngineTextures::CEngineTextures(const TShared<CRenderer>& renderer, TShared<CVulkanAllocator> allocator) {
+CEngineTextures::CEngineTextures(const TFrail<CRenderer>& renderer, TFrail<CVulkanAllocator> allocator) {
 
 	m_Swapchain = TShared<CVulkanSwapchain>{renderer};
 
@@ -93,13 +93,13 @@ CEngineTextures::CEngineTextures(const TShared<CRenderer>& renderer, TShared<CVu
 	initializeTextures(allocator);
 }
 
-void CEngineTextures::initializeTextures(TShared<CVulkanAllocator> allocator) {
+void CEngineTextures::initializeTextures(TFrail<CVulkanAllocator> allocator) {
 
 	// Ensure previous textures have been destroyed
 	// This is in the case of screen resizing
 	if (mDrawImage || mDepthImage) {
-		mDrawImage->destroy();
-		mDepthImage->destroy();
+		mDrawImage.destroy();
+		mDepthImage.destroy();
 	}
 
 	constexpr VkImageUsageFlags drawImageUsages = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
@@ -121,14 +121,14 @@ void CEngineTextures::reallocate(const SRendererInfo& info, const bool inUseVSyn
 	initializeTextures(info.allocator);
 }
 
-void CEngineTextures::destroy(const TShared<CVulkanDevice>& device) {
-	mErrorCheckerboardImage->destroy();
+void CEngineTextures::destroy() {
+	mErrorCheckerboardImage.destroy();
 	if (mDrawImage || mDepthImage) {
-		mDrawImage->destroy();
-		mDepthImage->destroy();
+		mDrawImage.destroy();
+		mDepthImage.destroy();
 	}
-	m_Swapchain->destroy(device);
-	mLinearSampler->destroy();
-	mNearestSampler->destroy();
+	m_Swapchain.destroy();
+	mLinearSampler.destroy();
+	mNearestSampler.destroy();
 }
 

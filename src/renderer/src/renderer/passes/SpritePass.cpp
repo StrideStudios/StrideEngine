@@ -16,14 +16,12 @@ ADD_TEXT(SpriteVertices, "Vertices: ");
 ADD_TEXT(SpriteTriangles, "Triangles: ");
 #undef SETTINGS_CATEGORY
 
-void CSpritePass::init(TShared<CRenderer> inRenderer) {
-	CPass::init(inRenderer);
+void CSpritePass::init(TFrail<CRenderer> inRenderer) {
+	const TFrail<CVulkanRenderer> renderer = inRenderer.staticCast<CVulkanRenderer>();
 
-	const TShared<CVulkanRenderer> renderer = inRenderer.staticCast<CVulkanRenderer>();
+	TUnique<SShader> frag{inRenderer->device(), "material\\sprite.frag"};
 
-	const TUnique<SShader> frag{inRenderer->device(), "material\\sprite.frag"};
-
-	const TUnique<SShader> vert{inRenderer->device(), "material\\sprite.vert"};
+	TUnique<SShader> vert{inRenderer->device(), "material\\sprite.vert"};
 
 	const SPipelineCreateInfo createInfo {
 		.vertexModule = vert->mModule,
@@ -42,8 +40,8 @@ void CSpritePass::init(TShared<CRenderer> inRenderer) {
 
 	opaquePipeline = TUnique<CPipeline>{inRenderer->device(), createInfo, attributes, CBindlessResources::getBasicPipelineLayout()};
 
-	vert->destroy();
-	frag->destroy();
+	vert.destroy();
+	frag.destroy();
 }
 
 void CSpritePass::render(const SRendererInfo& info, VkCommandBuffer cmd) {
@@ -99,5 +97,5 @@ void CSpritePass::destroy() {
 		instancer.destroy();
 	}*/ //TODO: objects.clear() is probably not needed.
 	objects.clear();
-	opaquePipeline->destroy();
+	opaquePipeline.destroy();
 }

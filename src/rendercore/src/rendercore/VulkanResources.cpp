@@ -187,7 +187,7 @@ bool SShader::saveShader(const char* inFileName, uint32 Hash) const {
 	return true;
 }
 
-SShader::SShader(const TShared<CVulkanDevice>& inDevice, const char* inFilePath): device(inDevice) {
+SShader::SShader(const TFrail<CVulkanDevice>& inDevice, const char* inFilePath): device(inDevice) {
 	const std::string fileExtension = std::filesystem::path(inFilePath).extension().string();
 
 	if (fileExtension == ".comp") {
@@ -241,7 +241,7 @@ void SShader::destroy() {
 	vkDestroyShaderModule(device->getDevice().device, mModule, nullptr);
 }
 
-CPipeline::CPipeline(const TShared<CVulkanDevice>& inDevice, const SPipelineCreateInfo& inCreateInfo, CVertexAttributeArchive& inAttributes, const TUnique<CPipelineLayout>& inLayout):
+CPipeline::CPipeline(const TFrail<CVulkanDevice>& inDevice, const SPipelineCreateInfo& inCreateInfo, CVertexAttributeArchive& inAttributes, const TUnique<CPipelineLayout>& inLayout):
 	device(inDevice), mLayout(inLayout.get()) {
 
 	// Make viewport state from our stored viewport and scissor.
@@ -484,7 +484,7 @@ SBuffer_T::SBuffer_T(VmaAllocator inAllocator, const std::string& inName, const 
 	VK_CHECK(vmaCreateBuffer(allocator, &bufferCreateInfo, &vmaallocInfo, &buffer, &allocation, &info));
 }
 
-void SBuffer_T::makeGlobal(const TShared<CVulkanDevice>& inDevice) {
+void SBuffer_T::makeGlobal(const TFrail<CVulkanDevice>& inDevice) {
 	// Update descriptors with new buffer
 	//TODO: need some way of guaranteeing Buffer addresses so they don't have to be passed in push constants
 	static uint32 gCurrentBufferAddress = 0;
@@ -495,7 +495,7 @@ void SBuffer_T::makeGlobal(const TShared<CVulkanDevice>& inDevice) {
 
 }
 
-void SBuffer_T::updateGlobal(const TShared<CVulkanDevice>& inDevice) const {
+void SBuffer_T::updateGlobal(const TFrail<CVulkanDevice>& inDevice) const {
 	//TODO: need some way of guaranteeing Buffer addresses so they don't have to be passed in push constants
 	const auto bufferDescriptorInfo = VkDescriptorBufferInfo{
 		.buffer = buffer,
@@ -533,12 +533,12 @@ void SBuffer_T::unMapData() const {
 	vmaUnmapMemory(allocator, allocation);
 }
 
-SMeshBuffers_T::SMeshBuffers_T(const TShared<CVulkanAllocator>& allocator, const std::string& inName, const size_t indicesSize, const size_t verticesSize): name(inName) {
+SMeshBuffers_T::SMeshBuffers_T(const TFrail<CVulkanAllocator>& allocator, const std::string& inName, const size_t indicesSize, const size_t verticesSize): name(inName) {
 	indexBuffer = allocator->addResource(TUnique<SBuffer_T>{allocator->getAllocator(), name, indicesSize, VMA_MEMORY_USAGE_GPU_ONLY, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT});
 	vertexBuffer = allocator->addResource(TUnique<SBuffer_T>{allocator->getAllocator(), name, verticesSize, VMA_MEMORY_USAGE_GPU_ONLY, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT});
 }
 
-SImage_T::SImage_T(const TShared<CVulkanAllocator>& inAllocator, const TShared<CVulkanDevice>& inDevice, const std::string& inDebugName, const VkExtent3D inExtent, const VkFormat inFormat, const VkImageUsageFlags inFlags, const VkImageAspectFlags inViewFlags, const uint32 inNumMips)
+SImage_T::SImage_T(const TFrail<CVulkanAllocator>& inAllocator, const TFrail<CVulkanDevice>& inDevice, const std::string& inDebugName, const VkExtent3D inExtent, const VkFormat inFormat, const VkImageUsageFlags inFlags, const VkImageAspectFlags inViewFlags, const uint32 inNumMips)
 : mName(inDebugName), allocator(inAllocator), device(inDevice) {
 
 	mImageInfo = CVulkanInfo::createImageInfo(inFormat, inFlags, inExtent);
@@ -693,7 +693,7 @@ void SImage_T::destroy() {
 	vkDestroyImageView(device->getDevice().device, mImageView, nullptr);
 }
 
-CVulkanAllocator::CVulkanAllocator(const TShared<CRenderer>& inRenderer) {
+CVulkanAllocator::CVulkanAllocator(const TFrail<CRenderer>& inRenderer) {
 	msgs("Creating Vulkan Allocator.");
 
 	m_Renderer = inRenderer;
@@ -718,14 +718,14 @@ void CVulkanAllocator::destroy() {
 
 	// Destroy all objects marked for removal first
 	m_BufferedManagers.forEach([](size_t, TUnique<TList<TUnique<Resource>>>& list) {
-		list->forEach([](size_t, const TUnique<Resource>& resource) {
-			resource->destroy();
+		list->forEach([](size_t, TUnique<Resource>& resource) {
+			resource.destroy();
 		});
 		list->clear();
 	});
 
-	m_Resources.forEach([](size_t, const TUnique<Resource>& resource) {
-		resource->destroy();
+	m_Resources.forEach([](size_t, TUnique<Resource>& resource) {
+		resource.destroy();
 	});
 	m_Resources.clear();
 

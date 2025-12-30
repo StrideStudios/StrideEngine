@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "basic/core/Common.h"
+#include "sstl/Array.h"
 
 // Forward declare vkb types
 namespace vkb {
@@ -24,6 +25,7 @@ class CSwapchain : public SObject, public TDirtyable<> {};
 class IBuffering {
 
 public:
+	virtual ~IBuffering() = default;
 
 	void incrementFrame() { m_FrameNumber++; }
 
@@ -46,25 +48,21 @@ public:
 
 	TBuffering() = default;
 
+	TArray<TUnique<TType>, TFrameOverlap>& data() { return m_FrameData; }
+
 	virtual size_t getFrameOverlap() const override { return TFrameOverlap; }
 
-	TType& getFrame(size_t inFrameIndex) { return m_FrameData[inFrameIndex]; }
+	TType& getFrame(size_t inFrameIndex) { return *m_FrameData[inFrameIndex].get(); }
 
-	const TType& getFrame(size_t inFrameIndex) const { return m_FrameData[inFrameIndex]; }
+	const TType& getFrame(size_t inFrameIndex) const { return *m_FrameData[inFrameIndex].get(); }
 
 	TType& getCurrentFrame() { return getFrame(getFrameIndex()); }
 
 	const TType& getCurrentFrame() const { return getFrame(getFrameIndex()); }
 
-	void forEach(const std::function<void(TType&)>& inFunc) {
-		for (auto& frame : m_FrameData) {
-			inFunc(frame);
-		}
-	}
-
 private:
 
-	TType m_FrameData[TFrameOverlap];
+	TArray<TUnique<TType>, TFrameOverlap> m_FrameData;
 
 };
 
@@ -75,9 +73,9 @@ template <typename TType>
 using CDoubleBuffering = TBuffering<TType, 2>;
 
 struct SRendererInfo {
-	TWeak<class CEngineViewport> viewport;
-	TWeak<class CRenderer> renderer;
-	TWeak<class CVulkanAllocator> allocator;
+	TFrail<class CEngineViewport> viewport = nullptr;
+	TFrail<class CRenderer> renderer = nullptr;
+	TFrail<class CVulkanAllocator> allocator = nullptr;
 };
 
 class CRenderer : public SObject, public IInitializable, public IDestroyable {

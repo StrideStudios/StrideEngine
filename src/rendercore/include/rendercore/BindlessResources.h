@@ -24,11 +24,13 @@ static uint32 gSSBOBinding = 3;
 class CBindlessResources final : public SObject {
 
 	REGISTER_CLASS(CBindlessResources, SObject)
-	MAKE_LAZY_SINGLETON(CBindlessResources)
+	//MAKE_LAZY_SINGLETON(CBindlessResources)
 
 public:
 
-	EXPORT virtual void init(const TShared<CVulkanDevice>& inDevice);
+	EXPORT static TUnique<CBindlessResources>& get();
+
+	EXPORT virtual void init(const TFrail<CVulkanDevice>& inDevice);
 
 	EXPORT virtual void destroy();
 

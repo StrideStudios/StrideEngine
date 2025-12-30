@@ -332,9 +332,7 @@ void renderMeshUI(const SRendererInfo& info) {
 	ImGui::End();
 }
 
-void CEngineUIPass::init(const TShared<CRenderer> inRenderer) {
-	CPass::init(inRenderer);
-
+void CEngineUIPass::init(const TFrail<CRenderer> inRenderer) {
 	// Setup Dear ImGui context
 	ImGui::CreateContext();
 
@@ -416,7 +414,7 @@ void CEngineUIPass::render(const SRendererInfo& info, VkCommandBuffer cmd) {
 void CEngineUIPass::destroy() {
 	ImGui_ImplVulkan_Shutdown();
 	ImGui_ImplSDL3_Shutdown();
-	imguiPool->destroy();
+	imguiPool.destroy();
 	ImGui::DestroyContext();
 
 	msgs("DESTROY UI PASS");

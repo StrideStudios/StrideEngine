@@ -205,13 +205,13 @@ public:
 
 	EXPORT static void save();
 
-	EXPORT static void load(const TShared<CVulkanAllocator>& allocator);
+	EXPORT static void load(const TFrail<CVulkanAllocator>& allocator);
 
 	//
 	// Textures
 	//
 
-	EXPORT static void importTexture(const TShared<CVulkanAllocator>& allocator, const std::filesystem::path& inPath);
+	EXPORT static void importTexture(const TFrail<CVulkanAllocator>& allocator, const std::filesystem::path& inPath);
 
 	static std::map<std::string, TShared<SImage_T>>& getImages() { return get()->mImages; }
 
@@ -221,7 +221,7 @@ public:
 	// Fonts
 	//
 
-	EXPORT static void importFont(const TShared<CVulkanAllocator>& allocator, const std::filesystem::path& inPath);
+	EXPORT static void importFont(const TFrail<CVulkanAllocator>& allocator, const std::filesystem::path& inPath);
 
 	static std::map<std::string, SFont>& getFonts() { return get()->mFonts; }
 
@@ -241,7 +241,7 @@ public:
 	// Meshes
 	//
 
-	EXPORT static void importMesh(const TShared<CVulkanAllocator>& allocator, const std::filesystem::path& inPath);
+	EXPORT static void importMesh(const TFrail<CVulkanAllocator>& allocator, const std::filesystem::path& inPath);
 
 	static std::map<std::string, TShared<SStaticMesh>>& getMeshes() { return get()->mMeshes; }
 

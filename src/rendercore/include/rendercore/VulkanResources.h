@@ -115,7 +115,7 @@ public:
 	};
 
 	CVulkanAllocator() = default;
-	EXPORT CVulkanAllocator(const TShared<CRenderer>& inRenderer);
+	EXPORT CVulkanAllocator(const TFrail<CRenderer>& inRenderer);
 
 	template <typename TType>
 	requires std::is_base_of_v<Resource, TType>
@@ -144,8 +144,8 @@ public:
 	EXPORT virtual void destroy() override;
 
 	void flushFrameData() {
-		getCurrentManager().forEach([](size_t, const TUnique<Resource>& resource) {
-			resource->destroy();
+		getCurrentManager().forEach([](size_t, TUnique<Resource>& resource) {
+			resource.destroy();
 		});
 		getCurrentManager().clear();
 	}
@@ -162,7 +162,7 @@ public:
 
 	bool mDestroyed = false;
 
-	TWeak<CRenderer> m_Renderer = nullptr;
+	TFrail<CRenderer> m_Renderer = nullptr;
 
 	VmaAllocator mAllocator = nullptr;
 
@@ -175,16 +175,16 @@ public:
 	struct C##inName final : SObject, IDestroyable { \
 		REGISTER_STRUCT(C##inName, SObject) \
 		C##inName() = default; \
-		C##inName(const TShared<CVulkanDevice>& inDevice, Vk##inName inType):  device(inDevice), m##inName(inType) {} \
-		C##inName(const TShared<CVulkanDevice>& inDevice, const C##inName& in##inName):  device(inDevice), m##inName(in##inName.m##inName) {} \
-		C##inName(const TShared<CVulkanDevice>& inDevice, Vk##inName##CreateInfo inCreateInfo): device(inDevice) { \
+		C##inName(const TFrail<CVulkanDevice>& inDevice, Vk##inName inType):  device(inDevice), m##inName(inType) {} \
+		C##inName(const TFrail<CVulkanDevice>& inDevice, const C##inName& in##inName):  device(inDevice), m##inName(in##inName.m##inName) {} \
+		C##inName(const TFrail<CVulkanDevice>& inDevice, Vk##inName##CreateInfo inCreateInfo): device(inDevice) { \
 			VK_CHECK(vkCreate##inName(device->getDevice().device, &inCreateInfo, nullptr, &m##inName)); \
 		} \
 		virtual Vk##inName get() { return m##inName; } \
 		virtual void destroy() override { vkDestroy##inName(device->getDevice().device, m##inName, nullptr); } \
 		Vk##inName operator->() const { return m##inName; } \
 		operator Vk##inName() const { return m##inName; } \
-		TWeak<CVulkanDevice> device = nullptr; \
+		TFrail<CVulkanDevice> device = nullptr; \
 		Vk##inName m##inName = nullptr; \
 	}
 
@@ -199,7 +199,7 @@ struct CPipeline final : SObject, IDestroyable {
 	REGISTER_STRUCT(CPipeline, SObject)
 
 	CPipeline() = default;
-	EXPORT CPipeline(const TShared<CVulkanDevice>& inDevice, const SPipelineCreateInfo& inCreateInfo, CVertexAttributeArchive& inAttributes, const TUnique<CPipelineLayout>& inLayout);
+	EXPORT CPipeline(const TFrail<CVulkanDevice>& inDevice, const SPipelineCreateInfo& inCreateInfo, CVertexAttributeArchive& inAttributes, const TUnique<CPipelineLayout>& inLayout);
 
 	EXPORT void bind(VkCommandBuffer cmd, const VkPipelineBindPoint inBindPoint) const;
 
@@ -209,7 +209,7 @@ struct CPipeline final : SObject, IDestroyable {
 
 	operator VkPipeline() const { return mPipeline; }
 
-	TWeak<CVulkanDevice> device = nullptr;
+	TFrail<CVulkanDevice> device = nullptr;
 	VkPipeline mPipeline = nullptr;
 
 	CPipelineLayout* mLayout;
@@ -231,7 +231,7 @@ struct CDescriptorSet final : SObject {
 
 	CDescriptorSet(const CDescriptorSet& inDescriptorSet): mDescriptorSet(inDescriptorSet.mDescriptorSet) {}
 
-	CDescriptorSet(const TShared<CVulkanDevice>& inDevice, const VkDescriptorSetAllocateInfo& inCreateInfo) {
+	CDescriptorSet(const TFrail<CVulkanDevice>& inDevice, const VkDescriptorSetAllocateInfo& inCreateInfo) {
 		VK_CHECK(vkAllocateDescriptorSets(inDevice->getDevice().device, &inCreateInfo, &mDescriptorSet));
 	}
 
@@ -250,7 +250,7 @@ struct SShader : SObject, IDestroyable {
 	REGISTER_STRUCT(SShader, SObject)
 
 	SShader() = default;
-	EXPORT SShader(const TShared<CVulkanDevice>& inDevice, const char* inFilePath);
+	EXPORT SShader(const TFrail<CVulkanDevice>& inDevice, const char* inFilePath);
 
 	EXPORT virtual void destroy() override;
 
@@ -268,7 +268,7 @@ private:
 
 	bool saveShader(const char* inFileName, uint32 Hash) const;
 
-	TWeak<CVulkanDevice> device = nullptr;
+	TFrail<CVulkanDevice> device = nullptr;
 };
 
 enum class EAttachmentType : uint8 {
@@ -319,7 +319,7 @@ struct SImage_T : SObject, IDestroyable {
 	REGISTER_STRUCT(SImage_T, SObject)
 
 	SImage_T() = default;
-	EXPORT SImage_T(const TShared<CVulkanAllocator>& inAllocator, const TShared<CVulkanDevice>& inDevice, const std::string& inDebugName, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags = 0, VkImageAspectFlags inViewFlags = 0, uint32 inNumMips = 1);
+	EXPORT SImage_T(const TFrail<CVulkanAllocator>& inAllocator, const TFrail<CVulkanDevice>& inDevice, const std::string& inDebugName, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags = 0, VkImageAspectFlags inViewFlags = 0, uint32 inNumMips = 1);
 
 	VkExtent3D getExtent() const { return mImageInfo.extent; }
 
@@ -339,8 +339,8 @@ struct SImage_T : SObject, IDestroyable {
 	VkImageView mImageView = nullptr;
 	VkImageViewCreateInfo mImageViewInfo;
 
-	TWeak<CVulkanAllocator> allocator = nullptr;
-	TWeak<CVulkanDevice> device = nullptr;
+	TFrail<CVulkanAllocator> allocator = nullptr;
+	TFrail<CVulkanDevice> device = nullptr;
 	VmaAllocation mAllocation = nullptr;
 	uint32 mBindlessAddress = -1;
 
@@ -352,8 +352,8 @@ struct SBuffer_T : CVulkanAllocator::Resource {
 
 	EXPORT SBuffer_T(VmaAllocator inAllocator, const std::string& inName, size_t inBufferSize, VmaMemoryUsage inMemoryUsage, VkBufferUsageFlags inBufferUsage = 0);
 
-	EXPORT void makeGlobal(const TShared<CVulkanDevice>& inDevice); //TODO: alternate way of doing this
-	EXPORT void updateGlobal(const TShared<CVulkanDevice>& inDevice) const; // TODO: not global but instead 'dynamic' (address should be separate?)
+	EXPORT void makeGlobal(const TFrail<CVulkanDevice>& inDevice); //TODO: alternate way of doing this
+	EXPORT void updateGlobal(const TFrail<CVulkanDevice>& inDevice) const; // TODO: not global but instead 'dynamic' (address should be separate?)
 
 	EXPORT virtual void destroy() override;
 
@@ -401,20 +401,20 @@ struct SPushableBuffer {
 	SPushableBuffer(const std::string& inName) : name(inName) {}
 	virtual ~SPushableBuffer() = default;
 
-	virtual SBuffer_T* get(const TShared<CVulkanAllocator>& allocator) = 0;
+	virtual SBuffer_T* get(const TFrail<CVulkanAllocator>& allocator) = 0;
 
 	virtual size_t getSize() const = 0;
 
 	const std::string& getName() const { return name; }
 
-	virtual void checkSize(const TShared<CVulkanAllocator>& allocator, const size_t size) {
+	virtual void checkSize(const TFrail<CVulkanAllocator>& allocator, const size_t size) {
 		if (size != getSize()) {
 			errs("Tried to allocate {} bytes in buffer {} of size {}!", size, name, getSize());
 		}
 	}
 
 	template <typename... TArgs>
-	void push(const TShared<CVulkanAllocator>& allocator, const void* src, const size_t size = 0, TArgs... args) {
+	void push(const TFrail<CVulkanAllocator>& allocator, const void* src, const size_t size = 0, TArgs... args) {
 		size_t totalSize = getTotalSize(src, size, args...);
 		checkSize(allocator, totalSize);
 
@@ -432,15 +432,14 @@ struct SPushableBuffer {
 
 			buffer.push(src, size, args...);
 
-			TWeak<CVulkanAllocator> weakAllocator = allocator;
-			allocator->m_Renderer->immediateSubmit([this, weakAllocator, totalSize, buffer](SCommandBuffer& cmd) {
+			allocator->m_Renderer->immediateSubmit([this, allocator, totalSize, buffer](SCommandBuffer& cmd) {
 				VkBufferCopy copy {
 					.srcOffset = 0,
 					.dstOffset = 0,
 					.size = totalSize
 				};
 
-				vkCmdCopyBuffer(cmd, buffer.buffer, get(weakAllocator)->buffer, 1, &copy);
+				vkCmdCopyBuffer(cmd, buffer.buffer, get(allocator)->buffer, 1, &copy);
 			});
 
 			buffer.destroy();
@@ -453,10 +452,10 @@ struct SPushableBuffer {
 private:
 
 	template <typename... TArgs>
-	void push(const TShared<CVulkanAllocator>& allocator, const size_t offset = 0) {}
+	void push(const TFrail<CVulkanAllocator>& allocator, const size_t offset = 0) {}
 
 	template <typename... TArgs>
-	void push(const TShared<CVulkanAllocator>& allocator, const size_t offset, const void* src, const size_t size, TArgs... args) {
+	void push(const TFrail<CVulkanAllocator>& allocator, const size_t offset, const void* src, const size_t size, TArgs... args) {
 		memcpy(static_cast<char*>(get(allocator)->getMappedData()) + offset, src, size);
 		push(allocator, offset + size, args...);
 	}
@@ -484,18 +483,18 @@ struct SLocalBuffer final : SPushableBuffer<VMA_MEMORY_USAGE_CPU_ONLY, TBufferUs
 
 	SLocalBuffer() = delete;
 
-	SLocalBuffer(const TShared<CVulkanAllocator>& allocator, const std::string& inName, const size_t inAllocSize):
+	SLocalBuffer(const TFrail<CVulkanAllocator>& allocator, const std::string& inName, const size_t inAllocSize):
 	SPushableBuffer<VMA_MEMORY_USAGE_CPU_ONLY, TBufferUsage>(inName),
 	mBuffer(allocator->getAllocator(), SPushableBuffer<VMA_MEMORY_USAGE_CPU_ONLY, TBufferUsage>::getName(), inAllocSize, VMA_MEMORY_USAGE_CPU_ONLY, TBufferUsage){}
 
-	SLocalBuffer(const TShared<CVulkanAllocator>& allocator, const std::string& inName, const size_t inElementSize, const size_t inSize): SLocalBuffer(allocator, inName, inElementSize * inSize) {}
+	SLocalBuffer(const TFrail<CVulkanAllocator>& allocator, const std::string& inName, const size_t inElementSize, const size_t inSize): SLocalBuffer(allocator, inName, inElementSize * inSize) {}
 
 	virtual ~SLocalBuffer() override {
 		msgs("Destroyed Local Buffer.");
 		mBuffer.destroy();
 	}
 
-	virtual SBuffer_T* get(const TShared<CVulkanAllocator>&) override { return &mBuffer; }
+	virtual SBuffer_T* get(const TFrail<CVulkanAllocator>&) override { return &mBuffer; }
 
 	virtual size_t getSize() const override { return mBuffer.size; }
 
@@ -523,7 +522,7 @@ struct SStaticBuffer : SPushableBuffer<TMemoryUsage, TBufferUsage>, IDestroyable
 
 	// Since templated Static Buffers are resolved at compile time, the buffer will never change
 	// Thus, it should always be allocated globally
-	virtual SBuffer_T* get(const TShared<CVulkanAllocator>& inAllocator) override {
+	virtual SBuffer_T* get(const TFrail<CVulkanAllocator>& inAllocator) override {
 		if (!mAllocated) {
 			mAllocated = true;
 			allocator = inAllocator;
@@ -545,7 +544,7 @@ struct SStaticBuffer : SPushableBuffer<TMemoryUsage, TBufferUsage>, IDestroyable
 
 private:
 
-	TWeak<CVulkanAllocator> allocator = nullptr;
+	TFrail<CVulkanAllocator> allocator = nullptr;
 
 	bool mAllocated = false;
 	SBuffer_T* mBuffer = nullptr; //TODO: move buffer stuff locally (MAYBE parent class)
@@ -565,14 +564,14 @@ struct SDynamicBuffer : SPushableBuffer<TMemoryUsage, TBufferUsage>, IDestroyabl
 		msgs("WARNING: Dynamic Buffer was not destroyed!");
 	}
 
-	virtual SBuffer_T* get(const TShared<CVulkanAllocator>&) override {
+	virtual SBuffer_T* get(const TFrail<CVulkanAllocator>&) override {
 		if (mAllocSize <= 0 || !mAllocated) {
 			errs("Dynamic Buffer has not been allocated!");
 		}
 		return mBuffer;
 	}
 
-	virtual void checkSize(const TShared<CVulkanAllocator>& inAllocator, const size_t size) override {
+	virtual void checkSize(const TFrail<CVulkanAllocator>& inAllocator, const size_t size) override {
 		allocate(inAllocator, size);
 		SPushableBuffer<TMemoryUsage, TBufferUsage>::checkSize(inAllocator, size);
 	}
@@ -591,7 +590,7 @@ struct SDynamicBuffer : SPushableBuffer<TMemoryUsage, TBufferUsage>, IDestroyabl
 
 private:
 
-	void allocate(const TShared<CVulkanAllocator>& inAllocator, const size_t inAllocSize) {
+	void allocate(const TFrail<CVulkanAllocator>& inAllocator, const size_t inAllocSize) {
 		if (inAllocSize <= 0) {
 			errs("Dynamic Buffer has been given an invalid size!");
 		}
@@ -607,7 +606,7 @@ private:
 		}
 	}
 
-	TWeak<CVulkanAllocator> allocator = nullptr;
+	TFrail<CVulkanAllocator> allocator = nullptr;
 
 	size_t mAllocSize = 0;
 	bool mAllocated = false;
@@ -620,7 +619,7 @@ struct SMeshBuffers_T : SObject, IDestroyable {
 	REGISTER_STRUCT(SMeshBuffers_T, SObject)
 
 	SMeshBuffers_T() = default;
-	EXPORT SMeshBuffers_T(const TShared<CVulkanAllocator>& allocator, const std::string& inName, size_t indicesSize, size_t verticesSize);
+	EXPORT SMeshBuffers_T(const TFrail<CVulkanAllocator>& allocator, const std::string& inName, size_t indicesSize, size_t verticesSize);
 
 	std::string name = "None";
 	SBuffer_T* indexBuffer = nullptr;
@@ -635,7 +634,7 @@ struct SCommandBuffer : SObject {
 
 	SCommandBuffer() = default;
 
-	SCommandBuffer(const TShared<CVulkanDevice>& inDevice, const CCommandPool* inCmdPool) {
+	SCommandBuffer(const TFrail<CVulkanDevice>& inDevice, const CCommandPool* inCmdPool) {
 		VkCommandBufferAllocateInfo frameCmdAllocInfo = CVulkanInfo::createCommandAllocateInfo(*inCmdPool, 1);
 		VK_CHECK(vkAllocateCommandBuffers(inDevice->getDevice().device, &frameCmdAllocInfo, &cmd));
 	}

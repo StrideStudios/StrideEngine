@@ -20,7 +20,7 @@ void CScene::init() {
 }
 
 void CScene::destroy() {
-	mMainCamera->destroy();
+	mMainCamera.destroy();
 
 	std::filesystem::path path = SPaths::get()->mAssetPath.string() + "Scene.scn";
 

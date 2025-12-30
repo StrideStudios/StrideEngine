@@ -21,7 +21,7 @@
 
 constexpr static bool gUseOpenCL = false;
 
-TShared<SImage_T> loadImage(const TShared<CVulkanAllocator>& allocator, const std::filesystem::path& path) {
+TShared<SImage_T> loadImage(const TFrail<CVulkanAllocator>& allocator, const std::filesystem::path& path) {
 	const std::string& fileName = path.filename().string();
 
 	basisu::uint8_vec fileData;
@@ -106,7 +106,7 @@ TShared<SImage_T> loadImage(const TShared<CVulkanAllocator>& allocator, const st
 	return image;
 }
 
-SFont loadFont(const TShared<CVulkanAllocator>& allocator, const std::filesystem::path& inPath) {
+SFont loadFont(const TFrail<CVulkanAllocator>& allocator, const std::filesystem::path& inPath) {
 	SFont font;
 	std::vector<uint8> atlasData;
 
@@ -384,7 +384,7 @@ SMeshData readMeshData(const std::filesystem::path& path) {
 	return outSaveData;
 }
 
-TUnique<SMeshBuffers_T> uploadMesh(const TShared<CVulkanAllocator>& allocator, std::span<uint32> indices, std::span<SVertex> vertices) {
+TUnique<SMeshBuffers_T> uploadMesh(const TFrail<CVulkanAllocator>& allocator, std::span<uint32> indices, std::span<SVertex> vertices) {
 	const size_t vertexBufferSize = vertices.size() * sizeof(SVertex);
 	const size_t indexBufferSize = indices.size() * sizeof(uint32);
 
@@ -418,7 +418,7 @@ TUnique<SMeshBuffers_T> uploadMesh(const TShared<CVulkanAllocator>& allocator, s
 	return meshBuffers;
 }
 
-TShared<SStaticMesh> toStaticMesh(const TShared<CVulkanAllocator>& allocator, SMeshData mesh, const std::string& fileName) {
+TShared<SStaticMesh> toStaticMesh(const TFrail<CVulkanAllocator>& allocator, SMeshData mesh, const std::string& fileName) {
 	TShared<SStaticMesh> loadMesh{};
 	loadMesh->name = fileName;
 	loadMesh->bounds = mesh.bounds;
@@ -442,7 +442,7 @@ void CEngineLoader::save() {
 	}
 }
 
-void CEngineLoader::load(const TShared<CVulkanAllocator>& allocator) {
+void CEngineLoader::load(const TFrail<CVulkanAllocator>& allocator) {
 
 	basisu::basisu_encoder_init(gUseOpenCL, false);
 
@@ -499,7 +499,7 @@ void CEngineLoader::load(const TShared<CVulkanAllocator>& allocator) {
 	}
 }
 
-void CEngineLoader::importTexture(const TShared<CVulkanAllocator>& allocator, const std::filesystem::path& inPath) {
+void CEngineLoader::importTexture(const TFrail<CVulkanAllocator>& allocator, const std::filesystem::path& inPath) {
 	const std::string fileName = inPath.filename().string();
 
 	basisu::image image;
@@ -541,7 +541,7 @@ void CEngineLoader::importTexture(const TShared<CVulkanAllocator>& allocator, co
 constexpr static uint32 FONT_MAX_SIZE = 128;
 constexpr static uint32 FONT_ATLAS_SIZE = 1024;
 
-void CEngineLoader::importFont(const TShared<CVulkanAllocator>& allocator, const std::filesystem::path& inPath) {
+void CEngineLoader::importFont(const TFrail<CVulkanAllocator>& allocator, const std::filesystem::path& inPath) {
 	FT_Library ft;
 	if (const auto err = FT_Init_FreeType(&ft)) {
 		errs("FreeType could not initialize. {}", FT_Error_String(err));
@@ -651,7 +651,7 @@ void CEngineLoader::createMaterial(const std::string& inMaterialName) {
 	get()->mMaterials.emplace(name, material);
 }
 
-void CEngineLoader::importMesh(const TShared<CVulkanAllocator>& allocator, const std::filesystem::path& inPath) {
+void CEngineLoader::importMesh(const TFrail<CVulkanAllocator>& allocator, const std::filesystem::path& inPath) {
 	const std::string fileName = inPath.filename().string();
 
 	// Load the GLTF into Mesh Data

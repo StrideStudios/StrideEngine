@@ -111,7 +111,9 @@ void CEngine::run_internal() {
 	// Stop 'main thread'
 	CThreading::getMainThread().stop();
 
-	m_Renderer->destroy();
+	m_Renderer.destroy();
+
+	m_EngineViewport.destroy();
 
 }
 

@@ -29,6 +29,29 @@
 ADD_COMMAND(bool, UseVsync, true);
 #undef SETTINGS_CATEGORY
 
+CVulkanRenderer::FrameData::FrameData(const TFrail<CVulkanDevice>& device, const VkCommandPoolCreateInfo& info) {
+	mCommandPool = TUnique<CCommandPool>{device, info};
+
+	// Allocate the default command buffer that we will use for rendering
+	mMainCommandBuffer = SCommandBuffer(device, *mCommandPool);
+
+	mTracyContext = TracyVkContext(device->getPhysicalDevice(), device->getDevice(), device->getQueue(EQueueType::GRAPHICS).mQueue, mMainCommandBuffer);
+}
+
+CVulkanRenderer::FrameData::~FrameData() {
+	TracyVkDestroy(mTracyContext);
+	mCommandPool.destroy();
+}
+
+CVulkanSurface::CVulkanSurface(SDL_Window* window, const TFrail<CVulkanInstance>& instance) {
+	mInstance = instance;
+	SDL_Vulkan_CreateSurface(window, mInstance->getInstance(), nullptr, &mVkSurface);
+}
+
+CVulkanSurface::~CVulkanSurface() {
+	vkb::destroy_surface(mInstance->getInstance(), mVkSurface);
+}
+
 CVulkanRenderer::CVulkanRenderer(): mVSync(UseVsync.get()) {}
 
 void CVulkanRenderer::immediateSubmit(std::function<void(SCommandBuffer& cmd)>&& function) {
@@ -69,10 +92,10 @@ void CVulkanRenderer::init() {
 	mInstance = TShared<CVulkanInstance>{};
 
 	// Create a surface for Device to reference
-	SDL_Vulkan_CreateSurface(CEngine::get()->getViewport()->mWindow, mInstance->getInstance(), nullptr, &mVkSurface);
+	mVkSurface = TShared<CVulkanSurface>{CEngine::get()->getViewport()->mWindow, mInstance};
 
 	// Create the vulkan device
-	mDevice = TShared<CVulkanDevice>{mInstance, mVkSurface};
+	mDevice = TShared<CVulkanDevice>{mInstance, mVkSurface->mVkSurface};
 
 	CBindlessResources::get()->init(mDevice);
 
@@ -92,13 +115,8 @@ void CVulkanRenderer::init() {
 		const VkCommandPoolCreateInfo commandPoolInfo = CVulkanInfo::createCommandPoolInfo(
 			mDevice->getQueue(EQueueType::GRAPHICS).mFamily, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
-		mBuffering.forEach([&](FrameData& frame) {
-			frame.mCommandPool = TUnique<CCommandPool>{mDevice, commandPoolInfo};
-
-			// Allocate the default command buffer that we will use for rendering
-			frame.mMainCommandBuffer = SCommandBuffer(mDevice, *frame.mCommandPool);
-
-			frame.mTracyContext = TracyVkContext(mDevice->getPhysicalDevice(), mDevice->getDevice(), mDevice->getQueue(EQueueType::GRAPHICS).mQueue, frame.mMainCommandBuffer);
+		mBuffering.data().resize([&](size_t) {
+			return TUnique<FrameData>(mDevice, commandPoolInfo);
 		});
 	}
 
@@ -120,42 +138,38 @@ void CVulkanRenderer::init() {
 void CVulkanRenderer::destroy() {
 	CRenderer::destroy();
 
-	CScene::get()->destroy();
+	CScene::get().destroy();
 
 	//TODO: CEngineLoader self destroy
-	for (const auto& image : CEngineLoader::getImages()) {
-		image.second->destroy();
+	for (auto& image : CEngineLoader::getImages()) {
+		image.second.destroy();
 	}
 
-	for (const auto& font : CEngineLoader::getFonts()) {
-		font.second.mAtlasImage->destroy();
+	for (auto& font : CEngineLoader::getFonts()) {
+		font.second.mAtlasImage.destroy();
 	}
 
 	mSceneBuffer.destroy();
 
-	mEngineTextures->destroy(mDevice);
+	mEngineTextures.destroy();
 
-	mAllocator->destroy();
+	mAllocator.destroy();
 
-	mBuffering.forEach([](const FrameData& frame) {
-		TracyVkDestroy(frame.mTracyContext);
+	mBuffering.data().forEach([](size_t, TUnique<FrameData>& ptr) {
+		ptr.destroy();
 	});
 
-	mBuffering.forEach([&](const FrameData& frame) {
-		frame.mCommandPool->destroy();
-	});
+	mUploadContext->mUploadFence.destroy();
 
-	mUploadContext->mUploadFence->destroy();
+	mUploadContext->mCommandPool.destroy();
 
-	mUploadContext->mCommandPool->destroy();
+	CBindlessResources::get().destroy();
 
-	CBindlessResources::get()->destroy();
+	mDevice.destroy();
 
-	mDevice->destroy();
+	mVkSurface.destroy();
 
-	vkb::destroy_surface(mInstance->getInstance(), mVkSurface); //TODO: in instance or own class
-
-	mInstance->destroy();
+	mInstance.destroy();
 }
 
 TShared<CSwapchain> CVulkanRenderer::getSwapchain() {

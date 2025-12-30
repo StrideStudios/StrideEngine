@@ -18,20 +18,20 @@ ADD_TEXT(Triangles, "Triangles: ");
 #undef SETTINGS_CATEGORY
 
 //TODO: for now this is hard coded base pass, dont need anything else for now
-void CMeshPass::init(const TShared<CRenderer> inRenderer) {
+void CMeshPass::init(const TFrail<CRenderer> inRenderer) {
 	CPass::init(inRenderer);
 
-	const TShared<CVulkanRenderer> renderer = inRenderer.staticCast<CVulkanRenderer>();
+	const TFrail<CVulkanRenderer> renderer = inRenderer.staticCast<CVulkanRenderer>();
 
-	const TUnique<SShader> frag{inRenderer->device(), "material\\mesh.frag"};
+	TUnique<SShader> frag{inRenderer->device(), "material\\mesh.frag"};
 
-	const TUnique<SShader> errorFrag{inRenderer->device(), "material\\mesh_error.frag"};
+	TUnique<SShader> errorFrag{inRenderer->device(), "material\\mesh_error.frag"};
 
-	const TUnique<SShader> vert{inRenderer->device(), "material\\mesh.vert"};
+	TUnique<SShader> vert{inRenderer->device(), "material\\mesh.vert"};
 
-	const TUnique<SShader> basicFrag{inRenderer->device(), "material\\basic.frag"};
+	TUnique<SShader> basicFrag{inRenderer->device(), "material\\basic.frag"};
 
-	const TUnique<SShader> wireframeVert{inRenderer->device(), "material\\wireframe.vert"};
+	TUnique<SShader> wireframeVert{inRenderer->device(), "material\\wireframe.vert"};
 
 	SPipelineCreateInfo createInfo {
 		.vertexModule = vert->mModule,
@@ -76,18 +76,18 @@ void CMeshPass::init(const TShared<CRenderer> inRenderer) {
 
 	wireframePipeline = TUnique<CPipeline>{inRenderer->device(), createInfo, attributes, CBindlessResources::getBasicPipelineLayout()};
 
-	wireframeVert->destroy();
-	basicFrag->destroy();
-	vert->destroy();
-	errorFrag->destroy();
-	frag->destroy();
+	wireframeVert.destroy();
+	basicFrag.destroy();
+	vert.destroy();
+	errorFrag.destroy();
+	frag.destroy();
 }
 
 void CMeshPass::destroy(){
-	opaquePipeline->destroy();
-	transparentPipeline->destroy();
-	errorPipeline->destroy();
-	wireframePipeline->destroy();
+	opaquePipeline.destroy();
+	transparentPipeline.destroy();
+	errorPipeline.destroy();
+	wireframePipeline.destroy();
 }
 
 //TODO: probably faster with gpu

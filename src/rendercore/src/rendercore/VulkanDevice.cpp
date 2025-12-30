@@ -16,7 +16,7 @@ static std::map<vkb::QueueType, std::map<EQueueType, float>> queueFamilies {
     },
 };
 
-CVulkanDevice::CVulkanDevice(TShared<CVulkanInstance> inInstance, VkSurfaceKHR inSurface) {
+CVulkanDevice::CVulkanDevice(TFrail<CVulkanInstance> inInstance, VkSurfaceKHR inSurface) {
 
     // Swapchain Maintenance features
     VkPhysicalDeviceSwapchainMaintenance1FeaturesEXT swapchainMaintenance1Features{

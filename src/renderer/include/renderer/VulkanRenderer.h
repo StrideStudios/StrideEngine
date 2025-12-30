@@ -25,9 +25,22 @@ class CVulkanDevice;
 class CVulkanInstance;
 
 struct SUploadContext {
-	TUnique<CFence> mUploadFence = nullptr;
 	TUnique<CCommandPool> mCommandPool = nullptr;
 	SCommandBuffer mCommandBuffer{};
+	TUnique<CFence> mUploadFence = nullptr;
+};
+
+struct CVulkanSurface {
+
+	EXPORT CVulkanSurface(struct SDL_Window* window, const TFrail<CVulkanInstance>& instance);
+	EXPORT ~CVulkanSurface();
+
+	VkSurfaceKHR mVkSurface = nullptr;
+
+private:
+
+	TFrail<CVulkanInstance> mInstance = nullptr;
+
 };
 
 class CVulkanRenderer : public CRenderer {
@@ -46,6 +59,11 @@ public:
 	};
 
 	struct FrameData {
+
+		EXPORT FrameData(const TFrail<CVulkanDevice>& device, const VkCommandPoolCreateInfo& info);
+
+		EXPORT ~FrameData();
+
 		TUnique<CCommandPool> mCommandPool = nullptr;
 		SCommandBuffer mMainCommandBuffer{};
 
@@ -76,41 +94,27 @@ public:
 	// Tell children to render
 	virtual void render(VkCommandBuffer cmd) {};
 
-	// Stores textures used internally by the engine
-	TShared<CEngineTextures> mEngineTextures = nullptr;
+	TShared<CVulkanInstance> mInstance = nullptr;
 
-	//
-	// Rendering Utils
-	//
+	// Vulkan window surface
+	TShared<CVulkanSurface> mVkSurface = nullptr;
 
 	TShared<CVulkanDevice> mDevice = nullptr;
 
-	TShared<CVulkanInstance> mInstance = nullptr;
-
-	TShared<CVulkanAllocator> mAllocator = nullptr;
-
-	// Vulkan window surface
-	VkSurfaceKHR mVkSurface = nullptr;
-
-	bool mVSync;
+	TThreadSafe<SUploadContext> mUploadContext;
 
 	CDoubleBuffering<FrameData> mBuffering{};
 
-	TThreadSafe<SUploadContext> mUploadContext;
+	TShared<CVulkanAllocator> mAllocator = nullptr;
 
-	//
-	// Scene Data
-	//
-
-	SceneData mSceneData{};
+	// Stores textures used internally by the engine
+	TShared<CEngineTextures> mEngineTextures = nullptr;
 
 	SStaticBuffer<VMA_MEMORY_USAGE_CPU_TO_GPU, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, sizeof(SceneData), 1> mSceneBuffer{"Scene Buffer"};
 
-	//
-	// Objects
-	//
+	SceneData mSceneData{};
 
-	std::vector<std::shared_ptr<class CSceneObject>> mObjects{};
+	bool mVSync;
 
 };
 

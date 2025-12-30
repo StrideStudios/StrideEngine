@@ -1,7 +1,13 @@
 ﻿#include "rendercore/BindlessResources.h"
 
+TUnique<CBindlessResources>& CBindlessResources::get() {
+	static TUnique<CBindlessResources> bindlessResources{};
+	return bindlessResources;
+}
+
+
 //TODO: various uses of device singleton, need to remove
-void CBindlessResources::init(const TShared<CVulkanDevice>& inDevice) {
+void CBindlessResources::init(const TFrail<CVulkanDevice>& inDevice) {
 	// Create Descriptor pool
 	{
 		auto poolSizes = {
@@ -117,7 +123,7 @@ void CBindlessResources::init(const TShared<CVulkanDevice>& inDevice) {
 }
 
 void CBindlessResources::destroy() {
-	mPipelineLayout->destroy();
-	mDescriptorSetLayout->destroy();
-	mDescriptorPool->destroy();
+	mPipelineLayout.destroy();
+	mDescriptorSetLayout.destroy();
+	mDescriptorPool.destroy();
 }

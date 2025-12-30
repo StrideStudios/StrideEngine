@@ -26,7 +26,7 @@ class CVulkanDevice final : public SObject, public IDestroyable {
 public:
 
     CVulkanDevice() = default;
-    EXPORT CVulkanDevice(TShared<CVulkanInstance> inInstance, VkSurfaceKHR inSurface);
+    EXPORT CVulkanDevice(TFrail<CVulkanInstance> inInstance, VkSurfaceKHR inSurface);
 
     EXPORT SQueue getQueue(EQueueType inType);
 

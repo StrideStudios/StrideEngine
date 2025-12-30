@@ -16,10 +16,10 @@
 #include "tracy/Tracy.hpp"
 #include "scene/viewport/generic/Text.h"
 
-void CEditorSpritePass::init(TShared<CRenderer> inRenderer) {
+void CEditorSpritePass::init(TFrail<CRenderer> inRenderer) {
 	CSpritePass::init(inRenderer);
 
-	TWeak<CVulkanRenderer> vulkanRenderer = inRenderer.staticCast<CVulkanRenderer>();
+	const TFrail<CVulkanRenderer> vulkanRenderer = inRenderer.staticCast<CVulkanRenderer>();
 
 	/*{
 		const auto sprite = std::make_shared<CInstancedSprite>();
@@ -46,9 +46,9 @@ void CEditorSpritePass::init(TShared<CRenderer> inRenderer) {
 		push(textSprite);
 	}
 
-	const TUnique<SShader> frag{inRenderer->device(), "material\\text.frag"};
+	TUnique<SShader> frag{inRenderer->device(), "material\\text.frag"};
 
-	const TUnique<SShader> vert{inRenderer->device(), "material\\text.vert"};
+	TUnique<SShader> vert{inRenderer->device(), "material\\text.vert"};
 
 	const SPipelineCreateInfo createInfo {
 		.vertexModule = vert->mModule,
@@ -70,8 +70,8 @@ void CEditorSpritePass::init(TShared<CRenderer> inRenderer) {
 
 	textPipeline = TUnique<CPipeline>{inRenderer->device(), createInfo, attributes, CBindlessResources::getBasicPipelineLayout()};
 
-	vert->destroy();
-	frag->destroy();
+	vert.destroy();
+	frag.destroy();
 
 	textMaterial = TUnique<CMaterial>{};
 	textMaterial->mShouldSave = false;
@@ -158,7 +158,7 @@ void CEditorSpritePass::render(const SRendererInfo& info, VkCommandBuffer cmd) {
 void CEditorSpritePass::destroy() {
 	CSpritePass::destroy();
 	tempTextBuffer.destroy();
-	textPipeline->destroy();
+	textPipeline.destroy();
 }
 
 void CEditorRenderer::init() {

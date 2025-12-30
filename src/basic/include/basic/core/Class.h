@@ -19,7 +19,8 @@
 		virtual SClass* getClass() const override { return c; } \
 		static Class* staticClass() { return c; } \
 		TShared<n> asShared() { return getShared().template staticCast<n>(); } \
-		TWeak<n> asWeak() { return getWeak().template staticCast<n>(); }
+		TWeak<n> asWeak() { return getWeak().template staticCast<n>(); } \
+		TFrail<n> asFrail() { return getFrail().template staticCast<n>(); }
 
 #define REGISTER_CLASS(n, ...) \
 	REGISTER_STRUCT(n, __VA_ARGS__) \

@@ -46,17 +46,12 @@ private:
 
 	EXPORT void update();
 
-	TShared<CRenderer> m_Renderer = nullptr;
+	Time m_Time{};
+
+	TShared<CEngineViewport> m_EngineViewport = nullptr;
 
 	TShared<CInput> m_Input = nullptr;
 
-	//
-	// Frame Time
-	//
-
-	Time m_Time{};
-
-	// SDL Window
-	TShared<CEngineViewport> m_EngineViewport = nullptr;
+	TShared<CRenderer> m_Renderer = nullptr;
 
 };

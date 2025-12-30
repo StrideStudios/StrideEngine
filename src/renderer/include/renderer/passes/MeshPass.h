@@ -10,7 +10,7 @@ class CMeshPass : public CPass {
 
 public:
 
-	EXPORT virtual void init(TShared<CRenderer> inRenderer) override;
+	EXPORT virtual void init(TFrail<CRenderer> inRenderer) override;
 
 	EXPORT void destroy() override;
 

@@ -21,6 +21,6 @@ bool CRenderer::hasPass(const SClass* cls) const {
 
 void CRenderer::destroy() {
 	for (auto itr = m_Passes.rbegin(); itr != m_Passes.rend(); ++itr) {
-		(*itr)->destroy();
+		itr->destroy();
 	}
 }
