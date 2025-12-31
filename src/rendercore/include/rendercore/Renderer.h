@@ -73,6 +73,7 @@ template <typename TType>
 using CDoubleBuffering = TBuffering<TType, 2>;
 
 struct SRendererInfo {
+	TFrail<class CScene> scene = nullptr;
 	TFrail<class CEngineViewport> viewport = nullptr;
 	TFrail<class CRenderer> renderer = nullptr;
 	TFrail<class CVulkanAllocator> allocator = nullptr;

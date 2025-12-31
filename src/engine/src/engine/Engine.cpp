@@ -5,6 +5,7 @@
 #include "engine/EngineSettings.h"
 #include "engine/Viewport.h"
 #include "engine/Input.h"
+#include "scene/base/Scene.h"
 #include "rendercore/Renderer.h"
 #include "basic/core/Threading.h"
 #include "SDL3/SDL_timer.h"
@@ -37,6 +38,9 @@ CEngine::CEngine() {
 CEngine::~CEngine() = default;
 
 void CEngine::run_internal() {
+
+	m_Scene = TUnique<CScene>{};
+
 	auto previousTime = std::chrono::high_resolution_clock::now();
 	bool bPauseRendering = false;
 	bool bRunning = true;
@@ -82,6 +86,7 @@ void CEngine::run_internal() {
 
 		// Create info for the renderer
 		SRendererInfo info {
+			m_Scene,
 			m_EngineViewport,
 			m_Renderer
 		};

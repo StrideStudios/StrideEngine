@@ -129,16 +129,11 @@ void CVulkanRenderer::init() {
 
 	// Load textures and meshes
 	CEngineLoader::load(mAllocator);
-
-	// Ensure init is called
-	CScene::get();
 }
 
 //TODO: members are destroyed in reverse order, so that can be used instead.
 void CVulkanRenderer::destroy() {
 	CRenderer::destroy();
-
-	CScene::get().destroy();
 
 	//TODO: CEngineLoader self destroy
 	for (auto& image : CEngineLoader::getImages()) {
@@ -257,7 +252,7 @@ void CVulkanRenderer::render(SRendererInfo& info) {
 			CEngine::get()->getViewport()->mExtent.y
 		};
 
-		CScene::get()->update();
+		info.scene->update();
 
 		{
 			ZoneScopedN("Update Scene Data");
@@ -268,7 +263,7 @@ void CVulkanRenderer::render(SRendererInfo& info) {
 				mSceneData.mScreenSize = Vector2f((float)extent.width, (float)extent.height);
 				mSceneData.mInvScreenSize = Vector2f(1.f / (float)extent.width, 1.f / (float)extent.height);
 
-				mSceneData.mViewProj = CScene::get()->mMainCamera->getViewProjectionMatrix();
+				mSceneData.mViewProj = info.scene->mMainCamera->getViewProjectionMatrix();
 
 				//some default lighting parameters
 				mSceneData.mAmbientColor = glm::vec4(.1f);

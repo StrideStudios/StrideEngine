@@ -2,11 +2,6 @@
 
 #include "scene/world/Camera.h"
 
-TShared<CScene> CScene::get() {
-	static TShared<CScene> scene;
-	return scene;
-}
-
 void CScene::init() {
 	std::filesystem::path path = SPaths::get()->mAssetPath.string() + "Scene.scn";
 

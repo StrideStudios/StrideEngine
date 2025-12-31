@@ -25,14 +25,13 @@
 
 void renderSceneUI(const SRendererInfo& info) {
 	if (ImGui::Begin("Scene")) {
-		const TShared<CScene> scene = CScene::get();
 		if (ImGui::Button("Add Mesh Object")) {
 			//scene.addChild(CStaticMeshObject{});
 			TUnique<CStaticMeshObject> obj{};
-			scene->addChild(std::move(obj));
+			info.scene->addChild(std::move(obj));
 		}
-		for (size_t objectNum = 0; objectNum < scene->getChildren().getSize(); ++objectNum) {
-			auto& object = scene.get()->getChildren()[objectNum];
+		for (size_t objectNum = 0; objectNum < info.scene->getChildren().getSize(); ++objectNum) {
+			auto& object = info.scene.get()->getChildren()[objectNum];
 			if (!object) continue;
 			ImGui::PushID(fmts("{}", objectNum).c_str());
 
@@ -41,7 +40,7 @@ void renderSceneUI(const SRendererInfo& info) {
 				ImGui::InputText("Name", &object->mName);
 
 				if (ImGui::Button("Remove")) {
-					scene->removeChild(object);
+					info.scene->removeChild(object);
 				} else {
 					Vector3f position = object->getPosition();
 					ImGui::InputFloat3("Position", reinterpret_cast<float*>(&position));

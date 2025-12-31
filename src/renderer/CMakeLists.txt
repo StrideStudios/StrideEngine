@@ -10,7 +10,6 @@ add_dependencies(StrideEngine-renderer
         StrideEngine-basic
         StrideEngine-rendercore
         StrideEngine-engine
-        StrideEngine-scene
 )
 
 # Basis universal doesn't include itself by default

@@ -55,4 +55,6 @@ private:
 
 	TUnique<CRenderer> m_Renderer = nullptr;
 
+	TUnique<CScene> m_Scene = nullptr;
+
 };

@@ -121,7 +121,6 @@ subdirectory_link(StrideEngine PUBLIC
         imgui
         rendercore
         engine
-        scene
         renderer
         editor
 )

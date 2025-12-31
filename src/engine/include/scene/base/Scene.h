@@ -8,8 +8,6 @@ class CScene : public SObject, public THierarchy<CWorldObject>, public IInitiali
 
 public:
 
-	EXPORT static TShared<CScene> get();
-
 	EXPORT virtual void init() override;
 
 	EXPORT virtual void destroy() override;
