@@ -121,9 +121,9 @@ void CVulkanRenderer::init() {
 	}
 
 	// Initialize Allocator
-	mAllocator = TShared<CVulkanAllocator>{asShared()};
+	mAllocator = TShared<CVulkanAllocator>{this};
 
-	mEngineTextures = TShared<CEngineTextures>{asShared(), mAllocator};
+	mEngineTextures = TShared<CEngineTextures>{this, mAllocator};
 
 	mSceneBuffer.get(mAllocator)->makeGlobal(mDevice);
 
@@ -172,14 +172,14 @@ void CVulkanRenderer::destroy() {
 	mInstance.destroy();
 }
 
-TShared<CSwapchain> CVulkanRenderer::getSwapchain() {
+TFrail<CSwapchain> CVulkanRenderer::getSwapchain() {
 	return mEngineTextures->getSwapchain();
 }
 
 void CVulkanRenderer::render(SRendererInfo& info) {
 
 	// Set renderer info allocator
-	info.allocator = mAllocator->asWeak();
+	info.allocator = mAllocator;
 
 	if (mVSync != UseVsync.get()) {
 		mVSync = UseVsync.get();
@@ -369,11 +369,11 @@ bool CVulkanRenderer::wait() {
 	return mEngineTextures->getSwapchain()->wait(mDevice, mBuffering.getFrameIndex());
 }
 
-EXPORT TShared<CVulkanDevice> CVulkanRenderer::device() {
+EXPORT TFrail<CVulkanDevice> CVulkanRenderer::device() {
 	return mDevice;
 }
 
-EXPORT TShared<CVulkanInstance> CVulkanRenderer::instance() {
+EXPORT TFrail<CVulkanInstance> CVulkanRenderer::instance() {
 	return mInstance;
 }
 

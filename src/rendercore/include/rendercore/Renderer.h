@@ -91,7 +91,7 @@ public:
 	template <typename TPass>
 	void addPass() {
 		if (hasPass<TPass>()) return;
-		m_Passes.push_back(TShared<TPass>{getShared().staticCast<CRenderer>()});
+		m_Passes.push_back(TUnique<TPass>{this});
 	}
 
 	template <typename... TPasses>
@@ -111,7 +111,7 @@ public:
 
 	no_discard virtual IBuffering& getBufferingType() = 0;
 
-	no_discard virtual TShared<CSwapchain> getSwapchain() = 0;
+	no_discard virtual TFrail<CSwapchain> getSwapchain() = 0;
 
 	virtual void immediateSubmit(std::function<void(struct SCommandBuffer& cmd)>&& function) = 0;
 
@@ -119,13 +119,13 @@ public:
 
 	virtual bool wait() = 0;
 
-	virtual TShared<class CVulkanDevice> device() = 0;
+	virtual TFrail<class CVulkanDevice> device() = 0;
 
-	virtual TShared<class CVulkanInstance> instance() = 0;
+	virtual TFrail<class CVulkanInstance> instance() = 0;
 
-	std::list<TShared<CPass>>& getPasses() { return m_Passes; }
+	std::list<TUnique<CPass>>& getPasses() { return m_Passes; }
 
-	const std::list<TShared<CPass>>& getPasses() const { return m_Passes; }
+	const std::list<TUnique<CPass>>& getPasses() const { return m_Passes; }
 
 	EXPORT virtual void destroy() override;
 
@@ -137,6 +137,6 @@ private:
 
 	EXPORT bool hasPass(const SClass* cls) const;
 
-	std::list<TShared<CPass>> m_Passes;
+	std::list<TUnique<CPass>> m_Passes;
 
 };

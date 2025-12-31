@@ -15,7 +15,7 @@ struct TUnique;
 template <typename... TParentClasses>
 struct TClass;
 
-struct SObject : TSharedFrom<SObject> {
+struct SObject {
 
 	typedef TClass<SObject> Class;
 

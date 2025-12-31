@@ -80,16 +80,16 @@ public:
 
 	virtual IBuffering& getBufferingType() override { return mBuffering; }
 
-	EXPORT virtual TShared<CSwapchain> getSwapchain() override;
+	EXPORT virtual TFrail<CSwapchain> getSwapchain() override;
 
 	// Draw to the screen
 	EXPORT virtual void render(SRendererInfo& info) override;
 
 	no_discard EXPORT virtual bool wait() override;
 
-	EXPORT virtual TShared<CVulkanDevice> device() override;
+	EXPORT virtual TFrail<CVulkanDevice> device() override;
 
-	EXPORT virtual TShared<CVulkanInstance> instance() override;
+	EXPORT virtual TFrail<CVulkanInstance> instance() override;
 
 	// Tell children to render
 	virtual void render(VkCommandBuffer cmd) {};

@@ -18,17 +18,18 @@ class CEngine : public SObject {
 
 public:
 
-	EXPORT static TShared<CEngine> get();
+	EXPORT static TFrail<CEngine> get();
 
 	EXPORT CEngine();
+	EXPORT ~CEngine();
 
 	no_discard Time& getTime() { return m_Time; }
 
-	no_discard TShared<CEngineViewport> getViewport() const { return m_EngineViewport; }
+	no_discard TFrail<CEngineViewport> getViewport() { return m_EngineViewport; }
 
-	no_discard TShared<CInput> getInput() const { return m_Input; }
+	no_discard TFrail<CInput> getInput() { return m_Input; }
 
-	no_discard TShared<CRenderer> getRenderer() const { return m_Renderer; }
+	no_discard TFrail<CRenderer> getRenderer() { return m_Renderer; }
 
 private:
 
@@ -40,7 +41,7 @@ private:
 	template <typename TType>
 	requires std::is_base_of_v<CRenderer, TType>
 	static void run() {
-		get()->m_Renderer = TShared<TType>{};
+		get()->m_Renderer = TUnique<TType>{};
 		get()->run_internal();
 	}
 
@@ -48,10 +49,10 @@ private:
 
 	Time m_Time{};
 
-	TShared<CEngineViewport> m_EngineViewport = nullptr;
+	TUnique<CEngineViewport> m_EngineViewport = nullptr;
 
-	TShared<CInput> m_Input = nullptr;
+	TUnique<CInput> m_Input = nullptr;
 
-	TShared<CRenderer> m_Renderer = nullptr;
+	TUnique<CRenderer> m_Renderer = nullptr;
 
 };

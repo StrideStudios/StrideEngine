@@ -19,8 +19,8 @@ ADD_TEXT(GameTime);
 ADD_TEXT(DeltaTime);
 #undef SETTINGS_CATEGORY
 
-TShared<CEngine> CEngine::get() {
-	static TShared<CEngine> engine;
+TFrail<CEngine> CEngine::get() {
+	static TUnique<CEngine> engine;
 	return engine;
 }
 
@@ -30,9 +30,11 @@ CEngine::CEngine() {
 	astsOnce(CEngine)
 
 	// Initialize the viewport
-	m_EngineViewport = TShared<CEngineViewport>{};
-	m_Input = TShared<CInput>{};
+	m_EngineViewport = TUnique<CEngineViewport>{};
+	m_Input = TUnique<CInput>{};
 }
+
+CEngine::~CEngine() = default;
 
 void CEngine::run_internal() {
 	auto previousTime = std::chrono::high_resolution_clock::now();
