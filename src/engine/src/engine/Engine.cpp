@@ -35,8 +35,6 @@ CEngine::CEngine() {
 	m_Input = TUnique<CInput>{};
 }
 
-CEngine::~CEngine() = default;
-
 void CEngine::run_internal() {
 
 	m_Scene = TUnique<CScene>{};

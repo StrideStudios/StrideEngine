@@ -21,7 +21,6 @@ public:
 	EXPORT static TFrail<CEngine> get();
 
 	EXPORT CEngine();
-	EXPORT ~CEngine();
 
 	no_discard Time& getTime() { return m_Time; }
 
