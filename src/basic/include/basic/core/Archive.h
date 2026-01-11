@@ -14,6 +14,7 @@
 #include "Object.h"
 #include "sstl/Container.h"
 #include "sstl/Memory.h"
+#include "sstl/Vector.h"
 
 class CArchive;
 
@@ -623,6 +624,16 @@ public:
 	void writeFile(std::vector<TType, TAlloc> vector) {
 		assert(isOpen());
 		fwrite(vector.data(), sizeof(TType), vector.size(), mFile);
+
+		// Since every part of the file is read, we might as well close it
+		close();
+	}
+
+	// Function to write to entire file with any type
+	template <typename TType>
+	void writeFile(TVector<TType> vector) {
+		assert(isOpen());
+		fwrite(vector.data(), sizeof(TType), vector.getSize(), mFile);
 
 		// Since every part of the file is read, we might as well close it
 		close();

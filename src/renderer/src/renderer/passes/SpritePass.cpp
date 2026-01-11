@@ -1,6 +1,6 @@
 ﻿#include "renderer/passes/SpritePass.h"
 
-#include "rendercore/BindlessResources.h"
+#include "VRI/BindlessResources.h"
 #include "rendercore/EngineLoader.h"
 #include "renderer/EngineTextures.h"
 #include "renderer/VulkanRenderer.h"
@@ -8,6 +8,7 @@
 #include "engine/EngineSettings.h"
 #include "tracy/Tracy.hpp"
 #include "scene/viewport/Sprite.h"
+#include "VRI/VRICommands.h"
 
 #define SETTINGS_CATEGORY "Rendering/Sprite Pass"
 ADD_TEXT(Sprites, "Sprites: ");
@@ -19,9 +20,9 @@ ADD_TEXT(SpriteTriangles, "Triangles: ");
 void CSpritePass::init(TFrail<CRenderer> inRenderer) {
 	const TFrail<CVulkanRenderer> renderer = inRenderer.staticCast<CVulkanRenderer>();
 
-	TUnique<SShader> frag{inRenderer->device(), "material\\sprite.frag"};
+	TUnique<SShader> frag{"material\\sprite.frag"};
 
-	TUnique<SShader> vert{inRenderer->device(), "material\\sprite.vert"};
+	TUnique<SShader> vert{"material\\sprite.vert"};
 
 	const SPipelineCreateInfo createInfo {
 		.vertexModule = vert->mModule,
@@ -38,13 +39,13 @@ void CSpritePass::init(TFrail<CRenderer> inRenderer) {
 	attributes << VK_FORMAT_R32G32B32A32_SFLOAT;
 	attributes << VK_FORMAT_R32G32B32A32_SFLOAT;
 
-	opaquePipeline = TUnique<CPipeline>{inRenderer->device(), createInfo, attributes, CBindlessResources::getBasicPipelineLayout()};
+	opaquePipeline = TUnique<CPipeline>{createInfo, attributes, CBindlessResources::getBasicPipelineLayout()};
 
 	vert.destroy();
 	frag.destroy();
 }
 
-void CSpritePass::render(const SRendererInfo& info, VkCommandBuffer cmd) {
+void CSpritePass::render(const SRendererInfo& info, const TFrail<CVRICommands>& cmd) {
 	ZoneScopedN("Sprite Pass");
 
 	//TODO: Z order sorting
@@ -66,13 +67,13 @@ void CSpritePass::render(const SRendererInfo& info, VkCommandBuffer cmd) {
 		stack.push(sprite->getTransformMatrix());
 
 		VkDeviceSize offset = 0u;
-		vkCmdBindVertexBuffers(cmd, 0, 1u, &instancer.get(info.allocator, stack)->buffer, &offset);
+		cmd->bindVertexBuffers( 0, 1u, &instancer.get(stack)->buffer, &offset);
 
 		stack.pop();
 
-		bindPipeline(cmd, *opaquePipeline, sprite->getMaterial()->mConstants);
+		bindPipeline(cmd, opaquePipeline.get(), sprite->getMaterial()->mConstants);
 
-		vkCmdDraw(cmd, 6, NumInstances, 0, 0);
+		cmd->draw(6, NumInstances, 0, 0);
 
 		drawCallCount++;
 		vertexCount += 6 * NumInstances;

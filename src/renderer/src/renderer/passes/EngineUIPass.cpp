@@ -19,9 +19,8 @@
 #include "basic/core/Threading.h"
 #include "engine/Engine.h"
 #include "renderer/EngineTextures.h"
-#include "rendercore/VulkanDevice.h"
-#include "rendercore/VulkanInstance.h"
 #include "scene/viewport/generic/Text.h"
+#include "VRI/VRICommands.h"
 
 void renderSceneUI(const SRendererInfo& info) {
 	if (ImGui::Begin("Scene")) {
@@ -99,7 +98,7 @@ void renderFontUI(const SRendererInfo& info) {
 			CEngineViewport::queryForFile(filters, [&](std::vector<std::string> inFiles) {
 				for (const auto& file : inFiles) {
 					CThreading::getMainThread().add([info, file] {
-						CEngineLoader::importFont(info.allocator, file);
+						CEngineLoader::importFont(info.renderer, file);
 					});
 				}
 			});
@@ -141,7 +140,7 @@ void renderTextureUI(const SRendererInfo& info) {
 			CEngineViewport::queryForFile(filters, [&](std::vector<std::string> inFiles) {
 				for (const auto& file : inFiles) {
 					CThreading::runOnBackgroundThread([info, file] {
-						CEngineLoader::importTexture(info.allocator, file);
+						CEngineLoader::importTexture(info.renderer, file);
 					});
 				}
 			});
@@ -288,7 +287,7 @@ void renderMeshUI(const SRendererInfo& info) {
 			CEngineViewport::queryForFile(filters, [&](std::vector<std::string> inFiles) {
 				for (const auto& file : inFiles) {
 					CThreading::runOnBackgroundThread([info, file] {
-						CEngineLoader::importMesh(info.allocator, file);
+						CEngineLoader::importMesh(info.renderer, file);
 					});
 				}
 			});
@@ -358,14 +357,14 @@ void CEngineUIPass::init(const TFrail<CRenderer> inRenderer) {
 		.pPoolSizes = poolSizes
 	};
 
-	imguiPool = TUnique<CDescriptorPool>{inRenderer->device(), poolCreateInfo};
+	imguiPool = TUnique<CDescriptorPool>{poolCreateInfo};
 
 	// this initializes imgui for Vulkan
 	ImGui_ImplVulkan_InitInfo initInfo {
-		.Instance = inRenderer->instance()->getInstance(),
-		.PhysicalDevice = inRenderer->device()->getPhysicalDevice(),
-		.Device = inRenderer->device()->getDevice(),
-		.Queue = inRenderer->device()->getQueue(EQueueType::GRAPHICS).mQueue,
+		.Instance = CVRI::get()->getInstance()->instance,
+		.PhysicalDevice = CVRI::get()->getDevice()->physical_device,
+		.Device = CVRI::get()->getDevice()->device,
+		.Queue = CVRI::get()->getQueue(EQueueType::GRAPHICS).mQueue,
 		.DescriptorPool = imguiPool->get(),
 		.MinImageCount = 3,
 		.ImageCount = 3,
@@ -395,7 +394,7 @@ void CEngineUIPass::begin() {
 	ImGui::NewFrame();
 }
 
-void CEngineUIPass::render(const SRendererInfo& info, VkCommandBuffer cmd) {
+void CEngineUIPass::render(const SRendererInfo& info, const TFrail<CVRICommands>& cmd) {
 	// Render Engine Settings
 	CEngineSettings::render();
 
@@ -407,7 +406,7 @@ void CEngineUIPass::render(const SRendererInfo& info, VkCommandBuffer cmd) {
 	renderFontUI(info);
 
 	ImGui::Render();
-	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
+	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd->cmd);
 }
 
 void CEngineUIPass::destroy() {

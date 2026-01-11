@@ -14,7 +14,7 @@ public:
 
 	EXPORT void destroy() override;
 
-	EXPORT virtual void render(const SRendererInfo& info, VkCommandBuffer cmd) override;
+	EXPORT virtual void render(const SRendererInfo& info, const TFrail<CVRICommands>& cmd) override;
 
 	//
 	// Pipelines

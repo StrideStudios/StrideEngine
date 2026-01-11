@@ -1,5 +1,6 @@
 ﻿#pragma once
 
+#include "rendercore/Renderer.h"
 #include "rendercore/VulkanResources.h"
 
 class CMaterial;
@@ -15,9 +16,9 @@ class CEngineTextures : public SObject, public IDestroyable {
 public:
 
 	CEngineTextures() = default;
-	EXPORT CEngineTextures(const TFrail<CRenderer>& renderer, TFrail<CVulkanAllocator> allocator);
+	EXPORT CEngineTextures(const TFrail<CRenderer>& renderer);
 
-	EXPORT void initializeTextures(TFrail<CVulkanAllocator> allocator);
+	EXPORT void initializeTextures();
 
 	EXPORT void reallocate(const SRendererInfo& info, bool inUseVSync = true);
 
@@ -37,14 +38,14 @@ public:
 	// Default Data
 	//
 
-	TUnique<SImage_T> mErrorCheckerboardImage = nullptr;
+	TUnique<SVRIImage> mErrorCheckerboardImage = nullptr;
 
 	//
 	// Textures
 	//
 
-	TUnique<SImage_T> mDrawImage = nullptr;
-	TUnique<SImage_T> mDepthImage = nullptr;
+	TUnique<SVRIImage> mDrawImage = nullptr;
+	TUnique<SVRIImage> mDepthImage = nullptr;
 
 	TUnique<CMaterial> mErrorMaterial = nullptr;
 

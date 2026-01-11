@@ -17,73 +17,6 @@ VkImageSubresourceRange CVulkanUtils::imageSubresourceRange(VkImageAspectFlags i
 	};
 }
 
-void CVulkanUtils::copyImageToImage(VkCommandBuffer inCmd, VkImage inSource, VkImage inDestination, VkExtent2D inSrcSize, VkExtent2D inDstSize) {
-	ZoneScopedN("Image Blit");
-
-	VkImageBlit2 blitRegion { .sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2, .pNext = nullptr };
-
-	blitRegion.srcOffsets[1].x = inSrcSize.width;
-	blitRegion.srcOffsets[1].y = inSrcSize.height;
-	blitRegion.srcOffsets[1].z = 1;
-
-	blitRegion.dstOffsets[1].x = inDstSize.width;
-	blitRegion.dstOffsets[1].y = inDstSize.height;
-	blitRegion.dstOffsets[1].z = 1;
-
-	blitRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	blitRegion.srcSubresource.baseArrayLayer = 0;
-	blitRegion.srcSubresource.layerCount = 1;
-	blitRegion.srcSubresource.mipLevel = 0;
-
-	blitRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	blitRegion.dstSubresource.baseArrayLayer = 0;
-	blitRegion.dstSubresource.layerCount = 1;
-	blitRegion.dstSubresource.mipLevel = 0;
-
-	VkBlitImageInfo2 blitInfo { .sType = VK_STRUCTURE_TYPE_BLIT_IMAGE_INFO_2, .pNext = nullptr };
-	blitInfo.dstImage = inDestination;
-	blitInfo.dstImageLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-	blitInfo.srcImage = inSource;
-	blitInfo.srcImageLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-	blitInfo.filter = VK_FILTER_LINEAR;
-	blitInfo.regionCount = 1;
-	blitInfo.pRegions = &blitRegion;
-
-	vkCmdBlitImage2(inCmd, &blitInfo);
-}
-
-void CVulkanUtils::transitionImage(SCommandBuffer& inCmd, SImage_T* inImage, VkImageLayout inLayout) {
-	ZoneScopedN("Transition Image");
-
-	VkImageMemoryBarrier2 imageBarrier {.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2};
-	imageBarrier.pNext = nullptr;
-
-	// TODO: apparently ALL_COMMANDS_BIT is slow, and will stall the GPU if using many transitions
-	imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
-	imageBarrier.srcAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT;
-	imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
-	imageBarrier.dstAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT | VK_ACCESS_2_MEMORY_READ_BIT;
-
-	imageBarrier.oldLayout = inImage->mLayout;
-	imageBarrier.newLayout = inLayout;
-
-	VkImageAspectFlags aspectMask = (inLayout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
-	imageBarrier.subresourceRange = imageSubresourceRange(aspectMask);
-	imageBarrier.image = inImage->mImage;
-
-	VkDependencyInfo depInfo {
-		.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-		.pNext = nullptr,
-		.imageMemoryBarrierCount = 1,
-		.pImageMemoryBarriers = &imageBarrier
-	};
-
-	vkCmdPipelineBarrier2(inCmd, &depInfo);
-
-	inImage->mLayout = inLayout;
-	inCmd.imageTransitions.push_front(inImage);
-}
-
 VkRenderingAttachmentInfo CVulkanUtils::createAttachmentInfo(VkImageView view, VkClearValue* clear ,VkImageLayout layout) {
 	return {
 		.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
@@ -178,24 +111,6 @@ VkSemaphoreSubmitInfo CVulkanInfo::submitSemaphoreInfo(VkPipelineStageFlags2 inS
 		.value = 1,
 		.stageMask = inStageMask,
 		.deviceIndex = 0
-	};
-}
-
-VkCommandBufferSubmitInfo CVulkanInfo::submitCommandBufferInfo(VkCommandBuffer inCmd) {
-	return {
-	 	.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
-		.pNext = nullptr,
-		.commandBuffer = inCmd,
-		.deviceMask = 0
-	};
-}
-
-VkSubmitInfo CVulkanInfo::submitInfo(VkCommandBuffer* inCmd) {
-	return {
-	 	.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-		.pNext = nullptr,
-		.commandBufferCount = 1,
-		.pCommandBuffers = inCmd
 	};
 }
 

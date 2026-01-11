@@ -139,6 +139,25 @@ public:
 	}
 };
 
+class CPersistentThread {
+
+	mutable std::mutex mtx;
+	std::thread m_Thread;
+
+public:
+
+	explicit CPersistentThread(const std::function<void()>& inFunc): m_Thread(inFunc) {}
+
+	~CPersistentThread() {
+		stop();
+	}
+
+	void stop() {
+		std::lock_guard lock(mtx);
+		if (m_Thread.joinable()) m_Thread.join();
+	}
+};
+
 #define THREAD_LOOP(name, color) \
 	TracyCSetThreadName(name.c_str()) \
 	while (true) { \
@@ -204,10 +223,6 @@ public:
 
 	EXPORT static CWorker& getMainThread();
 
-	EXPORT static CThread& getRenderingThread();
-
-	EXPORT static CThread& getGameThread();
-
 	EXPORT static void runOnBackgroundThread(const std::function<void()>& inFunc);
 
 	// Wait for threads to finish operations
@@ -217,14 +232,6 @@ public:
 	EXPORT static void stop();
 
 	CWorker mMainThread;
-
-	CThread mRenderingThread{[](const std::function<bool()>& loop) {
-		THREAD_LOOP(std::string("Render Thread"), 0xff0000)
-	}};
-
-	CThread mGameThread{[](const std::function<bool()>& loop) {
-		THREAD_LOOP(std::string("Game Thread"), 0x00ff00)
-	}};
 
 	// Modern computers can reliably have > 4 cores ( 8 threads)
 	CThreadPool mThreadPool{std::thread::hardware_concurrency()};

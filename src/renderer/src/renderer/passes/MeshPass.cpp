@@ -1,7 +1,7 @@
 ﻿#include "renderer/passes/MeshPass.h"
 
 #include "engine/Engine.h"
-#include "rendercore/BindlessResources.h"
+#include "VRI/BindlessResources.h"
 #include "renderer/EngineTextures.h"
 #include "renderer/VulkanRenderer.h"
 #include "rendercore/StaticMesh.h"
@@ -23,15 +23,15 @@ void CMeshPass::init(const TFrail<CRenderer> inRenderer) {
 
 	const TFrail<CVulkanRenderer> renderer = inRenderer.staticCast<CVulkanRenderer>();
 
-	TUnique<SShader> frag{inRenderer->device(), "material\\mesh.frag"};
+	TUnique<SShader> frag{"material\\mesh.frag"};
 
-	TUnique<SShader> errorFrag{inRenderer->device(), "material\\mesh_error.frag"};
+	TUnique<SShader> errorFrag{"material\\mesh_error.frag"};
 
-	TUnique<SShader> vert{inRenderer->device(), "material\\mesh.vert"};
+	TUnique<SShader> vert{"material\\mesh.vert"};
 
-	TUnique<SShader> basicFrag{inRenderer->device(), "material\\basic.frag"};
+	TUnique<SShader> basicFrag{"material\\basic.frag"};
 
-	TUnique<SShader> wireframeVert{inRenderer->device(), "material\\wireframe.vert"};
+	TUnique<SShader> wireframeVert{"material\\wireframe.vert"};
 
 	SPipelineCreateInfo createInfo {
 		.vertexModule = vert->mModule,
@@ -53,19 +53,19 @@ void CMeshPass::init(const TFrail<CRenderer> inRenderer) {
 	attributes << VK_FORMAT_R32G32B32A32_SFLOAT;
 	attributes << VK_FORMAT_R32G32B32A32_SFLOAT;
 
-	opaquePipeline = TUnique<CPipeline>{inRenderer->device(), createInfo, attributes, CBindlessResources::getBasicPipelineLayout()};
+	opaquePipeline = TUnique<CPipeline>{createInfo, attributes, CBindlessResources::getBasicPipelineLayout()};
 
 	// Transparent should be additive and always render in front
 	createInfo.mBlendMode = EBlendMode::ADDITIVE;
 	createInfo.mDepthTestMode = EDepthTestMode::FRONT;
 
-	transparentPipeline = TUnique<CPipeline>{inRenderer->device(), createInfo, attributes, CBindlessResources::getBasicPipelineLayout()};
+	transparentPipeline = TUnique<CPipeline>{createInfo, attributes, CBindlessResources::getBasicPipelineLayout()};
 
 	createInfo.fragmentModule = errorFrag->mModule;
 	createInfo.mBlendMode = EBlendMode::NONE;
 	createInfo.mDepthTestMode = EDepthTestMode::NORMAL;
 
-	errorPipeline = TUnique<CPipeline>{inRenderer->device(), createInfo, attributes, CBindlessResources::getBasicPipelineLayout()};
+	errorPipeline = TUnique<CPipeline>{createInfo, attributes, CBindlessResources::getBasicPipelineLayout()};
 
 	createInfo.vertexModule = wireframeVert->mModule;
 	createInfo.fragmentModule = basicFrag->mModule;
@@ -74,7 +74,7 @@ void CMeshPass::init(const TFrail<CRenderer> inRenderer) {
 	createInfo.mCullMode = VK_CULL_MODE_NONE;
 	createInfo.mLineWidth = 5.f;
 
-	wireframePipeline = TUnique<CPipeline>{inRenderer->device(), createInfo, attributes, CBindlessResources::getBasicPipelineLayout()};
+	wireframePipeline = TUnique<CPipeline>{createInfo, attributes, CBindlessResources::getBasicPipelineLayout()};
 
 	wireframeVert.destroy();
 	basicFrag.destroy();
@@ -128,7 +128,7 @@ bool isVisible(const Matrix4f& inViewProj, const Matrix4f& inTransformMatrix, co
 	return true;
 }
 
-void renderChild(const SRendererInfo& info, CMeshPass* pass, const VkCommandBuffer cmd, SRenderStack3f& stack, THierarchy<CWorldObject>* inHierarchy, size_t& meshCount, size_t& drawCallCount, size_t& vertexCount) {
+void renderChild(const SRendererInfo& info, CMeshPass* pass, const TFrail<CVRICommands>& cmd, SRenderStack3f& stack, THierarchy<CWorldObject>* inHierarchy, size_t& meshCount, size_t& drawCallCount, size_t& vertexCount) {
 	inHierarchy->getChildren().forEach([&](size_t index, TUnique<CWorldObject>& obj) {
 		stack.push(obj->getTransformMatrix());
 
@@ -148,7 +148,7 @@ void renderChild(const SRendererInfo& info, CMeshPass* pass, const VkCommandBuff
 	});
 }
 
-void CMeshPass::render(const SRendererInfo& info, const VkCommandBuffer cmd) {
+void CMeshPass::render(const SRendererInfo& info, const TFrail<CVRICommands>& cmd) {
 	ZoneScopedN("Base Pass");
 
 	size_t meshCount = 0;

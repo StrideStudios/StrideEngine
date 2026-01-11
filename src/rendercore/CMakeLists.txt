@@ -1,6 +1,6 @@
 ﻿create_module(StrideEngine-rendercore SHARED)
 
-find_package(Vulkan REQUIRED COMPONENTS dxc)
+find_package(Vulkan REQUIRED)
 add_dependencies(StrideEngine-rendercore
     PRIVATE
         SDL3::SDL3
@@ -8,12 +8,12 @@ add_dependencies(StrideEngine-rendercore
         freetype
         basisu_encoder
         meshoptimizer
-        Vulkan::dxc_lib
     PUBLIC
         vk-bootstrap::vk-bootstrap
         Vulkan::Vulkan
 
         StrideEngine-basic
+        StrideEngine-VRI
 )
 
 # Basis universal doesn't include itself by default

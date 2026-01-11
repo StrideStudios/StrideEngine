@@ -12,7 +12,7 @@ public:
 
 	EXPORT virtual void begin() override;
 
-	EXPORT virtual void render(const SRendererInfo& info, VkCommandBuffer cmd) override;
+	EXPORT virtual void render(const SRendererInfo& info, const TFrail<CVRICommands>& cmd) override;
 
 	EXPORT virtual void destroy() override;
 

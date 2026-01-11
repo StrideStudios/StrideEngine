@@ -3,15 +3,16 @@
 #include <array>
 
 #include "VkBootstrap.h"
-#include "rendercore/BindlessResources.h"
+#include "VRI/BindlessResources.h"
 #include "engine/Engine.h"
 #include "rendercore/Material.h"
-#include "rendercore/VulkanDevice.h"
 #include "renderer/VulkanRenderer.h"
 #include "renderer/Swapchain.h"
 #include "engine/Viewport.h"
 
-CEngineTextures::CEngineTextures(const TFrail<CRenderer>& renderer, TFrail<CVulkanAllocator> allocator) {
+#include "VRI/VRICommands.h"
+
+CEngineTextures::CEngineTextures(const TFrail<CRenderer>& renderer) {
 
 	m_Swapchain = TShared<CVulkanSwapchain>{renderer};
 
@@ -29,20 +30,20 @@ CEngineTextures::CEngineTextures(const TFrail<CRenderer>& renderer, TFrail<CVulk
 		samplerCreateInfo.minFilter = VK_FILTER_NEAREST;
 		samplerCreateInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
 
-		mNearestSampler = TUnique<CSampler>{renderer->device(), samplerCreateInfo};
+		mNearestSampler = TUnique<CSampler>{samplerCreateInfo};
 
 		samplerCreateInfo.magFilter = VK_FILTER_LINEAR;
 		samplerCreateInfo.minFilter = VK_FILTER_LINEAR;
 		samplerCreateInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
 
-		mLinearSampler = TUnique<CSampler>{renderer->device(), samplerCreateInfo};;
+		mLinearSampler = TUnique<CSampler>{samplerCreateInfo};;
 
 		const auto imageDescriptorInfo = VkDescriptorImageInfo{
-			.sampler = **mNearestSampler};
+			.sampler = *mNearestSampler};
 
 		const auto writeSet = VkWriteDescriptorSet{
 			.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-			.dstSet = **CBindlessResources::getBindlessDescriptorSet(),
+			.dstSet = *CBindlessResources::getBindlessDescriptorSet(),
 			.dstBinding = gSamplerBinding,
 			.dstArrayElement = 0,
 			.descriptorCount = 1,
@@ -51,11 +52,11 @@ CEngineTextures::CEngineTextures(const TFrail<CRenderer>& renderer, TFrail<CVulk
 		};
 
 		const auto imageDescriptorInfo2 = VkDescriptorImageInfo{
-			.sampler = **mLinearSampler};
+			.sampler = *mLinearSampler};
 
 		const auto writeSet2 = VkWriteDescriptorSet{
 			.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-			.dstSet = **CBindlessResources::getBindlessDescriptorSet(),
+			.dstSet = *CBindlessResources::getBindlessDescriptorSet(),
 			.dstBinding = gSamplerBinding,
 			.dstArrayElement = 1,
 			.descriptorCount = 1,
@@ -65,7 +66,7 @@ CEngineTextures::CEngineTextures(const TFrail<CRenderer>& renderer, TFrail<CVulk
 
 		const auto sets = {writeSet, writeSet2};
 
-		vkUpdateDescriptorSets(renderer->device()->getDevice().device, (uint32)sets.size(), sets.begin(), 0, nullptr);
+		vkUpdateDescriptorSets(CVRI::get()->getDevice()->device, (uint32)sets.size(), sets.begin(), 0, nullptr);
 	}
 
 	// Error checkerboard image
@@ -80,8 +81,11 @@ CEngineTextures::CEngineTextures(const TFrail<CRenderer>& renderer, TFrail<CVulk
 
 	constexpr VkExtent3D extent(16, 16, 1);
 	constexpr int32 size = extent.width * extent.height * extent.depth * 4;
-	mErrorCheckerboardImage = TUnique<SImage_T>{allocator, renderer->device(), "Default Error", extent, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT};
-	mErrorCheckerboardImage->push(pixels.data(), size);
+	mErrorCheckerboardImage = TUnique<SVRIImage>{CVRI::get()->getAllocator().get(), "Default Error", extent, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT};
+
+	renderer->immediateSubmit([&](const TFrail<CVRICommands>& cmd) {
+		mErrorCheckerboardImage->push(CVRI::get()->getAllocator().get(), cmd, pixels.data(), size);
+	});
 
 	{
 		mErrorMaterial = TUnique<CMaterial>{};
@@ -90,10 +94,10 @@ CEngineTextures::CEngineTextures(const TFrail<CRenderer>& renderer, TFrail<CVulk
 		mErrorMaterial->mPassType = EMaterialPass::ERROR;
 	}
 
-	initializeTextures(allocator);
+	initializeTextures();
 }
 
-void CEngineTextures::initializeTextures(TFrail<CVulkanAllocator> allocator) {
+void CEngineTextures::initializeTextures() {
 
 	// Ensure previous textures have been destroyed
 	// This is in the case of screen resizing
@@ -106,9 +110,9 @@ void CEngineTextures::initializeTextures(TFrail<CVulkanAllocator> allocator) {
 
 	const auto extent = CEngine::get()->getViewport()->mExtent;
 
-	mDrawImage = TUnique<SImage_T>{allocator, allocator->m_Renderer->device(), "Draw Image", VkExtent3D{extent.x, extent.y, 1}, VK_FORMAT_R16G16B16A16_SFLOAT, drawImageUsages, VK_IMAGE_ASPECT_COLOR_BIT};
+	mDrawImage = TUnique<SVRIImage>{CVRI::get()->getAllocator().get(), "Draw Image", VkExtent3D{extent.x, extent.y, 1}, VK_FORMAT_R16G16B16A16_SFLOAT, drawImageUsages, VK_IMAGE_ASPECT_COLOR_BIT};
 
-	mDepthImage = TUnique<SImage_T>{allocator, allocator->m_Renderer->device(), "Depth Image", VkExtent3D{extent.x, extent.y, 1}, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_ASPECT_DEPTH_BIT};
+	mDepthImage = TUnique<SVRIImage>{CVRI::get()->getAllocator().get(), "Depth Image", VkExtent3D{extent.x, extent.y, 1}, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_ASPECT_DEPTH_BIT};
 }
 
 void CEngineTextures::reallocate(const SRendererInfo& info, const bool inUseVSync) {
@@ -116,9 +120,9 @@ void CEngineTextures::reallocate(const SRendererInfo& info, const bool inUseVSyn
 	auto extent = CEngine::get()->getViewport()->mExtent;
 	msgs("Reallocating Engine Textures to ({}, {})", extent.x, extent.y);
 
-	m_Swapchain->recreate(info.renderer->device(), inUseVSync);
+	m_Swapchain->recreate(inUseVSync);
 
-	initializeTextures(info.allocator);
+	initializeTextures();
 }
 
 void CEngineTextures::destroy() {

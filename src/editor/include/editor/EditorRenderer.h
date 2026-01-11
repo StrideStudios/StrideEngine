@@ -11,7 +11,7 @@ public:
 
 	EXPORT virtual void init(TFrail<CRenderer> inRenderer) override;
 
-	EXPORT virtual void render(const SRendererInfo& info, VkCommandBuffer cmd) override;
+	EXPORT virtual void render(const SRendererInfo& info, const TFrail<CVRICommands>& cmd) override;
 
 	EXPORT virtual void destroy() override;
 
@@ -28,7 +28,11 @@ public:
 
 class CEditorRenderer : public CVulkanRenderer {
 
+	REGISTER_CLASS(CEditorRenderer, CVulkanRenderer)
+
 public:
+
+	CEditorRenderer() = default;
 
 	EXPORT virtual void init() override;
 

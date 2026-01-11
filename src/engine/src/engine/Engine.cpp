@@ -20,6 +20,10 @@ ADD_TEXT(GameTime);
 ADD_TEXT(DeltaTime);
 #undef SETTINGS_CATEGORY
 
+TFrail<CRenderer> CRenderer::get() {
+	return CEngine::get()->getRenderer();
+}
+
 TFrail<CEngine> CEngine::get() {
 	static TUnique<CEngine> engine;
 	return engine;
@@ -76,11 +80,6 @@ void CEngine::run_internal() {
 			std::this_thread::sleep_for(std::chrono::milliseconds(100));
 			continue;
 		}
-
-		// Run the game loop
-		/*CThreading::getGameThread().run([this] {
-			update();
-		});*/
 
 		// Create info for the renderer
 		SRendererInfo info {

@@ -8,6 +8,7 @@
 #include "rendercore/VulkanResources.h"
 #include "sstl/Threading.h"
 
+class CVRICommands;
 class CEngineTextures;
 
 // Forward declare vkb types
@@ -26,21 +27,8 @@ class CVulkanInstance;
 
 struct SUploadContext {
 	TUnique<CCommandPool> mCommandPool = nullptr;
-	SCommandBuffer mCommandBuffer{};
+	TUnique<CVRICommands> mCommands = nullptr;
 	TUnique<CFence> mUploadFence = nullptr;
-};
-
-struct CVulkanSurface {
-
-	EXPORT CVulkanSurface(struct SDL_Window* window, const TFrail<CVulkanInstance>& instance);
-	EXPORT ~CVulkanSurface();
-
-	VkSurfaceKHR mVkSurface = nullptr;
-
-private:
-
-	TFrail<CVulkanInstance> mInstance = nullptr;
-
 };
 
 class CVulkanRenderer : public CRenderer {
@@ -60,19 +48,19 @@ public:
 
 	struct FrameData {
 
-		EXPORT FrameData(const TFrail<CVulkanDevice>& device, const VkCommandPoolCreateInfo& info);
+		EXPORT FrameData(const VkCommandPoolCreateInfo& info);
 
 		EXPORT ~FrameData();
 
 		TUnique<CCommandPool> mCommandPool = nullptr;
-		SCommandBuffer mMainCommandBuffer{};
+		TUnique<CVRICommands> mCommands = nullptr;
 
 		tracy::VkCtx* mTracyContext;
 	};
 
 	EXPORT CVulkanRenderer();
 
-	EXPORT virtual void immediateSubmit(std::function<void(SCommandBuffer& cmd)>&& function) override;
+	EXPORT virtual void immediateSubmit(std::function<void(TFrail<CVRICommands>)>&& function) override;
 
 	EXPORT virtual void init() override;
 
@@ -87,25 +75,12 @@ public:
 
 	no_discard EXPORT virtual bool wait() override;
 
-	EXPORT virtual TFrail<CVulkanDevice> device() override;
-
-	EXPORT virtual TFrail<CVulkanInstance> instance() override;
-
 	// Tell children to render
-	virtual void render(VkCommandBuffer cmd) {};
-
-	TShared<CVulkanInstance> mInstance = nullptr;
-
-	// Vulkan window surface
-	TShared<CVulkanSurface> mVkSurface = nullptr;
-
-	TShared<CVulkanDevice> mDevice = nullptr;
+	virtual void render(const TFrail<CVRICommands>& cmd) {};
 
 	TThreadSafe<SUploadContext> mUploadContext;
 
 	CDoubleBuffering<FrameData> mBuffering{};
-
-	TShared<CVulkanAllocator> mAllocator = nullptr;
 
 	// Stores textures used internally by the engine
 	TShared<CEngineTextures> mEngineTextures = nullptr;
@@ -122,5 +97,5 @@ class CNullRenderer final : public CVulkanRenderer {
 
 public:
 
-	virtual void render(VkCommandBuffer cmd) override;
+	virtual void render(const TFrail<CVRICommands>& cmd) override;
 };

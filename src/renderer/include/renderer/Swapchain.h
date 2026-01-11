@@ -3,8 +3,11 @@
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
+#include "rendercore/Renderer.h"
 #include "rendercore/VulkanResources.h"
 #include "sstl/Vector.h"
+
+class CVRICommands;
 
 // Forward declare vkb types
 namespace vkb {
@@ -12,21 +15,17 @@ namespace vkb {
 	template <typename T> class Result;
 }
 
-class CVulkanDevice;
-
-struct SSwapchainImage : SImage_T {
-	EXPORT virtual void destroy() override;
+struct SSwapchainImage : SVRIImage {
+	EXPORT void destroy();
 };
 
-struct SSwapchain final : SObject, TInitializable<const TFrail<CVulkanDevice>&, const vkb::Result<vkb::Swapchain>&>, IDestroyable {
+struct SSwapchain final : SObject, TInitializable<const vkb::Result<vkb::Swapchain>&>, IDestroyable {
 
 	REGISTER_STRUCT(SSwapchain, SObject)
 
-	EXPORT virtual void init(const TFrail<CVulkanDevice>& device, const vkb::Result<vkb::Swapchain>& inSwapchainBuilder) override;
+	EXPORT virtual void init(const vkb::Result<vkb::Swapchain>& inSwapchainBuilder) override;
 
 	EXPORT virtual void destroy() override;
-
-	TFrail<CVulkanDevice> mDevice = nullptr;
 
 	std::shared_ptr<vkb::Swapchain> mInternalSwapchain;
 
@@ -55,18 +54,18 @@ public:
 	CVulkanSwapchain() = default;
 	EXPORT CVulkanSwapchain(const TFrail<CRenderer>& renderer);
 
-	EXPORT void create(const TFrail<CVulkanDevice>& device, VkSwapchainKHR oldSwapchain, bool inUseVSync = true);
-	EXPORT void recreate(const TFrail<CVulkanDevice>& device, bool inUseVSync = true);
+	EXPORT void create(VkSwapchainKHR oldSwapchain, bool inUseVSync = true);
+	EXPORT void recreate(bool inUseVSync = true);
 
 	EXPORT virtual void destroy();
 
-	EXPORT TUnique<SSwapchainImage>& getSwapchainImage(const TFrail<CVulkanDevice>& inDevice, uint32 inCurrentFrameIndex);
+	EXPORT TUnique<SSwapchainImage>& getSwapchainImage(uint32 inCurrentFrameIndex);
 
-	no_discard EXPORT bool wait(const TFrail<CVulkanDevice>& inDevice, uint32 inCurrentFrameIndex) const;
+	no_discard EXPORT bool wait(uint32 inCurrentFrameIndex) const;
 
-	EXPORT void reset(const TFrail<CVulkanDevice>& inDevice, uint32 inCurrentFrameIndex) const;
+	EXPORT void reset(uint32 inCurrentFrameIndex) const;
 
-	EXPORT void submit(VkCommandBuffer inCmd, VkQueue inGraphicsQueue, uint32 inCurrentFrameIndex, uint32 inSwapchainImageIndex);
+	EXPORT void submit(const TFrail<CVRICommands>& inCmd, VkQueue inGraphicsQueue, uint32 inCurrentFrameIndex, uint32 inSwapchainImageIndex);
 
 	TUnique<SSwapchain> mSwapchain = nullptr;
 

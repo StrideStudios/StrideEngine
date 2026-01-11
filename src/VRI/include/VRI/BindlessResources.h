@@ -1,19 +1,20 @@
 ﻿#pragma once
 
-#include "rendercore/Material.h" //TODO: move PushConstants
-#include "rendercore/VulkanResources.h"
+#include <limits>
+
+#include "VRI/VRIResources.h"
 
 // More than 65535 textures should not be needed, but more than 255 might be.
-constexpr static uint32 gMaxTextures = std::numeric_limits<uint16>::max();
+constexpr static uint32 gMaxTextures = (std::numeric_limits<uint16>::max)();
 // There are very few types of samplers, so only 32 are needed
 constexpr static uint32 gMaxSamplers = 32;
 // Uniform buffers tend to be fast to access but very small, max of 255
 // OpenGL spec states that uniform buffers guarantee up to 16 KB
 // (Subtracted by gMaxSamplers to keep alignment)
-constexpr static uint32 gMaxUniformBuffers = std::numeric_limits<uint8>::max() - gMaxSamplers;
+constexpr static uint32 gMaxUniformBuffers = (std::numeric_limits<uint8>::max)() - gMaxSamplers;
 // Shader Storage Buffers tend to be slower but larger
 // OpenGL spec states that SSBOs guarantee up to 128 MB, but can be larger
-constexpr static uint32 gMaxStorageBuffers = std::numeric_limits<uint16>::max();
+constexpr static uint32 gMaxStorageBuffers = (std::numeric_limits<uint16>::max)();
 
 static uint32 gTextureBinding = 0;
 static uint32 gSamplerBinding = 1;
@@ -30,7 +31,7 @@ public:
 
 	EXPORT static TUnique<CBindlessResources>& get();
 
-	EXPORT virtual void init(const TFrail<CVulkanDevice>& inDevice);
+	EXPORT virtual void init();
 
 	EXPORT virtual void destroy();
 

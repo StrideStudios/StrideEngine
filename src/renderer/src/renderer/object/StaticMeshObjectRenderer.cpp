@@ -6,8 +6,9 @@
 #include "renderer/EngineTextures.h"
 #include "renderer/VulkanRenderer.h"
 #include "tracy/Tracy.hpp"
+#include "VRI/VRICommands.h"
 
-void CStaticMeshObjectRenderer::render(const SRendererInfo& info, CMeshPass* inPass, VkCommandBuffer cmd, SRenderStack3f& stack, CStaticMeshObject* inObject, size_t& outDrawCalls, size_t& outVertices) {
+void CStaticMeshObjectRenderer::render(const SRendererInfo& info, CMeshPass* inPass, const TFrail<CVRICommands>& cmd, SRenderStack3f& stack, CStaticMeshObject* inObject, size_t& outDrawCalls, size_t& outVertices) {
 	IInstancer& instancer = inObject->getInstancer();
 	SStaticMesh* mesh = inObject->getMesh();
 	if (!mesh) return;
@@ -21,7 +22,7 @@ void CStaticMeshObjectRenderer::render(const SRendererInfo& info, CMeshPass* inP
 		ZoneScopedN("Bind Buffers");
 
 		m_LastIndexBuffer = mesh->meshBuffers->indexBuffer->buffer;
-		vkCmdBindIndexBuffer(cmd, mesh->meshBuffers->indexBuffer->buffer, 0, VK_INDEX_TYPE_UINT32);
+		cmd->bindIndexBuffers(mesh->meshBuffers->indexBuffer->buffer, 0, VK_INDEX_TYPE_UINT32);
 		const auto offset = {
 			VkDeviceSize { 0 },
 			VkDeviceSize { 0 }
@@ -29,25 +30,25 @@ void CStaticMeshObjectRenderer::render(const SRendererInfo& info, CMeshPass* inP
 
 		const auto buffers = {
 			mesh->meshBuffers->vertexBuffer->buffer,
-			instancer.get(info.allocator, stack)->buffer
+			instancer.get(stack)->buffer
 		};
-		vkCmdBindVertexBuffers(cmd, 0, static_cast<uint32>(buffers.size()), buffers.begin(), offset.begin());
+		cmd->bindVertexBuffers(0, static_cast<uint32>(buffers.size()), buffers.begin(), offset.begin());
 	}
 
 	// Loop through surfaces and render
 	for (const auto& surface : mesh->surfaces) {
 
 
-		const CMaterial* material = *info.renderer.staticCast<CVulkanRenderer>()->mEngineTextures->mErrorMaterial;
+		const CMaterial* material = info.renderer.staticCast<CVulkanRenderer>()->mEngineTextures->mErrorMaterial.get();
 		if (surface.material) {
 			material = surface.material;
 		}
 
 		//TODO: auto pipeline rebind (or something)
 		// If the materials arent the same, rebind material data
-		inPass->bindPipeline(cmd, *inPass->opaquePipeline, material->mConstants);
+		inPass->bindPipeline(cmd, inPass->opaquePipeline.get(), material->mConstants);
 		//surface.material->getPipeline(renderer) TODO: pipelines
-		vkCmdDrawIndexed(cmd, surface.count, (uint32)NumInstances, surface.startIndex, 0, 0);
+		cmd->drawIndexed(surface.count, (uint32)NumInstances, surface.startIndex, 0, 0);
 
 		outDrawCalls++;
 		outVertices += surface.count * NumInstances;
@@ -89,7 +90,7 @@ void CStaticMeshObjectRenderer::render(const SRendererInfo& info, CMeshPass* inP
 			// Bind Wireframe mesh data
 			if (m_LastIndexBuffer != cubeBoundsMesh->meshBuffers->indexBuffer->buffer) {
 				m_LastIndexBuffer = cubeBoundsMesh->meshBuffers->indexBuffer->buffer;
-				vkCmdBindIndexBuffer(cmd, cubeBoundsMesh->meshBuffers->indexBuffer->buffer, 0, VK_INDEX_TYPE_UINT32);
+				cmd->bindIndexBuffers(cubeBoundsMesh->meshBuffers->indexBuffer->buffer, 0, VK_INDEX_TYPE_UINT32);
 				const auto offset = {
 					VkDeviceSize { 0 },
 					VkDeviceSize { 0 }
@@ -97,16 +98,16 @@ void CStaticMeshObjectRenderer::render(const SRendererInfo& info, CMeshPass* inP
 
 				const auto buffers = {
 					cubeBoundsMesh->meshBuffers->vertexBuffer->buffer,
-					instancer.get(info.allocator, stack)->buffer
+					instancer.get(stack)->buffer
 				};
-				vkCmdBindVertexBuffers(cmd, 0, static_cast<uint32>(buffers.size()), buffers.begin(), offset.begin());
+				cmd->bindVertexBuffers(0, static_cast<uint32>(buffers.size()), buffers.begin(), offset.begin());
 			}
 
 			for (const auto& surface : cubeBoundsMesh->surfaces) {
 
-				inPass->bindPipeline(cmd, *inPass->wireframePipeline, boxPcs);
+				inPass->bindPipeline(cmd, inPass->wireframePipeline.get(), boxPcs);
 
-				vkCmdDrawIndexed(cmd, surface.count, (uint32)NumInstances, surface.startIndex, 0, 0);
+				cmd->drawIndexed(surface.count, (uint32)NumInstances, surface.startIndex, 0, 0);
 			}
 		}
 
@@ -115,7 +116,7 @@ void CStaticMeshObjectRenderer::render(const SRendererInfo& info, CMeshPass* inP
 			// Bind Wireframe mesh data
 			if (m_LastIndexBuffer != sphereBoundsMesh->meshBuffers->indexBuffer->buffer) {
 				m_LastIndexBuffer = sphereBoundsMesh->meshBuffers->indexBuffer->buffer;
-				vkCmdBindIndexBuffer(cmd, sphereBoundsMesh->meshBuffers->indexBuffer->buffer, 0, VK_INDEX_TYPE_UINT32);
+				cmd->bindIndexBuffers(sphereBoundsMesh->meshBuffers->indexBuffer->buffer, 0, VK_INDEX_TYPE_UINT32);
 				const auto offset = {
 					VkDeviceSize { 0 },
 					VkDeviceSize { 0 }
@@ -123,16 +124,16 @@ void CStaticMeshObjectRenderer::render(const SRendererInfo& info, CMeshPass* inP
 
 				const auto buffers = {
 					sphereBoundsMesh->meshBuffers->vertexBuffer->buffer,
-					instancer.get(info.allocator, stack)->buffer
+					instancer.get(stack)->buffer
 				};
-				vkCmdBindVertexBuffers(cmd, 0, static_cast<uint32>(buffers.size()), buffers.begin(), offset.begin());
+				cmd->bindVertexBuffers(0, static_cast<uint32>(buffers.size()), buffers.begin(), offset.begin());
 			}
 
 			for (const auto& surface : sphereBoundsMesh->surfaces) {
 
-				inPass->bindPipeline(cmd, *inPass->wireframePipeline, spherePcs);
+				inPass->bindPipeline(cmd, inPass->wireframePipeline.get(), spherePcs);
 
-				vkCmdDrawIndexed(cmd, surface.count, (uint32)NumInstances, surface.startIndex, 0, 0);
+				cmd->drawIndexed(surface.count, (uint32)NumInstances, surface.startIndex, 0, 0);
 			}
 		}
 	}

@@ -15,7 +15,7 @@ public:
 
 	EXPORT virtual void init(TFrail<CRenderer> inRenderer) override;
 
-	EXPORT virtual void render(const SRendererInfo& info, VkCommandBuffer cmd) override;
+	EXPORT virtual void render(const SRendererInfo& info, const TFrail<CVRICommands>& cmd) override;
 
 	EXPORT virtual void update() override;
 

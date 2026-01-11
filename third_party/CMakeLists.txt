@@ -6,7 +6,6 @@ add_subdirectory(glm)
 add_subdirectory(fmt)
 add_subdirectory(sdl)
 
-option(VK_BOOTSTRAP_SHARED "" ON)
 add_subdirectory(vk-bootstrap)
 
 add_subdirectory(fastgltf)

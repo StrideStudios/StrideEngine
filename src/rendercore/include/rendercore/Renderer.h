@@ -76,7 +76,6 @@ struct SRendererInfo {
 	TFrail<class CScene> scene = nullptr;
 	TFrail<class CEngineViewport> viewport = nullptr;
 	TFrail<class CRenderer> renderer = nullptr;
-	TFrail<class CVulkanAllocator> allocator = nullptr;
 };
 
 class CRenderer : public SObject, public IInitializable, public IDestroyable {
@@ -88,6 +87,8 @@ public:
 		TType* renderer = new TType();
 		set(renderer);
 	}*/
+
+	EXPORT static TFrail<CRenderer> get();
 
 	template <typename TPass>
 	void addPass() {
@@ -114,15 +115,11 @@ public:
 
 	no_discard virtual TFrail<CSwapchain> getSwapchain() = 0;
 
-	virtual void immediateSubmit(std::function<void(struct SCommandBuffer& cmd)>&& function) = 0;
+	virtual void immediateSubmit(std::function<void(TFrail<class CVRICommands>)>&& function) = 0;
 
 	virtual void render(SRendererInfo& info) = 0;
 
 	virtual bool wait() = 0;
-
-	virtual TFrail<class CVulkanDevice> device() = 0;
-
-	virtual TFrail<class CVulkanInstance> instance() = 0;
 
 	std::list<TUnique<CPass>>& getPasses() { return m_Passes; }
 

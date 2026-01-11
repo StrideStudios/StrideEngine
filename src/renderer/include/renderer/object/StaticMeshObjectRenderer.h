@@ -10,11 +10,15 @@ class CStaticMeshObjectRenderer : public CWorldObjectRenderer<CStaticMeshObject,
 
 public:
 
+	typedef class {
+
+	} Proxy;
+
 	virtual void begin() override {
 		m_LastIndexBuffer = VK_NULL_HANDLE;
 	}
 
-	EXPORT virtual void render(const SRendererInfo& info, CMeshPass* inPass, VkCommandBuffer cmd, SRenderStack3f& stack, CStaticMeshObject* inObject, size_t& outDrawCalls, size_t& outVertices) override;
+	EXPORT virtual void render(const SRendererInfo& info, CMeshPass* inPass, const TFrail<CVRICommands>& cmd, SRenderStack3f& stack, CStaticMeshObject* inObject, size_t& outDrawCalls, size_t& outVertices) override;
 
 private:
 

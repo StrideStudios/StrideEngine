@@ -107,6 +107,7 @@ file(WRITE "Sources.h" "#pragma once\n\n// Auto Generated file for ensuring stat
 
 add_to_sources(
         basic
+        VRI
         rendercore
         engine
         scene
@@ -119,6 +120,7 @@ add_executable(StrideEngine Application.cpp Sources.h)
 subdirectory_link(StrideEngine PUBLIC
         basic
         imgui
+        VRI
         rendercore
         engine
         renderer

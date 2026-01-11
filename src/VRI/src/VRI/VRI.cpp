@@ -1,23 +1,35 @@
-﻿#include "rendercore/VulkanDevice.h"
+﻿#include "VRI/VRI.h"
 
-#include <VkBootstrap.h>
-#include <SDL3/SDL_vulkan.h>
+#include <vma/vk_mem_alloc.h>
 
-#include "rendercore/VulkanInstance.h"
+#include "VkBootstrap.h"
+#include "SDL3/SDL_vulkan.h"
+#include "VRI/VRIResources.h"
 
-// Define how to create queues
-static std::map<vkb::QueueType, std::map<EQueueType, float>> queueFamilies {
-    {
-        vkb::QueueType::graphics,
-        {
-            {EQueueType::GRAPHICS, 1.f},
-            {EQueueType::UPLOAD, 0.f}
-        }
-    },
-};
+TFrail<CVRI> CVRI::get() {
+    static TUnique<CVRI> vri;
+    return vri;
+}
 
-CVulkanDevice::CVulkanDevice(TFrail<CVulkanInstance> inInstance, VkSurfaceKHR inSurface) {
+void CVRI::init(SDL_Window* inWindow) {
+	// Ensure the VRI is only initialized once
+	astsOnce(CVRI);
 
+	// Initializes the vkb instance
+	vkb::InstanceBuilder builder;
+
+	auto instance = builder.set_app_name(gEngineName)
+			.request_validation_layers(true)
+			.use_default_debug_messenger()
+			.require_api_version(1, 3, 0)
+			.build();
+
+	m_Instance = TUnique{instance.value()};
+
+	// Create a surface for Device to reference
+	SDL_Vulkan_CreateSurface(inWindow, m_Instance->instance, nullptr, &m_Surface);
+
+	// Create the vulkan device
     // Swapchain Maintenance features
     VkPhysicalDeviceSwapchainMaintenance1FeaturesEXT swapchainMaintenance1Features{
         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SWAPCHAIN_MAINTENANCE_1_FEATURES_EXT,
@@ -60,73 +72,83 @@ CVulkanDevice::CVulkanDevice(TFrail<CVulkanInstance> inInstance, VkSurfaceKHR in
     };
 
     //TODO: send out a simple error window telling the user why vulkan crashed (SimpleErrorReporter or something)
-    vkb::PhysicalDeviceSelector selector{inInstance->getInstance()};
+    vkb::PhysicalDeviceSelector selector{*m_Instance.get()};
     auto physicalDevice = selector
             .set_minimum_version(1, 3)
             .set_required_features(features)
             .set_required_features_12(features12)
             .set_required_features_13(features13)
             .add_required_extension_features(swapchainMaintenance1Features)
-            .set_surface(inSurface)
+            .set_surface(m_Surface)
             .select();
 
-    m_PhysicalDevice = std::make_shared<vkb::PhysicalDevice>(physicalDevice.value());
-
-    std::map<vkb::QueueType, size_t> queueBits;
+    TPriorityMap<vkb::QueueType, size_t> queueBits;
 
     //TODO: present queue
-    queueBits.emplace(vkb::QueueType::graphics, VK_QUEUE_GRAPHICS_BIT);
-    queueBits.emplace(vkb::QueueType::compute, VK_QUEUE_COMPUTE_BIT | ~VK_QUEUE_TRANSFER_BIT);
-    queueBits.emplace(vkb::QueueType::transfer, VK_QUEUE_TRANSFER_BIT | ~VK_QUEUE_COMPUTE_BIT);
+    queueBits.push(vkb::QueueType::graphics, VK_QUEUE_GRAPHICS_BIT);
+    queueBits.push(vkb::QueueType::compute, VK_QUEUE_COMPUTE_BIT | ~VK_QUEUE_TRANSFER_BIT);
+    queueBits.push(vkb::QueueType::transfer, VK_QUEUE_TRANSFER_BIT | ~VK_QUEUE_COMPUTE_BIT);
+
+    // Define how to create queues
+    const static TPriorityMap queueFamilies {
+        TPair{
+            vkb::QueueType::graphics,
+            TPriorityMap{
+                TPair{EQueueType::GRAPHICS, 1.f},
+                TPair{EQueueType::UPLOAD, 0.f}
+            }
+        },
+    };
 
     // Create queueDescriptions based off queueFamilies input
     std::vector<vkb::CustomQueueDescription> queueDescriptions;
-    auto families = m_PhysicalDevice->get_queue_families();
+    auto families = physicalDevice.value().get_queue_families();
+
     for (size_t i = 0; i < families.size(); i++) {
-        for (const auto& [queueType, map] : queueFamilies) {
-            if (families[i].queueFlags & queueBits[queueType]) {
+        queueFamilies.forEach([&](auto pair) {
+            if (families[i].queueFlags & queueBits.get(pair.first())) {
                 std::vector<float> vector;
-                for (const auto& values : map) {
-                    vector.push_back(values.second);
-                }
+                pair.second().forEach([&](auto pair2) {
+                    vector.push_back(pair2.second());
+                });
                 queueDescriptions.emplace_back(static_cast<uint32>(i), vector);
             }
-        }
+        });
     }
 
-    vkb::DeviceBuilder deviceBuilder{*m_PhysicalDevice};
+    vkb::DeviceBuilder deviceBuilder{physicalDevice.value()};
     deviceBuilder.custom_queue_setup(queueDescriptions);
-    m_Device = std::make_shared<vkb::Device>(deviceBuilder.build().value());
+    m_Device = TUnique{deviceBuilder.build().value()};
 
     // Get queues from the device
-    for (const auto&[type, map] : queueFamilies) {
-        uint32 family = m_Device->get_queue_index(type).value();
+    queueFamilies.forEach([&](auto pair) {
+        const uint32 family = m_Device->get_queue_index(pair.first()).value();
         int32 index = 0;
-        for (const auto& [queueType, _] : map) {
+        pair.second().forEach([&](auto pair2) {
             VkQueue queue;
             vkGetDeviceQueue(*m_Device, family, index, &queue);
             index++;
-            SQueue inQueue {
+            const SQueue inQueue {
                 .mQueue = queue,
                 .mFamily = family
             };
-            mQueues.emplace(queueType, inQueue);
-        }
-    }
+            mQueues.push(pair2.first(), inQueue);
+        });
+    });
+
+    const VmaAllocatorCreateInfo allocatorInfo {
+        .flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT,
+        .physicalDevice = m_Device->physical_device,
+        .device = m_Device->device,
+        .instance = m_Instance->instance
+    };
+
+    VK_CHECK(vmaCreateAllocator(&allocatorInfo, &m_Allocator));
+
 }
 
-SQueue CVulkanDevice::getQueue(const EQueueType inType) {
-    return mQueues[inType];
-}
-
-void CVulkanDevice::destroy() {
+void CVRI::destroy() const {
+    vmaDestroyAllocator(m_Allocator);
     vkb::destroy_device(*m_Device);
-}
-
-const vkb::PhysicalDevice& CVulkanDevice::getPhysicalDevice() const {
-    return *m_PhysicalDevice;
-}
-
-const vkb::Device& CVulkanDevice::getDevice() const {
-    return *m_Device;
+    vkb::destroy_instance(*m_Instance);
 }

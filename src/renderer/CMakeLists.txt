@@ -9,6 +9,7 @@ add_dependencies(StrideEngine-renderer
     PUBLIC
         StrideEngine-basic
         StrideEngine-rendercore
+        #StrideEngine-VRI
         StrideEngine-engine
 )
 

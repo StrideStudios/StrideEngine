@@ -1,12 +1,13 @@
 ﻿#include "rendercore/Pass.h"
 
-#include "rendercore/BindlessResources.h"
+#include "VRI/VRICommands.h"
+#include "VRI/BindlessResources.h"
 #include "rendercore/Material.h"
 
-void CPass::beginRendering(VkCommandBuffer cmd, const Extent32u inExtent, const SImage_T* inColorImage, const SImage_T* inDepthImage, const SImage_T* inStencilImage) const {
-	VkRenderingAttachmentInfo colorAttachment = getColorAttachment().get(inColorImage);
-	VkRenderingAttachmentInfo depthAttachment = getDepthAttachment().get(inDepthImage);
-	VkRenderingAttachmentInfo stencilAttachment = getStencilAttachment().get(inStencilImage);
+void CPass::beginRendering(const TFrail<CVRICommands>& cmd, const Extent32u inExtent, const TFrail<SVRIImage>& inColorImage, const TFrail<SVRIImage>& inDepthImage, const TFrail<SVRIImage>& inStencilImage) const {
+	const VkRenderingAttachmentInfo colorAttachment = getColorAttachment().get(inColorImage.get());
+	const VkRenderingAttachmentInfo depthAttachment = getDepthAttachment().get(inDepthImage.get());
+	const VkRenderingAttachmentInfo stencilAttachment = getStencilAttachment().get(inStencilImage.get());
 
 	VkRenderingInfo renderInfo {
 		.sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
@@ -30,7 +31,7 @@ void CPass::beginRendering(VkCommandBuffer cmd, const Extent32u inExtent, const 
 		renderInfo.pStencilAttachment = &stencilAttachment;
 	}
 
-	vkCmdBeginRendering(cmd, &renderInfo);
+	cmd->beginRendering(renderInfo);
 }
 
 bool CPass::hasSameRenderingInfo(const CPass* inOther) const {
@@ -41,14 +42,14 @@ bool CPass::hasSameRenderingInfo(const CPass* inOther) const {
 		getStencilAttachment() == inOther->getStencilAttachment();
 }
 
-void CPass::bindPipeline(const VkCommandBuffer cmd, CPipeline* inPipeline, const SPushConstants& inConstants) {
+void CPass::bindPipeline(const TFrail<CVRICommands>& cmd, CPipeline* inPipeline, const SPushConstants& inConstants) {
 	// If the pipeline has changed, rebind pipeline data
 	//if (inPipeline != m_CurrentPipeline) {
 		m_CurrentPipeline = inPipeline;
-		inPipeline->bind(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS);
-		CBindlessResources::getBindlessDescriptorSet()->bind(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, inPipeline->mLayout->mPipelineLayout, 0, 1);
+		cmd->bindPipeline(inPipeline, VK_PIPELINE_BIND_POINT_GRAPHICS);
+		cmd->bindDescriptorSets(CBindlessResources::getBindlessDescriptorSet(), VK_PIPELINE_BIND_POINT_GRAPHICS, inPipeline->mLayout->mPipelineLayout, 0, 1);
 	//}
 
-	vkCmdPushConstants(cmd, inPipeline->mLayout->mPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(SPushConstants), inConstants.data());
+	cmd->pushConstants(inPipeline->mLayout->mPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(SPushConstants), inConstants.data());
 
 }

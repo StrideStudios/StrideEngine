@@ -3,8 +3,8 @@
 #include <vulkan/vulkan_core.h>
 
 #include "rendercore/VulkanResources.h"
-#include "basic/core/Registry.h"
 
+class CVRICommands;
 class CObjectRenderer;
 
 #define REGISTER_PASS(className, parentName) \
@@ -22,13 +22,13 @@ public:
 
 	virtual void end() {}
 
-	virtual void render(const SRendererInfo& info, VkCommandBuffer cmd) = 0;
+	virtual void render(const SRendererInfo& info, const TFrail<CVRICommands>& cmd) = 0;
 
 	virtual void update() {}
 
-	EXPORT void bindPipeline(VkCommandBuffer cmd, CPipeline* inPipeline, const struct SPushConstants& inConstants);
+	EXPORT void bindPipeline(const TFrail<CVRICommands>& cmd, CPipeline* inPipeline, const struct SPushConstants& inConstants);
 
-	EXPORT void beginRendering(VkCommandBuffer cmd, Extent32u inExtent, const SImage_T* inColorImage = nullptr, const SImage_T* inDepthImage = nullptr, const SImage_T* inStencilImage = nullptr) const;
+	EXPORT void beginRendering(const TFrail<CVRICommands>& cmd, Extent32u inExtent, const TFrail<SVRIImage>& inColorImage = nullptr, const TFrail<SVRIImage>& inDepthImage = nullptr, const TFrail<SVRIImage>& inStencilImage = nullptr) const;
 
 	EXPORT bool hasSameRenderingInfo(const CPass* inOther) const;
 

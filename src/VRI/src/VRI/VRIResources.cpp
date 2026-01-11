@@ -1,0 +1,729 @@
+﻿#include "VRI/VRIResources.h"
+#include "basic/core/Paths.h"
+
+#define VMA_IMPLEMENTATION
+#include <vma/vk_mem_alloc.h>
+
+#include <combaseapi.h>
+#include <filesystem>
+
+#include "dxc/dxcapi.h"
+#include <wrl.h>
+
+#include "VkBootstrap.h"
+#include "VRI/BindlessResources.h"
+#include "VRI/VRICommands.h"
+
+using namespace Microsoft::WRL;
+
+#define DXC_CHECK(n) \
+	if (FAILED(n)) { \
+		errs("Error compiling shader at {}", #n); \
+	}
+
+uint32 SShader::compile() {
+	// Initialize DXC utils
+	ComPtr<IDxcUtils> pUtils;
+	DXC_CHECK(DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(pUtils.GetAddressOf())));
+
+	// Initialize DXC compiler
+	ComPtr<IDxcCompiler3> pCompiler;
+	DXC_CHECK(DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(pCompiler.GetAddressOf())));
+
+	// Load the HLSL text shader from disk
+	ComPtr<IDxcBlobEncoding> pSourceBlob;
+	DXC_CHECK(pUtils->CreateBlob(mShaderCode.data(), mShaderCode.size(), CP_UTF8, pSourceBlob.GetAddressOf()));
+
+	// Select correct compile target type
+	LPCWSTR targetProfile;
+	switch (mStage) {
+		case EShaderStage::VERTEX:
+			targetProfile = L"vs_6_6";
+			break;
+		case EShaderStage::FRAGMENT:
+			targetProfile = L"ps_6_6";
+			break;
+		case EShaderStage::COMPUTE:
+			targetProfile = L"cs_6_6";
+			break;
+		default:
+			errs("Could not find shader type for shader {}", mFileName);
+	}
+
+	/*std::wstring ws;
+	ws.resize(inShader.mFileName.size(), L'#');
+
+	size_t outsize;
+	mbstowcs_s(&outsize, &ws[0], inShader.mFileName.size(), inShader.mFileName.c_str(), inShader.mFileName.size());
+*/
+	// Tell it to start at main function, with a target type defined above, to SPIRV
+	std::vector<LPCWSTR> arguments{
+		L"Temp Filename", //ws.c_str(),
+		L"-E", L"main",
+		L"-T", targetProfile,
+		L"-spirv"
+	};
+
+	// Compile shader
+	DxcBuffer buffer{
+		.Ptr = pSourceBlob->GetBufferPointer(),
+		.Size = pSourceBlob->GetBufferSize(),
+		.Encoding = DXC_CP_ACP
+	};
+
+	ComPtr<IDxcResult> result{ nullptr };
+	HRESULT hres = pCompiler->Compile(
+		&buffer,
+		arguments.data(),
+		static_cast<uint32_t>(arguments.size()),
+		nullptr,
+		IID_PPV_ARGS(result.GetAddressOf()));
+
+	if (SUCCEEDED(hres)) {
+		result->GetStatus(&hres);
+	}
+
+	// Output error if compilation failed
+	if (FAILED(hres) && (result)) {
+		ComPtr<IDxcBlobEncoding> errorBlob;
+		hres = result->GetErrorBuffer(errorBlob.GetAddressOf());
+		if (SUCCEEDED(hres) && errorBlob) {
+			errs("Shader Compilation Failed! Reason:\n\n {}", static_cast<const char*>(errorBlob->GetBufferPointer()));
+		}
+		errs("Shader Compilation Failed for Unknown Reason!");
+	}
+
+	// Get compiled code and set mCompiledShader to the result
+	ComPtr<IDxcBlob> code;
+	DXC_CHECK(result->GetResult(code.GetAddressOf()));
+
+	mCompiledShader.resize(code->GetBufferSize() / sizeof(uint32));
+	memcpy(mCompiledShader.data(), code->GetBufferPointer(), code->GetBufferSize());
+
+	return mCompiledShader.getSize();
+}
+
+std::string readShaderFile(const char* inFileName) {
+	CFileArchive file(inFileName, "r");
+
+	if (!file.isOpen()) {
+		printf("I/O error. Cannot open shader file '%s'\n", inFileName);
+		return std::string();
+	}
+
+	std::string code = file.readFile(true);
+
+	// Process includes
+	while (code.find("#include ") != code.npos)
+	{
+		const auto pos = code.find("#include ");
+		const auto p1 = code.find("\"", pos);
+		const auto p2 = code.find("\"", p1 + 1);
+		if (p1 == code.npos || p2 == code.npos || p2 <= p1)
+		{
+			printf("Error while loading shader program: %s\n", code.c_str());
+			return std::string();
+		}
+		const std::string name = code.substr(p1 + 1, p2 - p1 - 1);
+		const std::string include = readShaderFile((SPaths::get()->mShaderPath.string() + name.c_str()).c_str());
+		code.replace(pos, p2-pos+1, include.c_str());
+	}
+
+	return code;
+}
+
+bool SShader::loadShader(const char* inFileName, uint32 Hash) {
+	CFileArchive file(inFileName, "rb");
+
+	if (!file.isOpen()) {
+		return false;
+	}
+
+	std::vector<uint32> code = file.readFile<uint32>();
+
+	// The first uint32 value is the hash, if it does not equal the hash for the shader code, it means the shader has changed
+	if (code[0] != Hash) {
+		msgs("Shader file {} has changed, recompiling.", inFileName);
+		return false;
+	}
+
+	// Remove the hash so it doesnt mess up the SPIRV shader
+	code.erase(code.begin());
+
+	// Create a new shader module, using the buffer we loaded
+	VkShaderModuleCreateInfo createInfo {
+		.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+		.pNext = nullptr,
+		// CodeSize has to be in bytes, so multply the ints in the buffer by size of
+		.codeSize = code.size() * sizeof(uint32),
+		.pCode = code.data()
+	};
+
+	// Check that the creation goes well.
+	if (vkCreateShaderModule(CVRI::get()->getDevice()->device, &createInfo, nullptr, &mModule) != VK_SUCCESS) {
+		return false;
+	}
+	return true;
+}
+
+bool SShader::saveShader(const char* inFileName, uint32 Hash) const {
+	CFileArchive file(inFileName, "wb");
+
+	// Make sure the file is open
+	if (!file.isOpen()) {
+		return false;
+	}
+
+	TVector<uint32> data = mCompiledShader;
+
+	// Add the hash to the first part of the shader
+	data.push(0, Hash);
+
+	file.writeFile(data);
+
+	msgs("Compiled Shader {}.", inFileName);
+
+	return true;
+}
+
+SShader::SShader(const char* inFilePath) {
+	const std::string fileExtension = std::filesystem::path(inFilePath).extension().string();
+
+	if (fileExtension == ".comp") {
+		mStage = EShaderStage::COMPUTE;
+	} else if (fileExtension == ".vert") {
+		mStage = EShaderStage::VERTEX;
+	} else if (fileExtension == ".frag") {
+		mStage = EShaderStage::FRAGMENT;
+	}
+
+	const std::string path = SPaths::get()->mShaderPath.string() + inFilePath;
+	const std::string SPIRVpath = path + ".spv";
+
+	// Get the hash of the original source file so we know if it changed
+	const auto shaderSource = readShaderFile(path.c_str());
+
+	if (shaderSource.empty()) {
+		errs("Nothing found in Shader file {}!", inFilePath);
+	}
+
+	const uint32 Hash = getHash(shaderSource);
+	if (Hash == 0) {
+		errs("Hash from file {} is not valid.", inFilePath);
+	}
+
+	// Check for written SPIRV files
+	if (loadShader(SPIRVpath.c_str(), Hash)) {
+		return;
+	}
+
+	mShaderCode = shaderSource;
+	const uint32 result = compile();
+	// Save compiled shader
+	if (!saveShader(SPIRVpath.c_str(), Hash)) {
+		errs("Shader file {} failed to save to {}!", inFilePath, SPIRVpath.c_str());
+	}
+
+	// This means the shader didn't compile properly
+	if (!result) {
+		errs("Shader file {} failed to compile!", inFilePath);
+	}
+
+	if (loadShader(SPIRVpath.c_str(), Hash)) {
+		return;
+	}
+
+	errs("Shader file {} could not be loaded!", inFilePath);
+}
+
+void SShader::destroy() {
+	vkDestroyShaderModule(CVRI::get()->getDevice()->device, mModule, nullptr);
+}
+
+CPipeline::CPipeline(const SPipelineCreateInfo& inCreateInfo, CVertexAttributeArchive& inAttributes, const TUnique<CPipelineLayout>& inLayout)
+: mLayout(inLayout.get()) {
+
+	// Make viewport state from our stored viewport and scissor.
+	// At the moment we won't support multiple viewports or scissors
+	//TODO: multiple viewports, although supported on many GPUs, is not all of them, so it should have a alternative
+	VkPipelineViewportStateCreateInfo viewportState = {};
+	viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+	viewportState.pNext = nullptr;
+
+	viewportState.viewportCount = 1;
+	viewportState.scissorCount = 1;
+
+	VkPipelineColorBlendAttachmentState colorBlendAttachment {
+		.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT
+	};
+
+	auto setBlending =[&]{
+		colorBlendAttachment.blendEnable = VK_TRUE;
+		colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+		colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
+		colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+		colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+		colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+	};
+
+	switch (inCreateInfo.mBlendMode) {
+		case EBlendMode::NONE:
+			colorBlendAttachment.blendEnable = VK_FALSE;
+			break;
+		case EBlendMode::ADDITIVE:
+			setBlending();
+			colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+			break;
+		case EBlendMode::ALPHA_BLEND:
+			setBlending();
+			colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
+			break;
+	}
+
+	VkPipelineColorBlendStateCreateInfo colorBlending = {};
+	colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+	colorBlending.pNext = nullptr;
+
+	colorBlending.logicOpEnable = VK_FALSE;
+	colorBlending.logicOp = VK_LOGIC_OP_COPY;
+	colorBlending.attachmentCount = 1;
+	colorBlending.pAttachments = &colorBlendAttachment;
+
+	const VkPipelineVertexInputStateCreateInfo vertexInputInfo = inAttributes.get();
+
+	std::vector state {
+		VK_DYNAMIC_STATE_VIEWPORT,
+		VK_DYNAMIC_STATE_SCISSOR
+	};
+
+	/*if (inCreateInfo.mLineWidth != 1.f) {
+		//state.push_back(VK_DYNAMIC_STATE_LINE_WIDTH);
+	}*/
+
+	VkPipelineDynamicStateCreateInfo dynamicInfo = {
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+		.dynamicStateCount = (uint32)state.size(),
+		.pDynamicStates = state.data()
+	};
+
+	VkPipelineRenderingCreateInfo renderingCreateInfo {
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
+		.colorAttachmentCount = 1,
+		.pColorAttachmentFormats = &inCreateInfo.mColorFormat,
+		.depthAttachmentFormat = inCreateInfo.mDepthFormat
+	};
+
+	std::vector shaderStages = {
+		VkPipelineShaderStageCreateInfo {
+			.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+			.pNext = nullptr,
+			.stage = VK_SHADER_STAGE_VERTEX_BIT,
+			.module = inCreateInfo.vertexModule,
+			.pName = "main"
+		}
+	};
+
+	// Fragment shader isn't always necessary, but vertex is
+	if (inCreateInfo.fragmentModule) {
+		shaderStages.push_back(VkPipelineShaderStageCreateInfo {
+			.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+			.pNext = nullptr,
+			.stage = VK_SHADER_STAGE_FRAGMENT_BIT,
+			.module = inCreateInfo.fragmentModule,
+			.pName = "main"
+		});
+	}
+
+	VkPipelineInputAssemblyStateCreateInfo inputAssemblyCreateInfo {
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
+		.topology = inCreateInfo.mTopology,
+		.primitiveRestartEnable = VK_FALSE
+	};
+
+	VkPipelineRasterizationStateCreateInfo rasterizationCreateInfo {
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+		.polygonMode = inCreateInfo.mPolygonMode,
+		.cullMode = inCreateInfo.mCullMode,
+		.frontFace = inCreateInfo.mFrontFace,
+		.lineWidth = inCreateInfo.mLineWidth
+	};
+
+	VkPipelineMultisampleStateCreateInfo multisampleCreateInfo {
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+	};
+
+	if (inCreateInfo.mUseMultisampling) {
+		//TODO: multisampling
+	} else {
+		multisampleCreateInfo.sampleShadingEnable = VK_FALSE;
+		multisampleCreateInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+		multisampleCreateInfo.minSampleShading = 1.0f;
+		multisampleCreateInfo.pSampleMask = nullptr;
+		multisampleCreateInfo.alphaToCoverageEnable = VK_FALSE;
+		multisampleCreateInfo.alphaToOneEnable = VK_FALSE;
+	}
+
+	VkPipelineDepthStencilStateCreateInfo depthStencilCreateInfo {
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+		.depthBoundsTestEnable = VK_FALSE,
+		.stencilTestEnable = VK_FALSE,
+		.front = {},
+		.back = {},
+		.minDepthBounds = 0.f,
+		.maxDepthBounds = 1.f
+	};
+
+	switch (inCreateInfo.mDepthTestMode) {
+		case EDepthTestMode::NORMAL:
+			depthStencilCreateInfo.depthTestEnable = VK_TRUE;
+			depthStencilCreateInfo.depthWriteEnable = VK_TRUE;
+			depthStencilCreateInfo.depthCompareOp = VK_COMPARE_OP_GREATER_OR_EQUAL;
+			break;
+		case EDepthTestMode::BEHIND:
+			depthStencilCreateInfo.depthTestEnable = VK_FALSE;
+			depthStencilCreateInfo.depthWriteEnable = VK_FALSE;
+			depthStencilCreateInfo.depthCompareOp = VK_COMPARE_OP_ALWAYS;
+			break;
+		case EDepthTestMode::FRONT:
+			depthStencilCreateInfo.depthTestEnable = VK_FALSE;
+			depthStencilCreateInfo.depthWriteEnable = VK_FALSE;
+			depthStencilCreateInfo.depthCompareOp = VK_COMPARE_OP_NEVER;
+			break;
+	}
+
+	// Build the actual pipeline
+	// We now use all the info structs we have been writing into into this one
+	// To create the pipeline
+	VkGraphicsPipelineCreateInfo pipelineInfo {
+		.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+		.pNext = &renderingCreateInfo,
+		.stageCount = (uint32)shaderStages.size(),
+		.pStages = shaderStages.data(),
+		.pVertexInputState = &vertexInputInfo,
+		.pInputAssemblyState = &inputAssemblyCreateInfo,
+		.pViewportState = &viewportState,
+		.pRasterizationState = &rasterizationCreateInfo,
+		.pMultisampleState = &multisampleCreateInfo,
+		.pDepthStencilState = &depthStencilCreateInfo,
+		.pColorBlendState = &colorBlending,
+		.pDynamicState = &dynamicInfo,
+		.layout = inLayout->mPipelineLayout
+	};
+
+	if (vkCreateGraphicsPipelines(CVRI::get()->getDevice()->device, VK_NULL_HANDLE, 1, &pipelineInfo,nullptr, &mPipeline) != VK_SUCCESS) {
+		msgs("Failed to create pipeline!");
+	}
+}
+
+void CPipeline::bind(const VkCommandBuffer cmd, const VkPipelineBindPoint inBindPoint) const {
+	vkCmdBindPipeline(cmd, inBindPoint, mPipeline);
+}
+
+void CPipeline::destroy() {
+	vkDestroyPipeline(CVRI::get()->getDevice()->device, mPipeline, nullptr);
+}
+
+VkRenderingAttachmentInfo SRenderAttachment::get(const SVRIImage* inImage) const {
+	VkRenderingAttachmentInfo info {
+		.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+		.pNext = nullptr,
+		.loadOp = mLoadOp,
+		.storeOp = mStoreOp
+	};
+
+	if (inImage) {
+		info.imageView = inImage->mImageView;
+		info.imageLayout = inImage->mLayout;
+	}
+
+	switch (mType) {
+		case EAttachmentType::COLOR:
+			info.clearValue = {
+				.color = {
+					.float32 = {
+						mClearValue[0],
+						mClearValue[1],
+						mClearValue[2],
+						mClearValue[3]
+					}
+				}
+			};
+			break;
+		case EAttachmentType::DEPTH:
+		case EAttachmentType::STENCIL:
+			info.clearValue = {
+				.depthStencil = {
+					.depth = mClearValue[0],
+					.stencil = static_cast<uint32>(mClearValue[1])
+				}
+			};
+			break;
+	}
+
+	return info;
+}
+
+SVRIBuffer::SVRIBuffer(VmaAllocator inAllocator, const size_t inBufferSize, const VmaMemoryUsage inMemoryUsage, const VkBufferUsageFlags inBufferUsage)
+: allocator(inAllocator), size(inBufferSize) {
+
+	// allocate buffer
+	const VkBufferCreateInfo bufferCreateInfo = {
+		.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+		.pNext = nullptr,
+		.size = inBufferSize,
+		.usage = inBufferUsage
+	};
+
+	const VmaAllocationCreateInfo vmaallocInfo = {
+		.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT,
+		.usage = inMemoryUsage
+	};
+
+	// allocate the buffer
+	VK_CHECK(vmaCreateBuffer(allocator, &bufferCreateInfo, &vmaallocInfo, &buffer, &allocation, &info));
+}
+
+void SVRIBuffer::makeGlobal() {
+	// Update descriptors with new buffer
+	//TODO: need some way of guaranteeing Buffer addresses so they don't have to be passed in push constants
+	static uint32 gCurrentBufferAddress = 0;
+	mBindlessAddress = gCurrentBufferAddress;
+	gCurrentBufferAddress++;
+
+	updateGlobal();
+
+}
+
+void SVRIBuffer::updateGlobal() const {
+	//TODO: need some way of guaranteeing Buffer addresses so they don't have to be passed in push constants
+	const auto bufferDescriptorInfo = VkDescriptorBufferInfo{
+		.buffer = buffer,
+		.offset = info.offset,
+		.range = info.size
+	};
+
+	const auto writeSet = VkWriteDescriptorSet{
+		.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+		.dstSet = *CBindlessResources::getBindlessDescriptorSet(),
+		.dstBinding = gUBOBinding, //TODO: for now UBO bindings
+		.dstArrayElement = mBindlessAddress,
+		.descriptorCount = 1,
+		.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+		.pBufferInfo = &bufferDescriptorInfo,
+	};
+	vkUpdateDescriptorSets(CVRI::get()->getDevice()->device, 1, &writeSet, 0, nullptr);
+}
+
+void SVRIBuffer::destroy() {
+	msgs("Destroy Buffer");
+	vmaDestroyBuffer(allocator, buffer, allocation);
+	allocation = nullptr;
+}
+
+void* SVRIBuffer::getMappedData() const {
+	return allocation->GetMappedData();
+}
+
+void SVRIBuffer::mapData(void** data) const {
+	vmaMapMemory(allocator, allocation, data);
+}
+
+void SVRIBuffer::unMapData() const {
+	vmaUnmapMemory(allocator, allocation);
+}
+
+SVRIMeshBuffer::SVRIMeshBuffer(VmaAllocator allocator, const size_t indicesSize, const size_t verticesSize) {
+	indexBuffer = TUnique<SVRIBuffer>{allocator, indicesSize, VMA_MEMORY_USAGE_GPU_ONLY, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT};
+	vertexBuffer = TUnique<SVRIBuffer>{allocator, verticesSize, VMA_MEMORY_USAGE_GPU_ONLY, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT};
+}
+
+SVRIImage::SVRIImage(VmaAllocator allocator, const std::string& inDebugName, const VkExtent3D inExtent, const VkFormat inFormat, const VkImageUsageFlags inFlags, const VkImageAspectFlags inViewFlags, const uint32 inNumMips)
+: mName(inDebugName) {
+
+	mImageInfo = {
+		.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+	   .pNext = nullptr,
+
+	   .imageType = VK_IMAGE_TYPE_2D,
+
+	   .format = inFormat,
+	   .extent = inExtent,
+
+	   .mipLevels = inNumMips,
+	   .arrayLayers = 1,
+
+	   //for MSAA. we will not be using it by default, so default it to 1 sample per pixel.
+	   .samples = VK_SAMPLE_COUNT_1_BIT,
+
+	   //optimal tiling, which means the image is stored on the best gpu format
+	   .tiling = VK_IMAGE_TILING_OPTIMAL,
+	   .usage = inFlags,
+	   .sharingMode = VK_SHARING_MODE_EXCLUSIVE
+   };
+
+	//for the draw image, we want to allocate it from gpu local memory
+	VmaAllocationCreateInfo imageAllocationInfo = {
+		.usage = VMA_MEMORY_USAGE_GPU_ONLY,
+		.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
+	};
+
+	vmaCreateImage(allocator, &mImageInfo, &imageAllocationInfo, &mImage, &mAllocation, nullptr);
+
+	// Build an image-view for the draw image to use for rendering
+	mImageViewInfo = {
+		.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+		.pNext = nullptr,
+
+		.image = mImage,
+		.viewType = VK_IMAGE_VIEW_TYPE_2D,
+		.format = inFormat,
+		.subresourceRange = {
+			.aspectMask = inViewFlags,
+			.baseMipLevel = 0,
+			.levelCount = 1,
+			.baseArrayLayer = 0,
+			.layerCount = 1
+		}
+	};
+
+	mImageViewInfo.subresourceRange.levelCount = mImageInfo.mipLevels;
+
+	VK_CHECK(vkCreateImageView(CVRI::get()->getDevice()->device, &mImageViewInfo, nullptr, &mImageView));
+
+	// Update descriptors with new image
+	if ((inFlags & VK_IMAGE_USAGE_SAMPLED_BIT) != 0) { //TODO: VK_IMAGE_USAGE_SAMPLED_BIT is not a permanent solution
+		// Set and increment current texture address
+		static uint32 gCurrentTextureAddress = 0;
+		mBindlessAddress = gCurrentTextureAddress;
+		gCurrentTextureAddress++;
+
+		const auto imageDescriptorInfo = VkDescriptorImageInfo{
+			.imageView = mImageView,
+			.imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL
+		};
+
+		const auto writeSet = VkWriteDescriptorSet{
+			.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+			.dstSet = *CBindlessResources::getBindlessDescriptorSet(),
+			.dstBinding = gTextureBinding,
+			.dstArrayElement = mBindlessAddress,
+			.descriptorCount = 1,
+			.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
+			.pImageInfo = &imageDescriptorInfo,
+		};
+		vkUpdateDescriptorSets(CVRI::get()->getDevice()->device, 1, &writeSet, 0, nullptr);
+	}
+}
+
+void generateMipmaps(const TFrail<CVRICommands>& cmd, const TFrail<SVRIImage>& image) {
+	int mipLevels = int(std::floor(std::log2(max(image->getExtent().width, image->getExtent().height)))) + 1;
+	VkExtent2D extent = {image->getExtent().width, image->getExtent().height};
+	for (int mip = 0; mip < mipLevels; mip++) {
+
+        VkExtent2D halfSize = extent;
+        halfSize.width /= 2;
+        halfSize.height /= 2;
+
+        VkImageMemoryBarrier2 imageBarrier { .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2, .pNext = nullptr };
+
+        imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+        imageBarrier.srcAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT;
+        imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+        imageBarrier.dstAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT | VK_ACCESS_2_MEMORY_READ_BIT;
+
+        imageBarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        imageBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+
+		imageBarrier.subresourceRange = {
+			.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+			.baseMipLevel = static_cast<uint32>(mip),
+			.levelCount = 1,
+			.baseArrayLayer = 0,
+			.layerCount = VK_REMAINING_ARRAY_LAYERS
+		};
+
+        imageBarrier.image = image->mImage;
+
+        VkDependencyInfo depInfo { .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO, .pNext = nullptr };
+        depInfo.imageMemoryBarrierCount = 1;
+        depInfo.pImageMemoryBarriers = &imageBarrier;
+
+		cmd->pipelineBarrier2(depInfo);
+
+        if (mip < mipLevels - 1) {
+            VkImageBlit2 blitRegion { .sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2, .pNext = nullptr };
+
+            blitRegion.srcOffsets[1].x = extent.width;
+            blitRegion.srcOffsets[1].y = extent.height;
+            blitRegion.srcOffsets[1].z = 1;
+
+            blitRegion.dstOffsets[1].x = halfSize.width;
+            blitRegion.dstOffsets[1].y = halfSize.height;
+            blitRegion.dstOffsets[1].z = 1;
+
+            blitRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            blitRegion.srcSubresource.baseArrayLayer = 0;
+            blitRegion.srcSubresource.layerCount = 1;
+            blitRegion.srcSubresource.mipLevel = mip;
+
+            blitRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            blitRegion.dstSubresource.baseArrayLayer = 0;
+            blitRegion.dstSubresource.layerCount = 1;
+            blitRegion.dstSubresource.mipLevel = mip + 1;
+
+            VkBlitImageInfo2 blitInfo {.sType = VK_STRUCTURE_TYPE_BLIT_IMAGE_INFO_2, .pNext = nullptr};
+            blitInfo.dstImage = image->mImage;
+            blitInfo.dstImageLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+            blitInfo.srcImage = image->mImage;
+            blitInfo.srcImageLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+            blitInfo.filter = VK_FILTER_LINEAR;
+            blitInfo.regionCount = 1;
+            blitInfo.pRegions = &blitRegion;
+
+        	cmd->blitImage2(blitInfo);
+
+            extent = halfSize;
+        }
+    }
+
+    // transition all mip levels into the final read_only layout
+	cmd->transitionImage(image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+}
+
+void SVRIImage::push(VmaAllocator allocator, const TFrail<CVRICommands>& cmd, const void* inData, const uint32& inSize) {
+	//size_t data_size = inExtent.depth * inExtent.width * inExtent.height * 4;
+
+	// Upload buffer is not needed outside of this function
+	// TODO: Some way of doing an upload buffer generically
+	//SStagingBuffer uploadBuffer{allocator, mName, inSize}; //TODO: was CPU_TO_GPU, test if errors
+	SVRIBuffer uploadBuffer{allocator, inSize, VMA_MEMORY_USAGE_CPU_ONLY, VK_BUFFER_USAGE_TRANSFER_SRC_BIT};
+	uploadBuffer.push(inData, inSize);
+	//memcpy(uploadBuffer.get(allocator)->getMappedData(), inData, inSize);
+
+	cmd->transitionImage(this, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+	VkBufferImageCopy copyRegion = {};
+	copyRegion.bufferOffset = 0;
+	copyRegion.bufferRowLength = 0;
+	copyRegion.bufferImageHeight = 0;
+
+	copyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	copyRegion.imageSubresource.mipLevel = 0;
+	copyRegion.imageSubresource.baseArrayLayer = 0;
+	copyRegion.imageSubresource.layerCount = 1;
+	copyRegion.imageExtent = getExtent();
+
+	// copy the buffer into the image
+	cmd->copyBufferToImage(&uploadBuffer, this, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, copyRegion);
+
+	if (isMipmapped()) {
+		generateMipmaps(cmd, this);
+	} else {
+		cmd->transitionImage(this, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	}
+}
+
+void SVRIImage::destroy(VmaAllocator allocator) {
+	vmaDestroyImage(allocator, mImage, mAllocation);
+	vkDestroyImageView(CVRI::get()->getDevice()->device, mImageView, nullptr);
+}

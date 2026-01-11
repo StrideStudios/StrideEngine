@@ -1,13 +1,21 @@
-﻿#include "rendercore/BindlessResources.h"
+﻿#include <array>
+
+#include "VRI/BindlessResources.h"
 
 TUnique<CBindlessResources>& CBindlessResources::get() {
 	static TUnique<CBindlessResources> bindlessResources{};
 	return bindlessResources;
 }
 
+//TODO: permanent move for these
+struct SPushConstants : std::array<Vector4f, 8> {
+	SPushConstants() : array() {
+		fill(Vector4f(0.f));
+	}
+};
 
 //TODO: various uses of device singleton, need to remove
-void CBindlessResources::init(const TFrail<CVulkanDevice>& inDevice) {
+void CBindlessResources::init() {
 	// Create Descriptor pool
 	{
 		auto poolSizes = {
@@ -25,7 +33,7 @@ void CBindlessResources::init(const TFrail<CVulkanDevice>& inDevice) {
 			.pPoolSizes = poolSizes.begin()
 		};
 
-		mDescriptorPool = TUnique<CDescriptorPool>{inDevice, poolCreateInfo};
+		mDescriptorPool = TUnique<CDescriptorPool>{poolCreateInfo};
 	}
 
 	// Create Descriptor Set layout
@@ -75,7 +83,7 @@ void CBindlessResources::init(const TFrail<CVulkanDevice>& inDevice) {
 			.pBindings = binding.begin(),
 		};
 
-		mDescriptorSetLayout = TUnique<CDescriptorSetLayout>{inDevice, layoutCreateInfo};
+		mDescriptorSetLayout = TUnique<CDescriptorSetLayout>{layoutCreateInfo};
 	}
 
 	{
@@ -94,7 +102,7 @@ void CBindlessResources::init(const TFrail<CVulkanDevice>& inDevice) {
 			.pSetLayouts = &mDescriptorSetLayout->mDescriptorSetLayout
 		};
 
-		mDescriptorSet = TUnique<CDescriptorSet>{inDevice, allocationCreateInfo};
+		mDescriptorSet = TUnique<CDescriptorSet>{allocationCreateInfo};
 
 	}
 
@@ -118,7 +126,7 @@ void CBindlessResources::init(const TFrail<CVulkanDevice>& inDevice) {
 			.pPushConstantRanges = pushConstants.begin()
 		};
 
-		mPipelineLayout = TUnique<CPipelineLayout>{inDevice, layoutCreateInfo};
+		mPipelineLayout = TUnique<CPipelineLayout>{layoutCreateInfo};
 	}
 }
 

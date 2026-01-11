@@ -8,4 +8,5 @@ add_dependencies(StrideEngine-engine
         StrideEngine-imgui
     PUBLIC
         StrideEngine-basic
+        StrideEngine-VRI
 )

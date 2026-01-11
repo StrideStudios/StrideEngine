@@ -21,7 +21,7 @@
 
 constexpr static bool gUseOpenCL = false;
 
-TShared<SImage_T> loadImage(const TFrail<CVulkanAllocator>& allocator, const std::filesystem::path& path) {
+TShared<SVRIImage> loadImage(const TFrail<CRenderer>& renderer, const std::filesystem::path& path) {
 	const std::string& fileName = path.filename().string();
 
 	basisu::uint8_vec fileData;
@@ -45,10 +45,10 @@ TShared<SImage_T> loadImage(const TFrail<CVulkanAllocator>& allocator, const std
 	msgs("Texture dimensions: ({}x{}), levels: {}", width, height, numMips);
 
 	// Allocate image and transition to dst
-	TShared<SImage_T> image{allocator, allocator->m_Renderer->device(), fileName, imageSize, VK_FORMAT_BC7_SRGB_BLOCK, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_IMAGE_ASPECT_COLOR_BIT, numMips};
+	TShared<SVRIImage> image{CVRI::get()->getAllocator().get(), fileName, imageSize, VK_FORMAT_BC7_SRGB_BLOCK, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_IMAGE_ASPECT_COLOR_BIT, numMips};
 
-	allocator->m_Renderer->immediateSubmit([&](SCommandBuffer& cmd) {
-		CVulkanUtils::transitionImage(cmd, *image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+	renderer->immediateSubmit([&](const TFrail<CVRICommands>& cmd) {
+		cmd->transitionImage(image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 	});
 
 	transcoder.start_transcoding();
@@ -73,11 +73,11 @@ TShared<SImage_T> loadImage(const TFrail<CVulkanAllocator>& allocator, const std
 
 		// Upload buffer is not needed outside of this function
 
-		SStagingBuffer uploadBuffer{allocator, "Staging for " + fileName, image_size}; //TODO: was CPU_TO_GPU, test if errors
+		SStagingBuffer uploadBuffer{"Staging for " + fileName, image_size}; //TODO: was CPU_TO_GPU, test if errors
 
-		uploadBuffer.push(allocator, pImage, image_size);
+		uploadBuffer.push(pImage, image_size);
 
-		allocator->m_Renderer->immediateSubmit([&](SCommandBuffer& cmd) {
+		renderer->immediateSubmit([&](const TFrail<CVRICommands>& cmd) {
 			//ZoneScopedAllocation(std::string("Copy Image from Upload Buffer"));
 
 			const VkBufferImageCopy copyRegion = {
@@ -95,18 +95,18 @@ TShared<SImage_T> loadImage(const TFrail<CVulkanAllocator>& allocator, const std
 			};
 
 			// copy the buffer into the image
-			vkCmdCopyBufferToImage(cmd, uploadBuffer.get(allocator)->buffer, image->mImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+			cmd->copyBufferToImage(uploadBuffer.get(), image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, copyRegion);
 		});
 	}
 
-	allocator->m_Renderer->immediateSubmit([&](SCommandBuffer& cmd) {
-		CVulkanUtils::transitionImage(cmd, *image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	renderer->immediateSubmit([&](const TFrail<CVRICommands>& cmd) {
+		cmd->transitionImage(image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	});
 
 	return image;
 }
 
-SFont loadFont(const TFrail<CVulkanAllocator>& allocator, const std::filesystem::path& inPath) {
+SFont loadFont(const TFrail<CRenderer>& renderer, const std::filesystem::path& inPath) {
 	SFont font;
 	std::vector<uint8> atlasData;
 
@@ -116,8 +116,11 @@ SFont loadFont(const TFrail<CVulkanAllocator>& allocator, const std::filesystem:
 	file.close();
 
 	const std::string label = font.mName + " Atlas";
-	font.mAtlasImage = TUnique<SImage_T>{allocator, allocator->m_Renderer->device(), label, VkExtent3D{font.mAtlasSize.x, font.mAtlasSize.y, 1}, VK_FORMAT_R8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT};
-	font.mAtlasImage->push(atlasData.data(), atlasData.size());
+	font.mAtlasImage = TUnique<SVRIImage>{CVRI::get()->getAllocator().get(), label, VkExtent3D{font.mAtlasSize.x, font.mAtlasSize.y, 1}, VK_FORMAT_R8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT};
+
+	renderer->immediateSubmit([&](const TFrail<CVRICommands>& cmd) {
+		font.mAtlasImage->push(CVRI::get()->getAllocator().get(), cmd, atlasData.data(), atlasData.size());
+	});
 
 	return font;
 }
@@ -384,41 +387,41 @@ SMeshData readMeshData(const std::filesystem::path& path) {
 	return outSaveData;
 }
 
-TUnique<SMeshBuffers_T> uploadMesh(const TFrail<CVulkanAllocator>& allocator, std::span<uint32> indices, std::span<SVertex> vertices) {
+TUnique<SVRIMeshBuffer> uploadMesh(const TFrail<CRenderer>& renderer,  std::span<uint32> indices, std::span<SVertex> vertices) {
 	const size_t vertexBufferSize = vertices.size() * sizeof(SVertex);
 	const size_t indexBufferSize = indices.size() * sizeof(uint32);
 
 	// Create buffers
-	TUnique<SMeshBuffers_T> meshBuffers{allocator, "Mesh Buffer", indexBufferSize, vertexBufferSize};
+	TUnique<SVRIMeshBuffer> meshBuffers{CVRI::get()->getAllocator().get(), indexBufferSize, vertexBufferSize};
 
 	// Staging is not needed outside of this function
-	SStagingBuffer staging{allocator, "Staging for Mesh Buffer", vertexBufferSize + indexBufferSize};
+	SStagingBuffer staging{"Staging for Mesh Buffer", vertexBufferSize + indexBufferSize};
 
 	// Copy vertex and Index Buffer
-	staging.push(allocator, vertices.data(), vertexBufferSize, indices.data(), indexBufferSize);
+	staging.push(vertices.data(), vertexBufferSize, indices.data(), indexBufferSize);
 
 	//TODO: slow, render thread?
 	// also from an older version of the tutorial, doesnt use sync2
-	allocator->m_Renderer->immediateSubmit([&](SCommandBuffer& cmd) {
+	renderer->immediateSubmit([&](const TFrail<CVRICommands>& cmd) {
 		VkBufferCopy vertexCopy{};
 		vertexCopy.dstOffset = 0;
 		vertexCopy.srcOffset = 0;
 		vertexCopy.size = vertexBufferSize;
 
-		vkCmdCopyBuffer(cmd, staging.get(allocator)->buffer, meshBuffers->vertexBuffer->buffer, 1, &vertexCopy);
+		cmd->copyBuffer(staging.get()->buffer, meshBuffers->vertexBuffer->buffer, 1, vertexCopy);
 
 		VkBufferCopy indexCopy{};
 		indexCopy.dstOffset = 0;
 		indexCopy.srcOffset = vertexBufferSize;
 		indexCopy.size = indexBufferSize;
 
-		vkCmdCopyBuffer(cmd, staging.get(allocator)->buffer, meshBuffers->indexBuffer->buffer, 1, &indexCopy);
+		cmd->copyBuffer(staging.get()->buffer, meshBuffers->indexBuffer->buffer, 1, indexCopy);
 	});
 
 	return meshBuffers;
 }
 
-TShared<SStaticMesh> toStaticMesh(const TFrail<CVulkanAllocator>& allocator, SMeshData mesh, const std::string& fileName) {
+TShared<SStaticMesh> toStaticMesh(const TFrail<CRenderer>& renderer, SMeshData mesh, const std::string& fileName) {
 	TShared<SStaticMesh> loadMesh{};
 	loadMesh->name = fileName;
 	loadMesh->bounds = mesh.bounds;
@@ -431,7 +434,7 @@ TShared<SStaticMesh> toStaticMesh(const TFrail<CVulkanAllocator>& allocator, SMe
 		});
 	}
 
-	loadMesh->meshBuffers = uploadMesh(allocator, mesh.indices, mesh.vertices);
+	loadMesh->meshBuffers = uploadMesh(renderer, mesh.indices, mesh.vertices);
 	return loadMesh;
 }
 
@@ -442,7 +445,7 @@ void CEngineLoader::save() {
 	}
 }
 
-void CEngineLoader::load(const TFrail<CVulkanAllocator>& allocator) {
+void CEngineLoader::load(const TFrail<CRenderer>& renderer) {
 
 	basisu::basisu_encoder_init(gUseOpenCL, false);
 
@@ -476,13 +479,13 @@ void CEngineLoader::load(const TFrail<CVulkanAllocator>& allocator) {
 
 	// Load textures
 	for (const auto& path : textures) {
-		TShared<SImage_T> image = loadImage(allocator, path);
+		TShared<SVRIImage> image = loadImage(renderer, path);
 		get()->mImages.emplace(pathToName(path), image);
 	}
 
 	// Load fonts
 	for (const auto& path : fonts) {
-		SFont font = loadFont(allocator, path);
+		SFont font = loadFont(renderer, path);
 		get()->mFonts.emplace(pathToName(path), std::move(font));
 	}
 
@@ -495,11 +498,11 @@ void CEngineLoader::load(const TFrail<CVulkanAllocator>& allocator) {
 	// Load meshes
 	for (const auto& path : meshes) {
 		auto mesh = load<SMeshData>(path);
-		get()->mMeshes.emplace(pathToName(path), toStaticMesh(allocator, mesh, pathToName(path)));
+		get()->mMeshes.emplace(pathToName(path), toStaticMesh(renderer, mesh, pathToName(path)));
 	}
 }
 
-void CEngineLoader::importTexture(const TFrail<CVulkanAllocator>& allocator, const std::filesystem::path& inPath) {
+void CEngineLoader::importTexture(const TFrail<CRenderer>& renderer, const std::filesystem::path& inPath) {
 	const std::string fileName = inPath.filename().string();
 
 	basisu::image image;
@@ -533,7 +536,7 @@ void CEngineLoader::importTexture(const TFrail<CVulkanAllocator>& allocator, con
 
 	basisu::basis_free_data(pKTX2_data);
 
-	TShared<SImage_T> loadedImage = loadImage(allocator, cachedPath);
+	TShared<SVRIImage> loadedImage = loadImage(renderer, cachedPath);
 
 	get()->mImages.emplace(loadedImage->mName, loadedImage);
 }
@@ -541,7 +544,7 @@ void CEngineLoader::importTexture(const TFrail<CVulkanAllocator>& allocator, con
 constexpr static uint32 FONT_MAX_SIZE = 128;
 constexpr static uint32 FONT_ATLAS_SIZE = 1024;
 
-void CEngineLoader::importFont(const TFrail<CVulkanAllocator>& allocator, const std::filesystem::path& inPath) {
+void CEngineLoader::importFont(const TFrail<CRenderer>& renderer, const std::filesystem::path& inPath) {
 	FT_Library ft;
 	if (const auto err = FT_Init_FreeType(&ft)) {
 		errs("FreeType could not initialize. {}", FT_Error_String(err));
@@ -615,8 +618,10 @@ void CEngineLoader::importFont(const TFrail<CVulkanAllocator>& allocator, const 
 	cachedPath.replace_extension(".fnt");
 
 	const std::string label = font.mName + " Atlas";
-	font.mAtlasImage = TUnique<SImage_T>{allocator, allocator->m_Renderer->device(), label, VkExtent3D{FONT_ATLAS_SIZE, FONT_ATLAS_SIZE, 1}, VK_FORMAT_R8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT};
-	font.mAtlasImage->push(atlasData.data(), atlasData.size());
+	font.mAtlasImage = TUnique<SVRIImage>{CVRI::get()->getAllocator().get(), label, VkExtent3D{FONT_ATLAS_SIZE, FONT_ATLAS_SIZE, 1}, VK_FORMAT_R8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT};
+	renderer->immediateSubmit([&](const TFrail<CVRICommands>& cmd) {
+		font.mAtlasImage->push(CVRI::get()->getAllocator().get(), cmd, atlasData.data(), atlasData.size());
+	});
 
 	// Write font and atlas data to file
 	CFileArchive file(cachedPath.string(), "wb");
@@ -651,7 +656,7 @@ void CEngineLoader::createMaterial(const std::string& inMaterialName) {
 	get()->mMaterials.emplace(name, material);
 }
 
-void CEngineLoader::importMesh(const TFrail<CVulkanAllocator>& allocator, const std::filesystem::path& inPath) {
+void CEngineLoader::importMesh(const TFrail<CRenderer>& renderer, const std::filesystem::path& inPath) {
 	const std::string fileName = inPath.filename().string();
 
 	// Load the GLTF into Mesh Data
@@ -684,6 +689,6 @@ void CEngineLoader::importMesh(const TFrail<CVulkanAllocator>& allocator, const 
 
 		const auto mesh = readMeshData(path);
 
-		get()->mMeshes.emplace(name, toStaticMesh(allocator, mesh, name));
+		get()->mMeshes.emplace(name, toStaticMesh(renderer, mesh, name));
 	}
 }

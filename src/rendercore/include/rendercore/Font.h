@@ -30,7 +30,7 @@ struct SFont {
 
 	std::unordered_map<uint8, Letter> letters;
 
-	TUnique<SImage_T> mAtlasImage = nullptr;
+	TUnique<SVRIImage> mAtlasImage = nullptr;
 
 	Extent32u mAtlasSize = {0, 0};
 	int mSize = 0;
