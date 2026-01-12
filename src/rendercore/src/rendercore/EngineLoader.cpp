@@ -45,7 +45,7 @@ TShared<SVRIImage> loadImage(const TFrail<CRenderer>& renderer, const std::files
 	msgs("Texture dimensions: ({}x{}), levels: {}", width, height, numMips);
 
 	// Allocate image and transition to dst
-	TShared<SVRIImage> image{CVRI::get()->getAllocator().get(), fileName, imageSize, VK_FORMAT_BC7_SRGB_BLOCK, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_IMAGE_ASPECT_COLOR_BIT, numMips};
+	TShared<SVRIImage> image{fileName, imageSize, VK_FORMAT_BC7_SRGB_BLOCK, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_IMAGE_ASPECT_COLOR_BIT, numMips};
 
 	renderer->immediateSubmit([&](const TFrail<CVRICommands>& cmd) {
 		cmd->transitionImage(image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
@@ -116,10 +116,10 @@ SFont loadFont(const TFrail<CRenderer>& renderer, const std::filesystem::path& i
 	file.close();
 
 	const std::string label = font.mName + " Atlas";
-	font.mAtlasImage = TUnique<SVRIImage>{CVRI::get()->getAllocator().get(), label, VkExtent3D{font.mAtlasSize.x, font.mAtlasSize.y, 1}, VK_FORMAT_R8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT};
+	font.mAtlasImage = TUnique<SVRIImage>{label, VkExtent3D{font.mAtlasSize.x, font.mAtlasSize.y, 1}, VK_FORMAT_R8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT};
 
 	renderer->immediateSubmit([&](const TFrail<CVRICommands>& cmd) {
-		font.mAtlasImage->push(CVRI::get()->getAllocator().get(), cmd, atlasData.data(), atlasData.size());
+		font.mAtlasImage->push(cmd, atlasData.data(), atlasData.size());
 	});
 
 	return font;
@@ -392,7 +392,7 @@ TUnique<SVRIMeshBuffer> uploadMesh(const TFrail<CRenderer>& renderer,  std::span
 	const size_t indexBufferSize = indices.size() * sizeof(uint32);
 
 	// Create buffers
-	TUnique<SVRIMeshBuffer> meshBuffers{CVRI::get()->getAllocator().get(), indexBufferSize, vertexBufferSize};
+	TUnique<SVRIMeshBuffer> meshBuffers{indexBufferSize, vertexBufferSize};
 
 	// Staging is not needed outside of this function
 	SStagingBuffer staging{"Staging for Mesh Buffer", vertexBufferSize + indexBufferSize};
@@ -618,9 +618,9 @@ void CEngineLoader::importFont(const TFrail<CRenderer>& renderer, const std::fil
 	cachedPath.replace_extension(".fnt");
 
 	const std::string label = font.mName + " Atlas";
-	font.mAtlasImage = TUnique<SVRIImage>{CVRI::get()->getAllocator().get(), label, VkExtent3D{FONT_ATLAS_SIZE, FONT_ATLAS_SIZE, 1}, VK_FORMAT_R8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT};
+	font.mAtlasImage = TUnique<SVRIImage>{label, VkExtent3D{FONT_ATLAS_SIZE, FONT_ATLAS_SIZE, 1}, VK_FORMAT_R8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT};
 	renderer->immediateSubmit([&](const TFrail<CVRICommands>& cmd) {
-		font.mAtlasImage->push(CVRI::get()->getAllocator().get(), cmd, atlasData.data(), atlasData.size());
+		font.mAtlasImage->push(cmd, atlasData.data(), atlasData.size());
 	});
 
 	// Write font and atlas data to file

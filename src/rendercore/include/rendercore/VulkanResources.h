@@ -38,7 +38,6 @@ struct SPushableBuffer {
 			static_assert(TBufferUsage & VK_BUFFER_USAGE_TRANSFER_DST_BIT);
 
 			SVRIBuffer buffer{
-				CVRI::get()->getAllocator().get(),
 				getSize(),
 				VMA_MEMORY_USAGE_CPU_ONLY,
 				VK_BUFFER_USAGE_TRANSFER_SRC_BIT
@@ -46,7 +45,7 @@ struct SPushableBuffer {
 
 			buffer.push(src, size, args...);
 
-			CRenderer::get()->immediateSubmit([this, totalSize, buffer](const TFrail<CVRICommands>& cmd) {
+			CRenderer::get()->immediateSubmit([this, totalSize, &buffer](const TFrail<CVRICommands>& cmd) {
 				VkBufferCopy copy {
 					.srcOffset = 0,
 					.dstOffset = 0,
@@ -99,7 +98,7 @@ struct SLocalBuffer final : SPushableBuffer<VMA_MEMORY_USAGE_CPU_ONLY, TBufferUs
 
 	SLocalBuffer(const std::string& inName, const size_t inAllocSize):
 	SPushableBuffer<VMA_MEMORY_USAGE_CPU_ONLY, TBufferUsage>(inName),
-	mBuffer(CVRI::get()->getAllocator().get(), inAllocSize, VMA_MEMORY_USAGE_CPU_ONLY, TBufferUsage){}
+	mBuffer(inAllocSize, VMA_MEMORY_USAGE_CPU_ONLY, TBufferUsage){}
 
 	SLocalBuffer(const std::string& inName, const size_t inElementSize, const size_t inSize): SLocalBuffer(inName, inElementSize * inSize) {}
 
@@ -139,7 +138,7 @@ struct SStaticBuffer : SPushableBuffer<TMemoryUsage, TBufferUsage>, IDestroyable
 	virtual TFrail<SVRIBuffer> get() override {
 		if (!mAllocated) {
 			mAllocated = true;
-			mBuffer = TUnique<SVRIBuffer>{CVRI::get()->getAllocator().get(), getSize(), TMemoryUsage, TBufferUsage};
+			mBuffer = TUnique<SVRIBuffer>{getSize(), TMemoryUsage, TBufferUsage};
 		}
 		return mBuffer;
 	}
@@ -212,7 +211,7 @@ private:
 		if (!mAllocated) {
 			mAllocated = true;
 			mAllocSize = inAllocSize;
-			mBuffer = TUnique<SVRIBuffer>{CVRI::get()->getAllocator().get(), mAllocSize, TMemoryUsage, TBufferUsage};
+			mBuffer = TUnique<SVRIBuffer>{mAllocSize, TMemoryUsage, TBufferUsage};
 		}
 	}
 

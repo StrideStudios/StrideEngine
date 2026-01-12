@@ -3,6 +3,7 @@
 #include "basic/core/Common.h"
 #include "sstl/Memory.h"
 #include "sstl/PriorityMap.h"
+#include "sstl/Queue.h"
 
 namespace vkb {
 	struct Instance;

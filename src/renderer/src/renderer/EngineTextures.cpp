@@ -81,10 +81,10 @@ CEngineTextures::CEngineTextures(const TFrail<CRenderer>& renderer) {
 
 	constexpr VkExtent3D extent(16, 16, 1);
 	constexpr int32 size = extent.width * extent.height * extent.depth * 4;
-	mErrorCheckerboardImage = TUnique<SVRIImage>{CVRI::get()->getAllocator().get(), "Default Error", extent, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT};
+	mErrorCheckerboardImage = TUnique<SVRIImage>{"Default Error", extent, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT};
 
 	renderer->immediateSubmit([&](const TFrail<CVRICommands>& cmd) {
-		mErrorCheckerboardImage->push(CVRI::get()->getAllocator().get(), cmd, pixels.data(), size);
+		mErrorCheckerboardImage->push(cmd, pixels.data(), size);
 	});
 
 	{
@@ -110,9 +110,9 @@ void CEngineTextures::initializeTextures() {
 
 	const auto extent = CEngine::get()->getViewport()->mExtent;
 
-	mDrawImage = TUnique<SVRIImage>{CVRI::get()->getAllocator().get(), "Draw Image", VkExtent3D{extent.x, extent.y, 1}, VK_FORMAT_R16G16B16A16_SFLOAT, drawImageUsages, VK_IMAGE_ASPECT_COLOR_BIT};
+	mDrawImage = TUnique<SVRIImage>{"Draw Image", VkExtent3D{extent.x, extent.y, 1}, VK_FORMAT_R16G16B16A16_SFLOAT, drawImageUsages, VK_IMAGE_ASPECT_COLOR_BIT};
 
-	mDepthImage = TUnique<SVRIImage>{CVRI::get()->getAllocator().get(), "Depth Image", VkExtent3D{extent.x, extent.y, 1}, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_ASPECT_DEPTH_BIT};
+	mDepthImage = TUnique<SVRIImage>{"Depth Image", VkExtent3D{extent.x, extent.y, 1}, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_ASPECT_DEPTH_BIT};
 }
 
 void CEngineTextures::reallocate(const SRendererInfo& info, const bool inUseVSync) {
