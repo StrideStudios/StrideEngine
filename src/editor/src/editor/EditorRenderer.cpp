@@ -67,7 +67,7 @@ void CEditorSpritePass::init(TFrail<CRenderer> inRenderer) {
 	attributes << VK_FORMAT_R32G32B32A32_SFLOAT;
 	attributes << VK_FORMAT_R32G32B32A32_SFLOAT;
 
-	textPipeline = TUnique<CPipeline>{createInfo, attributes, CBindlessResources::getBasicPipelineLayout()};
+	textPipeline = TUnique<SPipeline>{createInfo, attributes, CBindlessResources::getBasicPipelineLayout()};
 
 	vert.destroy();
 	frag.destroy();
@@ -165,10 +165,10 @@ void CEditorRenderer::init() {
 	CVulkanRenderer::init();
 
 	addPasses<
-		CMeshPass,
-		CSpritePass,
+		//CMeshPass,
+		//CSpritePass,
 		//CEditorSpritePass,
-		CEngineUIPass
+		//CEngineUIPass
 	>();
 
 	if (CSpritePass* pass = getPass<CSpritePass>()) {

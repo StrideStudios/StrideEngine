@@ -76,12 +76,12 @@ void CEngineViewport::pollEvents(bool& outRunning, bool& outPauseRendering) {
 			default: break;
 		}
 
-		ImGui_ImplSDL3_ProcessEvent(&e);
+		//ImGui_ImplSDL3_ProcessEvent(&e);
 
 		// ImGui will consume input
-		if (!ImGui::IsAnyItemActive()) {
+		//if (!ImGui::IsAnyItemActive()) {
 			CEngine::get()->getInput()->process(e);
-		}
+		//}
 
 		// If Escape or End pressed, end the program
 		if (CEngine::get()->getInput()->getKeyPressed(EKey::ESCAPE) || CEngine::get()->getInput()->getKeyPressed(EKey::END)) {

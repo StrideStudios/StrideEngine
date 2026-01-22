@@ -88,7 +88,7 @@ public:
 		vkCmdCopyBuffer(cmd, srcBuffer, dstBuffer, regionCount, &pRegions);
 	}
 
-	EXPORT void bindPipeline(const TFrail<CPipeline>& pipeline, VkPipelineBindPoint inBindPoint) const;
+	EXPORT void bindPipeline(const TFrail<SPipeline>& pipeline, VkPipelineBindPoint inBindPoint) const;
 	EXPORT void bindDescriptorSets(const TFrail<CDescriptorSet>& descriptorSet, VkPipelineBindPoint inBindPoint, VkPipelineLayout inPipelineLayout, uint32 inFirstSet, uint32 inDescriptorSetCount) const;
 
     /*

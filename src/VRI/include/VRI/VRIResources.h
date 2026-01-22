@@ -7,7 +7,6 @@
 
 #include "VkBootstrap.h"
 #include "VRI.h"
-//#include "VRI/VRIUtils.h"
 
 #include "basic/core/Common.h"
 #include "sstl/Vector.h"
@@ -113,35 +112,34 @@ private:
 	TVector<VertexAttributeFormat> m_Formats;
 };
 
-struct SVRIResource : IDestroyable {
+struct SVRIResource {
 
-	SVRIResource() = default;
+	EXPORT SVRIResource();
+	virtual ~SVRIResource() = default;
 
 	// No copying vulkan resources, since most need to be deleted, and if they are copied, could be deleted more than once
 	SVRIResource(const SVRIResource&) = delete;
 	SVRIResource& operator=(const SVRIResource&) = delete;
+
+	virtual std::function<void()> getDestroyer() = 0;
+
+	EXPORT void release();
 };
 
 // Create wrappers around Vulkan types that can be destroyed
-#define CREATE_VK_TYPE(inName) \
-	struct C##inName : SVRIResource { \
-		C##inName() = default; \
-		C##inName(Vk##inName inType): m##inName(inType) {} \
-		C##inName(const C##inName& in##inName): m##inName(in##inName.m##inName) {} \
-		C##inName(Vk##inName##CreateInfo inCreateInfo) { \
-			VK_CHECK(vkCreate##inName(CVRI::get()->getDevice()->device, &inCreateInfo, nullptr, &m##inName)); \
+#define CREATE_VK_TYPE(n) \
+	struct C##n : SVRIResource { \
+		C##n() = default; \
+		C##n(Vk##n inType): m##n(inType) {} \
+		C##n(const C##n& in##n): m##n(in##n.m##n) {} \
+		C##n(Vk##n##CreateInfo inCreateInfo) { \
+			VK_CHECK(vkCreate##n(CVRI::get()->getDevice()->device, &inCreateInfo, nullptr, &m##n)); \
 		} \
-		virtual ~C##inName() override { C##inName::destroy(); } \
-		Vk##inName get() { return m##inName; } \
-		virtual void destroy() override { \
-			if (bDestroyed) return; \
-			vkDestroy##inName(CVRI::get()->getDevice()->device, m##inName, nullptr); \
-			bDestroyed = true; \
-		} \
-		Vk##inName operator->() const { return m##inName; } \
-		operator Vk##inName() const { return m##inName; } \
-		Vk##inName m##inName = nullptr; \
-		bool bDestroyed = false; \
+		Vk##n get() { return m##n; } \
+		virtual std::function<void()> getDestroyer() override { return [n = m##n] { vkDestroy##n(CVRI::get()->getDevice()->device, n, nullptr); }; } \
+		Vk##n operator->() const { return m##n; } \
+		operator Vk##n() const { return m##n; } \
+		Vk##n m##n = nullptr; \
 	}
 
 CREATE_VK_TYPE(CommandPool);
@@ -150,17 +148,15 @@ CREATE_VK_TYPE(DescriptorSetLayout);
 CREATE_VK_TYPE(Fence);
 CREATE_VK_TYPE(PipelineLayout);
 
-struct CPipeline : SVRIResource {
+//TODO: rename
+struct SPipeline : SVRIResource {
 
-	CPipeline() = default;
-	EXPORT CPipeline(const SPipelineCreateInfo& inCreateInfo, CVertexAttributeArchive& inAttributes, const TUnique<CPipelineLayout>& inLayout);
-	virtual ~CPipeline() override {
-		CPipeline::destroy();
-	}
+	SPipeline() = default;
+	EXPORT SPipeline(const SPipelineCreateInfo& inCreateInfo, CVertexAttributeArchive& inAttributes, const TUnique<CPipelineLayout>& inLayout);
 
 	EXPORT void bind(VkCommandBuffer cmd, const VkPipelineBindPoint inBindPoint) const;
 
-	EXPORT virtual void destroy() override;
+	EXPORT virtual std::function<void()> getDestroyer() override;
 
 	VkPipeline operator->() const { return mPipeline; }
 
@@ -169,14 +165,14 @@ struct CPipeline : SVRIResource {
 	VkPipeline mPipeline = nullptr;
 
 	CPipelineLayout* mLayout;
-
-	bool bDestroyed = false;
 };
 
 CREATE_VK_TYPE(RenderPass);
 CREATE_VK_TYPE(Sampler);
 CREATE_VK_TYPE(Semaphore);
 CREATE_VK_TYPE(ShaderModule); //TODO: remove
+
+#undef CREATE_VK_TYPE
 
 struct CDescriptorSet : SVRIResource {
 
@@ -189,6 +185,8 @@ struct CDescriptorSet : SVRIResource {
 	CDescriptorSet(const VkDescriptorSetAllocateInfo& inCreateInfo) {
 		VK_CHECK(vkAllocateDescriptorSets(CVRI::get()->getDevice()->device, &inCreateInfo, &mDescriptorSet));
 	}
+
+	virtual std::function<void()> getDestroyer() override { return []{}; }
 
 	void bind(VkCommandBuffer cmd, VkPipelineBindPoint inBindPoint, VkPipelineLayout inPipelineLayout, uint32 inFirstSet, uint32 inDescriptorSetCount) const {
 		vkCmdBindDescriptorSets(cmd, inBindPoint,inPipelineLayout, inFirstSet, inDescriptorSetCount, &mDescriptorSet, 0, nullptr);
@@ -204,11 +202,8 @@ struct SShader : SVRIResource {
 
 	SShader() = default;
 	EXPORT SShader(const char* inFilePath);
-	virtual ~SShader() override {
-		SShader::destroy();
-	}
 
-	EXPORT virtual void destroy() override;
+	EXPORT virtual std::function<void()> getDestroyer() override;
 
 	std::string mFileName = "";
 	VkShaderModule mModule = nullptr;
@@ -223,8 +218,6 @@ private:
 	bool loadShader(const char* inFileName, uint32 Hash);
 
 	bool saveShader(const char* inFileName, uint32 Hash) const;
-
-	bool bDestroyed = false;
 };
 
 enum class EAttachmentType : uint8 {
@@ -274,14 +267,11 @@ struct SRenderAttachment {
 struct SVRIBuffer : SVRIResource {
 
 	EXPORT SVRIBuffer(size_t inBufferSize, VmaMemoryUsage inMemoryUsage, VkBufferUsageFlags inBufferUsage = 0);
-	EXPORT virtual ~SVRIBuffer() override {
-		SVRIBuffer::destroy();
-	}
 
 	EXPORT void makeGlobal(); //TODO: alternate way of doing this
 	EXPORT void updateGlobal() const; // TODO: not global but instead 'dynamic' (address should be separate?)
 
-	EXPORT virtual void destroy() override;
+	EXPORT virtual std::function<void()> getDestroyer() override;
 
 	no_discard EXPORT void* getMappedData() const;
 
@@ -320,7 +310,7 @@ private:
 };
 
 // Holds the resources needed for mesh rendering
-struct SVRIMeshBuffer : SVRIResource {
+struct SVRIMeshBuffer {
 
 	SVRIMeshBuffer() = default;
 	EXPORT SVRIMeshBuffer(size_t indicesSize, size_t verticesSize);
@@ -333,11 +323,8 @@ struct SVRIImage : SVRIResource {
 
 	SVRIImage() = default;
 	EXPORT SVRIImage(const std::string& inDebugName, VkExtent3D inExtent, VkFormat inFormat, VkImageUsageFlags inFlags = 0, VkImageAspectFlags inViewFlags = 0, uint32 inNumMips = 1);
-	EXPORT virtual ~SVRIImage() override {
-		SVRIImage::destroy();
-	}
 
-	EXPORT virtual void destroy() override;
+	EXPORT virtual std::function<void()> getDestroyer() override;
 
 	VkExtent3D getExtent() const { return mImageInfo.extent; }
 

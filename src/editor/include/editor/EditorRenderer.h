@@ -19,7 +19,7 @@ public:
 	// Pipelines
 	//
 
-	TUnique<CPipeline> textPipeline = nullptr;
+	TUnique<SPipeline> textPipeline = nullptr;
 
 	TUnique<CMaterial> textMaterial = nullptr;
 

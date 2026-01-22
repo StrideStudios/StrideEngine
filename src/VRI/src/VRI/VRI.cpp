@@ -4,6 +4,8 @@
 
 #include "VkBootstrap.h"
 #include "SDL3/SDL_vulkan.h"
+#include "VRI/VRIAllocator.h"
+#include "VRI/VRISwapchain.h"
 #include "VRI/VRIResources.h"
 
 TFrail<CVRI> CVRI::get() {
@@ -136,19 +138,21 @@ void CVRI::init(SDL_Window* inWindow) {
         });
     });
 
-    const VmaAllocatorCreateInfo allocatorInfo {
-        .flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT,
-        .physicalDevice = m_Device->physical_device,
-        .device = m_Device->device,
-        .instance = m_Instance->instance
-    };
+    m_Allocator = TUnique<CVRIAllocator>{};
 
-    VK_CHECK(vmaCreateAllocator(&allocatorInfo, &m_Allocator));
-
+    m_Swapchain = TUnique<CVRISwapchain>{inWindow};
 }
 
-void CVRI::destroy() const {
-    vmaDestroyAllocator(m_Allocator);
+void CVRI::destroy2() {
+    m_Swapchain->destroy2();
+    m_Swapchain.destroy();
+    m_Allocator->destroy2();
+    m_Allocator.destroy();
     vkb::destroy_device(*m_Device);
+    SDL_Vulkan_DestroySurface(m_Instance->instance, m_Surface, nullptr);
     vkb::destroy_instance(*m_Instance);
+}
+
+VmaAllocator_T* CVRI::getVkAllocator() const {
+    return m_Allocator.get()->get().get();
 }

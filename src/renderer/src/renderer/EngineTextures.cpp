@@ -7,14 +7,12 @@
 #include "engine/Engine.h"
 #include "rendercore/Material.h"
 #include "renderer/VulkanRenderer.h"
-#include "renderer/Swapchain.h"
 #include "engine/Viewport.h"
 
 #include "VRI/VRICommands.h"
+#include "VRI/VRISwapchain.h"
 
 CEngineTextures::CEngineTextures(const TFrail<CRenderer>& renderer) {
-
-	m_Swapchain = TShared<CVulkanSwapchain>{renderer};
 
 	// Initialize samplers
 	// Default samplers repeat and do not have anisotropy
@@ -120,7 +118,7 @@ void CEngineTextures::reallocate(const SRendererInfo& info, const bool inUseVSyn
 	auto extent = CEngine::get()->getViewport()->mExtent;
 	msgs("Reallocating Engine Textures to ({}, {})", extent.x, extent.y);
 
-	m_Swapchain->recreate(inUseVSync);
+	CVRI::get()->getSwapchain()->recreate(inUseVSync);
 
 	initializeTextures();
 }
@@ -131,7 +129,6 @@ void CEngineTextures::destroy() {
 		mDrawImage.destroy();
 		mDepthImage.destroy();
 	}
-	m_Swapchain.destroy();
 	mLinearSampler.destroy();
 	mNearestSampler.destroy();
 }

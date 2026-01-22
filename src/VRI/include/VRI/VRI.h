@@ -3,7 +3,6 @@
 #include "basic/core/Common.h"
 #include "sstl/Memory.h"
 #include "sstl/PriorityMap.h"
-#include "sstl/Queue.h"
 
 namespace vkb {
 	struct Instance;
@@ -25,6 +24,8 @@ struct SQueue {
 
 struct VmaAllocator_T;
 struct VkSurfaceKHR_T;
+class CVRIAllocator;
+class CVRISwapchain;
 
 // A class defining the interface vulkan uses for all of its calls and resource management
 class CVRI {
@@ -35,7 +36,7 @@ public:
 
     EXPORT void init(struct SDL_Window* inWindow);
 
-    EXPORT void destroy() const;
+    EXPORT void destroy2();
 
     TFrail<vkb::Instance> getInstance() const { return m_Instance; }
 
@@ -43,7 +44,11 @@ public:
 
     TFrail<vkb::Device> getDevice() const { return m_Device; }
 
-    TFrail<VmaAllocator_T> getAllocator() const { return m_Allocator; }
+    TFrail<CVRIAllocator> getAllocator() const { return m_Allocator; }
+
+    TFrail<CVRISwapchain> getSwapchain() const { return m_Swapchain; }
+
+    EXPORT VmaAllocator_T* getVkAllocator() const;
 
     SQueue& getQueue(const EQueueType inType) {
         return mQueues.get(inType);
@@ -57,7 +62,9 @@ private:
 
     TUnique<vkb::Device> m_Device = nullptr;
 
-    VmaAllocator_T* m_Allocator = nullptr;
+    TUnique<CVRIAllocator> m_Allocator = nullptr;
+
+    TUnique<CVRISwapchain> m_Swapchain = nullptr;
 
     TPriorityMap<EQueueType, SQueue> mQueues;
 

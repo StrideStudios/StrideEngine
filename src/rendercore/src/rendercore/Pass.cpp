@@ -42,7 +42,7 @@ bool CPass::hasSameRenderingInfo(const CPass* inOther) const {
 		getStencilAttachment() == inOther->getStencilAttachment();
 }
 
-void CPass::bindPipeline(const TFrail<CVRICommands>& cmd, CPipeline* inPipeline, const SPushConstants& inConstants) {
+void CPass::bindPipeline(const TFrail<CVRICommands>& cmd, SPipeline* inPipeline, const SPushConstants& inConstants) {
 	// If the pipeline has changed, rebind pipeline data
 	//if (inPipeline != m_CurrentPipeline) {
 		m_CurrentPipeline = inPipeline;

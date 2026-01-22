@@ -1,5 +1,6 @@
 ﻿option(SIMPLESTL_INIT "" ON)
 option(SIMPLESTL_DESTROY "" ON)
+option(SIMPLESTL_RELEASE "" ON)
 add_subdirectory(simplestl)
 
 add_subdirectory(glm)

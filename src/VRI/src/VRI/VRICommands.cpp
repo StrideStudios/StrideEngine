@@ -34,6 +34,7 @@ void CVRICommands::begin(const bool inReset) const {
 void CVRICommands::end() {
 	vkEndCommandBuffer(cmd);
 
+	// TODO: move various cleanup actions to before swapchain wait
 	// Image transitions can no longer occur
 	imageTransitions.forEach([](size_t, const TFrail<SVRIImage>& image) {
 		image->mLayout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -41,7 +42,7 @@ void CVRICommands::end() {
 	imageTransitions.clear();
 }
 
-void CVRICommands::bindPipeline(const TFrail<CPipeline>& pipeline, const VkPipelineBindPoint inBindPoint) const {
+void CVRICommands::bindPipeline(const TFrail<SPipeline>& pipeline, const VkPipelineBindPoint inBindPoint) const {
 	vkCmdBindPipeline(cmd, inBindPoint, pipeline->mPipeline);
 }
 

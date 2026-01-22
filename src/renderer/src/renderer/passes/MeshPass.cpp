@@ -53,19 +53,19 @@ void CMeshPass::init(const TFrail<CRenderer> inRenderer) {
 	attributes << VK_FORMAT_R32G32B32A32_SFLOAT;
 	attributes << VK_FORMAT_R32G32B32A32_SFLOAT;
 
-	opaquePipeline = TUnique<CPipeline>{createInfo, attributes, CBindlessResources::getBasicPipelineLayout()};
+	opaquePipeline = TUnique<SPipeline>{createInfo, attributes, CBindlessResources::getBasicPipelineLayout()};
 
 	// Transparent should be additive and always render in front
 	createInfo.mBlendMode = EBlendMode::ADDITIVE;
 	createInfo.mDepthTestMode = EDepthTestMode::FRONT;
 
-	transparentPipeline = TUnique<CPipeline>{createInfo, attributes, CBindlessResources::getBasicPipelineLayout()};
+	transparentPipeline = TUnique<SPipeline>{createInfo, attributes, CBindlessResources::getBasicPipelineLayout()};
 
 	createInfo.fragmentModule = errorFrag->mModule;
 	createInfo.mBlendMode = EBlendMode::NONE;
 	createInfo.mDepthTestMode = EDepthTestMode::NORMAL;
 
-	errorPipeline = TUnique<CPipeline>{createInfo, attributes, CBindlessResources::getBasicPipelineLayout()};
+	errorPipeline = TUnique<SPipeline>{createInfo, attributes, CBindlessResources::getBasicPipelineLayout()};
 
 	createInfo.vertexModule = wireframeVert->mModule;
 	createInfo.fragmentModule = basicFrag->mModule;
@@ -74,7 +74,7 @@ void CMeshPass::init(const TFrail<CRenderer> inRenderer) {
 	createInfo.mCullMode = VK_CULL_MODE_NONE;
 	createInfo.mLineWidth = 5.f;
 
-	wireframePipeline = TUnique<CPipeline>{createInfo, attributes, CBindlessResources::getBasicPipelineLayout()};
+	wireframePipeline = TUnique<SPipeline>{createInfo, attributes, CBindlessResources::getBasicPipelineLayout()};
 
 	wireframeVert.destroy();
 	basicFrag.destroy();

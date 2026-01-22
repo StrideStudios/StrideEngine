@@ -26,7 +26,7 @@ public:
 
 	virtual void update() {}
 
-	EXPORT void bindPipeline(const TFrail<CVRICommands>& cmd, CPipeline* inPipeline, const struct SPushConstants& inConstants);
+	EXPORT void bindPipeline(const TFrail<CVRICommands>& cmd, SPipeline* inPipeline, const struct SPushConstants& inConstants);
 
 	EXPORT void beginRendering(const TFrail<CVRICommands>& cmd, Extent32u inExtent, const TFrail<SVRIImage>& inColorImage = nullptr, const TFrail<SVRIImage>& inDepthImage = nullptr, const TFrail<SVRIImage>& inStencilImage = nullptr) const;
 
@@ -48,5 +48,5 @@ protected:
 
 private:
 
-	CPipeline* m_CurrentPipeline = nullptr;
+	SPipeline* m_CurrentPipeline = nullptr;
 };

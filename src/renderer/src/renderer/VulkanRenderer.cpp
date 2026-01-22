@@ -16,14 +16,15 @@
 #include "renderer/EngineTextures.h"
 #include "scene/base/Scene.h"
 #include "renderer/passes/SpritePass.h"
-#include "renderer/Swapchain.h"
 #include "engine/Viewport.h"
 #include "VRI/BindlessResources.h"
 #include "rendercore/RenderThread.h"
 #include "renderer/object/ObjectRenderer.h"
 #include "renderer/object/StaticMeshObjectRenderer.h"
 #include "SDL3/SDL_vulkan.h"
+#include "VRI/VRIAllocator.h"
 #include "VRI/VRICommands.h"
+#include "VRI/VRISwapchain.h"
 
 #define SETTINGS_CATEGORY "Engine"
 ADD_COMMAND(bool, UseVsync, true);
@@ -40,6 +41,7 @@ CVulkanRenderer::FrameData::FrameData(const VkCommandPoolCreateInfo& info) {
 
 CVulkanRenderer::FrameData::~FrameData() {
 	TracyVkDestroy(mTracyContext);
+	mCommands.destroy();
 	mCommandPool.destroy();
 }
 
@@ -79,7 +81,7 @@ void CVulkanRenderer::init() {
 
 	CVRI::get()->init(CEngine::get()->getViewport()->mWindow);
 
-	CBindlessResources::get()->init();
+	//CBindlessResources::get()->init();
 
 	VkCommandPoolCreateInfo uploadCommandPoolInfo = CVulkanInfo::createCommandPoolInfo(CVRI::get()->getQueue(EQueueType::UPLOAD).mFamily);
 	//create pool for upload context
@@ -97,7 +99,7 @@ void CVulkanRenderer::init() {
 		const VkCommandPoolCreateInfo commandPoolInfo = CVulkanInfo::createCommandPoolInfo(
 			CVRI::get()->getQueue(EQueueType::GRAPHICS).mFamily, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
-		mBuffering.data().resize([&](size_t) {
+		mFrameData.data().resize([&](size_t) {
 			return TUnique<FrameData>(commandPoolInfo);
 		});
 	}
@@ -107,7 +109,7 @@ void CVulkanRenderer::init() {
 	mSceneBuffer.get()->makeGlobal();
 
 	// Load textures and meshes
-	CEngineLoader::load(this);
+	//CEngineLoader::load(this);
 }
 
 //TODO: members are destroyed in reverse order, so that can be used instead.
@@ -115,19 +117,19 @@ void CVulkanRenderer::destroy() {
 	CRenderer::destroy();
 
 	//TODO: CEngineLoader self destroy
-	for (auto& image : CEngineLoader::getImages()) {
+	/*for (auto& image : CEngineLoader::getImages()) {
 		image.second.destroy();
 	}
 
 	for (auto& font : CEngineLoader::getFonts()) {
 		font.second.mAtlasImage.destroy();
-	}
+	}*/
 
 	mSceneBuffer.destroy();
 
 	mEngineTextures.destroy();
 
-	mBuffering.data().forEach([](size_t, TUnique<FrameData>& ptr) {
+	mFrameData.data().forEach([](size_t, TUnique<FrameData>& ptr) {
 		ptr.destroy();
 	});
 
@@ -137,28 +139,24 @@ void CVulkanRenderer::destroy() {
 
 	CBindlessResources::get().destroy();
 
-	CVRI::get()->destroy();
-}
-
-TFrail<CSwapchain> CVulkanRenderer::getSwapchain() {
-	return mEngineTextures->getSwapchain();
+	CVRI::get()->destroy2();
 }
 
 void CVulkanRenderer::render(SRendererInfo& info) {
 	if (mVSync != UseVsync.get()) {
 		mVSync = UseVsync.get();
 		msgs("Reallocating Swapchain to {}", UseVsync.get() ? "enable VSync." : "disable VSync.");
-		mEngineTextures->getSwapchain()->setDirty();
+		CVRI::get()->getSwapchain()->setDirty();
 	}
 
 	if (info.viewport->isDirty()) {
-		mEngineTextures->getSwapchain()->setDirty();
+		CVRI::get()->getSwapchain()->setDirty();
 		info.viewport->clean();
 	}
 
 	auto swapchainDirtyCheck = [&] {
 		// Make sure that the swapchain is not dirty before recreating it
-		while (mEngineTextures->getSwapchain()->isDirty()) {
+		while (CVRI::get()->getSwapchain()->isDirty()) {
 			// Wait for gpu before recreating swapchain
 			if (!wait()) continue;
 
@@ -172,7 +170,7 @@ void CVulkanRenderer::render(SRendererInfo& info) {
 	swapchainDirtyCheck();
 
 	// Get command buffer from current frame
-	TFrail<CVRICommands> cmd = mBuffering.getCurrentFrame().mCommands;
+	TFrail<CVRICommands> cmd = mFrameData.getFrame(CVRI::get()->getSwapchain()->m_Buffering.getFrameIndex())->mCommands;
 
 	SSwapchainImage* swapchainImage;
 
@@ -180,17 +178,17 @@ void CVulkanRenderer::render(SRendererInfo& info) {
 		ZoneScopedN("Begin Frame");
 
 		// Wait for the previous render to stop
-		if (!mEngineTextures->getSwapchain()->wait(mBuffering.getFrameIndex())) {
+		if (!CVRI::get()->getSwapchain()->wait()) {
 			return;
 		}
 
 		cmd->begin();
 
 		// Get the current swapchain image
-		swapchainImage = mEngineTextures->getSwapchain()->getSwapchainImage(mBuffering.getFrameIndex()).get();
+		swapchainImage = CVRI::get()->getSwapchain()->getSwapchainImage().get();
 
 		// Reset the current fences, done here so the swapchain acquire doesn't stall the engine
-		mEngineTextures->getSwapchain()->reset(mBuffering.getFrameIndex());
+		CVRI::get()->getSwapchain()->reset();
 
 		// Clear the draw image
 		cmd->transitionImage( mEngineTextures->mDrawImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
@@ -198,6 +196,9 @@ void CVulkanRenderer::render(SRendererInfo& info) {
 
 		// Make the swapchain image into writeable mode before rendering
 		cmd->transitionImage( mEngineTextures->mDrawImage, VK_IMAGE_LAYOUT_GENERAL);
+
+		// Flush previous frame resources
+		CVRI::get()->getAllocator()->popDeferredQueue(CVRI::get()->getSwapchain()->m_Buffering.getFrameIndex());
 	}
 
 	{
@@ -302,7 +303,7 @@ void CVulkanRenderer::render(SRendererInfo& info) {
 
 		// Execute a copy from the draw image into the swapchain
 		auto [width, height, depth] = mEngineTextures->mDrawImage->getExtent();
-		auto [dstWidth, dstHeight] = mEngineTextures->getSwapchain()->mSwapchain->mInternalSwapchain->extent;
+		auto [dstWidth, dstHeight] = CVRI::get()->getSwapchain()->mSwapchain->mInternalSwapchain->extent;
 		cmd->blitImage(mEngineTextures->mDrawImage, swapchainImage, {width, height}, {dstWidth, dstHeight});
 
 		// Set swapchain image layout to Present so we can show it on the screen
@@ -311,10 +312,7 @@ void CVulkanRenderer::render(SRendererInfo& info) {
 		//finalize the command buffer (we can no longer add commands, but it can now be executed)
 		cmd->end();
 
-		mEngineTextures->getSwapchain()->submit(cmd, CVRI::get()->getQueue(EQueueType::GRAPHICS).mQueue, mBuffering.getFrameIndex(), swapchainImage->mBindlessAddress);
-
-		//increase the number of frames drawn
-		getBufferingType().incrementFrame();
+		CVRI::get()->getSwapchain()->submit(cmd, CVRI::get()->getQueue(EQueueType::GRAPHICS).mQueue, swapchainImage->mBindlessAddress);
 
 		// Tell tracy we just rendered a frame
 		FrameMark;
@@ -325,7 +323,7 @@ bool CVulkanRenderer::wait() {
 	// Make sure the gpu is not working
 	vkDeviceWaitIdle(CVRI::get()->getDevice()->device);
 
-	return mEngineTextures->getSwapchain()->wait(mBuffering.getFrameIndex());
+	return CVRI::get()->getSwapchain()->wait();
 }
 
 void CNullRenderer::render(const TFrail<CVRICommands>& cmd) {

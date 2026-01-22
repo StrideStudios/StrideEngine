@@ -22,56 +22,6 @@ class CPass;
 
 class CSwapchain : public SObject, public TDirtyable<> {};
 
-class IBuffering {
-
-public:
-	virtual ~IBuffering() = default;
-
-	void incrementFrame() { m_FrameNumber++; }
-
-	size_t getFrameNumber() const { return m_FrameNumber; };
-
-	size_t getFrameIndex() const { return getFrameNumber() % getFrameOverlap(); }
-
-	virtual size_t getFrameOverlap() const = 0;
-
-private:
-
-	size_t m_FrameNumber = 0;
-
-};
-
-template <typename TType, size_t TFrameOverlap>
-class TBuffering : public IBuffering {
-
-public:
-
-	TBuffering() = default;
-
-	TArray<TUnique<TType>, TFrameOverlap>& data() { return m_FrameData; }
-
-	virtual size_t getFrameOverlap() const override { return TFrameOverlap; }
-
-	TType& getFrame(size_t inFrameIndex) { return *m_FrameData[inFrameIndex].get(); }
-
-	const TType& getFrame(size_t inFrameIndex) const { return *m_FrameData[inFrameIndex].get(); }
-
-	TType& getCurrentFrame() { return getFrame(getFrameIndex()); }
-
-	const TType& getCurrentFrame() const { return getFrame(getFrameIndex()); }
-
-private:
-
-	TArray<TUnique<TType>, TFrameOverlap> m_FrameData;
-
-};
-
-template <typename TType>
-using CSingleBuffering = TBuffering<TType, 1>;
-
-template <typename TType>
-using CDoubleBuffering = TBuffering<TType, 2>;
-
 struct SRendererInfo {
 	TFrail<class CScene> scene = nullptr;
 	TFrail<class CEngineViewport> viewport = nullptr;
@@ -110,10 +60,6 @@ public:
 	TPass* getPass() {
 		return static_cast<TPass*>(getPass(TPass::staticClass()));
 	}
-
-	no_discard virtual IBuffering& getBufferingType() = 0;
-
-	no_discard virtual TFrail<CSwapchain> getSwapchain() = 0;
 
 	virtual void immediateSubmit(std::function<void(TFrail<class CVRICommands>)>&& function) = 0;
 

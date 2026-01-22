@@ -7,6 +7,7 @@
 #include "rendercore/Renderer.h"
 #include "rendercore/VulkanResources.h"
 #include "sstl/Threading.h"
+#include "VRI/VRISwapchain.h"
 
 class CVRICommands;
 class CEngineTextures;
@@ -66,10 +67,6 @@ public:
 
 	EXPORT virtual void destroy() override;
 
-	virtual IBuffering& getBufferingType() override { return mBuffering; }
-
-	EXPORT virtual TFrail<CSwapchain> getSwapchain() override;
-
 	// Draw to the screen
 	EXPORT virtual void render(SRendererInfo& info) override;
 
@@ -80,7 +77,7 @@ public:
 
 	TThreadSafe<SUploadContext> mUploadContext;
 
-	CDoubleBuffering<FrameData> mBuffering{};
+	CVRISwapchain::Buffering::Resource<TUnique<FrameData>> mFrameData{};
 
 	// Stores textures used internally by the engine
 	TShared<CEngineTextures> mEngineTextures = nullptr;

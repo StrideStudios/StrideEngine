@@ -39,7 +39,7 @@ void CSpritePass::init(TFrail<CRenderer> inRenderer) {
 	attributes << VK_FORMAT_R32G32B32A32_SFLOAT;
 	attributes << VK_FORMAT_R32G32B32A32_SFLOAT;
 
-	opaquePipeline = TUnique<CPipeline>{createInfo, attributes, CBindlessResources::getBasicPipelineLayout()};
+	opaquePipeline = TUnique<SPipeline>{createInfo, attributes, CBindlessResources::getBasicPipelineLayout()};
 
 	vert.destroy();
 	frag.destroy();

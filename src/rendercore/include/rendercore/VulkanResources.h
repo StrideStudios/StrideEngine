@@ -7,6 +7,7 @@
 #include "Renderer.h"
 #include "VkBootstrap.h"
 #include "basic/core/Common.h"
+#include "VRI/VRIAllocator.h"
 #include "VRI/VRICommands.h"
 #include "VRI/VRIResources.h"
 
@@ -37,13 +38,13 @@ struct SPushableBuffer {
 
 			static_assert(TBufferUsage & VK_BUFFER_USAGE_TRANSFER_DST_BIT);
 
-			SVRIBuffer buffer{
+			TUnique<SVRIBuffer> buffer{
 				getSize(),
 				VMA_MEMORY_USAGE_CPU_ONLY,
 				VK_BUFFER_USAGE_TRANSFER_SRC_BIT
 			};
 
-			buffer.push(src, size, args...);
+			buffer->push(src, size, args...);
 
 			CRenderer::get()->immediateSubmit([this, totalSize, &buffer](const TFrail<CVRICommands>& cmd) {
 				VkBufferCopy copy {
@@ -52,10 +53,8 @@ struct SPushableBuffer {
 					.size = totalSize
 				};
 
-				cmd->copyBuffer(buffer.buffer, get()->buffer, 1, copy);
+				cmd->copyBuffer(buffer->buffer, get()->buffer, 1, copy);
 			});
-
-			buffer.destroy();
 		} else {
 			memcpy(get()->getMappedData(), src, size);
 			push(size, args...);
@@ -98,7 +97,7 @@ struct SLocalBuffer final : SPushableBuffer<VMA_MEMORY_USAGE_CPU_ONLY, TBufferUs
 
 	SLocalBuffer(const std::string& inName, const size_t inAllocSize):
 	SPushableBuffer<VMA_MEMORY_USAGE_CPU_ONLY, TBufferUsage>(inName),
-	mBuffer(inAllocSize, VMA_MEMORY_USAGE_CPU_ONLY, TBufferUsage){}
+	mBuffer{inAllocSize, VMA_MEMORY_USAGE_CPU_ONLY, TBufferUsage}{}
 
 	SLocalBuffer(const std::string& inName, const size_t inElementSize, const size_t inSize): SLocalBuffer(inName, inElementSize * inSize) {}
 
@@ -107,13 +106,13 @@ struct SLocalBuffer final : SPushableBuffer<VMA_MEMORY_USAGE_CPU_ONLY, TBufferUs
 		mBuffer.destroy();
 	}
 
-	virtual TFrail<SVRIBuffer> get() override { return &mBuffer; }
+	virtual TFrail<SVRIBuffer> get() override { return mBuffer; }
 
-	virtual size_t getSize() const override { return mBuffer.size; }
+	virtual size_t getSize() const override { return mBuffer->size; }
 
 private:
 
-	SVRIBuffer mBuffer;
+	TUnique<SVRIBuffer> mBuffer;
 
 };
 
@@ -151,7 +150,7 @@ struct SStaticBuffer : SPushableBuffer<TMemoryUsage, TBufferUsage>, IDestroyable
 		if (!mAllocated) return;
 		msgs("Destroyed Static Buffer.");
 		mAllocated = false;
-		mBuffer->destroy();
+		mBuffer.destroy();
 	}
 
 private:
@@ -190,12 +189,11 @@ struct SDynamicBuffer : SPushableBuffer<TMemoryUsage, TBufferUsage>, IDestroyabl
 		return mAllocSize;
 	}
 
-	virtual void destroy() override
-	{
+	virtual void destroy() override {
 		if (!mAllocated) return;
 		msgs("Destroyed Dynamic Buffer.");
 		mAllocated = false;
-		mBuffer->destroy();
+		mBuffer.destroy();
 	}
 
 private:

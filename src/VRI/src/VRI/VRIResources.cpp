@@ -12,6 +12,7 @@
 
 #include "VkBootstrap.h"
 #include "VRI/BindlessResources.h"
+#include "VRI/VRIAllocator.h"
 #include "VRI/VRICommands.h"
 
 using namespace Microsoft::WRL;
@@ -236,13 +237,22 @@ SShader::SShader(const char* inFilePath) {
 	errs("Shader file {} could not be loaded!", inFilePath);
 }
 
-void SShader::destroy() {
-	if (bDestroyed) return;
-	vkDestroyShaderModule(CVRI::get()->getDevice()->device, mModule, nullptr);
-	bDestroyed = true;
+std::function<void()> SShader::getDestroyer() {
+	return [module = mModule] {
+		vkDestroyShaderModule(CVRI::get()->getDevice()->device, module, nullptr);
+	};
 }
 
-CPipeline::CPipeline(const SPipelineCreateInfo& inCreateInfo, CVertexAttributeArchive& inAttributes, const TUnique<CPipelineLayout>& inLayout)
+SVRIResource::SVRIResource() {
+	CVRI::get()->getAllocator()->pushResource(this);
+}
+
+void SVRIResource::release() {
+	CVRI::get()->getAllocator()->releaseResource(this);
+	delete this;
+}
+
+SPipeline::SPipeline(const SPipelineCreateInfo& inCreateInfo, CVertexAttributeArchive& inAttributes, const TUnique<CPipelineLayout>& inLayout)
 : mLayout(inLayout.get()) {
 
 	// Make viewport state from our stored viewport and scissor.
@@ -417,14 +427,14 @@ CPipeline::CPipeline(const SPipelineCreateInfo& inCreateInfo, CVertexAttributeAr
 	}
 }
 
-void CPipeline::bind(const VkCommandBuffer cmd, const VkPipelineBindPoint inBindPoint) const {
+void SPipeline::bind(const VkCommandBuffer cmd, const VkPipelineBindPoint inBindPoint) const {
 	vkCmdBindPipeline(cmd, inBindPoint, mPipeline);
 }
 
-void CPipeline::destroy() {
-	if (bDestroyed) return;
-	vkDestroyPipeline(CVRI::get()->getDevice()->device, mPipeline, nullptr);
-	bDestroyed = true;
+std::function<void()> SPipeline::getDestroyer() {
+	return [pipeline = mPipeline] {
+		vkDestroyPipeline(CVRI::get()->getDevice()->device, pipeline, nullptr);
+	};
 }
 
 VkRenderingAttachmentInfo SRenderAttachment::get(const SVRIImage* inImage) const {
@@ -484,7 +494,7 @@ SVRIBuffer::SVRIBuffer(const size_t inBufferSize, const VmaMemoryUsage inMemoryU
 	};
 
 	// allocate the buffer
-	VK_CHECK(vmaCreateBuffer(CVRI::get()->getAllocator().get(), &bufferCreateInfo, &vmaallocInfo, &buffer, &allocation, &info));
+	VK_CHECK(vmaCreateBuffer(CVRI::get()->getVkAllocator(), &bufferCreateInfo, &vmaallocInfo, &buffer, &allocation, &info));
 }
 
 void SVRIBuffer::makeGlobal() {
@@ -518,11 +528,11 @@ void SVRIBuffer::updateGlobal() const {
 	vkUpdateDescriptorSets(CVRI::get()->getDevice()->device, 1, &writeSet, 0, nullptr);
 }
 
-void SVRIBuffer::destroy() {
-	if (!allocation) return;
-	msgs("Destroy Buffer");
-	vmaDestroyBuffer(CVRI::get()->getAllocator().get(), buffer, allocation);
-	allocation = nullptr;
+std::function<void()> SVRIBuffer::getDestroyer() {
+	return [buffer = buffer, allocation = allocation] {
+		msgs("Destroy Buffer");
+		vmaDestroyBuffer(CVRI::get()->getVkAllocator(), buffer, allocation);
+	};
 }
 
 void* SVRIBuffer::getMappedData() const {
@@ -530,11 +540,11 @@ void* SVRIBuffer::getMappedData() const {
 }
 
 void SVRIBuffer::mapData(void** data) const {
-	vmaMapMemory(CVRI::get()->getAllocator().get(), allocation, data);
+	vmaMapMemory(CVRI::get()->getVkAllocator(), allocation, data);
 }
 
 void SVRIBuffer::unMapData() const {
-	vmaUnmapMemory(CVRI::get()->getAllocator().get(), allocation);
+	vmaUnmapMemory(CVRI::get()->getVkAllocator(), allocation);
 }
 
 SVRIMeshBuffer::SVRIMeshBuffer(const size_t indicesSize, const size_t verticesSize) {
@@ -572,7 +582,7 @@ SVRIImage::SVRIImage(const std::string& inDebugName, const VkExtent3D inExtent, 
 		.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
 	};
 
-	vmaCreateImage(CVRI::get()->getAllocator().get(), &mImageInfo, &imageAllocationInfo, &mImage, &mAllocation, nullptr);
+	vmaCreateImage(CVRI::get()->getVkAllocator(), &mImageInfo, &imageAllocationInfo, &mImage, &mAllocation, nullptr);
 
 	// Build an image-view for the draw image to use for rendering
 	mImageViewInfo = {
@@ -701,8 +711,8 @@ void SVRIImage::push(const TFrail<CVRICommands>& cmd, const void* inData, const 
 	// Upload buffer is not needed outside of this function
 	// TODO: Some way of doing an upload buffer generically
 	//SStagingBuffer uploadBuffer{allocator, mName, inSize}; //TODO: was CPU_TO_GPU, test if errors
-	SVRIBuffer uploadBuffer{inSize, VMA_MEMORY_USAGE_CPU_ONLY, VK_BUFFER_USAGE_TRANSFER_SRC_BIT};
-	uploadBuffer.push(inData, inSize);
+	TUnique<SVRIBuffer> uploadBuffer{inSize, VMA_MEMORY_USAGE_CPU_ONLY, VK_BUFFER_USAGE_TRANSFER_SRC_BIT};
+	uploadBuffer->push(inData, inSize);
 	//memcpy(uploadBuffer.get(allocator)->getMappedData(), inData, inSize);
 
 	cmd->transitionImage(this, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
@@ -719,7 +729,7 @@ void SVRIImage::push(const TFrail<CVRICommands>& cmd, const void* inData, const 
 	copyRegion.imageExtent = getExtent();
 
 	// copy the buffer into the image
-	cmd->copyBufferToImage(&uploadBuffer, this, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, copyRegion);
+	cmd->copyBufferToImage(uploadBuffer, this, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, copyRegion);
 
 	if (isMipmapped()) {
 		generateMipmaps(cmd, this);
@@ -728,9 +738,9 @@ void SVRIImage::push(const TFrail<CVRICommands>& cmd, const void* inData, const 
 	}
 }
 
-void SVRIImage::destroy() {
-	if (!mAllocation) return;
-	vmaDestroyImage(CVRI::get()->getAllocator().get(), mImage, mAllocation);
-	vkDestroyImageView(CVRI::get()->getDevice()->device, mImageView, nullptr);
-	mAllocation = nullptr;
+std::function<void()> SVRIImage::getDestroyer() {
+	return [image = mImage, allocation = mAllocation, imageView = mImageView] {
+		vmaDestroyImage(CVRI::get()->getVkAllocator(), image, allocation);
+		vkDestroyImageView(CVRI::get()->getDevice()->device, imageView, nullptr);
+	};
 }

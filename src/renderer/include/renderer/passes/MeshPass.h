@@ -20,8 +20,8 @@ public:
 	// Pipelines
 	//
 
-	TUnique<CPipeline> opaquePipeline = nullptr;
-	TUnique<CPipeline> errorPipeline = nullptr;
-	TUnique<CPipeline> wireframePipeline = nullptr;
-	TUnique<CPipeline> transparentPipeline = nullptr;
+	TUnique<SPipeline> opaquePipeline = nullptr;
+	TUnique<SPipeline> errorPipeline = nullptr;
+	TUnique<SPipeline> wireframePipeline = nullptr;
+	TUnique<SPipeline> transparentPipeline = nullptr;
 };

@@ -38,5 +38,5 @@ public:
 	// Pipelines
 	//
 
-	TUnique<CPipeline> opaquePipeline = nullptr;
+	TUnique<SPipeline> opaquePipeline = nullptr;
 };

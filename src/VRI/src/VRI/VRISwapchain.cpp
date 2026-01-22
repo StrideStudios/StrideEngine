@@ -1,12 +1,12 @@
-﻿#include "renderer/Swapchain.h"
-#include "engine/Viewport.h"
-#include "rendercore/VulkanUtils.h"
-#include "basic/Profiling.h"
+﻿#include "VRI/VRISwapchain.h"
+
+#include "SDL3/SDL_video.h"
 #include "VkBootstrap.h"
-#include "engine/Engine.h"
+
 #include "tracy/Tracy.hpp"
 #include "VRI/VRICommands.h"
 
+#include "vulkan/vulkan_core.h"
 #include "vulkan/vk_enum_string_helper.h"
 
 #define SWAPCHAIN_CHECK(call, failedCall) \
@@ -17,8 +17,10 @@
 		failedCall; \
     }
 
-void SSwapchainImage::destroy() {
-	vkDestroyImageView(CVRI::get()->getDevice()->device, mImageView, nullptr);
+std::function<void()> SSwapchainImage::getDestroyer() {
+	return [imageView = mImageView] {
+		vkDestroyImageView(CVRI::get()->getDevice()->device, imageView, nullptr);
+	};
 }
 
 void SSwapchain::init(const vkb::Result<vkb::Swapchain>& inSwapchainBuilder) {
@@ -28,7 +30,11 @@ void SSwapchain::init(const vkb::Result<vkb::Swapchain>& inSwapchainBuilder) {
 	const std::vector<VkImage> images = mInternalSwapchain->get_images().value();
 	const std::vector<VkImageView> imageViews = mInternalSwapchain->get_image_views().value();
 
-	VkSemaphoreCreateInfo semaphoreCreateInfo = CVulkanInfo::createSemaphoreInfo();
+	constexpr VkSemaphoreCreateInfo semaphoreCreateInfo {
+		.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+		.pNext = nullptr,
+		.flags = 0
+   };
 
 	// Allocate render semaphores
 	mSwapchainRenderSemaphores.resize(images.size(), [&](const size_t i){
@@ -54,37 +60,51 @@ void SSwapchain::destroy() {
 	vkb::destroy_swapchain(*mInternalSwapchain);
 }
 
-CVulkanSwapchain::CVulkanSwapchain(const TFrail<CRenderer>& renderer) {
+CVRISwapchain::CVRISwapchain(SDL_Window* window): m_Window(window) {
 
-	m_Frames.resize(renderer->getBufferingType().getFrameOverlap());
+	m_Frames.data().resize([](size_t) {
+		return TUnique<FrameData>{};
+	});
 
 	// Create one fence to control when the gpu has finished rendering the frame,
 	// And 2 semaphores to synchronize rendering with swapchain
-	VkFenceCreateInfo fenceCreateInfo = CVulkanInfo::createFenceInfo(VK_FENCE_CREATE_SIGNALED_BIT);
-	VkSemaphoreCreateInfo semaphoreCreateInfo = CVulkanInfo::createSemaphoreInfo();
+	constexpr VkFenceCreateInfo fenceCreateInfo {
+		.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+	   .pNext = nullptr,
+	   .flags = VK_FENCE_CREATE_SIGNALED_BIT
+   };
 
-	for (auto& [mSwapchainSemaphore, mRenderSemaphore, mRenderFence, mPresentFence] : m_Frames) {
+	constexpr VkSemaphoreCreateInfo semaphoreCreateInfo {
+		.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+		.pNext = nullptr,
+		.flags = 0
+	};
 
-		mRenderFence = TUnique<CFence>{fenceCreateInfo};
+	m_Frames.data().forEach([&](size_t, const TUnique<FrameData>& data) {
+		data->mRenderFence = TUnique<CFence>{fenceCreateInfo};
 		//mPresentFence = TUnique<CFence>{fenceCreateInfo};
 
-		mSwapchainSemaphore = TUnique<CSemaphore>{semaphoreCreateInfo};
+		data->mSwapchainSemaphore = TUnique<CSemaphore>{semaphoreCreateInfo};
 		//mRenderSemaphore = TUnique<CSemaphore>{semaphoreCreateInfo};
-	}
+	});
 
 	create(VK_NULL_HANDLE);
 }
 
-void CVulkanSwapchain::create(const VkSwapchainKHR oldSwapchain, const bool inUseVSync) {
+void CVRISwapchain::create(const VkSwapchainKHR oldSwapchain, const bool inUseVSync) {
 	mFormat = VK_FORMAT_R8G8B8A8_UNORM;
 
 	m_VSync = inUseVSync;
+
+
+	int width, height;
+	SDL_GetWindowSize(m_Window, &width, &height);
 
 	const auto& vkbSwapchain = vkb::SwapchainBuilder{*CVRI::get()->getDevice()} //TODO: remove usage of device
 		.set_old_swapchain(oldSwapchain)
 		.set_desired_format(VkSurfaceFormatKHR{ .format = mFormat, .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR })
 		.set_desired_present_mode(m_VSync ? VK_PRESENT_MODE_FIFO_KHR : VK_PRESENT_MODE_IMMEDIATE_KHR)
-		.set_desired_extent(CEngine::get()->getViewport()->mExtent.x, CEngine::get()->getViewport()->mExtent.y)
+		.set_desired_extent(width, height)
 		.add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT)
 		.build();
 
@@ -102,57 +122,57 @@ void CVulkanSwapchain::create(const VkSwapchainKHR oldSwapchain, const bool inUs
 	mSwapchain->init(vkbSwapchain);
 }
 
-void CVulkanSwapchain::recreate(const bool inUseVSync) {
+void CVRISwapchain::recreate(const bool inUseVSync) {
 	create(*mSwapchain->mInternalSwapchain, inUseVSync);
 	clean();
 }
 
-void CVulkanSwapchain::destroy() {
+void CVRISwapchain::destroy2() {
 	if (mSwapchain) mSwapchain.destroy();
-	for (auto& [mSwapchainSemaphore, mRenderSemaphore, mRenderFence, mPresentFence] : m_Frames) {
-		mSwapchainSemaphore.destroy();
-		mRenderFence.destroy();
-	}
+	m_Frames.data().forEach([](size_t, const TUnique<FrameData>& data) {
+		data->mSwapchainSemaphore.destroy();
+		data->mRenderFence.destroy();
+	});
 }
 
-TUnique<SSwapchainImage>& CVulkanSwapchain::getSwapchainImage(const uint32 inCurrentFrameIndex) {
+TUnique<SSwapchainImage>& CVRISwapchain::getSwapchainImage() {
 	ZoneScoped;
 	std::string zoneName("Swapchain Image Acquire");
 	if (m_VSync) zoneName.append(" (VSync)");
 	ZoneName(zoneName.c_str(), zoneName.size());
 
 	uint32 swapchainImageIndex = 0;
-	SWAPCHAIN_CHECK(vkAcquireNextImageKHR(CVRI::get()->getDevice()->device, *mSwapchain->mInternalSwapchain, 1000000000, *m_Frames[inCurrentFrameIndex].mSwapchainSemaphore, nullptr, &swapchainImageIndex), setDirty());
+	SWAPCHAIN_CHECK(vkAcquireNextImageKHR(CVRI::get()->getDevice()->device, *mSwapchain->mInternalSwapchain, 1000000000, *m_Frames.getFrame(m_Buffering.getFrameIndex())->mSwapchainSemaphore, nullptr, &swapchainImageIndex), setDirty());
 
 	return mSwapchain->mSwapchainImages[swapchainImageIndex];
 }
 
-bool CVulkanSwapchain::wait(const uint32 inCurrentFrameIndex) const {
+bool CVRISwapchain::wait() const {
 	ZoneScoped;
 	std::string zoneName("Swapchain Wait");
 	if (m_VSync) zoneName.append(" (VSync)");
 	ZoneName(zoneName.c_str(), zoneName.size());
 
-	auto& frame = m_Frames[inCurrentFrameIndex];
-	VK_CHECK(vkWaitForFences(CVRI::get()->getDevice()->device, 1, &frame.mRenderFence->mFence, true, 1000000000));
+	auto& frame = m_Frames.getFrame(m_Buffering.getFrameIndex());
+	VK_CHECK(vkWaitForFences(CVRI::get()->getDevice()->device, 1, &frame->mRenderFence->mFence, true, 1000000000));
 	//VK_CHECK(vkWaitForFences(inDevice->getDevice().device, 1, &frame.mPresentFence, true, 1000000000));
 
 	return true;
 }
 
-void CVulkanSwapchain::reset(const uint32 inCurrentFrameIndex) const {
+void CVRISwapchain::reset() const {
 	ZoneScoped;
 	std::string zoneName("Swapchain Reset");
 	if (m_VSync) zoneName.append(" (VSync)");
 	ZoneName(zoneName.c_str(), zoneName.size());
 
-	auto& frame = m_Frames[inCurrentFrameIndex];
-	VK_CHECK(vkResetFences(CVRI::get()->getDevice()->device, 1, &frame.mRenderFence->mFence));
+	auto& frame = m_Frames.getFrame(m_Buffering.getFrameIndex());
+	VK_CHECK(vkResetFences(CVRI::get()->getDevice()->device, 1, &frame->mRenderFence->mFence));
 	//VK_CHECK(vkResetFences(inDevice->getDevice().device, 1, &frame.mPresentFence));
 }
 
-void CVulkanSwapchain::submit(const TFrail<CVRICommands>& inCmd, const VkQueue inGraphicsQueue, uint32 inCurrentFrameIndex, const uint32 inSwapchainImageIndex) {
-	const auto& frame = m_Frames[inCurrentFrameIndex];
+void CVRISwapchain::submit(const TFrail<CVRICommands>& inCmd, const VkQueue inGraphicsQueue, const uint32 inSwapchainImageIndex) {
+	const auto& frame = m_Frames.getFrame(m_Buffering.getFrameIndex());
 
 	ZoneScopedN("Present");
 
@@ -160,13 +180,39 @@ void CVulkanSwapchain::submit(const TFrail<CVRICommands>& inCmd, const VkQueue i
 	{
 		VkCommandBufferSubmitInfo cmdInfo = inCmd->submitInfo();
 
-		VkSemaphoreSubmitInfo waitInfo = CVulkanInfo::submitSemaphoreInfo(VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR, *frame.mSwapchainSemaphore);
+		VkSemaphoreSubmitInfo waitInfo {
+			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+		   .pNext = nullptr,
+		   .semaphore = *frame->mSwapchainSemaphore,
+		   .value = 1,
+		   .stageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR,
+		   .deviceIndex = 0
+		};
 
-		VkSemaphore renderSemaphore = *mSwapchain->mSwapchainRenderSemaphores[inSwapchainImageIndex];
-		VkSemaphoreSubmitInfo signalInfo = CVulkanInfo::submitSemaphoreInfo(VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, renderSemaphore);
+		const VkSemaphore renderSemaphore = *mSwapchain->mSwapchainRenderSemaphores[inSwapchainImageIndex];
+		VkSemaphoreSubmitInfo signalInfo {
+			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+		   .pNext = nullptr,
+		   .semaphore = renderSemaphore,
+		   .value = 1,
+		   .stageMask = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT,
+		   .deviceIndex = 0
+		};
 
-		VkSubmitInfo2 submit = CVulkanInfo::submitInfo(&cmdInfo,&signalInfo,&waitInfo);
-		VK_CHECK(vkQueueSubmit2(inGraphicsQueue, 1, &submit, *frame.mRenderFence));
+		const VkSubmitInfo2 submit {
+			.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
+		   .pNext = nullptr,
+
+		   .waitSemaphoreInfoCount = static_cast<uint32>(1),
+		   .pWaitSemaphoreInfos = &waitInfo,
+
+		   .commandBufferInfoCount = 1,
+		   .pCommandBufferInfos = &cmdInfo,
+
+		   .signalSemaphoreInfoCount = static_cast<uint32>(1),
+		   .pSignalSemaphoreInfos = &signalInfo
+		};
+		VK_CHECK(vkQueueSubmit2(inGraphicsQueue, 1, &submit, *frame->mRenderFence));
 	}
 
 	// Present
@@ -189,4 +235,7 @@ void CVulkanSwapchain::submit(const TFrail<CVRICommands>& inCmd, const VkQueue i
 
 		SWAPCHAIN_CHECK(vkQueuePresentKHR(inGraphicsQueue, &presentInfo), setDirty());
 	}
+
+	//increase the number of frames drawn
+	m_Buffering.incrementFrame();
 }

@@ -24,8 +24,6 @@ public:
 
 	EXPORT virtual void destroy() override;
 
-	no_discard TShared<CVulkanSwapchain> getSwapchain() const { return m_Swapchain; }
-
 	//
 	// Samplers
 	//
@@ -48,13 +46,5 @@ public:
 	TUnique<SVRIImage> mDepthImage = nullptr;
 
 	TUnique<CMaterial> mErrorMaterial = nullptr;
-
-private:
-
-	//
-	// SwapChain
-	//
-
-	TShared<CVulkanSwapchain> m_Swapchain = nullptr;
 
 };
